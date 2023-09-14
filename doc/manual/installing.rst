@@ -87,6 +87,41 @@ You can create directories containing each a ``flake.nix`` that correspond to di
 
 If your favorite package is not available with Nix, contact us using the helpdesk@ email.
 
+Troubleshooting
+^^^^^^^^^^^^^^^
+
+"Ignoring untrusted substituter, you are not a trusted user"
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+If the following message displays when running ``nix shell`` or ``nix develop``
+
+::
+
+  warning: ignoring untrusted substituter 'https://nixbld.m-labs.hk', you are not a trusted user.
+  Run `man nix.conf` for more information on the `substituters` configuration option.
+
+and Nix proceeds to build some packages from source, this means that you are using `multi-user mode <https://nixos.org/manual/nix/stable/installation/multi-user>`_ in Nix, for example when Nix is installed via ``pacman`` in Arch Linux.
+
+By default, users accessing Nix in multi-user mode are "unprivileged" and cannot use untrusted substituters. To change this, edit ``/etc/nix/nix.conf`` and add the following line (or append to the key if the key already exists):
+
+::
+
+  trusted-substituters = https://nixbld.m-labs.hk
+
+This will add the substituter as a trusted substituter for all users using Nix.
+
+Alternatively, add the following line:
+
+::
+
+  trusted-users = <username>  # Replace <username> with the user invoking `nix`
+
+This will set your user as a trusted user, allowing the use of any untrusted substituters.
+
+.. warning::
+
+  Setting users as trusted users will effectively grant root access to those users. See the `Nix documentation <https://nixos.org/manual/nix/stable/command-ref/conf-file#conf-trusted-users>`_ for more information.
+
 Installing via MSYS2 (Windows)
 ------------------------------
 
