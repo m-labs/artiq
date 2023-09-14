@@ -17,7 +17,7 @@ class AppletsCCBDock(applets.AppletsDock):
         sep.setSeparator(True)
         self.table.addAction(sep)
 
-        ccbp_group_menu = QtWidgets.QMenu()
+        ccbp_group_menu = QtWidgets.QMenu(self.table)
         actiongroup = QtGui.QActionGroup(self.table)
         actiongroup.setExclusive(True)
         self.ccbp_group_none = QtGui.QAction("No policy", self.table)
@@ -47,7 +47,7 @@ class AppletsCCBDock(applets.AppletsDock):
         self.table.itemSelectionChanged.connect(self.update_group_ccbp_menu)
         self.update_group_ccbp_menu()
 
-        ccbp_global_menu = QtWidgets.QMenu()
+        ccbp_global_menu = QtWidgets.QMenu(self.table)
         actiongroup = QtGui.QActionGroup(self.table)
         actiongroup.setExclusive(True)
         self.ccbp_global_ignore = QtGui.QAction("Ignore requests", self.table)
