@@ -6,7 +6,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 from sipyco.pc_rpc import AsyncioClient as RPCClient
 
 from artiq.tools import short_format
-from artiq.gui.tools import LayoutWidget, QRecursiveFilterProxyModel
+from artiq.gui.tools import LayoutWidget
 from artiq.gui.models import DictSyncTreeSepModel
 
 # reduced read-only version of artiq.dashboard.datasets
@@ -112,7 +112,8 @@ class DatasetsDock(QtWidgets.QDockWidget):
 
     def set_model(self, model):
         self.table_model = model
-        self.table_model_filter = QRecursiveFilterProxyModel()
+        self.table_model_filter = QtCore.QSortFilterProxyModel()
+        self.table_model_filter.setRecursiveFilteringEnabled(True)
         self.table_model_filter.setSourceModel(self.table_model)
         self.table.setModel(self.table_model_filter)
 
