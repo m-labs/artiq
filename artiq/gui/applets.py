@@ -458,7 +458,7 @@ class AppletsDock(QtWidgets.QDockWidget):
         new_action = QtGui.QAction("New applet", self.table)
         new_action.triggered.connect(partial(self.new_with_parent, self.new))
         self.table.addAction(new_action)
-        templates_menu = QtWidgets.QMenu()
+        templates_menu = QtWidgets.QMenu(self.table)
         for name, template in _templates:
             spec = {"ty": "command", "command": template}
             action = QtGui.QAction(name, self.table)

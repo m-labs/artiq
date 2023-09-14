@@ -232,7 +232,7 @@ class ExplorerDock(QtWidgets.QDockWidget):
         reqterm_action.setShortcutContext(QtCore.Qt.ShortcutContext.WidgetShortcut)
         self.el.addAction(reqterm_action)
 
-        set_shortcut_menu = QtWidgets.QMenu()
+        set_shortcut_menu = QtWidgets.QMenu(self.el)
         for i in range(12):
             action = QtGui.QAction("F" + str(i+1), self.el)
             action.triggered.connect(partial(self.set_shortcut, i))
