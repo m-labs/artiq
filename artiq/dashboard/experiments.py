@@ -11,7 +11,8 @@ from sipyco import pyon
 
 from artiq.gui.entries import procdesc_to_entry, ScanEntry
 from artiq.gui.fuzzy_select import FuzzySelectWidget
-from artiq.gui.tools import LayoutWidget, log_level_to_name, get_open_file_name
+from artiq.gui.tools import (LayoutWidget, WheelFilter, 
+                             log_level_to_name, get_open_file_name)
 
 
 logger = logging.getLogger(__name__)
@@ -21,15 +22,6 @@ logger = logging.getLogger(__name__)
 # 1. repo:<experiment name>
 #    (file name and class name to be retrieved from explist)
 # 2. file:<class name>@<file name>
-
-
-class _WheelFilter(QtCore.QObject):
-    def eventFilter(self, obj, event):
-        if (event.type() == QtCore.QEvent.Wheel and
-                event.modifiers() != QtCore.Qt.NoModifier):
-            event.ignore()
-            return True
-        return False
 
 
 class _ArgumentEditor(QtWidgets.QTreeWidget):
@@ -55,7 +47,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         self.setStyleSheet("QTreeWidget {background: " +
                            self.palette().midlight().color().name() + " ;}")
 
-        self.viewport().installEventFilter(_WheelFilter(self.viewport()))
+        self.viewport().installEventFilter(WheelFilter(self.viewport(), True))
 
         self._groups = dict()
         self._arg_to_widgets = dict()
