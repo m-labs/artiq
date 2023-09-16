@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import numpy as np
-from PyQt5 import QtWidgets
-from PyQt5.QtCore import QTimer
+from PyQt6 import QtWidgets
+from PyQt6.QtCore import QTimer
 import pyqtgraph
 
 from artiq.applets.simple import SimpleApplet

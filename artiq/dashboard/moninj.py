@@ -4,7 +4,7 @@ import textwrap
 from collections import namedtuple
 from functools import partial
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtWidgets, QtGui
 
 from artiq.coredevice.comm_moninj import CommMonInj, TTLOverride, TTLProbe
 from artiq.coredevice.ad9912_reg import AD9912_SER_CONF
@@ -23,7 +23,7 @@ class _CancellableLineEdit(QtWidgets.QLineEdit):
 
     def keyPressEvent(self, event):
         key = event.key()
-        if key == QtCore.Qt.Key_Escape:
+        if key == QtCore.Qt.Key.Key_Escape:
             self.esc_cb(event)
         QtWidgets.QLineEdit.keyPressEvent(self, event)
 
@@ -31,9 +31,8 @@ class _CancellableLineEdit(QtWidgets.QLineEdit):
 class _MoninjWidget(QtWidgets.QFrame):
     def __init__(self, title):
         QtWidgets.QFrame.__init__(self)
-        self.setFrameShape(QtWidgets.QFrame.Box)
-        self.setFrameShape(QtWidgets.QFrame.Box)
-        self.setFrameShadow(QtWidgets.QFrame.Raised)
+        self.setFrameShape(QtWidgets.QFrame.Shape.Box)
+        self.setFrameShadow(QtWidgets.QFrame.Shadow.Raised)
         self.setFixedHeight(100)
         self.setFixedWidth(150)
         self.grid = QtWidgets.QGridLayout()
@@ -43,7 +42,9 @@ class _MoninjWidget(QtWidgets.QFrame):
         self.setLayout(self.grid)
         title = elide(title, 20)
         label = QtWidgets.QLabel(title)
-        label.setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignTop)
+        label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Ignored,
+                            QtWidgets.QSizePolicy.Policy.Preferred)
         self.grid.addWidget(label, 1, 1)
 
 
@@ -60,7 +61,7 @@ class _TTLWidget(_MoninjWidget):
         self.grid.addWidget(self.stack, 2, 1)
 
         self.direction = QtWidgets.QLabel()
-        self.direction.setAlignment(QtCore.Qt.AlignCenter)
+        self.direction.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.stack.addWidget(self.direction)
 
         grid_cb = LayoutWidget()
@@ -80,7 +81,7 @@ class _TTLWidget(_MoninjWidget):
         self.stack.addWidget(grid_cb)
 
         self.value = QtWidgets.QLabel()
-        self.value.setAlignment(QtCore.Qt.AlignCenter)
+        self.value.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.grid.addWidget(self.value, 3, 1)
 
         self.grid.setRowStretch(1, 1)
@@ -215,11 +216,11 @@ class _DDSWidget(_MoninjWidget):
         grid_disp.layout.setVerticalSpacing(0)
 
         self.value_label = QtWidgets.QLabel()
-        self.value_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.value_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         grid_disp.addWidget(self.value_label, 0, 1, 1, 2)
 
         unit = QtWidgets.QLabel("MHz")
-        unit.setAlignment(QtCore.Qt.AlignCenter)
+        unit.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         grid_disp.addWidget(unit, 0, 3, 1, 1)
 
         self.data_stack.addWidget(grid_disp)
@@ -231,10 +232,10 @@ class _DDSWidget(_MoninjWidget):
         grid_edit.layout.setVerticalSpacing(0)
 
         self.value_edit = _CancellableLineEdit(self)
-        self.value_edit.setAlignment(QtCore.Qt.AlignRight)
+        self.value_edit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         grid_edit.addWidget(self.value_edit, 0, 1, 1, 2)
         unit = QtWidgets.QLabel("MHz")
-        unit.setAlignment(QtCore.Qt.AlignCenter)
+        unit.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         grid_edit.addWidget(unit, 0, 3, 1, 1)
         self.data_stack.addWidget(grid_edit)
 
@@ -799,8 +800,8 @@ class _MonInjDock(QDockWidgetCloseDetect):
     def __init__(self, name, manager):
         QtWidgets.QDockWidget.__init__(self, "MonInj")
         self.setObjectName(name)
-        self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
-                         QtWidgets.QDockWidget.DockWidgetFloatable)
+        self.setFeatures(QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable |
+                         QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetFloatable)
         grid = LayoutWidget()
         self.setWidget(grid)
         self.manager = manager

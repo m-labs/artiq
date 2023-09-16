@@ -3,7 +3,7 @@ import logging
 import re
 from functools import partial
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from artiq.gui.tools import LayoutWidget
 from artiq.gui.models import DictSyncTreeSepModel
@@ -37,7 +37,8 @@ class _OpenFileDialog(QtWidgets.QDialog):
         self.file_list.doubleClicked.connect(self.accept)
 
         buttons = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+            QtWidgets.QDialogButtonBox.StandardButton.Ok |
+            QtWidgets.QDialogButtonBox.StandardButton.Cancel)
         grid.addWidget(buttons, 2, 0, 1, 2)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
@@ -52,7 +53,7 @@ class _OpenFileDialog(QtWidgets.QDialog):
         item = QtWidgets.QListWidgetItem()
         item.setText("..")
         item.setIcon(QtWidgets.QApplication.style().standardIcon(
-            QtWidgets.QStyle.SP_FileDialogToParent))
+            QtWidgets.QStyle.StandardPixmap.SP_FileDialogToParent))
         self.file_list.addItem(item)
 
         try:
@@ -64,9 +65,9 @@ class _OpenFileDialog(QtWidgets.QDialog):
             return
         for name in sorted(contents, key=lambda x: (x[-1] not in "\\/", x)):
             if name[-1] in "\\/":
-                icon = QtWidgets.QStyle.SP_DirIcon
+                icon = QtWidgets.QStyle.StandardPixmap.SP_DirIcon
             else:
-                icon = QtWidgets.QStyle.SP_FileIcon
+                icon = QtWidgets.QStyle.StandardPixmap.SP_FileIcon
                 if name[-3:] != ".py":
                     continue
             item = QtWidgets.QListWidgetItem()
@@ -163,8 +164,8 @@ class ExplorerDock(QtWidgets.QDockWidget):
                  schedule_ctl, experiment_db_ctl, device_db_ctl):
         QtWidgets.QDockWidget.__init__(self, "Explorer")
         self.setObjectName("Explorer")
-        self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
-                         QtWidgets.QDockWidget.DockWidgetFloatable)
+        self.setFeatures(QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable |
+                         QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetFloatable)
 
         top_widget = LayoutWidget()
         self.setWidget(top_widget)
@@ -175,7 +176,7 @@ class ExplorerDock(QtWidgets.QDockWidget):
 
         top_widget.addWidget(QtWidgets.QLabel("Revision:"), 0, 0)
         self.revision = QtWidgets.QLabel()
-        self.revision.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        self.revision.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.TextSelectableByMouse)
         top_widget.addWidget(self.revision, 0, 1)
 
         self.stack = QtWidgets.QStackedWidget()
@@ -187,14 +188,14 @@ class ExplorerDock(QtWidgets.QDockWidget):
 
         self.el = QtWidgets.QTreeView()
         self.el.setHeaderHidden(True)
-        self.el.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectItems)
+        self.el.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectItems)
         self.el.doubleClicked.connect(
             partial(self.expname_action, "open_experiment"))
         self.el_buttons.addWidget(self.el, 0, 0, colspan=2)
 
         open = QtWidgets.QPushButton("Open")
         open.setIcon(QtWidgets.QApplication.style().standardIcon(
-            QtWidgets.QStyle.SP_DialogOpenButton))
+            QtWidgets.QStyle.StandardPixmap.SP_DialogOpenButton))
         open.setToolTip("Open the selected experiment (Return)")
         self.el_buttons.addWidget(open, 1, 0)
         open.clicked.connect(
@@ -202,7 +203,7 @@ class ExplorerDock(QtWidgets.QDockWidget):
 
         submit = QtWidgets.QPushButton("Submit")
         submit.setIcon(QtWidgets.QApplication.style().standardIcon(
-            QtWidgets.QStyle.SP_DialogOkButton))
+            QtWidgets.QStyle.StandardPixmap.SP_DialogOkButton))
         submit.setToolTip("Schedule the selected experiment (Ctrl+Return)")
         self.el_buttons.addWidget(submit, 1, 1)
         submit.clicked.connect(
@@ -211,41 +212,41 @@ class ExplorerDock(QtWidgets.QDockWidget):
         self.explist_model = Model(dict())
         explist_sub.add_setmodel_callback(self.set_model)
 
-        self.el.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        open_action = QtWidgets.QAction("Open", self.el)
+        self.el.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
+        open_action = QtGui.QAction("Open", self.el)
         open_action.triggered.connect(
             partial(self.expname_action, "open_experiment"))
         open_action.setShortcut("RETURN")
-        open_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        open_action.setShortcutContext(QtCore.Qt.ShortcutContext.WidgetShortcut)
         self.el.addAction(open_action)
-        submit_action = QtWidgets.QAction("Submit", self.el)
+        submit_action = QtGui.QAction("Submit", self.el)
         submit_action.triggered.connect(
             partial(self.expname_action, "submit"))
         submit_action.setShortcut("CTRL+RETURN")
-        submit_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        submit_action.setShortcutContext(QtCore.Qt.ShortcutContext.WidgetShortcut)
         self.el.addAction(submit_action)
-        reqterm_action = QtWidgets.QAction("Request termination of instances", self.el)
+        reqterm_action = QtGui.QAction("Request termination of instances", self.el)
         reqterm_action.triggered.connect(
             partial(self.expname_action, "request_inst_term"))
         reqterm_action.setShortcut("CTRL+BACKSPACE")
-        reqterm_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        reqterm_action.setShortcutContext(QtCore.Qt.ShortcutContext.WidgetShortcut)
         self.el.addAction(reqterm_action)
 
         set_shortcut_menu = QtWidgets.QMenu()
         for i in range(12):
-            action = QtWidgets.QAction("F" + str(i + 1), self.el)
+            action = QtGui.QAction("F" + str(i+1), self.el)
             action.triggered.connect(partial(self.set_shortcut, i))
             set_shortcut_menu.addAction(action)
 
-        set_shortcut_action = QtWidgets.QAction("Set shortcut", self.el)
+        set_shortcut_action = QtGui.QAction("Set shortcut", self.el)
         set_shortcut_action.setMenu(set_shortcut_menu)
         self.el.addAction(set_shortcut_action)
 
-        sep = QtWidgets.QAction(self.el)
+        sep = QtGui.QAction(self.el)
         sep.setSeparator(True)
         self.el.addAction(sep)
 
-        scan_repository_action = QtWidgets.QAction("Scan repository HEAD",
+        scan_repository_action = QtGui.QAction("Scan repository HEAD",
                                                    self.el)
 
         def scan_repository():
@@ -253,15 +254,14 @@ class ExplorerDock(QtWidgets.QDockWidget):
         scan_repository_action.triggered.connect(scan_repository)
         self.el.addAction(scan_repository_action)
 
-        scan_ddb_action = QtWidgets.QAction("Scan device database", self.el)
-
+        scan_ddb_action = QtGui.QAction("Scan device database", self.el)
         def scan_ddb():
             asyncio.ensure_future(device_db_ctl.scan())
         scan_ddb_action.triggered.connect(scan_ddb)
         self.el.addAction(scan_ddb_action)
 
         self.current_directory = ""
-        open_file_action = QtWidgets.QAction("Open file outside repository",
+        open_file_action = QtGui.QAction("Open file outside repository",
                                              self.el)
         open_file_action.triggered.connect(
             lambda: _OpenFileDialog(self, self.exp_manager,
