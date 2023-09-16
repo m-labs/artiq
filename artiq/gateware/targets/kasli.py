@@ -317,6 +317,7 @@ class MasterBase(MiniSoC, AMPSoC):
             self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
         self.config["HAS_DRTIO"] = None
         self.config["HAS_DRTIO_ROUTING"] = None
+        self.config["DRTIO_ROLE"] = "master"
 
         rtio_clk_period = 1e9/rtio_clk_freq
         gtp = self.gt_drtio.gtps[0]
@@ -565,6 +566,7 @@ class SatelliteBase(BaseSoC, AMPSoC):
             self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
         self.config["HAS_DRTIO"] = None
         self.config["HAS_DRTIO_ROUTING"] = None
+        self.config["DRTIO_ROLE"] = "satellite"
         self.add_csr_group("drtioaux", drtioaux_csr_group)
         self.add_memory_group("drtioaux_mem", drtioaux_memory_group)
         self.add_csr_group("drtiorep", drtiorep_csr_group)
