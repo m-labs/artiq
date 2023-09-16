@@ -3,7 +3,7 @@ import time
 import re
 from functools import partial
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from sipyco.logging_tools import SourceFilter
 from artiq.gui.tools import (LayoutWidget, log_level_to_name,
@@ -20,7 +20,7 @@ class _ModelItem:
 class _LogFilterProxyModel(QtCore.QSortFilterProxyModel):
     def __init__(self):
         super().__init__()
-        self.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        self.setFilterCaseSensitivity(QtCore.Qt.CaseSensitivity.CaseInsensitive)
         self.setRecursiveFilteringEnabled(True)
         self.filter_level = 0
 
@@ -28,13 +28,13 @@ class _LogFilterProxyModel(QtCore.QSortFilterProxyModel):
         source = self.sourceModel()
         index0 = source.index(source_row, 0, source_parent)
         index1 = source.index(source_row, 1, source_parent)
-        level = source.data(index0, QtCore.Qt.UserRole)
+        level = source.data(index0, QtCore.Qt.ItemDataRole.UserRole)
 
         if level >= self.filter_level:
-            regex = self.filterRegExp()
-            index0_text = source.data(index0, QtCore.Qt.DisplayRole)
-            msg_text = source.data(index1, QtCore.Qt.DisplayRole)
-            return (regex.indexIn(index0_text) != -1 or regex.indexIn(msg_text) != -1)
+            regex = self.filterRegularExpression()
+            index0_text = source.data(index0, QtCore.Qt.ItemDataRole.DisplayRole)
+            msg_text = source.data(index1, QtCore.Qt.ItemDataRole.DisplayRole)
+            return (regex.match(index0_text).hasMatch() or regex.match(msg_text).hasMatch())
         else:
             return False
 
@@ -57,7 +57,7 @@ class _Model(QtCore.QAbstractItemModel):
         timer.timeout.connect(self.timer_tick)
         timer.start(100)
 
-        self.fixed_font = QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.FixedFont)
+        self.fixed_font = QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.SystemFont.FixedFont)
 
         self.white = QtGui.QBrush(QtGui.QColor(255, 255, 255))
         self.black = QtGui.QBrush(QtGui.QColor(0, 0, 0))
@@ -66,8 +66,8 @@ class _Model(QtCore.QAbstractItemModel):
         self.error_bg = QtGui.QBrush(QtGui.QColor(255, 150, 150))
 
     def headerData(self, col, orientation, role):
-        if (orientation == QtCore.Qt.Horizontal
-                and role == QtCore.Qt.DisplayRole):
+        if (orientation == QtCore.Qt.Orientation.Horizontal
+                and role == QtCore.Qt.ItemDataRole.DisplayRole):
             return self.headers[col]
         return None
 
@@ -155,9 +155,9 @@ class _Model(QtCore.QAbstractItemModel):
         else:
             msgnum = item.parent.row
 
-        if role == QtCore.Qt.FontRole and index.column() == 1:
+        if role == QtCore.Qt.ItemDataRole.FontRole and index.column() == 1:
             return self.fixed_font
-        elif role == QtCore.Qt.BackgroundRole:
+        elif role == QtCore.Qt.ItemDataRole.BackgroundRole:
             level = self.entries[msgnum][0]
             if level >= logging.ERROR:
                 return self.error_bg
@@ -165,13 +165,13 @@ class _Model(QtCore.QAbstractItemModel):
                 return self.warning_bg
             else:
                 return self.white
-        elif role == QtCore.Qt.ForegroundRole:
+        elif role == QtCore.Qt.ItemDataRole.ForegroundRole:
             level = self.entries[msgnum][0]
             if level <= logging.DEBUG:
                 return self.debug_fg
             else:
                 return self.black
-        elif role == QtCore.Qt.DisplayRole:
+        elif role == QtCore.Qt.ItemDataRole.DisplayRole:
             v = self.entries[msgnum]
             column = index.column()
             if item.parent is self:
@@ -184,7 +184,7 @@ class _Model(QtCore.QAbstractItemModel):
                     return ""
                 else:
                     return v[3][item.row+1]
-        elif role == QtCore.Qt.ToolTipRole:
+        elif role == QtCore.Qt.ItemDataRole.ToolTipRole:
             v = self.entries[msgnum]
             if item.parent is self:
                 lineno = 0
@@ -193,7 +193,7 @@ class _Model(QtCore.QAbstractItemModel):
             return (log_level_to_name(v[0]) + ", " +
                 time.strftime("%m/%d %H:%M:%S", time.localtime(v[2])) +
                 "\n" + v[3][lineno])
-        elif role == QtCore.Qt.UserRole:
+        elif role == QtCore.Qt.ItemDataRole.UserRole:
             return self.entries[msgnum][0]
 
 
@@ -218,13 +218,13 @@ class LogDock(QDockWidgetCloseDetect):
         scrollbottom = QtWidgets.QToolButton()
         scrollbottom.setToolTip("Scroll to bottom")
         scrollbottom.setIcon(QtWidgets.QApplication.style().standardIcon(
-            QtWidgets.QStyle.SP_ArrowDown))
+            QtWidgets.QStyle.StandardPixmap.SP_ArrowDown))
         grid.addWidget(scrollbottom, 0, 3)
         scrollbottom.clicked.connect(self.scroll_to_bottom)
 
         clear = QtWidgets.QToolButton()
         clear.setIcon(QtWidgets.QApplication.style().standardIcon(
-            QtWidgets.QStyle.SP_DialogResetButton))
+            QtWidgets.QStyle.StandardPixmap.SP_DialogResetButton))
         grid.addWidget(clear, 0, 4)
         clear.clicked.connect(lambda: self.model.clear())
 
@@ -232,7 +232,7 @@ class LogDock(QDockWidgetCloseDetect):
             newdock = QtWidgets.QToolButton()
             newdock.setToolTip("Create new log dock")
             newdock.setIcon(QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_FileDialogNewFolder))
+                QtWidgets.QStyle.StandardPixmap.SP_FileDialogNewFolder))
             # note the lambda, the default parameter is overriden otherwise
             newdock.clicked.connect(lambda: manager.create_new_dock())
             grid.addWidget(newdock, 0, 5)
@@ -240,27 +240,27 @@ class LogDock(QDockWidgetCloseDetect):
 
         self.log = QtWidgets.QTreeView()
         self.log.setHorizontalScrollMode(
-            QtWidgets.QAbstractItemView.ScrollPerPixel)
+            QtWidgets.QAbstractItemView.ScrollMode.ScrollPerPixel)
         self.log.setVerticalScrollMode(
-            QtWidgets.QAbstractItemView.ScrollPerPixel)
-        self.log.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+            QtWidgets.QAbstractItemView.ScrollMode.ScrollPerPixel)
+        self.log.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         grid.addWidget(self.log, 1, 0, colspan=6 if manager else 5)
         self.scroll_at_bottom = False
         self.scroll_value = 0
 
-        self.log.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        copy_action = QtWidgets.QAction("Copy entry to clipboard", self.log)
+        self.log.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
+        copy_action = QtGui.QAction("Copy entry to clipboard", self.log)
         copy_action.triggered.connect(self.copy_to_clipboard)
         self.log.addAction(copy_action)
-        clear_action = QtWidgets.QAction("Clear", self.log)
+        clear_action = QtGui.QAction("Clear", self.log)
         clear_action.triggered.connect(lambda: self.model.clear())
         self.log.addAction(clear_action)
 
         # If Qt worked correctly, this would be nice to have. Alas, resizeSections
         # is broken when the horizontal scrollbar is enabled.
-        # sizeheader_action = QtWidgets.QAction("Resize header", self.log)
+        # sizeheader_action = QtGui.QAction("Resize header", self.log)
         # sizeheader_action.triggered.connect(
-        #     lambda: self.log.header().resizeSections(QtWidgets.QHeaderView.ResizeToContents))
+        #     lambda: self.log.header().resizeSections(QtWidgets.QHeaderView.ResizeMode.ResizeToContents))
         # self.log.addAction(sizeheader_action)
 
         cw = QtGui.QFontMetrics(self.font()).averageCharWidth()
@@ -279,7 +279,7 @@ class LogDock(QDockWidgetCloseDetect):
         self.filter_level.currentIndexChanged.connect(self.apply_level_filter)
 
     def apply_text_filter(self):
-        self.proxy_model.setFilterRegExp(self.filter_freetext.text())
+        self.proxy_model.setFilterRegularExpression(self.filter_freetext.text())
 
     def apply_level_filter(self):
         self.proxy_model.apply_filter_level(self.filter_level.currentText())
@@ -366,7 +366,7 @@ class LogDockManager:
         dock = LogDock(self, name)
         self.docks[name] = dock
         if add_to_area:
-            self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
+            self.main_window.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, dock)
             dock.setFloating(True)
         dock.sigClosed.connect(partial(self.on_dock_closed, name))
         self.update_closable()
@@ -379,8 +379,8 @@ class LogDockManager:
         self.update_closable()
 
     def update_closable(self):
-        flags = (QtWidgets.QDockWidget.DockWidgetMovable |
-                 QtWidgets.QDockWidget.DockWidgetFloatable)
+        flags = (QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable |
+                 QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetFloatable)
         if len(self.docks) > 1:
             flags |= QtWidgets.QDockWidget.DockWidgetClosable
         for dock in self.docks.values():
@@ -396,7 +396,7 @@ class LogDockManager:
             dock = LogDock(self, name)
             self.docks[name] = dock
             dock.restore_state(dock_state)
-            self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
+            self.main_window.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, dock)
             dock.sigClosed.connect(partial(self.on_dock_closed, name))
         self.update_closable()
 

@@ -1,4 +1,4 @@
-from PyQt5 import QtCore
+from PyQt6 import QtCore
 
 from sipyco.sync_struct import Subscriber, process_mod
 
@@ -91,15 +91,15 @@ class DictSyncModel(QtCore.QAbstractTableModel):
         return len(self.headers)
 
     def data(self, index, role):
-        if not index.isValid() or role != QtCore.Qt.DisplayRole:
+        if not index.isValid() or role != QtCore.Qt.ItemDataRole.DisplayRole:
             return None
         else:
             k = self.row_to_key[index.row()]
             return self.convert(k, self.backing_store[k], index.column())
 
     def headerData(self, col, orientation, role):
-        if (orientation == QtCore.Qt.Horizontal and
-                role == QtCore.Qt.DisplayRole):
+        if (orientation == QtCore.Qt.Orientation.Horizontal and
+                role == QtCore.Qt.ItemDataRole.DisplayRole):
             return self.headers[col]
         return None
 
@@ -170,15 +170,15 @@ class ListSyncModel(QtCore.QAbstractTableModel):
         return len(self.headers)
 
     def data(self, index, role):
-        if not index.isValid() or role != QtCore.Qt.DisplayRole:
+        if not index.isValid() or role != QtCore.Qt.ItemDataRole.DisplayRole:
             return None
         else:
             return self.convert(self.backing_store[index.row()],
                                 index.column())
 
     def headerData(self, col, orientation, role):
-        if (orientation == QtCore.Qt.Horizontal and
-                role == QtCore.Qt.DisplayRole):
+        if (orientation == QtCore.Qt.Orientation.Horizontal and
+                role == QtCore.Qt.ItemDataRole.DisplayRole):
             return self.headers[col]
         return None
 
@@ -271,8 +271,8 @@ class DictSyncTreeSepModel(QtCore.QAbstractItemModel):
         return len(self.headers)
 
     def headerData(self, col, orientation, role):
-        if (orientation == QtCore.Qt.Horizontal and
-                role == QtCore.Qt.DisplayRole):
+        if (orientation == QtCore.Qt.Orientation.Horizontal and
+                role == QtCore.Qt.ItemDataRole.DisplayRole):
             return self.headers[col]
         return None
 
@@ -394,19 +394,19 @@ class DictSyncTreeSepModel(QtCore.QAbstractItemModel):
         return key
 
     def data(self, index, role):
-        if not index.isValid() or (role != QtCore.Qt.DisplayRole
-                                   and role != QtCore.Qt.ToolTipRole):
+        if not index.isValid() or (role != QtCore.Qt.ItemDataRole.DisplayRole
+                                   and role != QtCore.Qt.ItemDataRole.ToolTipRole):
             return None
         else:
             column = index.column()
-            if column == 0 and role == QtCore.Qt.DisplayRole:
+            if column == 0 and role == QtCore.Qt.ItemDataRole.DisplayRole:
                 return index.internalPointer().name
             else:
                 key = self.index_to_key(index)
                 if key is None:
                     return None
                 else:
-                    if role == QtCore.Qt.DisplayRole:
+                    if role == QtCore.Qt.ItemDataRole.DisplayRole:
                         convert = self.convert
                     else:
                         convert = self.convert_tooltip

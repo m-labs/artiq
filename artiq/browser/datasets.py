@@ -1,7 +1,7 @@
 import logging
 import asyncio
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from sipyco.pc_rpc import AsyncioClient as RPCClient
 
@@ -62,8 +62,8 @@ class DatasetsDock(QtWidgets.QDockWidget):
     def __init__(self, dataset_sub, dataset_ctl):
         QtWidgets.QDockWidget.__init__(self, "Datasets")
         self.setObjectName("Datasets")
-        self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
-                         QtWidgets.QDockWidget.DockWidgetFloatable)
+        self.setFeatures(QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable |
+                         QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetFloatable)
 
         grid = LayoutWidget()
         self.setWidget(grid)
@@ -74,9 +74,9 @@ class DatasetsDock(QtWidgets.QDockWidget):
         grid.addWidget(self.search, 0, 0)
 
         self.table = QtWidgets.QTreeView()
-        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(
-            QtWidgets.QAbstractItemView.SingleSelection)
+            QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
         grid.addWidget(self.table, 1, 0)
 
         metadata_grid = LayoutWidget()
@@ -85,13 +85,13 @@ class DatasetsDock(QtWidgets.QDockWidget):
                                   "rid start_time".split()):
             metadata_grid.addWidget(QtWidgets.QLabel(label), i, 0)
             v = QtWidgets.QLabel()
-            v.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+            v.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.TextSelectableByMouse)
             metadata_grid.addWidget(v, i, 1)
             self.metadata[label] = v
         grid.addWidget(metadata_grid, 2, 0)
 
-        self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        upload_action = QtWidgets.QAction("Upload dataset to master",
+        self.table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
+        upload_action = QtGui.QAction("Upload dataset to master",
                                           self.table)
         upload_action.triggered.connect(self.upload_clicked)
         self.table.addAction(upload_action)

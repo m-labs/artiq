@@ -8,7 +8,7 @@ import os
 import logging
 import sys
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 from qasync import QEventLoop
 
 from sipyco.pc_rpc import AsyncioClient, Client
@@ -163,8 +163,8 @@ def main():
     main_window = MainWindow(args.server if server_name is None else server_name)
     smgr.register(main_window)
     mdi_area = MdiArea()
-    mdi_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-    mdi_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+    mdi_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+    mdi_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
     main_window.setCentralWidget(mdi_area)
 
     # create UI components
@@ -222,10 +222,10 @@ def main():
         d_ttl_dds.ttl_dock, d_ttl_dds.dds_dock, d_ttl_dds.dac_dock,
         d_datasets, d_applets
     ]
-    main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, right_docks[0])
+    main_window.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, right_docks[0])
     for d1, d2 in zip(right_docks, right_docks[1:]):
         main_window.tabifyDockWidget(d1, d2)
-    main_window.addDockWidget(QtCore.Qt.BottomDockWidgetArea, d_schedule)
+    main_window.addDockWidget(QtCore.Qt.DockWidgetArea.BottomDockWidgetArea, d_schedule)
 
     # load/initialize state
     if os.name == "nt":

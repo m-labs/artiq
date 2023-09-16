@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import numpy as np
-import PyQt5  # make sure pyqtgraph imports Qt5
-from PyQt5.QtCore import QTimer
+import PyQt6  # make sure pyqtgraph imports Qt6
+from PyQt6.QtCore import QTimer
 import pyqtgraph
 
 from artiq.applets.simple import TitleApplet

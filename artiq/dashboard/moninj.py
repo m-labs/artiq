@@ -3,7 +3,7 @@ import logging
 import textwrap
 from collections import namedtuple
 
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt6 import QtCore, QtWidgets, QtGui
 
 from sipyco.sync_struct import Subscriber
 
@@ -25,7 +25,7 @@ class _CancellableLineEdit(QtWidgets.QLineEdit):
 
     def keyPressEvent(self, event):
         key = event.key()
-        if key == QtCore.Qt.Key_Escape:
+        if key == QtCore.Qt.Key.Key_Escape:
             self.esc_cb(event)
         QtWidgets.QLineEdit.keyPressEvent(self, event)
 
@@ -38,8 +38,8 @@ class _TTLWidget(QtWidgets.QFrame):
         self.set_mode = dm.ttl_set_mode
         self.force_out = force_out
 
-        self.setFrameShape(QtWidgets.QFrame.Box)
-        self.setFrameShadow(QtWidgets.QFrame.Raised)
+        self.setFrameShape(QtWidgets.QFrame.Shape.Box)
+        self.setFrameShadow(QtWidgets.QFrame.Shadow.Raised)
 
         grid = QtWidgets.QGridLayout()
         grid.setContentsMargins(0, 0, 0, 0)
@@ -47,16 +47,16 @@ class _TTLWidget(QtWidgets.QFrame):
         grid.setVerticalSpacing(0)
         self.setLayout(grid)
         label = QtWidgets.QLabel(title)
-        label.setAlignment(QtCore.Qt.AlignCenter)
-        label.setSizePolicy(QtWidgets.QSizePolicy.Ignored,
-                            QtWidgets.QSizePolicy.Preferred)
+        label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Ignored,
+                            QtWidgets.QSizePolicy.Policy.Preferred)
         grid.addWidget(label, 1, 1)
 
         self.stack = QtWidgets.QStackedWidget()
         grid.addWidget(self.stack, 2, 1)
 
         self.direction = QtWidgets.QLabel()
-        self.direction.setAlignment(QtCore.Qt.AlignCenter)
+        self.direction.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.stack.addWidget(self.direction)
 
         grid_cb = LayoutWidget()
@@ -76,7 +76,7 @@ class _TTLWidget(QtWidgets.QFrame):
         self.stack.addWidget(grid_cb)
 
         self.value = QtWidgets.QLabel()
-        self.value.setAlignment(QtCore.Qt.AlignCenter)
+        self.value.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         grid.addWidget(self.value, 3, 1)
 
         grid.setRowStretch(1, 1)
@@ -155,8 +155,8 @@ class _SimpleDisplayWidget(QtWidgets.QFrame):
     def __init__(self, title):
         QtWidgets.QFrame.__init__(self)
 
-        self.setFrameShape(QtWidgets.QFrame.Box)
-        self.setFrameShadow(QtWidgets.QFrame.Raised)
+        self.setFrameShape(QtWidgets.QFrame.Shape.Box)
+        self.setFrameShadow(QtWidgets.QFrame.Shadow.Raised)
 
         grid = QtWidgets.QGridLayout()
         grid.setContentsMargins(0, 0, 0, 0)
@@ -164,11 +164,11 @@ class _SimpleDisplayWidget(QtWidgets.QFrame):
         grid.setVerticalSpacing(0)
         self.setLayout(grid)
         label = QtWidgets.QLabel(title)
-        label.setAlignment(QtCore.Qt.AlignCenter)
+        label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         grid.addWidget(label, 1, 1)
 
         self.value = QtWidgets.QLabel()
-        self.value.setAlignment(QtCore.Qt.AlignCenter)
+        self.value.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         grid.addWidget(self.value, 2, 1, 6, 1)
 
         grid.setRowStretch(1, 1)
@@ -226,8 +226,8 @@ class _DDSWidget(QtWidgets.QFrame):
 
         QtWidgets.QFrame.__init__(self)
 
-        self.setFrameShape(QtWidgets.QFrame.Box)
-        self.setFrameShadow(QtWidgets.QFrame.Raised)
+        self.setFrameShape(QtWidgets.QFrame.Shape.Box)
+        self.setFrameShadow(QtWidgets.QFrame.Shadow.Raised)
 
         grid = QtWidgets.QGridLayout()
         grid.setContentsMargins(0, 0, 0, 0)
@@ -235,7 +235,7 @@ class _DDSWidget(QtWidgets.QFrame):
         grid.setVerticalSpacing(0)
         self.setLayout(grid)
         label = QtWidgets.QLabel(title)
-        label.setAlignment(QtCore.Qt.AlignCenter)
+        label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         grid.addWidget(label, 1, 1)
 
         # FREQ DATA/EDIT FIELD
@@ -248,11 +248,11 @@ class _DDSWidget(QtWidgets.QFrame):
         grid_disp.layout.setVerticalSpacing(0)
 
         self.value_label = QtWidgets.QLabel()
-        self.value_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.value_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         grid_disp.addWidget(self.value_label, 0, 1, 1, 2)
 
         unit = QtWidgets.QLabel("MHz")
-        unit.setAlignment(QtCore.Qt.AlignCenter)
+        unit.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         grid_disp.addWidget(unit, 0, 3, 1, 1)
 
         self.data_stack.addWidget(grid_disp)
@@ -264,10 +264,10 @@ class _DDSWidget(QtWidgets.QFrame):
         grid_edit.layout.setVerticalSpacing(0)
 
         self.value_edit = _CancellableLineEdit(self)
-        self.value_edit.setAlignment(QtCore.Qt.AlignRight)
+        self.value_edit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         grid_edit.addWidget(self.value_edit, 0, 1, 1, 2)
         unit = QtWidgets.QLabel("MHz")
-        unit.setAlignment(QtCore.Qt.AlignCenter)
+        unit.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         grid_edit.addWidget(unit, 0, 3, 1, 1)
         self.data_stack.addWidget(grid_edit)
 
@@ -754,8 +754,8 @@ class _MonInjDock(QtWidgets.QDockWidget):
     def __init__(self, name):
         QtWidgets.QDockWidget.__init__(self, name)
         self.setObjectName(name)
-        self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
-                         QtWidgets.QDockWidget.DockWidgetFloatable)
+        self.setFeatures(QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable |
+                         QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetFloatable)
 
     def layout_widgets(self, widgets):
         scroll_area = QtWidgets.QScrollArea()
