@@ -15,7 +15,7 @@ ARTIQ and its dependencies are available in the form of Nix packages (for Linux)
 
 ARTIQ is supported by M-Labs and developed openly. Components, features, fixes, improvements, and extensions are often `funded <https://m-labs.hk/experiment-control/funding/>`_ by and developed for the partnering research groups.
 
-Core technologies employed include `Python <https://www.python.org/>`_, `Migen <https://github.com/m-labs/migen>`_, `Migen-AXI <https://github.com/peteut/migen-axi>`_, `Rust <https://www.rust-lang.org/>`_, `MiSoC <https://github.com/m-labs/misoc>`_/`VexRiscv <https://github.com/SpinalHDL/VexRiscv>`_, `LLVM <https://llvm.org/>`_/`llvmlite <https://github.com/numba/llvmlite>`_, and `Qt5 <https://www.qt.io/>`_.
+Core technologies employed include `Python <https://www.python.org/>`_, `Migen <https://github.com/m-labs/migen>`_, `Migen-AXI <https://github.com/peteut/migen-axi>`_, `Rust <https://www.rust-lang.org/>`_, `MiSoC <https://github.com/m-labs/misoc>`_/`VexRiscv <https://github.com/SpinalHDL/VexRiscv>`_, `LLVM <https://llvm.org/>`_/`llvmlite <https://github.com/numba/llvmlite>`_, and `Qt6 <https://www.qt.io/>`_.
 
 | Website: https://m-labs.hk/experiment-control/artiq
 | (US-hosted mirror: https://m-labs-intl.com/experiment-control/artiq)
