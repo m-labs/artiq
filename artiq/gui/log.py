@@ -1,6 +1,5 @@
 import logging
 import time
-import re
 from functools import partial
 
 from PyQt6 import QtCore, QtGui, QtWidgets
