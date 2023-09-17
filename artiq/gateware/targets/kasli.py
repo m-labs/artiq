@@ -70,6 +70,8 @@ class StandaloneBase(MiniSoC, AMPSoC):
         AMPSoC.__init__(self)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
 
+        self.config["DRTIO_ROLE"] = "standalone"
+
         if self.platform.hw_rev == "v2.0":
             self.submodules.error_led = gpio.GPIOOut(Cat(
                 self.platform.request("error_led")))
