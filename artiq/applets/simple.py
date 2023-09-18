@@ -37,11 +37,16 @@ class AppletControlIPC:
         mod = {"action": "append", "path": [key, 1], "x": value}
         self.ipc.update_dataset(mod)
 
+    def set_argument_value(self, expurl, name, proc):
+        procdesc = proc.describe()
+        self.ipc.set_argument_value(expurl, name, procdesc)
+
 
 class AppletControlRPC:
-    def __init__(self, loop, dataset_ctl):
+    def __init__(self, loop, dataset_ctl, expmgr):
         self.loop = loop
         self.dataset_ctl = dataset_ctl
+        self.expmgr = expmgr
         self.background_tasks = set()
 
     def _background(self, coro, *args, **kwargs):
@@ -66,6 +71,10 @@ class AppletControlRPC:
     def append_to_dataset(self, key, value):
         mod = {"action": "append", "path": [key, 1], "x": value}
         self._background(self.dataset_ctl.update, mod)
+
+    def set_argument_value(self, expurl, name, proc):
+        procdesc = proc.describe()
+        self._background(self.expmgr.set_argument_value, expurl, name, procdesc)
 
 
 class AppletIPCClient(AsyncioChildComm):
@@ -137,6 +146,12 @@ class AppletIPCClient(AsyncioChildComm):
         self.write_pyon({"action": "update_dataset",
                          "mod": mod})
 
+    def set_argument_value(self, expurl, name, procdesc):
+        self.write_pyon({"action": "set_argument_value",
+                         "expurl": expurl,
+                         "name": name,
+                         "procdesc": procdesc})
+
 
 class SimpleApplet:
     def __init__(self, main_widget_class, cmd_description=None,
@@ -205,7 +220,7 @@ class SimpleApplet:
             dataset_ctl = RPCClient()
             self.loop.run_until_complete(dataset_ctl.connect_rpc(
                 self.args.server, self.args.port_control, "master_dataset_db"))
-            self.ctl = AppletControlRPC(self.loop, dataset_ctl)
+            self.ctl = AppletControlRPC(self.loop, dataset_ctl, expmgr)
         else:
             self.ctl = AppletControlIPC(self.ipc)
 

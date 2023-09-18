@@ -198,6 +198,18 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
                     and isinstance(widgets["entry"], ScanEntry)):
                 widgets["entry"].disable()
 
+    def set_argument(self, name, argument):
+        widgets = self._arg_to_widgets[name]
+        widgets["entry"].deleteLater()
+        widgets["entry"] = procdesc_to_entry(argument["desc"])(argument)
+        widgets["disable_other_scans"].setVisible(
+            isinstance(widgets["entry"], ScanEntry))
+        widgets["fix_layout"].deleteLater()
+        widgets["fix_layout"] = LayoutWidget()
+        widgets["fix_layout"].addWidget(widgets["entry"])
+        self.setItemWidget(widgets["widget_item"], 1, widgets["fix_layout"])
+        self.updateGeometries()
+
     def save_state(self):
         expanded = []
         for k, v in self._groups.items():
@@ -664,6 +676,16 @@ class ExperimentManager:
         self.submission_arguments[expurl] = arguments
         self.argument_ui_names[expurl] = ui_name
         return arguments
+    
+    def set_argument_value(self, expurl, name, procdesc):
+        try:
+            argument = self.submission_arguments[expurl][name]
+            assert(argument["desc"]["ty"] == procdesc["ty"])
+            argument["desc"]["default"] = procdesc["default"]
+            argument["state"] = procdesc_to_entry(argument["desc"]).default_state(argument["desc"])
+            self.open_experiments[expurl].argeditor.set_argument(name, argument)
+        except:
+            logger.warn("Failed to set value for argument \"{}\" in experiment: {}.".format(name, expurl), exc_info=1)
 
     def get_submission_arguments(self, expurl):
         if expurl in self.submission_arguments:
