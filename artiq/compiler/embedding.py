@@ -18,6 +18,13 @@ from . import types, builtins, asttyped, math_fns, prelude
 from .transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer, TypedtreePrinter
 from .transforms.asttyped_rewriter import LocalExtractor
 
+try:
+    # From numpy=1.25.0 dispatching for `__array_function__` is done via
+    # a C wrapper: https://github.com/numpy/numpy/pull/23020
+    from numpy.core._multiarray_umath import _ArrayFunctionDispatcher
+except ImportError:
+    _ArrayFunctionDispatcher = None    
+
 
 class SpecializedFunction:
     def __init__(self, instance_type, host_function):
@@ -336,7 +343,9 @@ class ASTSynthesizer:
         elif inspect.isfunction(value) or inspect.ismethod(value) or \
                 isinstance(value, pytypes.BuiltinFunctionType) or \
                 isinstance(value, SpecializedFunction) or \
-                isinstance(value, numpy.ufunc):
+                isinstance(value, numpy.ufunc) or \
+                (isinstance(value, _ArrayFunctionDispatcher) if 
+                            _ArrayFunctionDispatcher is not None else False):
             if inspect.ismethod(value):
                 quoted_self   = self.quote(value.__self__)
                 function_type = self.quote_function(value.__func__, self.expanded_from)
