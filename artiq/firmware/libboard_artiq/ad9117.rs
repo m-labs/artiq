@@ -53,6 +53,7 @@ pub fn init() -> Result<(), &'static str> {
             debug!("DAC AD9117 Channel {} has incorrect hardware version. VERSION reg: {:02x}", channel, reg);
             return Err("DAC AD9117 hardware version is not equal to 0x0A");
         }
+        // Check for the presence of DCLKIO and CLKIN
         let reg = read(channel, CLKMODE_REG)?;
         if reg >> 4 & 1 != 0 {
             debug!("DAC AD9117 Channel {} retiming fails. CLKMODE reg: {:02x}", channel, reg);
