@@ -11,6 +11,8 @@ from sipyco.pc_rpc import AsyncioClient as RPCClient
 from sipyco import pyon
 from sipyco.pipe_ipc import AsyncioChildComm
 
+from artiq.language.scan import ScanObject
+
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +38,11 @@ class AppletControlIPC:
     def append_to_dataset(self, key, value):
         mod = {"action": "append", "path": [key, 1], "x": value}
         self.ipc.update_dataset(mod)
+
+    def set_argument_value(self, expurl, name, value):
+        if isinstance(value, ScanObject):
+            value = value.describe()
+        self.ipc.set_argument_value(expurl, name, value)
 
 
 class AppletControlRPC:
@@ -67,6 +74,8 @@ class AppletControlRPC:
         mod = {"action": "append", "path": [key, 1], "x": value}
         self._background(self.dataset_ctl.update, mod)
 
+    def set_argument_value(self, expurl, name, value):
+        raise NotImplementedError
 
 class AppletIPCClient(AsyncioChildComm):
     def set_close_cb(self, close_cb):
@@ -136,6 +145,12 @@ class AppletIPCClient(AsyncioChildComm):
     def update_dataset(self, mod):
         self.write_pyon({"action": "update_dataset",
                          "mod": mod})
+
+    def set_argument_value(self, expurl, name, value):
+        self.write_pyon({"action": "set_argument_value",
+                         "expurl": expurl,
+                         "name": name,
+                         "value": value})
 
 
 class SimpleApplet:
