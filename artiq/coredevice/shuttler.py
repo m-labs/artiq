@@ -170,44 +170,47 @@ class ADC:
 
     @kernel
     def read_id(self) -> TInt32:
-        self.bus.set_config_mu(
-            ADC_SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT,
-            24, ADC_SPI_DIV, ADC_CS)
-        self.bus.write(0x47 << 24)
-        return (self.bus.read() & 0xFFFF)
-    
     @kernel
-    def read_ch(self, channel: TInt32) -> TFloat:
-        # Always configure Profile 0
-        self.bus.set_config_mu(
-            ADC_SPI_CONFIG | spi.SPI_END, 24, ADC_SPI_DIV, ADC_CS)
-        self.bus.write(0x10 << 24 | (0x8000 | ((channel * 2 + 1) << 4)) << 8)
-
-        # Configure Setup 0
-        # Input buffer must be enabled to use REF pins correctly
-        self.bus.set_config_mu(
-            ADC_SPI_CONFIG | spi.SPI_END, 24, ADC_SPI_DIV, ADC_CS)
-        self.bus.write((0x20 << 24) | (0x1300 << 8))
-
-        # Trigger single conversion
-        self.bus.set_config_mu(
-            ADC_SPI_CONFIG, 24, ADC_SPI_DIV, ADC_CS)
-        self.bus.write((0x01 << 24) | (0x8010 << 8))
-
-        self.bus.set_config_mu(
-            ADC_SPI_CONFIG | spi.SPI_INPUT, 16, ADC_SPI_DIV, ADC_CS)
-        self.bus.write(0x40 << 24)
-        while self.bus.read() & 0x80:
-            delay(10*us)
-            self.bus.write(0x40 << 24)
-        
-        delay(10*us)
+    def read8(self, addr: TInt32) -> TInt32:
         self.bus.set_config_mu(
             ADC_SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT,
-            32, ADC_SPI_DIV, ADC_CS)
-        self.bus.write(0x44 << 24)
-        
-        adc_code = self.bus.read() & 0xFFFFFF
+            16, SPIT_ADC_RD, CS_ADC)
+        self.bus.write((addr | 0x40) << 24)
+        return self.bus.read() & 0xff
+
+    @kernel
+    def read16(self, addr: TInt32) -> TInt32:
+        self.bus.set_config_mu(
+            ADC_SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT,
+            24, SPIT_ADC_RD, CS_ADC)
+        self.bus.write((addr | 0x40) << 24)
+        return self.bus.read() & 0xffff
+
+    @kernel
+    def read24(self, addr: TInt32) -> TInt32:
+        self.bus.set_config_mu(
+            ADC_SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT,
+            32, SPIT_ADC_RD, CS_ADC)
+        self.bus.write((addr | 0x40) << 24)
+        return self.bus.read() & 0xffffff
+
+    @kernel
+    def write8(self, addr: TInt32, data: TInt32):
+        self.bus.set_config_mu(
+            ADC_SPI_CONFIG | spi.SPI_END, 16, SPIT_ADC_WR, CS_ADC)
+        self.bus.write(addr << 24 | (data & 0xff) << 16)
+
+    @kernel
+    def write16(self, addr: TInt32, data: TInt32):
+        self.bus.set_config_mu(
+            ADC_SPI_CONFIG | spi.SPI_END, 24, SPIT_ADC_WR, CS_ADC)
+        self.bus.write(addr << 24 | (data & 0xffff) << 8)
+
+    @kernel
+    def write24(self, addr: TInt32, data: TInt32):
+        self.bus.set_config_mu(
+            ADC_SPI_CONFIG | spi.SPI_END, 32, SPIT_ADC_WR, CS_ADC)
+        self.bus.write(addr << 24 | (data & 0xffffff))
         return ((adc_code / (1 << 23)) - 1) * 2.5 / 0.1
     
     @kernel
