@@ -111,6 +111,9 @@ class Dac(Module):
         self.gain = Signal(16)
         self.offset = Signal(16)
 
+        overflow = Signal()
+        underflow = Signal()
+
         ###
 
         subs = [
@@ -120,12 +123,25 @@ class Dac(Module):
 
         # Infer signed multiplication
         data_raw = Signal((14, True))
-        data_buf = Signal(14)
+        data_buf = Signal(16)
         self.sync.rio += [
             data_raw.eq(reduce(add, [sub.data for sub in subs])),
-            # Extra buffer for better DSP timing
+            # Extra buffer for timing for the DSP
             data_buf.eq(((data_raw * Cat(self.gain, ~self.gain[-1])) + (self.offset << 16))[16:]),
-            self.data.eq(data_buf),
+            If(overflow,
+                self.data.eq(0x1fff),
+            ).Elif(underflow,
+                self.data.eq(0x2000),
+            ).Else(
+                self.data.eq(data_buf),
+            ),
+        ]
+
+        self.comb += [
+            # Overflow condition
+            overflow.eq(~data_buf[-1] & (data_buf[-2] | data_buf[-3])),
+            # Underflow condition
+            underflow.eq(data_buf[-1] & (~data_buf[-2] | ~data_buf[-3])),
         ]
 
         self.i = [ sub.i for sub in subs ]
