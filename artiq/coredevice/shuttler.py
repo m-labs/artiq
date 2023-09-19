@@ -224,8 +224,7 @@ class ADC:
                 volts[ch].set_waveform(
                     shuttler_volt_to_mu(samples[i]), 0, 0, 0)
                 trigger.trigger(1 << ch)
-                delay(1*us)
-                measurements[i] = self.read_ch(ch ^ 1)
+                measurements[i] = self.read_ch(ch)
 
             # Find the average output slope
             print(measurements)
