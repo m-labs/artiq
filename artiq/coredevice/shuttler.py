@@ -224,6 +224,9 @@ class ADC:
         self.bus.set_config_mu(
             ADC_SPI_CONFIG | spi.SPI_END, 32, SPIT_ADC_WR, CS_ADC)
         self.bus.write(addr << 24 | (data & 0xffffff))
+
+        delay(100*us)
+        adc_code = self.read24(_AD4115_REG_DATA)
         return ((adc_code / (1 << 23)) - 1) * 2.5 / 0.1
     
     @kernel
