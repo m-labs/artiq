@@ -9,8 +9,7 @@ from artiq.language.units import us
 
 @portable
 def shuttler_volt_to_mu(volt):
-    # TODO: Check arg, raise exception if exceeds shuttler limit
-    return int(round((1 << 14) * (volt / 20.0))) & 0x3fff
+    return round((1 << 14) * (volt / 20.0)) & 0x3fff
 
 
 class Config:
