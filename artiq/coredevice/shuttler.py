@@ -131,17 +131,30 @@ RELAY_SPI_CONFIG = (0*spi.SPI_OFFLINE | 1*spi.SPI_END |
                     0*spi.SPI_CLK_POLARITY | 0*spi.SPI_CLK_PHASE |
                     0*spi.SPI_LSB_FIRST | 0*spi.SPI_HALF_DUPLEX)
 
-SPI_CS_RELAY = 1 << 0
-SPI_CS_LED = 1 << 1
-SPI_DIV = 4
-
 ADC_SPI_CONFIG = (0*spi.SPI_OFFLINE | 0*spi.SPI_END |
                   0*spi.SPI_INPUT | 0*spi.SPI_CS_POLARITY |
                   1*spi.SPI_CLK_POLARITY | 1*spi.SPI_CLK_PHASE |
                   0*spi.SPI_LSB_FIRST | 0*spi.SPI_HALF_DUPLEX)
 
-ADC_CS = 1
-ADC_SPI_DIV = 32
+# SPI clock write and read dividers
+# CS should assert at least 9.5 ns after clk pulse
+SPIT_RELAY_WR = 4
+# 25 ns high/low pulse hold (limiting for write)
+SPIT_ADC_WR = 4
+SPIT_ADC_RD = 16
+
+# SPI CS line
+CS_RELAY = 1 << 0
+CS_LED = 1 << 1
+CS_ADC = 1 << 0
+
+# Referenced AD4115 registers
+_AD4115_REG_STATUS = 0x00
+_AD4115_REG_ADCMODE = 0x01
+_AD4115_REG_DATA = 0x04
+_AD4115_REG_ID = 0x07
+_AD4115_REG_CH0 = 0x10
+_AD4115_REG_SETUPCON0 = 0x20
 
 
 class Relay:
@@ -154,7 +167,7 @@ class Relay:
     @kernel
     def init(self):
         self.bus.set_config_mu(
-            RELAY_SPI_CONFIG, 16, SPI_DIV, SPI_CS_RELAY | SPI_CS_LED)
+            RELAY_SPI_CONFIG, 16, SPIT_RELAY_WR, CS_RELAY | CS_LED)
 
     @kernel
     def set_led(self, leds: TInt32):
