@@ -169,8 +169,8 @@ class Relay:
             RELAY_SPI_CONFIG, 16, SPIT_RELAY_WR, CS_RELAY | CS_LED)
 
     @kernel
-    def set_led(self, leds: TInt32):
-        self.bus.write(leds << 16)
+    def enable(self, en: TInt32):
+        self.bus.write(en << 16)
 
 
 class ADC:
