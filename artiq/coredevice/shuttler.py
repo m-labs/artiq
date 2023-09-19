@@ -227,36 +227,23 @@ class ADC:
                 measurements[i] = self.read_ch(ch)
 
             # Find the average output slope
-            print(measurements)
             slope_sum = 0.0
             for i in range(len(samples) - 1):
                 slope_sum += (measurements[i+1] - measurements[i])/(samples[i+1] - samples[i])
             slope_avg = slope_sum / (len(samples) - 1)
-            print(slope_avg)
 
-            print("Suitable gain in Shuttler:")
             gain_code = int32(1 / slope_avg * (2 ** 16)) & 0xffff
-            print(gain_code)
 
             # Scale the measurements by 1/slope, find average offset
             offset_sum = 0.0
             for i in range(len(samples)):
                 offset_sum += (measurements[i] / slope_avg) - samples[i]
             offset_avg = offset_sum / len(samples)
-            print(offset_avg)
 
-            print("Suitable offset in Shuttler:")
             offset_code = shuttler_volt_to_mu(-offset_avg)
-            print(offset_code)
 
             self.core.break_realtime()
             config.set_gain(ch, gain_code)
 
             delay_mu(int64(self.core.ref_multiplier))
-            assert config.get_gain(ch) == gain_code
-
-            self.core.break_realtime()
             config.set_offset(ch, offset_code)
-
-            delay_mu(int64(self.core.ref_multiplier))
-            assert config.get_offset(ch) == offset_code
