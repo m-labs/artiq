@@ -228,7 +228,23 @@ class ADC:
         delay(100*us)
         adc_code = self.read24(_AD4115_REG_DATA)
         return ((adc_code / (1 << 23)) - 1) * 2.5 / 0.1
-    
+
+    @kernel
+    def standby(self):
+        # Selecting internal XO (0b00) also disables clock during standby
+        self.write16(_AD4115_REG_ADCMODE, 0x8020)
+
+    @kernel
+    def power_down(self):
+        self.write16(_AD4115_REG_ADCMODE, 0x8030)
+
+    @kernel
+    def exit_power_down(self):
+        self.reset()
+        # Although the datasheet claims 500 us reset wait time, only waiting
+        # for ~500 us can result in DOUT pin stuck in high
+        delay(2500*us)
+
     @kernel
     def calibrate(self, volts, trigger, config, samples=[-5.0, 0.0, 5.0]):
         assert len(volts) == 16
