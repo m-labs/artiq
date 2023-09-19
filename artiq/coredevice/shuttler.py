@@ -183,6 +183,20 @@ class ADC:
 
     @kernel
     def read_id(self) -> TInt32:
+        return self.read16(_AD4115_REG_ID)
+
+    @kernel
+    def reset(self):
+        # Hold DIN high for 64 cycles
+        # However, asserting CS right after the 64 cycles seems to interrupt
+        # the start-up sequence.
+        self.bus.set_config_mu(ADC_SPI_CONFIG, 32, SPIT_ADC_WR, CS_ADC)
+        self.bus.write(0xffffffff)
+        self.bus.write(0xffffffff)
+        self.bus.set_config_mu(
+            ADC_SPI_CONFIG | spi.SPI_END, 32, SPIT_ADC_WR, CS_ADC)
+        self.bus.write(0xffffffff)
+
     @kernel
     def read8(self, addr: TInt32) -> TInt32:
         self.bus.set_config_mu(
@@ -224,6 +238,13 @@ class ADC:
         self.bus.set_config_mu(
             ADC_SPI_CONFIG | spi.SPI_END, 32, SPIT_ADC_WR, CS_ADC)
         self.bus.write(addr << 24 | (data & 0xffffff))
+
+    @kernel
+    def read_ch(self, channel: TInt32) -> TFloat:
+        # Always configure Profile 0 for single conversion
+        self.write16(_AD4115_REG_CH0, 0x8000 | ((channel * 2 + 1) << 4))
+        self.write16(_AD4115_REG_SETUPCON0, 0x1300)
+        self.write16(_AD4115_REG_ADCMODE, 0x8010)
 
         delay(100*us)
         adc_code = self.read24(_AD4115_REG_DATA)
