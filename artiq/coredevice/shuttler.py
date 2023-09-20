@@ -501,18 +501,26 @@ class ADC:
         # Always configure Profile 0 for single conversion
         self.write16(_AD4115_REG_CH0, 0x8000 | ((channel * 2 + 1) << 4))
         self.write16(_AD4115_REG_SETUPCON0, 0x1300)
-        self.write16(_AD4115_REG_ADCMODE, 0x8010)
+        self.single_conversion()
 
         delay(100*us)
         adc_code = self.read24(_AD4115_REG_DATA)
         return ((adc_code / (1 << 23)) - 1) * 2.5 / 0.1
+    
+    @kernel
+    def single_conversion(self):
+        """Place the ADC in single conversion mode.
+
+        The ADC returns to standby mode after the conversion is complete.
+        """
+        self.write16(_AD4115_REG_ADCMODE, 0x8010)
 
     @kernel
     def standby(self):
         """Place the ADC in standby mode and disables power down the clock.
 
-        The ADC can be returned to other modes by rewriting the ADCMODE
-        register directly.
+        The ADC can be returned to single conversion mode by calling
+        :meth:`single_conversion`.
         """
         # Selecting internal XO (0b00) also disables clock during standby
         self.write16(_AD4115_REG_ADCMODE, 0x8020)
