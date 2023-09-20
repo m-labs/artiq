@@ -340,7 +340,13 @@ _AD4115_REG_SETUPCON0 = 0x20
 class Relay:
     """Shuttler AFE relay switches.
 
-    It controls the AFE relay switches and the LEDs.
+    It controls the AFE relay switches and the LEDs. Switch on the relay to
+    enable AFE output; And off to disable the output. The LEDs indicates the
+    relay status.
+
+    .. note::
+        The relay does not disable ADC measurements. Voltage of any channels
+        can still be read by the ADC even after switching off the relays.
 
     :param spi_device: SPI bus device name.
     :param core_device: Core device name.
