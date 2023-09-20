@@ -520,21 +520,25 @@ class ADC:
     @kernel
     def power_down(self):
         """Place the ADC in power-down mode.
-        
-        It is advised to place the ADC in standby mode before power-down.
+
         The ADC must be reset before returning to other modes.
+        
+        .. note::
+            The AD4115 datasheet suggests placing the ADC in standby mode
+            before power-down. This is to prevent accidental entry into the
+            power-down mode.
 
         .. seealso::
             :meth:`standby`
 
-            :meth:`exit_power_down`
+            :meth:`power_up`
 
         """
         self.write16(_AD4115_REG_ADCMODE, 0x8030)
 
     @kernel
-    def exit_power_down(self):
-        """Exit the ADC in power-down mode.
+    def power_up(self):
+        """Exit the ADC power-down mode.
         
         The ADC should be in power-down mode before calling this method.
 
