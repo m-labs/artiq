@@ -10,7 +10,7 @@ from artiq.language.units import us
 @portable
 def shuttler_volt_to_mu(volt):
     """Return the equivalent DAC code. Valid input range is from -10 to
-    10 - LSb.
+    10 - LSB.
     """
     return round((1 << 14) * (volt / 20.0)) & 0x3fff
 
@@ -53,8 +53,8 @@ class Config:
         waveform trigger (See :class:`Trigger` for the trigger method).
         Otherwise, the phase accumulator increments from its original value.
 
-        :param clr: Waveform phase clear bits. The MSb corresponds to Channel
-            15, LSb corresponds to Channel 0.
+        :param clr: Waveform phase clear bits. The MSB corresponds to Channel
+            15, LSB corresponds to Channel 0.
         """
         rtio_output(self.target_base | self.target_clr, clr)
     
@@ -63,10 +63,8 @@ class Config:
         """Set the 16-bits pre-DAC gain register of a Shuttler Core channel.
 
         The `gain` parameter represents the decimal portion of the gain
-        factor. The MSb represents 0.5 and the sign bit. Hence, the valid
-        total gain value (1 +/- 0.gain) ranges from 0.5 to 1.5 - LSb.
-
-        DAC code is capped at 0x1fff and 0x2000.
+        factor. The MSB represents 0.5 and the sign bit. Hence, the valid
+        total gain value (1 +/- 0.gain) ranges from 0.5 to 1.5 - LSB.
 
         :param channel: Shuttler Core channel to be configured.
         :param gain: Shuttler Core channel gain.
@@ -300,8 +298,8 @@ class Trigger:
         `set_waveform` in :class:`Volt` and :class:`Dds`) to the Shuttler core
         synchronously.
 
-        :param trig_out: Coefficient update trigger bits. The MSb corresponds
-            to Channel 15, LSb corresponds to Channel 0.
+        :param trig_out: Coefficient update trigger bits. The MSB corresponds
+            to Channel 15, LSB corresponds to Channel 0.
         """
         rtio_output(self.target_o, trig_out)
 
@@ -375,7 +373,7 @@ class Relay:
         turns on the corresponding relay switch; Deasserting the same bit
         turns off the switch instead.
 
-        :param en: Switch enable bits. The MSb corresponds to Channel 15, LSb
+        :param en: Switch enable bits. The MSB corresponds to Channel 15, LSB
             corresponds to Channel 0.
         """
         self.bus.write(en << 16)
