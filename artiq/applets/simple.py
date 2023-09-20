@@ -3,6 +3,7 @@ import argparse
 import asyncio
 import os
 import string
+import atexit
 
 from qasync import QEventLoop, QtWidgets, QtCore
 
@@ -10,6 +11,7 @@ from sipyco.sync_struct import Subscriber, process_mod
 from sipyco.pc_rpc import AsyncioClient as RPCClient
 from sipyco import pyon
 from sipyco.pipe_ipc import AsyncioChildComm
+from sipyco.asyncio_tools import atexit_register_coroutine
 
 
 logger = logging.getLogger(__name__)
@@ -190,15 +192,13 @@ class SimpleApplet:
         app = QtWidgets.QApplication([])
         self.loop = QEventLoop(app)
         asyncio.set_event_loop(self.loop)
+        atexit.register(self.loop.close)
 
     def ipc_init(self):
         if self.embed is not None:
             self.ipc = AppletIPCClient(self.embed)
             self.loop.run_until_complete(self.ipc.connect())
-
-    def ipc_close(self):
-        if self.embed is not None:
-            self.ipc.close()
+            atexit.register(self.ipc.close)
 
     def ctl_init(self):
         if self.embed is None:
@@ -206,12 +206,9 @@ class SimpleApplet:
             self.loop.run_until_complete(dataset_ctl.connect_rpc(
                 self.args.server, self.args.port_control, "master_dataset_db"))
             self.ctl = AppletControlRPC(self.loop, dataset_ctl)
+            atexit.register(self.ctl.dataset_ctl.close_rpc)
         else:
             self.ctl = AppletControlIPC(self.ipc)
-
-    def ctl_close(self):
-        if self.embed is None:
-            self.ctl.dataset_ctl.close_rpc()
 
     def create_main_widget(self):
         self.main_widget = self.main_widget_class(self.args, self.ctl)
@@ -301,35 +298,20 @@ class SimpleApplet:
                                          self.sub_init, self.sub_mod)
             self.loop.run_until_complete(self.subscriber.connect(
                 self.args.server, self.args.port_notify))
+            atexit_register_coroutine(self.subscriber.close, loop=self.loop)
         else:
             self.ipc.subscribe(self.datasets, self.sub_init, self.sub_mod,
                                dataset_prefixes=self.dataset_prefixes,
                                loop=self.loop)
 
-    def unsubscribe(self):
-        if self.embed is None:
-            self.loop.run_until_complete(self.subscriber.close())
-
     def run(self):
         self.args_init()
         self.qasync_init()
-        try:
-            self.ipc_init()
-            try:
-                self.ctl_init()
-                try:
-                    self.create_main_widget()
-                    self.subscribe()
-                    try:
-                        self.loop.run_forever()
-                    finally:
-                        self.unsubscribe()
-                finally:
-                    self.ctl_close()
-            finally:
-                self.ipc_close()
-        finally:
-            self.loop.close()
+        self.ipc_init()
+        self.ctl_init()
+        self.create_main_widget()
+        self.subscribe()
+        self.loop.run_forever()
 
 
 class TitleApplet(SimpleApplet):
