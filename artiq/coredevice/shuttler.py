@@ -24,6 +24,9 @@ class Config:
     To find the calibrated DAC code, the Shuttler core first multiplies the
     output data with pre-DAC gain, then adds the offset.
 
+    .. note::
+        The DAC code is capped at 0x1fff and 0x2000.
+
     :param channel: RTIO channel number of this interface.
     :param core_device: Core device name.
     """
@@ -85,9 +88,8 @@ class Config:
     def set_offset(self, channel, offset):
         """Set the 16-bits pre-DAC offset register of a Shuttler Core channel.
 
-        ``offset`` is this offset register. Note that the DAC code is capped
-        at 0x1fff and 0x2000. See :meth:`shuttler_volt_to_mu` for the encoding
-        scheme.
+        .. seealso::
+            :meth:`shuttler_volt_to_mu`
 
         :param channel: Shuttler Core channel to be configured.
         :param offset: Shuttler Core channel offset.
@@ -549,7 +551,19 @@ class ADC:
         """Calibrate the Shuttler waveform generator using the ADC on the AFE.
 
         It finds the average slope rate and average offset by samples, and
-        compensate by writing the pre-DAC gain and offset registers.
+        compensate by writing the pre-DAC gain and offset registers in the
+        configuration registers.
+
+        .. note::
+            If the pre-calibration slope rate < 1, the calibration procedure
+            will introduce a pre-DAC gain compensation. However, this may
+            saturate the pre-DAC voltage code. (See :class:`Config` notes).
+            Shuttler cannot cover the entire +/- 10 V range in this case.
+
+        .. seealso::
+            :meth:`Config.set_gain`
+
+            :meth:`Config.set_offset`
 
         :param volts: A list of all 16 cubic DC-bias spline.
             (See :class:`Volt`)
