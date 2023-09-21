@@ -399,9 +399,9 @@ class TSubkernel(TFunction):
 
     attributes = OrderedDict()
 
-    def __init__(self, args, ret, sid, destination):
+    def __init__(self, args, optargs, ret, sid, destination):
         assert isinstance(ret, Type)
-        super().__init__(args, OrderedDict(), ret)
+        super().__init__(args, optargs, ret)
         self.sid, self.destination = sid, destination
         self.delay = TFixedDelay(iodelay.Const(0))
 

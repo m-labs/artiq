@@ -20,7 +20,6 @@ use board_artiq::si5324;
 use board_artiq::{spi, drtioaux, drtio_routing};
 #[cfg(soc_platform = "efc")]
 use board_artiq::ad9117;
-use board_artiq::drtio_routing;
 use proto_artiq::drtioaux_proto::{SAT_PAYLOAD_MAX_SIZE, MASTER_PAYLOAD_MAX_SIZE};
 #[cfg(has_drtio_eem)]
 use board_artiq::drtio_eem;

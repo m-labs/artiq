@@ -300,8 +300,9 @@ pub mod subkernel {
         }   
     }
 
-    struct Message {
+    pub struct Message {
         from_id: u32,
+        pub tag_count: u8,
         pub tag: u8,
         pub data: Vec<u8>
     }
@@ -328,8 +329,9 @@ pub mod subkernel {
             None => unsafe {
                 CURRENT_MESSAGES.insert(id, Message {
                     from_id: id,
-                    tag: data[0],
-                    data: data[1..length].to_vec()
+                    tag_count: data[0],
+                    tag: data[1],
+                    data: data[2..length].to_vec()
                 });
             }
         };
@@ -342,7 +344,7 @@ pub mod subkernel {
     }
 
     pub fn message_await(io: &Io, subkernel_mutex: &Mutex, id: u32, timeout: u64
-    ) -> Result<(u8, Vec<u8>), Error> {
+    ) -> Result<Message, Error> {
         {
             let _lock = subkernel_mutex.lock(io)?;
             match unsafe { SUBKERNELS.get(&id).unwrap().state } {
@@ -369,23 +371,27 @@ pub mod subkernel {
             Err(())
         });
         match message {
-            Ok(Some(message)) => Ok((message.tag, message.data)),
+            Ok(Some(message)) => Ok(message),
             Ok(None) => Err(Error::Timeout),
             Err(e) => Err(Error::SchedError(e)),
         }
     }
 
     pub fn message_send<'a>(io: &Io, aux_mutex: &Mutex, subkernel_mutex: &Mutex,
-        routing_table: &RoutingTable, id: u32, tag: &'a [u8], message: *const *const ()
+        routing_table: &RoutingTable, id: u32, count: u8, tag: &'a [u8], message: *const *const ()
     ) -> Result<(), Error> {
         let mut writer = Cursor::new(Vec::new());
         let _lock = subkernel_mutex.lock(io).unwrap();
         let destination = unsafe { SUBKERNELS.get(&id).unwrap().destination };
-        
+
         // reuse rpc code for sending arbitrary data
         rpc::send_args(&mut writer, 0, tag, message)?;
-        Ok(drtio::subkernel_send_message(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table,
-            // skip service tag
-            id, destination, &writer.into_inner()[4..])?)
+        // skip service tag, but overwrite first byte with tag count
+        let data = &mut writer.into_inner()[3..];
+        info!("sending, count: {}", count);
+        data[0] = count;
+        Ok(drtio::subkernel_send_message(
+            io, aux_mutex, routing_table, id, destination, data
+        )?)
     }
 }

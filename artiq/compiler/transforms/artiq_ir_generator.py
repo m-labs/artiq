@@ -2600,7 +2600,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             assert self_arg is None
             assert len(fn_typ.args) >= len(positional)
             assert len(keywords) == 0  # no keyword support
-            args = [None] * len(fn_typ.args) 
+            args = [None] * fn_typ.arity()
             index = 0
             # fill in first available args
             for arg in positional:
@@ -2609,12 +2609,26 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             # remaining args are received through DRTIO
             if index < len(args):
-                self.append(ir.Builtin("subkernel_await_args", [], builtins.TNone()))
-                arg_types = list(fn_typ.args.items())[index:]
+                # min/max args received remotely (minus positional)
+                offset = index
+                min_args = ir.Constant(len(fn_typ.args)-offset, builtins.TInt(types.TValue(8)))
+                max_args = ir.Constant(fn_typ.arity()-offset, builtins.TInt(types.TValue(8)))
+
+                rcvd_count = self.append(ir.Builtin("subkernel_await_args", [min_args, max_args], builtins.TNone()))
+                arg_types = list(fn_typ.args.items())[offset:]
+                # obligatory arguments
                 for arg_name, arg_type in arg_types:
                     args[index] = self.append(ir.GetArgFromRemote(arg_name, arg_type,
                                             name="ARG.{}".format(arg_name)))
                     index += 1
+
+                # optional arguments
+                for optarg_name, optarg_type in fn_typ.optargs.items():
+                    idx = ir.Constant(index-offset, builtins.TInt(types.TValue(8)))
+                    args[index] = \
+                        self.append(ir.GetOptArgFromRemote(optarg_name, optarg_type, rcvd_count, idx))
+                    index += 1
+
         else:
             args = [None] * (len(fn_typ.args) + len(fn_typ.optargs))
 

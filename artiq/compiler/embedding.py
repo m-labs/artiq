@@ -1209,7 +1209,6 @@ class Stitcher:
         signature = inspect.signature(function)
 
         arg_types = OrderedDict()
-        optarg_types = OrderedDict()
         for param in signature.parameters.values():
             if param.kind != inspect.Parameter.POSITIONAL_OR_KEYWORD:
                 diag = diagnostic.Diagnostic("error",
@@ -1259,6 +1258,7 @@ class Stitcher:
             ret_type = self._extract_annot(host_function, signature.return_annotation,
                                             "return type", loc, fn_kind='subkernel')
         arg_types = OrderedDict()
+        optarg_types = OrderedDict()
         for param in signature.parameters.values():
             if param.kind != inspect.Parameter.POSITIONAL_OR_KEYWORD:
                 diag = diagnostic.Diagnostic("error",
@@ -1272,14 +1272,9 @@ class Stitcher:
             if param.default is inspect.Parameter.empty:
                 arg_types[param.name] = arg_type
             else:
-                diag = diagnostic.Diagnostic("error",
-                    "subkernel argument '{argument}' must not have a default value",
-                    {"argument": param.name},
-                    self._function_loc(function),
-                    notes=self._call_site_note(loc, fn_kind='subkernel'))
-                self.engine.process(diag)
+                optarg_types[param.name] = arg_type
 
-        function_type = types.TSubkernel(arg_types, ret_type,
+        function_type = types.TSubkernel(arg_types, optarg_types, ret_type,
                                    sid=self.embedding_map.store_object(host_function),
                                    destination=host_function.artiq_embedded.destination)
         self.functions[function] = function_type

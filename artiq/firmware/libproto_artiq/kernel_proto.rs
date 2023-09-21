@@ -107,9 +107,9 @@ pub enum Message<'a> {
     SubkernelLoadRunReply { succeeded: bool },
     SubkernelAwaitFinishRequest { id: u32, timeout: u64 },
     SubkernelAwaitFinishReply { status: SubkernelStatus },
-    SubkernelMsgSend { id: u32, tag: &'a [u8], data: *const *const () },
+    SubkernelMsgSend { id: u32, count: u8, tag: &'a [u8], data: *const *const () },
     SubkernelMsgRecvRequest { id: u32, timeout: u64 },
-    SubkernelMsgRecvReply { status: SubkernelStatus },
+    SubkernelMsgRecvReply { status: SubkernelStatus, count: u8 },
 
     Log(fmt::Arguments<'a>),
     LogSlice(&'a str)

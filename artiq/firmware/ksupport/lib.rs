@@ -489,20 +489,27 @@ extern fn subkernel_await_finish(id: u32, timeout: u64) {
 }
 
 #[unwind(aborts)]
-extern fn subkernel_send_message(id: u32, tag: &CSlice<u8>, data: *const *const ()) {
+extern fn subkernel_send_message(id: u32, count: u8, tag: &CSlice<u8>, data: *const *const ()) {
     send(&SubkernelMsgSend { 
         id: id,
+        count: count,
         tag: tag.as_ref(),
         data: data 
     });
 }
 
 #[unwind(allowed)]
-extern fn subkernel_await_message(id: u32, timeout: u64) {
+extern fn subkernel_await_message(id: u32, timeout: u64, min: u8, max: u8) -> u8 {
     send(&SubkernelMsgRecvRequest { id: id, timeout: timeout });
-    recv!(SubkernelMsgRecvReply { status } => {
+    recv!(SubkernelMsgRecvReply { status, count } => {
         match status {
-            SubkernelStatus::NoError => (),
+            SubkernelStatus::NoError => {
+                if count < &min || count > &max {
+                    raise!("SubkernelError",
+                        "Received less or more arguments than expected");
+                }
+                *count
+            }
             SubkernelStatus::IncorrectState => raise!("SubkernelError",
                 "Subkernel not running"),
             SubkernelStatus::Timeout => raise!("SubkernelError",

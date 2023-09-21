@@ -98,6 +98,7 @@ pub struct Sliceable {
 
 /* represents interkernel messages */
 struct Message {
+    count: u8,
     tag: u8,
     data: Vec<u8>
 }
@@ -199,8 +200,9 @@ impl MessageManager {
             Some(message) => message.data.extend(&data[..length]),
             None => {
                 self.in_buffer = Some(Message {
-                    tag: data[0],
-                    data: data[1..length].to_vec()
+                    count: data[0],
+                    tag: data[1],
+                    data: data[2..length].to_vec()
                 });
             }
         };
@@ -260,11 +262,13 @@ impl MessageManager {
         }
     }
 
-    pub fn accept_outgoing(&mut self, tag: &[u8], data: *const *const ()) -> Result<(), Error>  {
+    pub fn accept_outgoing(&mut self, count: u8, tag: &[u8], data: *const *const ()) -> Result<(), Error>  {
         let mut writer = Cursor::new(Vec::new());
         rpc::send_args(&mut writer, 0, tag, data)?;
-        // skip service tag
-        self.out_message = Some(Sliceable::new(writer.into_inner().split_off(4)));
+        // skip service tag, but write the count
+        let mut data = writer.into_inner().split_off(3);
+        data[0] = count;
+        self.out_message = Some(Sliceable::new(data));
         self.out_state = OutMessageState::MessageReady;
         Ok(())
     }
@@ -505,12 +509,12 @@ impl Manager {
         match self.session.kernel_state {
             KernelState::MsgAwait { max_time } => {
                 if clock::get_ms() > max_time {
-                    kern_send(&kern::SubkernelMsgRecvReply { status: kern::SubkernelStatus::Timeout })?;
+                    kern_send(&kern::SubkernelMsgRecvReply { status: kern::SubkernelStatus::Timeout, count: 0 })?;
                     self.session.kernel_state = KernelState::Running;
                     return Ok(())
                 }
                 if let Some(message) = self.session.messages.get_incoming() {
-                    kern_send(&kern::SubkernelMsgRecvReply { status: kern::SubkernelStatus::NoError })?;
+                    kern_send(&kern::SubkernelMsgRecvReply { status: kern::SubkernelStatus::NoError, count: message.count })?;
                     self.session.kernel_state = KernelState::Running;
                     pass_message_to_kernel(&message)
                 } else {
@@ -599,8 +603,8 @@ impl Manager {
                     return Ok(Some(true))
                 }
 
-                &kern::SubkernelMsgSend { id: _, tag, data } => {
-                    self.session.messages.accept_outgoing(tag, data)?;
+                &kern::SubkernelMsgSend { id: _, count, tag, data } => {
+                    self.session.messages.accept_outgoing(count, tag, data)?;
                     // acknowledge after the message is sent
                     self.session.kernel_state = KernelState::MsgSending;
                     Ok(())
@@ -690,6 +694,8 @@ fn handle_kernel_exception(exceptions: &[Option<eh_artiq::Exception>],
 fn pass_message_to_kernel(message: &Message) -> Result<(), Error> {
     let mut reader = Cursor::new(&message.data);
     let mut tag: [u8; 1] = [message.tag];
+    let count = message.count;
+    let mut i = 0;
     loop {
         let slot = kern_recv_w_timeout(100, |reply| {
             match reply {
@@ -702,6 +708,7 @@ fn pass_message_to_kernel(message: &Message) -> Result<(), Error> {
                     "expected root value slot from kernel CPU, not {:?}", other)
             }
         })?;
+        info!("message received, count: {}", count);
 
         let res = rpc::recv_return(&mut reader, &tag, slot, &|size| -> Result<_, Error> {
             if size == 0 {
@@ -728,9 +735,15 @@ fn pass_message_to_kernel(message: &Message) -> Result<(), Error> {
             Ok(_) => kern_send(&kern::RpcRecvReply(Ok(0)))?,
             Err(_) => unexpected!("expected valid subkernel message data")
         };
-        match reader.read_u8() {
-            Ok(0) | Err(_) => break, // reached the end of data, we're done
-            Ok(t) => { tag[0] = t; } // update the tag for next read
+        info!("loop, i: {}", i);
+        i += 1;
+        if i < count {
+            // update the tag for next read
+            tag[0] = reader.read_u8()?;
+            info!("new tag: {:02x}", tag[0]);
+        } else {
+            // should be done by then
+            break;
         }
     }
     Ok(())

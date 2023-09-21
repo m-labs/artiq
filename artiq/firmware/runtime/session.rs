@@ -596,25 +596,27 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 kern_send(io, &kern::SubkernelAwaitFinishReply { status: status })
             }
             #[cfg(has_drtio)]
-            &kern::SubkernelMsgSend { id, tag, data } => {
-                subkernel::message_send(io, aux_mutex, _subkernel_mutex, routing_table, id, tag, data)?;
+            &kern::SubkernelMsgSend { id, count, tag, data } => {
+                subkernel::message_send(io, aux_mutex, _subkernel_mutex, routing_table, id, count, tag, data)?;
                 kern_acknowledge()
             }
             #[cfg(has_drtio)]
             &kern::SubkernelMsgRecvRequest { id, timeout } => {
                 let message_received = subkernel::message_await(io, _subkernel_mutex, id, timeout);
-                let status = match message_received {
-                    Ok(_) => kern::SubkernelStatus::NoError,
-                    Err(SubkernelError::Timeout) => kern::SubkernelStatus::Timeout,
-                    Err(SubkernelError::IncorrectState) => kern::SubkernelStatus::IncorrectState,
-                    Err(SubkernelError::CommLost) => kern::SubkernelStatus::CommLost,
-                    Err(_) => kern::SubkernelStatus::OtherError
+                let (status, count) = match message_received {
+                    Ok(ref message) => (kern::SubkernelStatus::NoError, message.tag_count),
+                    Err(SubkernelError::Timeout) => (kern::SubkernelStatus::Timeout, 0),
+                    Err(SubkernelError::IncorrectState) => (kern::SubkernelStatus::IncorrectState, 0),
+                    Err(SubkernelError::CommLost) => (kern::SubkernelStatus::CommLost, 0),
+                    Err(_) => (kern::SubkernelStatus::OtherError, 0)
                 };
-                kern_send(io, &kern::SubkernelMsgRecvReply { status: status })?;
-                if let Ok((tag, data)) = message_received {
+                kern_send(io, &kern::SubkernelMsgRecvReply { status: status, count: count })?;
+                if let Ok(message) = message_received {
+                    info!("received, count: {}", message.tag_count);
                     // receive code almost identical to RPC recv, except we are not reading from a stream
-                    let mut reader = Cursor::new(data);
-                    let mut tag: [u8; 1] = [tag];
+                    let mut reader = Cursor::new(message.data);
+                    let mut tag: [u8; 1] = [message.tag];
+                    let mut i = 0;
                     loop {
                         // kernel has to consume all arguments in the whole message
                         let slot = kern_recv(io, |reply| {
@@ -641,10 +643,14 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                             Ok(_) => kern_send(io, &kern::RpcRecvReply(Ok(0)))?,
                             Err(_) => unexpected!("expected valid subkernel message data")
                         };
-                        match reader.read_u8() {
-                            Ok(0) | Err(_) => break, // reached the end of data, we're done
-                            Ok(t) => { tag[0] = t } // update the tag for next read
-                        };
+                        i += 1;
+                        if i < message.tag_count {
+                            // update the tag for next read
+                            tag[0] = reader.read_u8()?;
+                        } else {
+                            // should be done by then
+                            break;
+                        }
                     }
                     Ok(())
                 } else {

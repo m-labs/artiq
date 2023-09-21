@@ -708,7 +708,7 @@ class SetLocal(Instruction):
 
 class GetArgFromRemote(Instruction):
     """
-    An intruction that receives function arguments from remote 
+    An instruction that receives function arguments from remote 
     (ie. subkernel in DRTIO context)
 
     :ivar arg_name: (string) argument name
@@ -733,6 +733,36 @@ class GetArgFromRemote(Instruction):
 
     def opcode(self):
         return "getargfromremote({})".format(repr(self.arg_name))
+
+class GetOptArgFromRemote(GetArgFromRemote):
+    """
+    An instruction that may or may not retrieve a function argument
+    from remote, depending on number of received values.
+
+    :ivar rcv_count: number of received values,
+                     determined by firmware
+    :ivar index: (integer) index of the current argument, 
+                 in reference to remote arguments
+    """
+
+    """
+    :param rcv_count: number of received valuese
+    :param index: (integer) index of the current argument, 
+                  in reference to remote arguments
+    """
+    def __init__(self, arg_name, arg_type, rcv_count, index, name=""):
+        super().__init__(arg_name, arg_type, name)
+        self.rcv_count = rcv_count
+        self.index = index
+
+    def copy(self, mapper):
+        self_copy = super().copy(mapper)
+        self_copy.rcv_count = self.rcv_count
+        self_copy.index = self.index
+        return self_copy
+
+    def opcode(self):
+        return "getoptargfromremote({})".format(repr(self.arg_name))
 
 class GetAttr(Instruction):
     """

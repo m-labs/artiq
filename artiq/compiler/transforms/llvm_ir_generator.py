@@ -399,13 +399,13 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(lli32, [llptr])
 
         elif name == "subkernel_send_message":
-            llty = ll.FunctionType(llvoid, [lli32, llsliceptr, llptrptr])
+            llty = ll.FunctionType(llvoid, [lli32, lli8, llsliceptr, llptrptr])
         elif name == "subkernel_load_run":
             llty = ll.FunctionType(llvoid, [lli32, lli1])
         elif name == "subkernel_await_finish":
             llty = ll.FunctionType(llvoid, [lli32, lli64])
         elif name == "subkernel_await_message":
-            llty = ll.FunctionType(llvoid, [lli32, lli64])
+            llty = ll.FunctionType(lli8, [lli32, lli64, lli8, lli8])
 
         # with now-pinning
         elif name == "now":
@@ -889,6 +889,47 @@ class LLVMIRGenerator:
         llval = self._build_rpc_recv(insn.arg_type, llstackptr)
         return llval
 
+    def process_GetOptArgFromRemote(self, insn):
+        # optarg = index < rcv_count ? Some(rcv_recv()) : None
+        llhead = self.llbuilder.basic_block
+        llrcv = self.llbuilder.append_basic_block(name="optarg.get.{}".format(insn.arg_name))
+        
+        # argument received
+        self.llbuilder.position_at_end(llrcv)
+        llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
+                                         name="subkernel.arg.stack")
+        llval = self._build_rpc_recv(insn.arg_type, llstackptr)
+        llrpcretblock = self.llbuilder.basic_block  # 'return' from rpc_recv, will be needed later
+        
+        # create the tail block, needs to be after the rpc recv tail block
+        lltail = self.llbuilder.append_basic_block(name="optarg.tail.{}".format(insn.arg_name))
+        self.llbuilder.branch(lltail)
+
+        # go back to head to add a branch to the tail
+        self.llbuilder.position_at_end(llhead)
+        llargrcvd = self.llbuilder.icmp_unsigned("<", self.map(insn.index), self.map(insn.rcv_count))
+        self.llbuilder.cbranch(llargrcvd, llrcv, lltail)
+
+        # argument not received/after arg recvd
+        self.llbuilder.position_at_end(lltail)
+
+        llargtype = self.llty_of_type(insn.arg_type)
+
+        llphi_arg_present = self.llbuilder.phi(lli1, name="optarg.phi.present.{}".format(insn.arg_name))
+        llphi_arg = self.llbuilder.phi(llargtype, name="optarg.phi.{}".format(insn.arg_name))
+
+        llphi_arg_present.add_incoming(ll.Constant(lli1, 0), llhead)
+        llphi_arg.add_incoming(ll.Constant(llargtype, ll.Undefined), llhead)
+
+        llphi_arg_present.add_incoming(ll.Constant(lli1, 1), llrpcretblock)
+        llphi_arg.add_incoming(llval, llrpcretblock)
+        
+        lloptarg = ll.Constant(ll.LiteralStructType([lli1, llargtype]), ll.Undefined)
+        lloptarg = self.llbuilder.insert_value(lloptarg, llphi_arg_present, 0)
+        lloptarg = self.llbuilder.insert_value(lloptarg, llphi_arg, 1)
+
+        return lloptarg
+
     def attr_index(self, typ, attr):
         return list(typ.attributes.keys()).index(attr)
 
@@ -1360,8 +1401,10 @@ class LLVMIRGenerator:
         elif insn.op == "end_catch":
             return self.llbuilder.call(self.llbuiltin("__artiq_end_catch"), [])
         elif insn.op == "subkernel_await_args":
+            llmin = self.map(insn.operands[0])
+            llmax = self.map(insn.operands[1])
             return self.llbuilder.call(self.llbuiltin("subkernel_await_message"), 
-                                       [ll.Constant(lli32, 0), ll.Constant(lli64, 10_000)],
+                                       [ll.Constant(lli32, 0), ll.Constant(lli64, 10_000), llmin, llmax],
                                        name="subkernel.await.args")
         elif insn.op == "subkernel_await_finish":
             llsid = self.map(insn.operands[0])
@@ -1371,7 +1414,7 @@ class LLVMIRGenerator:
         elif insn.op == "subkernel_retrieve_return":
             llsid = self.map(insn.operands[0])
             lltimeout = self.map(insn.operands[1])
-            self.llbuilder.call(self.llbuiltin("subkernel_await_message"), [llsid, lltimeout],
+            self.llbuilder.call(self.llbuiltin("subkernel_await_message"), [llsid, lltimeout, ll.Constant(lli8, 1), ll.Constant(lli8, 1)],
                                 name="subkernel.await.message")
             llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
                                              name="subkernel.arg.stack")
@@ -1641,8 +1684,10 @@ class LLVMIRGenerator:
                 llargptr = self.llbuilder.gep(llargs, [ll.Constant(lli32, index)])
                 self.llbuilder.store(llargslot, llargptr)
 
+            llargcount = ll.Constant(lli8, len(args))
+
             self.llbuilder.call(self.llbuiltin("subkernel_send_message"),
-                                [llsid, lltagptr, llargs])
+                                [llsid, llargcount, lltagptr, llargs])
             self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
 
         return llsid
@@ -1680,8 +1725,9 @@ class LLVMIRGenerator:
         self.llbuilder.store(llretslot, llrets)
 
         llsid = ll.Constant(lli32, 0)  # return goes back to master, sid is ignored
+        lltagcount = ll.Constant(lli8, 1)  # only one thing is returned
         self.llbuilder.call(self.llbuiltin("subkernel_send_message"),
-                            [llsid, lltagptr, llrets])
+                            [llsid, lltagcount, lltagptr, llrets])
 
     def process_Call(self, insn):
         functiontyp = insn.target_function().type
