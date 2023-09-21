@@ -38,6 +38,9 @@ class TInt(types.TMono):
     def one():
         return 1
 
+def TInt8():
+    return TInt(types.TValue(8))
+
 def TInt32():
     return TInt(types.TValue(32))
 
@@ -332,7 +335,7 @@ def get_iterable_elt(typ):
     # n-dimensional arrays, rather than the n-1 dimensional result of iterating over
     # the first axis, which makes the name a bit misleading.
     if is_str(typ) or is_bytes(typ) or is_bytearray(typ):
-        return TInt(types.TValue(8))
+        return TInt8()
     elif types._is_pointer(typ) or is_iterable(typ):
         return typ.find()["elt"].find()
     else:

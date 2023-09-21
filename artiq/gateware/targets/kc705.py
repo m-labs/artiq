@@ -98,6 +98,8 @@ class _StandaloneBase(MiniSoC, AMPSoC):
         AMPSoC.__init__(self)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
 
+        self.config["DRTIO_ROLE"] = "standalone"
+
         if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
             self.platform.toolchain.bitstream_commands.extend([
                 "set_property BITSTREAM.GENERAL.COMPRESS True [current_design]",
@@ -193,6 +195,8 @@ class _MasterBase(MiniSoC, AMPSoC):
                          **kwargs)
         AMPSoC.__init__(self)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
+
+        self.config["DRTIO_ROLE"] = "master"
 
         if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
             self.platform.toolchain.bitstream_commands.extend([
@@ -335,6 +339,8 @@ class _SatelliteBase(BaseSoC, AMPSoC):
                  **kwargs)
         AMPSoC.__init__(self)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
+
+        self.config["DRTIO_ROLE"] = "satellite"
 
         if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
             self.platform.toolchain.bitstream_commands.extend([

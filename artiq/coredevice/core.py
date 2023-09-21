@@ -177,7 +177,7 @@ class Core:
         as additional positional and keyword arguments.
         The returned callable accepts no arguments.
 
-        Precompiled kernels may use RPCs, but not subkernels.
+        Precompiled kernels may use RPCs and subkernels.
 
         Object attributes at the beginning of a precompiled kernel execution have the
         values they had at precompilation time. If up-to-date values are required,
@@ -202,8 +202,9 @@ class Core:
             nonlocal result
             result = new_result
 
-        embedding_map, kernel_library, symbolizer, demangler, _ = \
+        embedding_map, kernel_library, symbolizer, demangler, subkernel_arg_types = \
             self.compile(function, args, kwargs, set_result, attribute_writeback=False)
+        self.compile_subkernels(embedding_map, args, subkernel_arg_types)
 
         @wraps(function)
         def run_precompiled():

@@ -2609,10 +2609,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             # remaining args are received through DRTIO
             if index < len(args):
-                # min/max args received remotely (minus positional)
+                # min/max args received remotely (minus already filled)
                 offset = index
-                min_args = ir.Constant(len(fn_typ.args)-offset, builtins.TInt(types.TValue(8)))
-                max_args = ir.Constant(fn_typ.arity()-offset, builtins.TInt(types.TValue(8)))
+                min_args = ir.Constant(len(fn_typ.args)-offset, builtins.TInt8())
+                max_args = ir.Constant(fn_typ.arity()-offset, builtins.TInt8())
 
                 rcvd_count = self.append(ir.Builtin("subkernel_await_args", [min_args, max_args], builtins.TNone()))
                 arg_types = list(fn_typ.args.items())[offset:]
@@ -2624,7 +2624,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
                 # optional arguments
                 for optarg_name, optarg_type in fn_typ.optargs.items():
-                    idx = ir.Constant(index-offset, builtins.TInt(types.TValue(8)))
+                    idx = ir.Constant(index-offset, builtins.TInt8())
                     args[index] = \
                         self.append(ir.GetOptArgFromRemote(optarg_name, optarg_type, rcvd_count, idx))
                     index += 1
@@ -2663,7 +2663,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 assert args[0] is None
                 args[0] = self_arg
 
-        assert None not in args
+            assert None not in args
 
         if self.unwind_target is None or \
                 types.is_external_function(callee.type) and "nounwind" in callee.type.flags:

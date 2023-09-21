@@ -520,7 +520,7 @@ extern fn subkernel_await_message(id: u32, timeout: u64, min: u8, max: u8) -> u8
                 "An error occurred during subkernel operation")
         }
     })
-    // RpcRecvRequest should be called after this to receive message data
+    // RpcRecvRequest should be called `count` times after this to receive message data
 }
 
 unsafe fn attribute_writeback(typeinfo: *const ()) {

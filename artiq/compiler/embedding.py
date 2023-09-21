@@ -199,7 +199,6 @@ class EmbeddingMap:
         return self.object_reverse_map(id(function))
 
     def has_rpc_or_subkernel(self):
-        # will also return true if there are any subkernels
         return any(filter(lambda x: inspect.isfunction(x) or inspect.ismethod(x),
                           self.object_forward_map.values()))
 
@@ -962,7 +961,7 @@ class Stitcher:
             # Syscalls must be entirely annotated.
             diag = diagnostic.Diagnostic("error",
                 "system call argument '{argument}' must have a type annotation",
-                {"fn_kind": fn_kind, "argument": param.name},
+                {"argument": param.name},
                 self._function_loc(function),
                 notes=self._call_site_note(loc, fn_kind))
             self.engine.process(diag)
@@ -992,9 +991,9 @@ class Stitcher:
             for name, typ in self.subkernel_arg_types:
                 if param.name == name:
                     return typ
-            return types.TVar()
-        else:
-            return types.TVar()
+
+        # Let the rest of the program decide.
+        return types.TVar()
 
     def _quote_embedded_function(self, function, flags, remote_fn=False):
         # we are now parsing new functions... definitely changed the type
@@ -1344,12 +1343,12 @@ class Stitcher:
             self._quote_rpc(function, loc)
         elif host_function.artiq_embedded.destination is not None and \
             host_function.artiq_embedded.destination != self.destination:
+            # treat subkernels as kernels if running on the same device
             if not 0 < host_function.artiq_embedded.destination <= 255:
                 diag = diagnostic.Diagnostic("error",
                     "subkernel destination must be between 1 and 255 (inclusive)", {},
                     self._function_loc(host_function))
                 self.engine.process(diag)
-            # treat subkernels as kernels if running on the same device
             self._quote_subkernel(function, loc)
         elif host_function.artiq_embedded.function is not None:
             if host_function.__name__ == "<lambda>":

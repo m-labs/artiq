@@ -1694,7 +1694,7 @@ class LLVMIRGenerator:
 
     def _build_subkernel_return(self, insn):
         # builds a remote return.
-        # unlike args, return only returns one thing.
+        # unlike args, return only sends one thing.
         if builtins.is_none(insn.value().type):
             # do not waste time and bandwidth on Nones
             return

@@ -424,11 +424,7 @@ class TSubkernel(TFunction):
 
     def __eq__(self, other):
         return isinstance(other, TSubkernel) and \
-                self.sid == other.sid and \
-                self.destination == other.destination
-
-    def __ne__(self, other):
-        return not (self == other)
+                self.sid == other.sid
 
     def __hash__(self):
         return hash(self.sid)

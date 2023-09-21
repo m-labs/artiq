@@ -736,8 +736,8 @@ class GetArgFromRemote(Instruction):
 
 class GetOptArgFromRemote(GetArgFromRemote):
     """
-    An instruction that may or may not retrieve a function argument
-    from remote, depending on number of received values.
+    An instruction that may or may not retrieve an optional function argument
+    from remote, depending on number of values received by firmware.
 
     :ivar rcv_count: number of received values,
                      determined by firmware
@@ -1248,8 +1248,9 @@ class IndirectBranch(Terminator):
 class Return(Terminator):
     """
     A return instruction.
-    :param is_subkernel: (bool) 
-        marking if return is in subkernel context, return value sent back through DRTIO
+    :param remote_return: (bool) 
+        marks a return in subkernel context,
+        where the return value is sent back through DRTIO
     """
 
     """
