@@ -143,6 +143,77 @@ CCBs are used by experiments to configure applets in the dashboard, for example 
 .. autoclass:: artiq.dashboard.applets_ccb.AppletsCCBDock
    :members:
 
+Applet request interfaces
+*************************
+
+Applet request interfaces allow applets to perform actions on the master database and set arguments in the dashboard. Applets may inherit from the ``artiq.applets.simple.SimpleApplet`` and call the methods defined below through the `req` attribute.
+
+Embedded applets should use `AppletRequestIPC` while standalone applets use `AppletRequestRPC`. `SimpleApplet` automatically chooses the correct interface on initialization. 
+
+.. autoclass:: artiq.applets.simple._AppletRequestInterface
+   :members:
+
+
+Applet entry area
+*****************
+
+Extensions are provided to enable the use of argument widgets in applets through the `EntryArea` class. 
+
+Below is a simple example code snippet using the `EntryArea` class: ::
+
+   # Create the experiment area
+   entry_area = EntryArea()
+
+   # Create a new widget
+   entry_area.setattr_argument("bl", BooleanValue(True))
+
+   # Get the value of the widget (output: True)
+   print(entry_area.bl) 
+
+   # Set the value
+   entry_area.set_value("bl", False)
+
+   # False
+   print(entry_area.bl)
+
+The `EntryArea` object can then be added to a layout and integrated with the applet GUI. Multiple `EntryArea` objects can be used in a single applet.
+
+.. class:: artiq.gui.applets.EntryArea
+   
+   .. method:: setattr_argument(name, proc, group=None, tooltip=None)
+
+      Sets an argument as attribute. The names of the argument and of the
+      attribute are the same.
+
+      :param name: Argument name
+      :param proc: Argument processor, for example ``NumberValue``
+      :param group: Used to group together arguments in the GUI under a common category
+      :param tooltip: Tooltip displayed when hovering over the entry widget
+
+   .. method:: get_value(name)
+
+      Get the value of an entry widget.
+
+      :param name: Argument name
+
+   .. method:: get_values()
+
+      Get all values in the ``EntryArea`` as a dictionary. Names are stored as keys, and argument values as values.
+
+   .. method:: set_value(name, value)
+
+      Set the value of an entry widget. The change is temporary and will reset to default when the reset button is clicked.
+
+      :param name: Argument name
+      :param value: Object representing the new value of the argument. For ``Scannable`` arguments, this parameter
+          should be a ``ScanObject``. The type of the ``ScanObject`` will be set as the selected type when this function is called. 
+
+   .. method:: set_values(values)
+
+      Set multiple values from a dictionary input. Calls ``set_value()`` for each key-value pair.
+
+      :param values: Dictionary with names as keys and new argument values as values.
+
 
 Front-end tool reference
 ************************

@@ -17,7 +17,45 @@ from artiq.language.scan import ScanObject
 logger = logging.getLogger(__name__)
 
 
-class AppletControlIPC:
+class _AppletRequestInterface:
+    def __init__(self):
+        raise NotImplementedError
+
+    def set_dataset(self, key, value, unit=None, scale=None, precision=None, persist=None):
+        """
+        Set a dataset.
+        See documentation of ``artiq.language.environment.set_dataset``.
+        """
+        raise NotImplementedError
+
+    def mutate_dataset(self, key, index, value):
+        """
+        Mutate a dataset.
+        See documentation of ``artiq.language.environment.mutate_dataset``.
+        """
+        raise NotImplementedError
+
+    def append_to_dataset(self, key, value):
+        """
+        Append to a dataset.
+        See documentation of ``artiq.language.environment.append_to_dataset``.
+        """
+        raise NotImplementedError
+
+    def set_argument_value(self, expurl, name, value):
+        """
+        Temporarily set the value of an argument in a experiment in the dashboard.
+        The value resets to default value when recomputing the argument.
+
+        :param expurl: Experiment URL identifying the experiment in the dashboard. Example: 'repo:ArgumentsDemo'.
+        :param name: Name of the argument in the experiment.
+        :param value: Object representing the new temporary value of the argument. For ``Scannable`` arguments, this parameter
+            should be a ``ScanObject``. The type of the ``ScanObject`` will be set as the selected type when this function is called. 
+        """
+        raise NotImplementedError
+
+
+class AppletRequestIPC(_AppletRequestInterface):
     def __init__(self, ipc):
         self.ipc = ipc
 
@@ -45,7 +83,7 @@ class AppletControlIPC:
         self.ipc.set_argument_value(expurl, name, value)
 
 
-class AppletControlRPC:
+class AppletRequestRPC(_AppletRequestInterface):
     def __init__(self, loop, dataset_ctl):
         self.loop = loop
         self.dataset_ctl = dataset_ctl
@@ -74,8 +112,6 @@ class AppletControlRPC:
         mod = {"action": "append", "path": [key, 1], "x": value}
         self._background(self.dataset_ctl.update, mod)
 
-    def set_argument_value(self, expurl, name, value):
-        raise NotImplementedError
 
 class AppletIPCClient(AsyncioChildComm):
     def set_close_cb(self, close_cb):
@@ -220,9 +256,9 @@ class SimpleApplet:
             dataset_ctl = RPCClient()
             self.loop.run_until_complete(dataset_ctl.connect_rpc(
                 self.args.server, self.args.port_control, "master_dataset_db"))
-            self.ctl = AppletControlRPC(self.loop, dataset_ctl)
+            self.ctl = AppletRequestRPC(self.loop, dataset_ctl)
         else:
-            self.ctl = AppletControlIPC(self.ipc)
+            self.ctl = AppletRequestIPC(self.ipc)
 
     def ctl_close(self):
         if self.embed is None:
