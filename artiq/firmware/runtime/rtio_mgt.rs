@@ -485,7 +485,7 @@ pub mod drtio {
         _routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         _up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
         _ddma_mutex: &Mutex) {}
-    pub fn reset(_io: &Io, _aux_mutex: &Mutex, _ddma_mutex: &Mutex) {}
+    pub fn reset(_io: &Io, _aux_mutex: &Mutex) {}
 }
 
 static mut SEEN_ASYNC_ERRORS: u8 = 0;
