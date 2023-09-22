@@ -107,9 +107,9 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             drtioaux::send(0, &drtioaux::Packet::ResetAck)
         },
 
-        drtioaux::Packet::DestinationStatusRequest { destination: _destination } => {
+        drtioaux::Packet::DestinationStatusRequest { destination } => {
             #[cfg(has_drtio_routing)]
-            let hop = _routing_table.0[_destination as usize][*_rank as usize];
+            let hop = _routing_table.0[destination as usize][*_rank as usize];
             #[cfg(not(has_drtio_routing))]
             let hop = 0;
 
@@ -118,7 +118,7 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
                 if let Some(status) = _manager.check_state() {
                     info!("playback done, error: {}, channel: {}, timestamp: {}", status.error, status.channel, status.timestamp);
                     drtioaux::send(0, &drtioaux::Packet::DmaPlaybackStatus { 
-                        destination: *_rank, id: status.id, error: status.error, channel: status.channel, timestamp: status.timestamp })?;
+                        destination: destination, id: status.id, error: status.error, channel: status.channel, timestamp: status.timestamp })?;
                 } else if let Some(subkernel_finished) = kernelmgr.get_last_finished() {
                     info!("subkernel {} finished, with exception: {}", subkernel_finished.id, subkernel_finished.with_exception);
                     drtioaux::send(0, &drtioaux::Packet::SubkernelFinished {
@@ -126,14 +126,11 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
                     })?;
                 } else if kernelmgr.message_is_ready() {
                     let mut data_slice: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
-                    if let Some(meta) = kernelmgr.message_get_slice(&mut data_slice) {
-                        drtioaux::send(0, &drtioaux::Packet::SubkernelMessage {
-                            destination: *_rank, id: kernelmgr.get_current_id().unwrap(),
-                            last: meta.last, length: meta.len as u16, data: data_slice
-                        })?;
-                    } else {
-                        error!("subkernel message is ready but no message is present");
-                    }
+                    let meta = kernelmgr.message_get_slice(&mut data_slice).unwrap();
+                    drtioaux::send(0, &drtioaux::Packet::SubkernelMessage {
+                        destination: destination, id: kernelmgr.get_current_id().unwrap(),
+                        last: meta.last, length: meta.len as u16, data: data_slice
+                    })?;
                 } else {
                     let errors;
                     unsafe {
@@ -177,7 +174,7 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
                     if hop <= csr::DRTIOREP.len() {
                         let repno = hop - 1;
                         match _repeaters[repno].aux_forward(&drtioaux::Packet::DestinationStatusRequest {
-                            destination: _destination
+                            destination: destination
                         }) {
                             Ok(()) => (),
                             Err(drtioaux::Error::LinkDown) => drtioaux::send(0, &drtioaux::Packet::DestinationDownReply)?,
