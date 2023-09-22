@@ -113,7 +113,7 @@ fn process_aux_packet(_manager: &mut DmaManager, analyzer: &mut Analyzer, _repea
                 if let Some(status) = _manager.check_state() {
                     info!("playback done, error: {}, channel: {}, timestamp: {}", status.error, status.channel, status.timestamp);
                     drtioaux::send(0, &drtioaux::Packet::DmaPlaybackStatus { 
-                        destination: *_rank, id: status.id, error: status.error, channel: status.channel, timestamp: status.timestamp })?;
+                        destination: _destination, id: status.id, error: status.error, channel: status.channel, timestamp: status.timestamp })?;
                 } else {
                     let errors;
                     unsafe {
