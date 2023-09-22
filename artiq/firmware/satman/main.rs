@@ -65,6 +65,22 @@ fn drtiosat_tsc_loaded() -> bool {
     }
 }
 
+pub enum RtioMaster {
+    Drtio,
+    Dma,
+    Kernel
+}
+
+pub fn cricon_select(master: RtioMaster) {
+    let val = match master {
+        RtioMaster::Drtio => 0,
+        RtioMaster::Dma => 1,
+        RtioMaster::Kernel => 2
+    };
+    unsafe {
+        csr::cri_con::selected_write(val);
+    }
+}
 
 #[cfg(has_drtio_routing)]
 macro_rules! forward {
@@ -96,6 +112,7 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             drtioaux::send(0, &drtioaux::Packet::EchoReply),
         drtioaux::Packet::ResetRequest => {
             info!("resetting RTIO");
+            cricon_select(RtioMaster::Drtio);
             drtiosat_reset(true);
             clock::spin_us(100);
             drtiosat_reset(false);
@@ -692,6 +709,7 @@ pub extern fn main() -> i32 {
         let mut analyzer = Analyzer::new();
         let mut kernelmgr = KernelManager::new();
 
+        cricon_select(RtioMaster::Drtio);
         drtioaux::reset(0);
         drtiosat_reset(false);
         drtiosat_reset_phy(false);

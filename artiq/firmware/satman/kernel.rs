@@ -9,6 +9,7 @@ use eh::eh_artiq;
 use io::{Cursor, ProtoRead};
 use kernel::eh_artiq::StackPointerBacktrace;
 
+use ::{cricon_select, RtioMaster};
 use cache::Cache;
 use SAT_PAYLOAD_MAX_SIZE;
 use MASTER_PAYLOAD_MAX_SIZE;
@@ -36,13 +37,13 @@ mod kernel_cpu {
                                 (KERNELCPU_EXEC_ADDRESS - KSUPPORT_HEADER_SIZE) as *mut u8,
                                 ksupport_end as usize - ksupport_start as usize);
 
-        csr::cri_con::selected_write(2);
+        cricon_select(RtioMaster::Kernel);
         csr::kernel_cpu::reset_write(0);
     }
 
     pub unsafe fn stop() {
         csr::kernel_cpu::reset_write(1);
-        csr::cri_con::selected_write(0);
+        cricon_select(RtioMaster::Drtio);
 
         mailbox::acknowledge();
     }
@@ -624,7 +625,10 @@ impl Manager {
 
 impl Drop for Manager {
     fn drop(&mut self) {
-        unsafe { kernel_cpu::stop() };
+        unsafe {
+            csr::cri_con::selected_write(0);
+            kernel_cpu::stop() 
+        };
     }
 }
 

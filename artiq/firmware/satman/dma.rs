@@ -1,5 +1,6 @@
 use board_misoc::{csr, cache::flush_l2_cache};
 use alloc::{vec::Vec, collections::btree_map::BTreeMap};
+use ::{cricon_select, RtioMaster};
 
 const ALIGNMENT: usize = 64;
 
@@ -126,7 +127,7 @@ impl Manager {
             csr::rtio_dma::base_address_write(ptr as u64);
             csr::rtio_dma::time_offset_write(timestamp as u64);
     
-            csr::cri_con::selected_write(1);
+            cricon_select(RtioMaster::Dma);
             csr::rtio_dma::enable_write(1);
             // playback has begun here, for status call check_state
         }
@@ -145,8 +146,8 @@ impl Manager {
         else {
             self.state = ManagerState::Idle;
             unsafe { 
-                csr::cri_con::selected_write(0);
-                let error =  csr::rtio_dma::error_read();
+                cricon_select(RtioMaster::Drtio);
+                let error = csr::rtio_dma::error_read();
                 let channel = csr::rtio_dma::error_channel_read();
                 let timestamp = csr::rtio_dma::error_timestamp_read();
                 if error != 0 {
