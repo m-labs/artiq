@@ -5,6 +5,7 @@ the references to the host objects and translates the functions
 annotated as ``@kernel`` when they are referenced.
 """
 
+import typing
 import os, re, linecache, inspect, textwrap, types as pytypes, numpy
 from collections import OrderedDict, defaultdict
 
@@ -1048,9 +1049,6 @@ class Stitcher:
         return function_node
 
     def _extract_annot(self, function, annot, kind, call_loc, fn_kind):
-        if annot is None:
-            annot = builtins.TNone()
-
         if isinstance(function, SpecializedFunction):
             host_function = function.host_function
         else:
@@ -1064,9 +1062,20 @@ class Stitcher:
         if isinstance(embedded_function, str):
             embedded_function = host_function
 
+        return self._to_artiq_type(
+            annot,
+            function=function,
+            kind=kind,
+            eval_in_scope=lambda x: eval(x, embedded_function.__globals__),
+            call_loc=call_loc,
+            fn_kind=fn_kind)
+
+    def _to_artiq_type(
+        self, annot, *, function, kind: str, eval_in_scope, call_loc: str, fn_kind: str
+    ) -> types.Type:
         if isinstance(annot, str):
             try:
-                annot = eval(annot, embedded_function.__globals__)
+                annot = eval_in_scope(annot)
             except Exception:
                 diag = diagnostic.Diagnostic(
                     "error",
@@ -1076,17 +1085,67 @@ class Stitcher:
                     notes=self._call_site_note(call_loc, fn_kind))
                 self.engine.process(diag)
 
-        if not isinstance(annot, types.Type):
-            diag = diagnostic.Diagnostic("error",
-                "type annotation for {kind}, '{annot}', is not an ARTIQ type",
-                {"kind": kind, "annot": repr(annot)},
-                self._function_loc(function),
-                notes=self._call_site_note(call_loc, fn_kind))
-            self.engine.process(diag)
-
-            return types.TVar()
-        else:
+        if isinstance(annot, types.Type):
             return annot
+
+        # Convert built-in Python types to ARTIQ ones.
+        if annot is None:
+            return builtins.TNone()
+        elif annot is numpy.int64:
+            return builtins.TInt64()
+        elif annot is numpy.int32:
+            return builtins.TInt32()
+        elif annot is float:
+            return builtins.TFloat()
+        elif annot is bool:
+            return builtins.TBool()
+        elif annot is str:
+            return builtins.TStr()
+        elif annot is bytes:
+            return builtins.TBytes()
+        elif annot is bytearray:
+            return builtins.TByteArray()
+
+        # Convert generic Python types to ARTIQ ones.
+        generic_ty = typing.get_origin(annot)
+        if generic_ty is not None:
+            type_args = typing.get_args(annot)
+            artiq_args = [
+                self._to_artiq_type(
+                    x,
+                    function=function,
+                    kind=kind,
+                    eval_in_scope=eval_in_scope,
+                    call_loc=call_loc,
+                    fn_kind=fn_kind)
+                for x in type_args
+            ]
+
+            if generic_ty is list and len(artiq_args) == 1:
+                return builtins.TList(artiq_args[0])
+            elif generic_ty is tuple:
+                return types.TTuple(artiq_args)
+
+        # Otherwise report an unknown type and just use a fresh tyvar.
+
+        if annot is int:
+            message = (
+                "type annotation for {kind}, 'int' cannot be used as an ARTIQ type. "
+                "Use numpy's int32 or int64 instead."
+            )
+            ty = builtins.TInt()
+        else:
+            message = "type annotation for {kind}, '{annot}', is not an ARTIQ type"
+            ty = types.TVar()
+
+        diag = diagnostic.Diagnostic("error",
+            message,
+            {"kind": kind, "annot": repr(annot)},
+            self._function_loc(function),
+            notes=self._call_site_note(call_loc, fn_kind))
+        self.engine.process(diag)
+
+        return ty
 
     def _quote_syscall(self, function, loc):
         signature = inspect.signature(function)

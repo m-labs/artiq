@@ -4,14 +4,14 @@
 from artiq.experiment import *
 
 class c():
-# CHECK-L: ${LINE:+2}: error: type annotation for argument 'x', '<class 'float'>', is not an ARTIQ type
+# CHECK-L: ${LINE:+2}: error: type annotation for argument 'x', '<class 'list'>', is not an ARTIQ type
     @kernel
-    def hello(self, x: float):
+    def hello(self, x: list):
         pass
 
     @kernel
     def run(self):
-        self.hello(2)
+        self.hello([])
 
 i = c()
 @kernel
