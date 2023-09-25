@@ -398,15 +398,14 @@ class SerdesSingle(Module):
 class OOBReset(Module):
     def __init__(self, iserdes_o):
         self.clock_domains.cd_clk100 = ClockDomain()
-        self.specials += Instance("BUFR",
-            i_CE=~ResetSignal("clk200"),
-            i_CLR=ResetSignal("clk200"),
-            i_I=ClockSignal("clk200"),
-            o_O=ClockSignal("clk100"),
-            p_BUFR_DIVIDE="2")
+        self.specials += [
+            Instance("BUFR",
+                i_I=ClockSignal("clk200"),
+                o_O=ClockSignal("clk100"),
+                p_BUFR_DIVIDE="2"),
+            AsyncResetSynchronizer(self.cd_clk100, ResetSignal("clk200")),
+        ]
 
-        idle_low_meta = Signal()
-        idle_high_meta = Signal()
         idle_low = Signal()
         idle_high = Signal()
 
