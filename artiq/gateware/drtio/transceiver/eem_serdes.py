@@ -438,7 +438,6 @@ class OOBReset(Module):
             FSM(reset_state="WAIT_TRANSITION"))
         counter = Signal(15, reset=0x7FFF)
 
-        # Detect activity for the last 2**15 clk100 cycles
         # Keep sysclk reset asserted until transition is detected for a
         # continuous 2**15 clk100 cycles
         fsm.act("WAIT_TRANSITION",
