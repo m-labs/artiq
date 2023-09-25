@@ -396,7 +396,7 @@ class SerdesSingle(Module):
 
 
 class OOBReset(Module):
-    def __init__(self, iserdes_o):
+    def __init__(self, platform, iserdes_o):
         self.clock_domains.cd_clk100 = ClockDomain()
         self.specials += [
             Instance("BUFR",
@@ -413,21 +413,25 @@ class OOBReset(Module):
         self.rst = Signal(reset=1)
 
         # Detect the lack of transitions (idle) within a clk100 cycle
-        self.specials += [
-            Instance("FDCE", p_INIT=1, i_D=1, i_CLR=iserdes_o,
-                i_CE=1, i_C=ClockSignal("clk100"), o_Q=idle_low_meta,
-                attr={"async_reg", "oob_ff1"}),
-            Instance("FDCE", p_INIT=1, i_D=idle_low_meta, i_CLR=0,
-                i_CE=1, i_C=ClockSignal("clk100"), o_Q=idle_low,
-                attr={"async_reg", "oob_ff2"}),
+        for idle, source in [
+                (idle_low, iserdes_o), (idle_high, ~iserdes_o)]:
+            idle_meta = Signal()
+            ff_pair = [ff1, ff2] = [
+                Instance("FDCE", p_INIT=1, i_D=1, i_CLR=source,
+                    i_CE=1, i_C=ClockSignal("clk100"), o_Q=idle_meta,
+                    attr={"async_reg"}),
+                Instance("FDCE", p_INIT=1, i_D=idle_meta, i_CLR=0,
+                    i_CE=1, i_C=ClockSignal("clk100"), o_Q=idle,
+                    attr={"async_reg"}),
+            ]
+            self.specials += ff_pair
 
-            Instance("FDCE", p_INIT=1, i_D=1, i_CLR=~iserdes_o,
-                i_CE=1, i_C=ClockSignal("clk100"), o_Q=idle_high_meta,
-                attr={"async_reg", "oob_ff1"}),
-            Instance("FDCE", p_INIT=1, i_D=idle_high_meta, i_CLR=0,
-                i_CE=1, i_C=ClockSignal("clk100"), o_Q=idle_high,
-                attr={"async_reg", "oob_ff2"}),
-        ]
+            platform.add_platform_command(
+                "set_false_path -quiet -to {ff1}/CLR", ff1=ff1)
+            # Capture transition detected by FF1/Q in FF2/D
+            platform.add_platform_command(
+                "set_max_delay 2 -quiet "
+                "-from {ff1}/Q -to {ff2}/D", ff1=ff1, ff2=ff2)
 
         # Detect activity for the last 2**15 clk100 cycles
         self.submodules.fsm = fsm = ClockDomainsRenamer("clk100")(
@@ -549,7 +553,7 @@ class EEMSerdes(Module, TransceiverInterface, AutoCSR):
 
         self.submodules += serdes_list
 
-        self.submodules.oob_reset = OOBReset(serdes_list[0].rx_serdes.o[0])
+        self.submodules.oob_reset = OOBReset(platform, serdes_list[0].rx_serdes.o[0])
         self.rst = self.oob_reset.rst
         self.rst.attr.add("no_retiming")
 
