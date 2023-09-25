@@ -412,7 +412,7 @@ class OOBReset(Module):
         idle = Signal()
         self.rst = Signal(reset=1)
 
-        # Detect the lack of transitions (idle) within a clk100 cycles
+        # Detect the lack of transitions (idle) within a clk100 cycle
         self.specials += [
             Instance("FDCE", p_INIT=1, i_D=1, i_CLR=iserdes_o,
                 i_CE=1, i_C=ClockSignal("clk100"), o_Q=idle_low_meta,
