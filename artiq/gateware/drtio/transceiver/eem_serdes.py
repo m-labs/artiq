@@ -409,7 +409,6 @@ class OOBReset(Module):
         idle_low = Signal()
         idle_high = Signal()
 
-        idle = Signal()
         self.rst = Signal(reset=1)
 
         # Detect the lack of transitions (idle) within a clk100 cycle
