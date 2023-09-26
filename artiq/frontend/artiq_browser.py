@@ -81,7 +81,8 @@ class Browser(QtWidgets.QMainWindow):
         self.files.dataset_changed.connect(
             self.experiments.dataset_changed)
 
-        self.applets = applets.AppletsDock(self, dataset_sub, dataset_ctl, loop=loop)
+        self.applets = applets.AppletsDock(self, dataset_sub, dataset_ctl,
+                                           self.experiments, loop=loop)
         smgr.register(self.applets)
         atexit_register_coroutine(self.applets.stop, loop=loop)
 
