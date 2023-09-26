@@ -621,12 +621,11 @@ class PeripheralManager:
                 channel=rtio_offset+i)
         return 8
 
-    def process_efc(self, efc_peripheral):
-        efc_name = self.get_name("efc")
-        rtio_offset = efc_peripheral["drtio_destination"] << 16
-        rtio_offset += self.add_board_leds(rtio_offset, board_name=efc_name)
-
+    def process_shuttler(self, shuttler_peripheral):
         shuttler_name = self.get_name("shuttler")
+        rtio_offset = shuttler_peripheral["drtio_destination"] << 16
+        rtio_offset += self.add_board_leds(rtio_offset, board_name=shuttler_name)
+        
         channel = count(0)
         self.gen("""
             device_db["{name}_config"] = {{
@@ -718,8 +717,8 @@ class PeripheralManager:
 
 
 def split_drtio_eem(peripherals):
-    # EFC is the only peripheral that uses DRTIO-over-EEM at this moment
-    drtio_eem_filter = lambda peripheral: peripheral["type"] == "efc"
+    # Shuttler is the only peripheral that uses DRTIO-over-EEM at this moment
+    drtio_eem_filter = lambda peripheral: peripheral["type"] == "shuttler"
     return filterfalse(drtio_eem_filter, peripherals), \
         list(filter(drtio_eem_filter, peripherals))
 

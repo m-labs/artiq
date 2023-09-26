@@ -1,5 +1,7 @@
 # Copyright 2013-2017 Robert Jordens <jordens@gmail.com>
 #
+# shuttler is developed based on pdq.
+#
 # pdq is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or

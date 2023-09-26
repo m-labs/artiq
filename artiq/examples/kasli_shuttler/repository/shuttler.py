@@ -5,59 +5,59 @@ DAC_Fs_MHZ = 125
 CORDIC_GAIN = 1.64676
 
 @portable
-def pdq_phase_offset(offset_degree):
+def shuttler_phase_offset(offset_degree):
     return round(offset_degree / 360 * (2 ** 16))
 
 @portable
-def pdq_freq_mu(freq_mhz):
+def shuttler_freq_mu(freq_mhz):
     return round(float(2) ** 32 / DAC_Fs_MHZ * freq_mhz)
 
 @portable
-def pdq_chirp_rate_mu(freq_mhz_per_us):
+def shuttler_chirp_rate_mu(freq_mhz_per_us):
     return round(float(2) ** 32 * freq_mhz_per_us / (DAC_Fs_MHZ ** 2))
 
 @portable
-def pdq_freq_sweep(start_f_MHz, end_f_MHz, time_us):
-    return pdq_chirp_rate_mu((end_f_MHz - start_f_MHz)/(time_us))
+def shuttler_freq_sweep(start_f_MHz, end_f_MHz, time_us):
+    return shuttler_chirp_rate_mu((end_f_MHz - start_f_MHz)/(time_us))
 
 @portable
-def pdq_volt_amp_mu(volt):
+def shuttler_volt_amp_mu(volt):
     return shuttler_volt_to_mu(volt)
 
 @portable
-def pdq_volt_damp_mu(volt_per_us):
+def shuttler_volt_damp_mu(volt_per_us):
     return round(float(2) ** 30 * (volt_per_us / 20) / DAC_Fs_MHZ)
 
 @portable
-def pdq_volt_ddamp_mu(volt_per_us_square):
+def shuttler_volt_ddamp_mu(volt_per_us_square):
     return round(float(2) ** 46 * (volt_per_us_square / 20) * 2 / (DAC_Fs_MHZ ** 2))
 
 @portable
-def pdq_volt_dddamp_mu(volt_per_us_cube):
+def shuttler_volt_dddamp_mu(volt_per_us_cube):
     return round(float(2) ** 46 * (volt_per_us_cube / 20) * 6 / (DAC_Fs_MHZ ** 3))
 
 @portable
-def pdq_dds_amp_mu(volt):
-    return pdq_volt_amp_mu(volt / CORDIC_GAIN)
+def shuttler_dds_amp_mu(volt):
+    return shuttler_volt_amp_mu(volt / CORDIC_GAIN)
 
 @portable
-def pdq_dds_damp_mu(volt_per_us):
-    return pdq_volt_damp_mu(volt_per_us / CORDIC_GAIN)
+def shuttler_dds_damp_mu(volt_per_us):
+    return shuttler_volt_damp_mu(volt_per_us / CORDIC_GAIN)
 
 @portable
-def pdq_dds_ddamp_mu(volt_per_us_square):
-    return pdq_volt_ddamp_mu(volt_per_us_square / CORDIC_GAIN)
+def shuttler_dds_ddamp_mu(volt_per_us_square):
+    return shuttler_volt_ddamp_mu(volt_per_us_square / CORDIC_GAIN)
 
 @portable
-def pdq_dds_dddamp_mu(volt_per_us_cube):
-    return pdq_volt_dddamp_mu(volt_per_us_cube / CORDIC_GAIN)
+def shuttler_dds_dddamp_mu(volt_per_us_cube):
+    return shuttler_volt_dddamp_mu(volt_per_us_cube / CORDIC_GAIN)
 
 class Shuttler(EnvExperiment):
     def build(self):
         self.setattr_device("core")
         self.setattr_device("core_dma")
         self.setattr_device("scheduler")
-        self.efc0_leds = [ self.get_device("efc0_led{}".format(i)) for i in range(2) ]
+        self.shuttler0_leds = [ self.get_device("shuttler0_led{}".format(i)) for i in range(2) ]
         self.setattr_device("shuttler0_config")
         self.setattr_device("shuttler0_trigger")
         self.shuttler0_volt = [ self.get_device("shuttler0_volt{}".format(i)) for i in range(16) ]
@@ -76,7 +76,7 @@ class Shuttler(EnvExperiment):
         self.led()
         self.relay_init()
         self.adc_init()
-        self.pdq_reset()
+        self.shuttler_reset()
 
     @kernel
     def run(self):
@@ -94,14 +94,14 @@ class Shuttler(EnvExperiment):
             self.core_dma.playback_handle(example_waveform_handle)
 
     @kernel
-    def pdq_reset(self):
+    def shuttler_reset(self):
         for i in range(16):
-            self.pdq_channel_reset(i)
+            self.shuttler_channel_reset(i)
             # To avoid RTIO Underflow
             delay(50*us)
 
     @kernel
-    def pdq_channel_reset(self, ch):
+    def shuttler_channel_reset(self, ch):
         self.shuttler0_volt[ch].set_waveform(
             a0=0,
             a1=0,
@@ -166,21 +166,21 @@ class Shuttler(EnvExperiment):
         duration_us = 500
         # OUT0 and OUT1 have their frequency and phase aligned at 500us
         self.shuttler0_dds[0].set_waveform(
-            b0=pdq_dds_amp_mu(1.0),
+            b0=shuttler_dds_amp_mu(1.0),
             b1=0,
             b2=0,
             b3=0,
             c0=0,
-            c1=pdq_freq_mu(start_f_MHz),
-            c2=pdq_freq_sweep(start_f_MHz, end_f_MHz, duration_us),
+            c1=shuttler_freq_mu(start_f_MHz),
+            c2=shuttler_freq_sweep(start_f_MHz, end_f_MHz, duration_us),
         )
         self.shuttler0_dds[1].set_waveform(
-            b0=pdq_dds_amp_mu(1.0),
+            b0=shuttler_dds_amp_mu(1.0),
             b1=0,
             b2=0,
             b3=0,
             c0=0,
-            c1=pdq_freq_mu(end_f_MHz),
+            c1=shuttler_freq_mu(end_f_MHz),
             c2=0,
         )
         self.shuttler0_trigger.trigger(0b11)
@@ -189,12 +189,12 @@ class Shuttler(EnvExperiment):
         ## Step 3 ##
         # OUT0 and OUT1 has 180 degree phase difference
         self.shuttler0_dds[0].set_waveform(
-            b0=pdq_dds_amp_mu(1.0),
+            b0=shuttler_dds_amp_mu(1.0),
             b1=0,
             b2=0,
             b3=0,
-            c0=pdq_phase_offset(180.0),
-            c1=pdq_freq_mu(end_f_MHz),
+            c0=shuttler_phase_offset(180.0),
+            c1=shuttler_freq_mu(end_f_MHz),
             c2=0,
         )
         # Phase and Output Setting of OUT1 is retained 
@@ -206,17 +206,17 @@ class Shuttler(EnvExperiment):
         #     b(0) = 0, b(250) = 8.545, b(500) = 0
         self.shuttler0_dds[0].set_waveform(
             b0=0,
-            b1=pdq_dds_damp_mu(0.06835937),
-            b2=pdq_dds_ddamp_mu(-0.0001367187),
+            b1=shuttler_dds_damp_mu(0.06835937),
+            b2=shuttler_dds_ddamp_mu(-0.0001367187),
             b3=0,
             c0=0,
-            c1=pdq_freq_mu(end_f_MHz),
+            c1=shuttler_freq_mu(end_f_MHz),
             c2=0,
         )
         self.shuttler0_dds[1].set_waveform(
             b0=0,
-            b1=pdq_dds_damp_mu(0.06835937),
-            b2=pdq_dds_ddamp_mu(-0.0001367187),
+            b1=shuttler_dds_damp_mu(0.06835937),
+            b2=shuttler_dds_ddamp_mu(-0.0001367187),
             b3=0,
             c0=0,
             c1=0,
@@ -227,23 +227,23 @@ class Shuttler(EnvExperiment):
 
         ## Step 5 ##
         self.shuttler0_volt[0].set_waveform(
-            a0=pdq_volt_amp_mu(-5.0),
-            a1=int32(pdq_volt_damp_mu(0.01)),
+            a0=shuttler_volt_amp_mu(-5.0),
+            a1=int32(shuttler_volt_damp_mu(0.01)),
             a2=0,
             a3=0,
         )
         self.shuttler0_dds[0].set_waveform(
-            b0=pdq_dds_amp_mu(1.0),
+            b0=shuttler_dds_amp_mu(1.0),
             b1=0,
             b2=0,
             b3=0,
             c0=0,
-            c1=pdq_freq_mu(end_f_MHz),
+            c1=shuttler_freq_mu(end_f_MHz),
             c2=0,
         )
         self.shuttler0_volt[1].set_waveform(
-            a0=pdq_volt_amp_mu(-5.0),
-            a1=int32(pdq_volt_damp_mu(0.01)),
+            a0=shuttler_volt_amp_mu(-5.0),
+            a1=int32(shuttler_volt_damp_mu(0.01)),
             a2=0,
             a3=0,
         )
@@ -261,53 +261,53 @@ class Shuttler(EnvExperiment):
         
         ## Step 6 ##
         self.shuttler0_volt[0].set_waveform(
-            a0=pdq_volt_amp_mu(-2.5),
-            a1=int32(pdq_volt_damp_mu(0.01)),
+            a0=shuttler_volt_amp_mu(-2.5),
+            a1=int32(shuttler_volt_damp_mu(0.01)),
             a2=0,
             a3=0,
         )
         self.shuttler0_dds[0].set_waveform(
             b0=0,
-            b1=pdq_dds_damp_mu(0.06835937),
-            b2=pdq_dds_ddamp_mu(-0.0001367187),
+            b1=shuttler_dds_damp_mu(0.06835937),
+            b2=shuttler_dds_ddamp_mu(-0.0001367187),
             b3=0,
             c0=0,
-            c1=pdq_freq_mu(start_f_MHz),
-            c2=pdq_freq_sweep(start_f_MHz, end_f_MHz, duration_us),
+            c1=shuttler_freq_mu(start_f_MHz),
+            c2=shuttler_freq_sweep(start_f_MHz, end_f_MHz, duration_us),
         )
         self.shuttler0_trigger.trigger(0b1)
-        self.pdq_channel_reset(1)
+        self.shuttler_channel_reset(1)
         delay(500*us)
 
         ## Step 7 ##
         self.shuttler0_volt[0].set_waveform(
-            a0=pdq_volt_amp_mu(2.5),
-            a1=int32(pdq_volt_damp_mu(-0.01)),
+            a0=shuttler_volt_amp_mu(2.5),
+            a1=int32(shuttler_volt_damp_mu(-0.01)),
             a2=0,
             a3=0,
         )
         self.shuttler0_dds[0].set_waveform(
             b0=0,
-            b1=pdq_dds_damp_mu(-0.06835937),
-            b2=pdq_dds_ddamp_mu(0.0001367187),
+            b1=shuttler_dds_damp_mu(-0.06835937),
+            b2=shuttler_dds_ddamp_mu(0.0001367187),
             b3=0,
-            c0=pdq_phase_offset(180.0),
-            c1=pdq_freq_mu(end_f_MHz),
-            c2=pdq_freq_sweep(end_f_MHz, start_f_MHz, duration_us),
+            c0=shuttler_phase_offset(180.0),
+            c1=shuttler_freq_mu(end_f_MHz),
+            c2=shuttler_freq_sweep(end_f_MHz, start_f_MHz, duration_us),
         )
         self.shuttler0_trigger.trigger(0b1)
         delay(500*us)
 
         ## Step 8 ##
         self.shuttler0_relay.enable(0)
-        self.pdq_channel_reset(0)
-        self.pdq_channel_reset(1)
+        self.shuttler_channel_reset(0)
+        self.shuttler_channel_reset(1)
 
     @kernel
     def led(self):
         for i in range(2):
             for j in range(3):
-                self.efc0_leds[i].pulse(.1*s)
+                self.shuttler0_leds[i].pulse(.1*s)
                 delay(.1*s)
 
     @kernel
