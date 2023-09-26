@@ -748,10 +748,10 @@ def process(output, primary_description, satellites):
         rtio_offset += n_channels
 
     for destination, description in satellites:
-        peripherals, satellite_drtio_peripherals = split_drtio_eem(description["peripherals"])
-        drtio_peripherals.extend(satellite_drtio_peripherals)
         if description["drtio_role"] != "satellite":
             raise ValueError("Invalid DRTIO role for satellite at destination {}".format(destination))
+        peripherals, satellite_drtio_peripherals = split_drtio_eem(description["peripherals"])
+        drtio_peripherals.extend(satellite_drtio_peripherals)
 
         print("# DEST#{} peripherals".format(destination), file=output)
         rtio_offset = destination << 16
