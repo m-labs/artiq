@@ -4,7 +4,7 @@ import argparse
 import sys
 import textwrap
 from collections import defaultdict
-from itertools import count
+from itertools import count, filterfalse
 
 from artiq import __version__ as artiq_version
 from artiq.coredevice import jsondesc
@@ -621,12 +621,90 @@ class PeripheralManager:
                 channel=rtio_offset+i)
         return 8
 
+    def process_efc(self, efc_peripheral):
+        efc_name = self.get_name("efc")
+        rtio_offset = efc_peripheral["drtio_destination"] << 16
+        rtio_offset += self.add_board_leds(rtio_offset, board_name=efc_name)
+
+        shuttler_name = self.get_name("shuttler")
+        channel = count(0)
+        self.gen("""
+            device_db["{name}_config"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.shuttler",
+                "class": "Config",
+                "arguments": {{"channel": 0x{channel:06x}}},
+            }}""",
+            name=shuttler_name,
+            channel=rtio_offset + next(channel))
+        self.gen("""
+            device_db["{name}_trigger"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.shuttler",
+                "class": "Trigger",
+                "arguments": {{"channel": 0x{channel:06x}}},
+            }}""",
+            name=shuttler_name,
+            channel=rtio_offset + next(channel))
+        for i in range(16):
+            self.gen("""
+                device_db["{name}_volt{ch}"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.shuttler",
+                    "class": "Volt",
+                    "arguments": {{"channel": 0x{channel:06x}}},
+                }}""",
+                name=shuttler_name,
+                ch=i,
+                channel=rtio_offset + next(channel))
+            self.gen("""
+                device_db["{name}_dds{ch}"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.shuttler",
+                    "class": "Dds",
+                    "arguments": {{"channel": 0x{channel:06x}}},
+                }}""",
+                name=shuttler_name,
+                ch=i,
+                channel=rtio_offset + next(channel))
+
+        device_class_names = ["Relay", "ADC"]
+        for i, device_name in enumerate(device_class_names):
+            spi_name = "{name}_spi{ch}".format(
+                name=shuttler_name,
+                ch=i)
+            self.gen("""
+                device_db["{spi}"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.spi2",
+                    "class": "SPIMaster",
+                    "arguments": {{"channel": 0x{channel:06x}}},
+                }}""",
+                spi=spi_name,
+                channel=rtio_offset + next(channel))
+            self.gen("""
+                device_db["{name}_{device}"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.shuttler",
+                    "class": "{dev_class}",
+                    "arguments": {{"spi_device": "{spi}"}},
+                }}""",
+                name=shuttler_name,
+                device=device_name.lower(),
+                dev_class=device_name,
+                spi=spi_name)
+        return 0
+
     def process(self, rtio_offset, peripheral):
         processor = getattr(self, "process_"+str(peripheral["type"]))
         return processor(rtio_offset, peripheral)
 
-    def add_board_leds(self, rtio_offset):
+    def add_board_leds(self, rtio_offset, board_name=None):
         for i in range(2):
+            if board_name is None:
+                led_name = self.get_name("led")
+            else:
+                led_name = self.get_name("{}_led".format(board_name))
             self.gen("""
                 device_db["{name}"] = {{
                     "type": "local",
@@ -634,9 +712,16 @@ class PeripheralManager:
                     "class": "TTLOut",
                     "arguments": {{"channel": 0x{channel:06x}}}
                 }}""",
-                name=self.get_name("led"),
+                name=led_name,
                 channel=rtio_offset+i)
         return 2
+
+
+def split_drtio_eem(peripherals):
+    # EFC is the only peripheral that uses DRTIO-over-EEM at this moment
+    drtio_eem_filter = lambda peripheral: peripheral["type"] == "efc"
+    return filterfalse(drtio_eem_filter, peripherals), \
+        list(filter(drtio_eem_filter, peripherals))
 
 
 def process(output, primary_description, satellites):
@@ -651,9 +736,11 @@ def process(output, primary_description, satellites):
 
     pm = PeripheralManager(output, primary_description)
 
+    local_peripherals, drtio_peripherals = split_drtio_eem(primary_description["peripherals"])
+
     print("# {} peripherals".format(drtio_role), file=output)
     rtio_offset = 0
-    for peripheral in primary_description["peripherals"]:
+    for peripheral in local_peripherals:
         n_channels = pm.process(rtio_offset, peripheral)
         rtio_offset += n_channels
     if drtio_role == "standalone":
@@ -663,12 +750,19 @@ def process(output, primary_description, satellites):
     for destination, description in satellites:
         if description["drtio_role"] != "satellite":
             raise ValueError("Invalid DRTIO role for satellite at destination {}".format(destination))
+        peripherals, satellite_drtio_peripherals = split_drtio_eem(description["peripherals"])
+        drtio_peripherals.extend(satellite_drtio_peripherals)
 
         print("# DEST#{} peripherals".format(destination), file=output)
         rtio_offset = destination << 16
-        for peripheral in description["peripherals"]:
+        for peripheral in peripherals:
             n_channels = pm.process(rtio_offset, peripheral)
             rtio_offset += n_channels
+    
+    for peripheral in drtio_peripherals:
+        print("# DEST#{} peripherals".format(peripheral["drtio_destination"]), file=output)
+        processor = getattr(pm, "process_"+str(peripheral["type"]))
+        processor(peripheral)
 
 
 def main():
