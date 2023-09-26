@@ -717,10 +717,11 @@ class PeripheralManager:
         return 2
 
 
-def split_efcs(peripherals):
-    efc_filter = lambda peripheral: peripheral["type"] == "efc"
-    return filterfalse(efc_filter, peripherals), \
-        list(filter(efc_filter, peripherals))
+def split_drtio_eem(peripherals):
+    # EFC is the only peripheral that uses DRTIO-over-EEM at this moment
+    drtio_eem_filter = lambda peripheral: peripheral["type"] == "efc"
+    return filterfalse(drtio_eem_filter, peripherals), \
+        list(filter(drtio_eem_filter, peripherals))
 
 
 def process(output, primary_description, satellites):
@@ -735,7 +736,7 @@ def process(output, primary_description, satellites):
 
     pm = PeripheralManager(output, primary_description)
 
-    primary_peripherals, efcs = split_efcs(primary_description["peripherals"])
+    primary_peripherals, efcs = split_drtio_eem(primary_description["peripherals"])
 
     print("# {} peripherals".format(drtio_role), file=output)
     rtio_offset = 0
@@ -747,7 +748,7 @@ def process(output, primary_description, satellites):
         rtio_offset += n_channels
 
     for destination, description in satellites:
-        peripherals, satellite_efcs = split_efcs(description["peripherals"])
+        peripherals, satellite_efcs = split_drtio_eem(description["peripherals"])
         efcs.extend(satellite_efcs)
         if description["drtio_role"] != "satellite":
             raise ValueError("Invalid DRTIO role for satellite at destination {}".format(destination))
