@@ -736,11 +736,11 @@ def process(output, primary_description, satellites):
 
     pm = PeripheralManager(output, primary_description)
 
-    primary_peripherals, efcs = split_drtio_eem(primary_description["peripherals"])
+    local_peripherals, drtio_peripherals = split_drtio_eem(primary_description["peripherals"])
 
     print("# {} peripherals".format(drtio_role), file=output)
     rtio_offset = 0
-    for peripheral in primary_peripherals:
+    for peripheral in local_peripherals:
         n_channels = pm.process(rtio_offset, peripheral)
         rtio_offset += n_channels
     if drtio_role == "standalone":
@@ -748,8 +748,8 @@ def process(output, primary_description, satellites):
         rtio_offset += n_channels
 
     for destination, description in satellites:
-        peripherals, satellite_efcs = split_drtio_eem(description["peripherals"])
-        efcs.extend(satellite_efcs)
+        peripherals, satellite_drtio_peripherals = split_drtio_eem(description["peripherals"])
+        drtio_peripherals.extend(satellite_drtio_peripherals)
         if description["drtio_role"] != "satellite":
             raise ValueError("Invalid DRTIO role for satellite at destination {}".format(destination))
 
@@ -759,9 +759,10 @@ def process(output, primary_description, satellites):
             n_channels = pm.process(rtio_offset, peripheral)
             rtio_offset += n_channels
     
-    for efc in efcs:
-        print("# DEST#{} peripherals".format(efc["drtio_destination"]), file=output)
-        pm.process_efc(efc)
+    for peripheral in drtio_peripherals:
+        print("# DEST#{} peripherals".format(peripheral["drtio_destination"]), file=output)
+        processor = getattr(pm, "process_"+str(peripheral["type"]))
+        processor(peripheral)
 
 
 def main():
