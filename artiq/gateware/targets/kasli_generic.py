@@ -70,7 +70,7 @@ class GenericMaster(MasterBase):
         if hw_rev is None:
             hw_rev = description["hw_rev"]
         self.class_name_override = description["variant"]
-        has_drtio_over_eem = any(peripheral["type"] == "efc" for peripheral in description["peripherals"])
+        has_drtio_over_eem = any(peripheral["type"] == "shuttler" for peripheral in description["peripherals"])
         MasterBase.__init__(self,
             hw_rev=hw_rev,
             rtio_clk_freq=description["rtio_frequency"],
@@ -174,9 +174,9 @@ def main():
     else:
         raise ValueError("Invalid DRTIO role")
 
-    has_efc = any(peripheral["type"] == "efc" for peripheral in description["peripherals"])
-    if has_efc and (description["drtio_role"] == "standalone"):
-        raise ValueError("EFC requires DRTIO, please switch role to master")
+    has_shuttler = any(peripheral["type"] == "shuttler" for peripheral in description["peripherals"])
+    if has_shuttler and (description["drtio_role"] == "standalone"):
+        raise ValueError("Shuttler requires DRTIO, please switch role to master")
 
     soc = cls(description, gateware_identifier_str=args.gateware_identifier_str, **soc_kasli_argdict(args))
     args.variant = description["variant"]

@@ -5,7 +5,7 @@
     "base": "master",
     "peripherals": [
         {
-            "type": "efc",
+            "type": "shuttler",
                 "ports": [0]
         },
         {

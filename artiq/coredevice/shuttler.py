@@ -164,7 +164,7 @@ class Volt:
         :param a2: The :math:`a_2` coefficient in machine unit.
         :param a3: The :math:`a_3` coefficient in machine unit.
         """
-        pdq_words = [
+        coef_words = [
             a0,
             a1,
             a1 >> 16,
@@ -176,8 +176,8 @@ class Volt:
             (a3 >> 32) & 0xFFFF,
         ]
 
-        for i in range(len(pdq_words)):
-            rtio_output(self.target_o | i, pdq_words[i])
+        for i in range(len(coef_words)):
+            rtio_output(self.target_o | i, coef_words[i])
             delay_mu(int64(self.core.ref_multiplier))
 
 
@@ -254,7 +254,7 @@ class Dds:
         :param c1: The :math:`c_1` coefficient in machine unit.
         :param c2: The :math:`c_2` coefficient in machine unit.
         """
-        pdq_words = [
+        coef_words = [
             b0,
             b1,
             b1 >> 16,
@@ -271,8 +271,8 @@ class Dds:
             c2 >> 16,
         ]
 
-        for i in range(len(pdq_words)):
-            rtio_output(self.target_o | i, pdq_words[i])
+        for i in range(len(coef_words)):
+            rtio_output(self.target_o | i, coef_words[i])
             delay_mu(int64(self.core.ref_multiplier))
 
 
