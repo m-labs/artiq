@@ -45,7 +45,14 @@ class EmbeddingMap:
         self.object_forward_map = {}
         self.object_reverse_map = {}
         self.module_map = {}
+
+        # type_map connects the host Python `type` to the pair of associated
+        # `(TInstance, TConstructor)`s. The `used_…_names` sets cache the
+        # respective `.name`s for O(1) collision avoidance.
         self.type_map = {}
+        self.used_instance_type_names = set()
+        self.used_constructor_type_names = set()
+
         self.function_map = {}
         self.str_forward_map = {}
         self.str_reverse_map = {}
@@ -91,16 +98,6 @@ class EmbeddingMap:
 
     # Types
     def store_type(self, host_type, instance_type, constructor_type):
-        self._rename_type(instance_type)
-        self.type_map[host_type] = (instance_type, constructor_type)
-
-    def retrieve_type(self, host_type):
-        return self.type_map[host_type]
-
-    def has_type(self, host_type):
-        return host_type in self.type_map
-
-    def _rename_type(self, new_instance_type):
         # Generally, user-defined types that have exact same name (which is to say, classes
         # defined inside functions) do not pose a problem to the compiler. The two places which
         # cannot handle this are:
@@ -109,12 +106,29 @@ class EmbeddingMap:
         # Since handling #2 requires renaming on ARTIQ side anyway, it's more straightforward
         # to do it once when embedding (since non-embedded code cannot define classes in
         # functions). Also, easier to debug.
-        n = 0
-        for host_type in self.type_map:
-            instance_type, constructor_type = self.type_map[host_type]
-            if instance_type.name == new_instance_type.name:
-                n += 1
-                new_instance_type.name = "{}.{}".format(new_instance_type.name, n)
+        suffix = 0
+        new_instance_name = instance_type.name
+        new_constructor_name = constructor_type.name
+        while True:
+            if (new_instance_name not in self.used_instance_type_names
+                    and new_constructor_name not in self.used_constructor_type_names):
+                break
+            suffix += 1
+            new_instance_name = f"{instance_type.name}.{suffix}"
+            new_constructor_name = f"{constructor_type.name}.{suffix}"
+
+        self.used_instance_type_names.add(new_instance_name)
+        instance_type.name = new_instance_name
+        self.used_constructor_type_names.add(new_constructor_name)
+        constructor_type.name = new_constructor_name
+
+        self.type_map[host_type] = (instance_type, constructor_type)
+
+    def retrieve_type(self, host_type):
+        return self.type_map[host_type]
+
+    def has_type(self, host_type):
+        return host_type in self.type_map
 
     def attribute_count(self):
         count = 0
