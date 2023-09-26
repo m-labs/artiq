@@ -21,7 +21,7 @@ class Config:
     The configuration registers control waveform phase auto-clear, and pre-DAC
     gain & offset values for calibration with ADC on the Shuttler AFE card.
 
-    To find the calibrated DAC code, the Shuttler core first multiplies the
+    To find the calibrated DAC code, the Shuttler Core first multiplies the
     output data with pre-DAC gain, then adds the offset.
 
     .. note::
@@ -49,7 +49,7 @@ class Config:
         """Set/Unset waveform phase clear bits.
 
         Each bit corresponds to a Shuttler waveform generator core. Setting a
-        clear bit forces the Shuttler core to clear the phase accumulator on
+        clear bit forces the Shuttler Core to clear the phase accumulator on
         waveform trigger (See :class:`Trigger` for the trigger method).
         Otherwise, the phase accumulator increments from its original value.
 
@@ -156,7 +156,7 @@ class Volt:
         and 46 bits in width respectively. See :meth:`shuttler_volt_to_mu` for
         machine unit conversion.
 
-        Note: The waveform is not updated to the Shuttler core until
+        Note: The waveform is not updated to the Shuttler Core until
         triggered. See :class:`Trigger` for the update triggering mechanism.
 
         :param a0: The :math:`a_0` coefficient in machine unit.
@@ -243,7 +243,7 @@ class Dds:
         machine unit conversion. :math:`c_0`, :math:`c_1` and :math:`c_2` are
         16, 32 and 32 bits in width respectively.
 
-        Note: The waveform is not updated to the Shuttler core until
+        Note: The waveform is not updated to the Shuttler Core until
         triggered. See :class:`Trigger` for the update triggering mechanism.
 
         :param b0: The :math:`b_0` coefficient in machine unit.
@@ -291,11 +291,11 @@ class Trigger:
 
     @kernel
     def trigger(self, trig_out):
-        """Triggers coefficient update of (a) Shuttler core channel(s).
+        """Triggers coefficient update of (a) Shuttler Core channel(s).
 
         Each bit corresponds to a Shuttler waveform generator core. Setting
         `trig_out` bits commits the pending coefficient update (from
-        `set_waveform` in :class:`Volt` and :class:`Dds`) to the Shuttler core
+        `set_waveform` in :class:`Volt` and :class:`Dds`) to the Shuttler Core
         synchronously.
 
         :param trig_out: Coefficient update trigger bits. The MSB corresponds
@@ -410,7 +410,7 @@ class ADC:
         contents.
 
         .. note::
-            The datasheet only requires 64 cycles, but reaserting `CS_n` right
+            The datasheet only requires 64 cycles, but reasserting `CS_n` right
             after the transfer appears to interrupt the start-up sequence.
         """
         self.bus.set_config_mu(ADC_SPI_CONFIG, 32, SPIT_ADC_WR, CS_ADC)
@@ -584,7 +584,7 @@ class ADC:
         :param volts: A list of all 16 cubic DC-bias spline.
             (See :class:`Volt`)
         :param trigger: The Shuttler spline coefficient update trigger.
-        :param config: The Shuttler core configuration registers.
+        :param config: The Shuttler Core configuration registers.
         :param samples: A list of sample voltages for calibration. There must
             be at least 2 samples to perform slope rate calculation.
         """
