@@ -508,5 +508,9 @@ class ExperimentsArea(QtWidgets.QMdiArea):
         self.open_experiments.append(dock)
         return dock
 
+    def set_argument_value(self, expurl, name, value):
+        logger.warning("Unable to set argument '%s', dropping change. "
+                       "'set_argument_value' not supported in browser.", name)
+
     def on_dock_closed(self, dock):
         self.open_experiments.remove(dock)
