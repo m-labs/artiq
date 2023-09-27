@@ -53,6 +53,17 @@ def rtio_get_counter() -> TInt64:
     raise NotImplementedError("syscall not simulated")
 
 
+def get_target_cls(target):
+    if target == "rv32g":
+        return RV32GTarget
+    elif target == "rv32ima":
+        return RV32IMATarget
+    elif target == "cortexa9":
+        return CortexA9Target
+    else:
+        raise ValueError("Unsupported target")
+
+
 class Core:
     """Core device driver.
 
@@ -75,14 +86,7 @@ class Core:
     def __init__(self, dmgr, host, ref_period, ref_multiplier=8, target="rv32g"):
         self.ref_period = ref_period
         self.ref_multiplier = ref_multiplier
-        if target == "rv32g":
-            self.target_cls = RV32GTarget
-        elif target == "rv32ima":
-            self.target_cls = RV32IMATarget
-        elif target == "cortexa9":
-            self.target_cls = CortexA9Target
-        else:
-            raise ValueError("Unsupported target")
+        self.target_cls = get_target_cls(target)
         self.coarse_ref_period = ref_period*ref_multiplier
         if host is None:
             self.comm = CommKernelDummy()
@@ -98,7 +102,8 @@ class Core:
         self.comm.close()
 
     def compile(self, function, args, kwargs, set_result=None,
-                attribute_writeback=True, print_as_rpc=True):
+                attribute_writeback=True, print_as_rpc=True,
+                target=None):
         try:
             engine = _DiagnosticEngine(all_errors_are_fatal=True)
 
@@ -110,7 +115,7 @@ class Core:
             module = Module(stitcher,
                 ref_period=self.ref_period,
                 attribute_writeback=attribute_writeback)
-            target = self.target_cls()
+            target = target if target is not None else self.target_cls()
 
             library = target.compile_and_link([module])
             stripped_library = target.strip(library)
