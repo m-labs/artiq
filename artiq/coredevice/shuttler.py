@@ -12,7 +12,7 @@ def shuttler_volt_to_mu(volt):
     """Return the equivalent DAC code. Valid input range is from -10 to
     10 - LSB.
     """
-    return round((1 << 14) * (volt / 20.0)) & 0x3fff
+    return round((1 << 16) * (volt / 20.0)) & 0xffff
 
 
 class Config:
@@ -25,7 +25,7 @@ class Config:
     output data with pre-DAC gain, then adds the offset.
 
     .. note::
-        The DAC code is capped at 0x1fff and 0x2000.
+        The DAC code is capped at 0x7fff and 0x8000.
 
     :param channel: RTIO channel number of this interface.
     :param core_device: Core device name.
@@ -152,8 +152,8 @@ class Volt:
 
             a_3 &= p_3T^3
         
-        :math:`a_0`, :math:`a_1`, :math:`a_2` and :math:`a_3` are 14, 30, 46
-        and 46 bits in width respectively. See :meth:`shuttler_volt_to_mu` for
+        :math:`a_0`, :math:`a_1`, :math:`a_2` and :math:`a_3` are 16, 32, 48
+        and 48 bits in width respectively. See :meth:`shuttler_volt_to_mu` for
         machine unit conversion.
 
         Note: The waveform is not updated to the Shuttler Core until
@@ -238,8 +238,8 @@ class Dds:
 
             c_2 &= r_2T^2
         
-        :math:`b_0`, :math:`b_1`, :math:`b_2` and :math:`b_3` are 14, 30, 46
-        and 46 bits in width respectively. See :meth:`shuttler_volt_to_mu` for
+        :math:`b_0`, :math:`b_1`, :math:`b_2` and :math:`b_3` are 16, 32, 48
+        and 48 bits in width respectively. See :meth:`shuttler_volt_to_mu` for
         machine unit conversion. :math:`c_0`, :math:`c_1` and :math:`c_2` are
         16, 32 and 32 bits in width respectively.
 
