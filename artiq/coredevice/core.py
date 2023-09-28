@@ -104,7 +104,7 @@ class Core:
 
     def compile(self, function, args, kwargs, set_result=None,
                 attribute_writeback=True, print_as_rpc=True,
-                target=None, destination=0, subkernel_arg_types=None):
+                target=None, destination=0, subkernel_arg_types=[]):
         try:
             engine = _DiagnosticEngine(all_errors_are_fatal=True)
 
@@ -159,12 +159,13 @@ class Core:
                 if subkernel_args[0][0] == 'self':
                     self_arg = args[:1]
             destination = subkernel_fn.artiq_embedded.destination
-            destination_tgt = self.dmgr.ddb.get_satellite_target(destination)
+            destination_tgt = self.dmgr.ddb.get_satellite_cpu_target(destination)
             target = get_target_cls(destination_tgt)(subkernel_id=sid)
+            print(subkernel_arg_types)
             object_map, kernel_library, _, _, _ = \
                 self.compile(subkernel_fn, self_arg, {}, attribute_writeback=False,
                             print_as_rpc=False, target=target, destination=destination, 
-                            subkernel_arg_types=subkernel_arg_types[sid])
+                            subkernel_arg_types=subkernel_arg_types.get(sid, []))
             if object_map.has_rpc_or_subkernel():
                 raise ValueError("Subkernel must not use RPC or subkernels in other destinations")
             self.comm.upload_subkernel(kernel_library, sid, destination)
