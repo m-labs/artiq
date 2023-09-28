@@ -359,7 +359,7 @@ fn process_host_message(io: &Io, _aux_mutex: &Mutex, _ddma_mutex: &Mutex, _subke
             #[cfg(has_drtio)]
             {
                 subkernel::add_subkernel(io, _subkernel_mutex, _id, _dest, _kernel);
-                match subkernel::upload(io, _aux_mutex, _ddma_mutex, _subkernel_mutex, _routing_table, _id) {
+                match subkernel::upload(io, _aux_mutex, _subkernel_mutex, _routing_table, _id) {
                     Ok(_) => host_write(stream, host::Reply::LoadCompleted)?,
                     Err(error) => {
                         let mut description = String::new();
@@ -612,7 +612,6 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 };
                 kern_send(io, &kern::SubkernelMsgRecvReply { status: status, count: count })?;
                 if let Ok(message) = message_received {
-                    info!("received, count: {}", message.tag_count);
                     // receive code almost identical to RPC recv, except we are not reading from a stream
                     let mut reader = Cursor::new(message.data);
                     let mut tag: [u8; 1] = [message.tag];
@@ -683,6 +682,8 @@ fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
                       stream: &mut TcpStream,
                       congress: &mut Congress) -> Result<(), Error<SchedError>> {
     let mut session = Session::new(congress);
+    #[cfg(has_drtio)]
+    subkernel::clear_subkernels(&io, &subkernel_mutex);
 
     loop {
         if stream.can_recv() {

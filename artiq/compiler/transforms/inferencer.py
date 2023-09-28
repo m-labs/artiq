@@ -1439,6 +1439,8 @@ class Inferencer(algorithm.Visitor):
                                                     other_node=node.args[0])
                     self._unify(node.type, ret, node.loc, None)
                     return
+        if types.is_subkernel(typ_func) and typ_func.sid not in self.subkernel_arg_types:
+            self.subkernel_arg_types[typ_func.sid] = []
 
         for actualarg, (formalname, formaltyp) in \
                 zip(node.args, list(typ_args.items()) + list(typ_optargs.items())):
@@ -1453,8 +1455,6 @@ class Inferencer(algorithm.Visitor):
                         {"name": formalname, "typ": actualarg.type},
                         actualarg.loc, [])
                     self.engine.process(diag)
-                if typ_func.sid not in self.subkernel_arg_types:
-                    self.subkernel_arg_types[typ_func.sid] = []
                 self.subkernel_arg_types[typ_func.sid].append((formalname, formaltyp))
 
         for keyword in node.keywords:

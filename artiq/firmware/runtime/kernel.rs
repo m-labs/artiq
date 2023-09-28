@@ -187,7 +187,7 @@ pub mod subkernel {
              routing_table: &RoutingTable, id: u32) -> Result<(), Error> {
         let _lock = subkernel_mutex.lock(io).unwrap();
         let subkernel = unsafe { SUBKERNELS.get_mut(&id).unwrap() };
-        drtio::subkernel_upload(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, id, 
+        drtio::subkernel_upload(io, aux_mutex, routing_table, id, 
             subkernel.destination, &subkernel.data)?;
         subkernel.state = SubkernelState::Uploaded; 
         Ok(()) 
@@ -231,14 +231,14 @@ pub mod subkernel {
         }
     }
 
-    pub fn destination_changed(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex,
+    pub fn destination_changed(io: &Io, aux_mutex: &Mutex, subkernel_mutex: &Mutex,
              routing_table: &RoutingTable, destination: u8, up: bool) {
         let _lock = subkernel_mutex.lock(io).unwrap();
         let subkernels_iter = unsafe { SUBKERNELS.iter_mut() };
         for (id, subkernel) in subkernels_iter {
             if subkernel.destination == destination {
                 if up {
-                    match drtio::subkernel_upload(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, *id, destination, &subkernel.data)
+                    match drtio::subkernel_upload(io, aux_mutex, routing_table, *id, destination, &subkernel.data)
                     {
                         Ok(_) => subkernel.state = SubkernelState::Uploaded,
                         Err(e) => error!("Error adding subkernel on destination {}: {}", destination, e)
@@ -388,7 +388,6 @@ pub mod subkernel {
         rpc::send_args(&mut writer, 0, tag, message)?;
         // skip service tag, but overwrite first byte with tag count
         let data = &mut writer.into_inner()[3..];
-        info!("sending, count: {}", count);
         data[0] = count;
         Ok(drtio::subkernel_send_message(
             io, aux_mutex, routing_table, id, destination, data

@@ -142,8 +142,7 @@ impl Manager {
         let dma_enable = unsafe { csr::rtio_dma::enable_read() };
         if dma_enable != 0 {
             return None;
-        }
-        else {
+        } else {
             self.state = ManagerState::Idle;
             unsafe { 
                 cricon_select(RtioMaster::Drtio);

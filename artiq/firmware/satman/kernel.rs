@@ -625,8 +625,8 @@ impl Manager {
 
 impl Drop for Manager {
     fn drop(&mut self) {
+        cricon_select(RtioMaster::Drtio);
         unsafe {
-            csr::cri_con::selected_write(0);
             kernel_cpu::stop() 
         };
     }
@@ -712,7 +712,6 @@ fn pass_message_to_kernel(message: &Message) -> Result<(), Error> {
                     "expected root value slot from kernel CPU, not {:?}", other)
             }
         })?;
-        info!("message received, count: {}", count);
 
         let res = rpc::recv_return(&mut reader, &tag, slot, &|size| -> Result<_, Error> {
             if size == 0 {
@@ -739,12 +738,10 @@ fn pass_message_to_kernel(message: &Message) -> Result<(), Error> {
             Ok(_) => kern_send(&kern::RpcRecvReply(Ok(0)))?,
             Err(_) => unexpected!("expected valid subkernel message data")
         };
-        info!("loop, i: {}", i);
         i += 1;
         if i < count {
             // update the tag for next read
             tag[0] = reader.read_u8()?;
-            info!("new tag: {:02x}", tag[0]);
         } else {
             // should be done by then
             break;

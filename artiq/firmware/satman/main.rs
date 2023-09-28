@@ -132,7 +132,7 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
 
             if hop == 0 {
                 // async messages
-                if let Some(status) = _manager.check_state() {
+                if let Some(status) = dmamgr.get_status() {
                     info!("playback done, error: {}, channel: {}, timestamp: {}", status.error, status.channel, status.timestamp);
                     drtioaux::send(0, &drtioaux::Packet::DmaPlaybackStatus { 
                         destination: destination, id: status.id, error: status.error, channel: status.channel, timestamp: status.timestamp })?;
