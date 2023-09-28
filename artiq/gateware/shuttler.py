@@ -124,16 +124,18 @@ class Dac(Module):
         ]
 
         # Infer signed multiplication
-        data_raw = Signal((14, True))
-        data_buf = Signal(16)
+        data_raw = Signal((16, True))
+        # Buffer data should have 2 more bits than the desired output width
+        # It is to perform overflow/underflow detection
+        data_buf = Signal(18)
         self.sync.rio += [
             data_raw.eq(reduce(add, [sub.data for sub in subs])),
             # Extra buffer for timing for the DSP
             data_buf.eq(((data_raw * Cat(self.gain, ~self.gain[-1])) + (self.offset << 16))[16:]),
             If(overflow,
-                self.data.eq(0x1fff),
+                self.data.eq(0x7fff),
             ).Elif(underflow,
-                self.data.eq(0x2000),
+                self.data.eq(0x8000),
             ).Else(
                 self.data.eq(data_buf),
             ),
@@ -350,7 +352,7 @@ class Shuttler(Module, AutoCSR):
                 dac.clear.eq(self.cfg.clr[idx]),
                 dac.gain.eq(self.cfg.gain[idx]),
                 dac.offset.eq(self.cfg.offset[idx]),
-                self.dac_interface.data[idx // 2][idx % 2].eq(dac.data)
+                self.dac_interface.data[idx // 2][idx % 2].eq(dac.data[2:])
             ]
 
             for i in dac.i:

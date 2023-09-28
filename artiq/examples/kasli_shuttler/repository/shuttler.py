@@ -26,15 +26,15 @@ def shuttler_volt_amp_mu(volt):
 
 @portable
 def shuttler_volt_damp_mu(volt_per_us):
-    return round(float(2) ** 30 * (volt_per_us / 20) / DAC_Fs_MHZ)
+    return round(float(2) ** 32 * (volt_per_us / 20) / DAC_Fs_MHZ)
 
 @portable
 def shuttler_volt_ddamp_mu(volt_per_us_square):
-    return round(float(2) ** 46 * (volt_per_us_square / 20) * 2 / (DAC_Fs_MHZ ** 2))
+    return round(float(2) ** 48 * (volt_per_us_square / 20) * 2 / (DAC_Fs_MHZ ** 2))
 
 @portable
 def shuttler_volt_dddamp_mu(volt_per_us_cube):
-    return round(float(2) ** 46 * (volt_per_us_cube / 20) * 6 / (DAC_Fs_MHZ ** 3))
+    return round(float(2) ** 48 * (volt_per_us_cube / 20) * 6 / (DAC_Fs_MHZ ** 3))
 
 @portable
 def shuttler_dds_amp_mu(volt):
