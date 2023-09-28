@@ -161,7 +161,6 @@ class Core:
             destination = subkernel_fn.artiq_embedded.destination
             destination_tgt = self.dmgr.ddb.get_satellite_cpu_target(destination)
             target = get_target_cls(destination_tgt)(subkernel_id=sid)
-            print(subkernel_arg_types)
             object_map, kernel_library, _, _, _ = \
                 self.compile(subkernel_fn, self_arg, {}, attribute_writeback=False,
                             print_as_rpc=False, target=target, destination=destination, 

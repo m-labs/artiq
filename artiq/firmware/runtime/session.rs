@@ -87,6 +87,19 @@ macro_rules! unexpected {
      ($($arg:tt)*) => (return Err(Error::Unexpected(format!($($arg)*))));
 }
 
+#[cfg(has_drtio)]
+macro_rules! propagate_subkernel_exception {
+    ( $exception:ident, $stream:ident ) => {
+        error!("Exception in subkernel");
+        match $stream {
+            None => return Ok(true),
+            Some(ref mut $stream) => { 
+                $stream.write_all($exception)?;
+            }
+        }
+    }
+}
+
 // Persistent state
 #[derive(Debug)]
 struct Congress {
@@ -576,13 +589,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                             if res.comm_lost {
                                 kern::SubkernelStatus::CommLost
                             } else if let Some(exception) = &res.exception {
-                                error!("Exception in subkernel");
-                                match stream {
-                                    None => return Ok(true),
-                                    Some(ref mut stream) => { 
-                                        stream.write_all(exception)?;
-                                    }
-                                }
+                                propagate_subkernel_exception!(exception, stream);
                                 // will not be called after exception is served
                                 kern::SubkernelStatus::OtherError
                             } else {
@@ -607,7 +614,18 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                     Ok(ref message) => (kern::SubkernelStatus::NoError, message.tag_count),
                     Err(SubkernelError::Timeout) => (kern::SubkernelStatus::Timeout, 0),
                     Err(SubkernelError::IncorrectState) => (kern::SubkernelStatus::IncorrectState, 0),
-                    Err(SubkernelError::CommLost) => (kern::SubkernelStatus::CommLost, 0),
+                    Err(SubkernelError::SubkernelFinished) => {
+                        let res = subkernel::retrieve_finish_status(io, aux_mutex, _subkernel_mutex,
+                            routing_table, id)?;
+                        if res.comm_lost {
+                            (kern::SubkernelStatus::CommLost, 0)
+                        } else if let Some(exception) = &res.exception {
+                            propagate_subkernel_exception!(exception, stream);
+                            (kern::SubkernelStatus::OtherError, 0)
+                        } else {
+                            (kern::SubkernelStatus::OtherError, 0)
+                        }
+                    }
                     Err(_) => (kern::SubkernelStatus::OtherError, 0)
                 };
                 kern_send(io, &kern::SubkernelMsgRecvReply { status: status, count: count })?;

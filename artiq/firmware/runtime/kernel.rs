@@ -123,14 +123,14 @@ pub mod subkernel {
         SessionKilled,
         #[fail(display = "Subkernel is in incorrect state for the given operation")]
         IncorrectState,
-        #[fail(display = "Connection with satellite has been lost")]
-        CommLost,
         #[fail(display = "DRTIO error: {}", _0)]
         DrtioError(String),
         #[fail(display = "scheduler error")]
         SchedError(SchedError),
         #[fail(display = "rpc io error")]
-        RpcIoError
+        RpcIoError,
+        #[fail(display = "subkernel finished prematurely")]
+        SubkernelFinished,
     }
 
     impl From<&str> for Error {
@@ -253,6 +253,26 @@ pub mod subkernel {
         }
     }
 
+    pub fn retrieve_finish_status(io: &Io, aux_mutex: &Mutex, subkernel_mutex: &Mutex,
+        routing_table: &RoutingTable, id: u32) -> Result<SubkernelFinished, Error> {
+        let _lock = subkernel_mutex.lock(io)?;
+        let mut subkernel = unsafe { SUBKERNELS.get_mut(&id).unwrap() };
+        match subkernel.state {
+            SubkernelState::Finished { status } => {
+                subkernel.state = SubkernelState::Uploaded;
+                Ok(SubkernelFinished {
+                    id: id,
+                    comm_lost: status == FinishStatus::CommLost,
+                    exception: if status == FinishStatus::Exception { 
+                        Some(drtio::subkernel_retrieve_exception(io, aux_mutex,
+                            routing_table, subkernel.destination)?) 
+                    } else { None }
+                })
+            },
+            _ => Err(Error::IncorrectState)
+        }
+    }
+
     pub fn await_finish(io: &Io, aux_mutex: &Mutex, subkernel_mutex: &Mutex,
         routing_table: &RoutingTable, id: u32, timeout: u64) -> Result<SubkernelFinished, Error> {
         {
@@ -282,22 +302,7 @@ pub mod subkernel {
             error!("Remote subkernel finish await timed out");
             return Err(Error::Timeout);
         }
-        let _lock = subkernel_mutex.lock(io)?;
-        let mut subkernel = unsafe { SUBKERNELS.get_mut(&id).unwrap() };
-        match subkernel.state {
-            SubkernelState::Finished { status } => {
-                subkernel.state = SubkernelState::Uploaded;
-                Ok(SubkernelFinished {
-                    id: id,
-                    comm_lost: status == FinishStatus::CommLost,
-                    exception: if status == FinishStatus::Exception { 
-                        Some(drtio::subkernel_retrieve_exception(io, aux_mutex,
-                            routing_table, subkernel.destination)?) 
-                    } else { None }
-                })
-            },
-            _ => Err(Error::IncorrectState)
-        }   
+        retrieve_finish_status(io, aux_mutex, subkernel_mutex, routing_table, id)
     }
 
     pub struct Message {
@@ -348,8 +353,8 @@ pub mod subkernel {
         {
             let _lock = subkernel_mutex.lock(io)?;
             match unsafe { SUBKERNELS.get(&id).unwrap().state } {
-                SubkernelState::Finished { status: FinishStatus::CommLost } => return Err(Error::CommLost),
-                SubkernelState::Running | SubkernelState::Finished { .. } => (),
+                SubkernelState::Finished { .. } => return Err(Error::SubkernelFinished),
+                SubkernelState::Running => (),
                 _ => return Err(Error::IncorrectState)
             }
         }
@@ -368,11 +373,25 @@ pub mod subkernel {
                     return Ok(Some(unsafe { MESSAGE_QUEUE.remove(i) }));
                 }
             }
+            match unsafe { SUBKERNELS.get(&id).unwrap().state } {
+                SubkernelState::Finished { .. } => return Ok(None),
+                _ => ()
+            }
             Err(())
         });
         match message {
             Ok(Some(message)) => Ok(message),
-            Ok(None) => Err(Error::Timeout),
+            Ok(None) => {
+                if clock::get_ms() > max_time {
+                    Err(Error::Timeout)
+                } else {
+                    let _lock = subkernel_mutex.lock(io)?;
+                    match unsafe { SUBKERNELS.get(&id).unwrap().state } {
+                        SubkernelState::Finished { .. } => Err(Error::SubkernelFinished),
+                        _ => Err(Error::IncorrectState)
+                    }
+                }
+            }
             Err(e) => Err(Error::SchedError(e)),
         }
     }
