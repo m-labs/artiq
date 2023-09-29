@@ -51,6 +51,13 @@ class AppletIPCServer(AsyncioParentComm):
 
     def _on_mod(self, mod):
         if mod["action"] == "init":
+            if not (self.datasets or self.dataset_prefixes):
+                # The dataset db connection just came online, and an applet is
+                # running but did not call `subscribe` yet (e.g. because the
+                # dashboard was just restarted and a previously enabled applet
+                # is being re-opened). We will later synthesize an "init" `mod`
+                # message once the applet actually subscribes.
+                return
             mod = self._synthesize_init(mod["struct"])
         else:
             if mod["path"]:
