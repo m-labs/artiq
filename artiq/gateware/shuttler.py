@@ -93,13 +93,36 @@ class DacInterface(Module, AutoCSR):
                     p_DDR_CLK_EDGE="SAME_EDGE") 
                 for bit in range(bit_width)]
 
+
+class SigmaDeltaModulator(Module):
+    """First order Sigma-Delta modulator."""
+    def __init__(self, x_width, y_width):
+        self.x = Signal(x_width)
+        self.y = Signal(y_width)
+
+        # The SDM cannot represent any sample >0x7ffc with pulse modulation
+        # Allowing pulse modulation on values >0x7ffc may overflow the
+        # accumulator, so the DAC code becomes 0x2000 -> -10.V.
+        x_capped = Signal(x_width)
+        self.comb += If((self.x & 0xfffc) == 0x7ffc,
+            x_capped.eq(0x7ffc),
+        ).Else(
+            x_capped.eq(self.x),
+        )
+
+        acc = Signal(x_width)
+
+        self.comb += self.y.eq(acc[x_width-y_width:])
+        self.sync.rio += acc.eq(x_capped - Cat(Replicate(0, x_width-y_width), self.y) + acc)
+
+
 class Dac(Module):
     """Output module.
 
     Holds the two output line executors.
 
     Attributes:
-        data (Signal[16]): Output value to be send to the DAC.
+        data (Signal[14]): Output value to be send to the DAC.
         clear (Signal): Clear accumulated phase offset when loading a new
                         waveform. Input.
         gain (Signal[16]): Output value gain. The gain signal represents the
@@ -107,9 +130,9 @@ class Dac(Module):
         offset (Signal[16]): Output value offset.
         i (Endpoint[]): Coefficients of the output lines.
     """
-    def __init__(self):
+    def __init__(self, sdm=False):
         self.clear = Signal()
-        self.data = Signal(16)
+        self.data = Signal(14)
         self.gain = Signal(16)
         self.offset = Signal(16)
 
@@ -128,16 +151,21 @@ class Dac(Module):
         # Buffer data should have 2 more bits than the desired output width
         # It is to perform overflow/underflow detection
         data_buf = Signal(18)
+        data_sink = Signal(16)
+
+        if sdm:
+            self.submodules.sdm = SigmaDeltaModulator(16, 14)
+
         self.sync.rio += [
             data_raw.eq(reduce(add, [sub.data for sub in subs])),
             # Extra buffer for timing for the DSP
             data_buf.eq(((data_raw * Cat(self.gain, ~self.gain[-1])) + (self.offset << 16))[16:]),
             If(overflow,
-                self.data.eq(0x7fff),
+                data_sink.eq(0x7fff),
             ).Elif(underflow,
-                self.data.eq(0x8000),
+                data_sink.eq(0x8000),
             ).Else(
-                self.data.eq(data_buf),
+                data_sink.eq(data_buf),
             ),
         ]
 
@@ -147,6 +175,14 @@ class Dac(Module):
             # Underflow condition
             underflow.eq(data_buf[-1] & (~data_buf[-2] | ~data_buf[-3])),
         ]
+
+        if sdm:
+            self.comb += [
+                self.sdm.x.eq(data_sink),
+                self.data.eq(self.sdm.y),
+            ]
+        else:
+            self.comb += self.data.eq(data_sink[2:])
 
         self.i = [ sub.i for sub in subs ]
         self.submodules += subs
@@ -313,7 +349,7 @@ class Shuttler(Module, AutoCSR):
     Attributes:
         phys (list): List of Endpoints.
     """
-    def __init__(self, pads):
+    def __init__(self, pads, sdm=False):
         NUM_OF_DACS = 16
 
         self.submodules.dac_interface = DacInterface(pads)
@@ -347,12 +383,12 @@ class Shuttler(Module, AutoCSR):
         self.phys.append(Phy(trigger_iface, [], []))
 
         for idx in range(NUM_OF_DACS):
-            dac = Dac()
+            dac = Dac(sdm=sdm)
             self.comb += [
                 dac.clear.eq(self.cfg.clr[idx]),
                 dac.gain.eq(self.cfg.gain[idx]),
                 dac.offset.eq(self.cfg.offset[idx]),
-                self.dac_interface.data[idx // 2][idx % 2].eq(dac.data[2:])
+                self.dac_interface.data[idx // 2][idx % 2].eq(dac.data)
             ]
 
             for i in dac.i:
