@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
+import re
+import logging
+import numpy as np
 
 from PyQt5 import QtWidgets, QtCore, QtGui
+
+from artiq.language import units
+from artiq.tools import short_format, scale_from_metadata
 from artiq.applets.simple import SimpleApplet
 
 
-class QResponsiveLCDNumber(QtWidgets.QLCDNumber):
+class QResponsiveLabel(QtWidgets.QLabel):
     doubleClicked = QtCore.pyqtSignal()
 
     def mouseDoubleClickEvent(self, event):
@@ -26,54 +32,89 @@ class NumberWidget(QtWidgets.QStackedWidget):
         QtWidgets.QStackedWidget.__init__(self)
         self.dataset_name = args.dataset
         self.ctl = ctl
-
-        self.lcd_widget = QResponsiveLCDNumber()
-        self.lcd_widget.setDigitCount(args.digit_count)
-        self.lcd_widget.doubleClicked.connect(self.start_edit)
-        self.addWidget(self.lcd_widget)
-
-        self.edit_widget = QCancellableLineEdit()
-        self.edit_widget.setValidator(QtGui.QDoubleValidator())
-        self.edit_widget.setAlignment(QtCore.Qt.AlignRight)
-        self.edit_widget.editCancelled.connect(self.cancel_edit)
-        self.edit_widget.returnPressed.connect(self.confirm_edit)
-        self.addWidget(self.edit_widget)
+        self.value = None
+        self.metadata = {}
 
         font = QtGui.QFont()
         font.setPointSize(60)
-        self.edit_widget.setFont(font)
 
-        self.setCurrentWidget(self.lcd_widget)
+        self.display_widget = QResponsiveLabel()
+        self.display_widget.setFont(font)
+        self.display_widget.setAlignment(
+            QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        self.display_widget.doubleClicked.connect(self.start_edit)
+        self.addWidget(self.display_widget)
+
+        self.edit_widget = QCancellableLineEdit()
+        self.edit_widget.setFont(font)
+        self.edit_widget.setAlignment(
+            QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        self.edit_widget.editCancelled.connect(
+            lambda: self.setCurrentWidget(self.display_widget))
+        self.edit_widget.returnPressed.connect(self.confirm_edit)
+        self.addWidget(self.edit_widget)
+
+        input_regexp = r"(([+-]?\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?)"
+        self.regexp = "^" + input_regexp + r"( [a-zA-Z]*)?$"
+
+        self.setCurrentWidget(self.display_widget)
 
     def start_edit(self):
-        # QLCDNumber value property contains the value of zero
-        # if the displayed value is not a number.
-        self.edit_widget.setText(str(self.lcd_widget.value()))
+        if self.value is None:
+            self.edit_widget.setText("---")
+        else:
+            unit = self.metadata.get("unit", "")
+            scale = int(scale_from_metadata(self.metadata))
+            if scale == 1.0:
+                scale = int(scale)
+            if isinstance(self.value, int) and isinstance(scale, int):
+                value = self.value//scale
+            else:
+                value = self.value / scale
+            self.edit_widget.setText(f"{value} {unit}".strip())
         self.edit_widget.selectAll()
         self.edit_widget.setFocus()
         self.setCurrentWidget(self.edit_widget)
 
     def confirm_edit(self):
-        value = float(self.edit_widget.text())
-        self.ctl.set_dataset(self.dataset_name, value)
-        self.setCurrentWidget(self.lcd_widget)
-
-    def cancel_edit(self):
-        self.setCurrentWidget(self.lcd_widget)
+        entry = re.match(self.regexp, self.edit_widget.text())
+        if entry is not None:
+            value = entry.group(1)
+            if np.issubdtype(self.type, np.integer):
+                value = self.type(int(float(value))) 
+            elif np.issubdtype(self.type, np.floating):
+                value = self.type(value)
+            elif self.type in [int, float]:
+               value = self.type(float(value)) 
+            else:
+                logging.warning("Unsupported data type:", self.type)
+                return
+            unit = entry.group(5).strip() if entry.group(5) else ""
+            scale = scale_from_metadata(self.metadata)
+            if scale == 1.0:
+                scale = int(scale)
+            precision = self.metadata.get("precision")
+            self.ctl.set_dataset(self.dataset_name, value*scale, 
+                                unit, scale, precision)
+            self.setCurrentWidget(self.display_widget)
+        else:
+            self.setCurrentWidget(self.display_widget)
+            
 
     def data_changed(self, value, metadata, persist, mods):
+        self.metadata = metadata.get(self.dataset_name, {})
         try:
-            n = float(value[self.dataset_name])
+            self.value = value[self.dataset_name]
+            self.type = type(self.value)
+            n = short_format(self.value, self.metadata)
         except (KeyError, ValueError, TypeError):
             n = "---"
-        self.lcd_widget.display(n)
+        self.display_widget.setText(n)
 
 
 def main():
     applet = SimpleApplet(NumberWidget)
     applet.add_dataset("dataset", "dataset to show")
-    applet.argparser.add_argument("--digit-count", type=int, default=10,
-                                  help="total number of digits to show")
     applet.run()
 
 if __name__ == "__main__":
