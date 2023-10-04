@@ -16,10 +16,16 @@ def log_level_to_name(level):
     return "DEBUG"
 
 
-class _WheelFilter(QtCore.QObject):
+class WheelFilter(QtCore.QObject):
+    def __init__(self, parent, ignore_with_modifier=False):
+        super().__init__(parent)
+        self.ignore_with_modifier = ignore_with_modifier
+
     def eventFilter(self, obj, event):
-        if (event.type() == QtCore.QEvent.Wheel and
-                event.modifiers() == QtCore.Qt.NoModifier):
+        if event.type() != QtCore.QEvent.Wheel:
+            return False
+        has_modifier = event.modifiers() != QtCore.Qt.NoModifier
+        if has_modifier == self.ignore_with_modifier:
             event.ignore()
             return True
         return False
@@ -27,7 +33,7 @@ class _WheelFilter(QtCore.QObject):
 
 def disable_scroll_wheel(widget):
     widget.setFocusPolicy(QtCore.Qt.StrongFocus)
-    widget.installEventFilter(_WheelFilter(widget))
+    widget.installEventFilter(WheelFilter(widget))
 
 
 class QDockWidgetCloseDetect(QtWidgets.QDockWidget):
