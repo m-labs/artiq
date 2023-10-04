@@ -599,7 +599,7 @@ impl Manager {
                     unsafe { kernel_cpu::stop() }
                     self.session.kernel_state = KernelState::Absent;
                     unsafe { self.cache.unborrow() }    
-                    let exception = handle_kernel_exception(&exceptions, &stack_pointers, &backtrace)?;
+                    let exception = slice_kernel_exception(&exceptions, &stack_pointers, &backtrace)?;
                     self.session.last_exception = Some(exception);
                     return Ok(Some(true))
                 }
@@ -670,7 +670,7 @@ fn kern_send(request: &kern::Message) -> Result<(), Error> {
     Ok(())
 }
 
-fn handle_kernel_exception(exceptions: &[Option<eh_artiq::Exception>],
+fn slice_kernel_exception(exceptions: &[Option<eh_artiq::Exception>],
     stack_pointers: &[eh_artiq::StackPointerBacktrace],
     backtrace: &[(usize, usize)]
 ) -> Result<Sliceable, Error> {
@@ -705,7 +705,7 @@ fn pass_message_to_kernel(message: &Message) -> Result<(), Error> {
             match reply {
                 &kern::RpcRecvRequest(slot) => Ok(slot),
                 &kern::RunException { exceptions, stack_pointers, backtrace } => {
-                    let exception = handle_kernel_exception(&exceptions, &stack_pointers, &backtrace)?;
+                    let exception = slice_kernel_exception(&exceptions, &stack_pointers, &backtrace)?;
                     Err(Error::KernelException(exception))
                 },
                 other => unexpected!(
@@ -726,7 +726,7 @@ fn pass_message_to_kernel(message: &Message) -> Result<(), Error> {
                         stack_pointers,
                         backtrace 
                     }=> {
-                        let exception = handle_kernel_exception(&exceptions, &stack_pointers, &backtrace)?;
+                        let exception = slice_kernel_exception(&exceptions, &stack_pointers, &backtrace)?;
                         Err(Error::KernelException(exception))
                     },
                     other => unexpected!(
