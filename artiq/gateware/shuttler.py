@@ -100,12 +100,15 @@ class SigmaDeltaModulator(Module):
         self.x = Signal(x_width)
         self.y = Signal(y_width)
 
-        # The SDM cannot represent any sample >0x7ffc with pulse modulation
-        # Allowing pulse modulation on values >0x7ffc may overflow the
-        # accumulator, so the DAC code becomes 0x2000 -> -10.V.
+        # SDM can at most output the max DAC code `Replicate(1, y_width-1)`,
+        # which represents the sample of value
+        # `Replicate(1, y_width-1) << (x_width-y_width)`.
+        #
+        # If the input sample exceeds such limit, SDM may overflow.
         x_capped = Signal(x_width)
-        self.comb += If((self.x & 0xfffc) == 0x7ffc,
-            x_capped.eq(0x7ffc),
+        max_dac_code = Replicate(1, (y_width-1))
+        self.comb += If(self.x[x_width-y_width:] == max_dac_code,
+            x_capped.eq(Cat(Replicate(0, x_width-y_width), max_dac_code)),
         ).Else(
             x_capped.eq(self.x),
         )
