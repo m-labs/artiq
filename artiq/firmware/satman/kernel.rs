@@ -37,7 +37,6 @@ mod kernel_cpu {
                                 (KERNELCPU_EXEC_ADDRESS - KSUPPORT_HEADER_SIZE) as *mut u8,
                                 ksupport_end as usize - ksupport_start as usize);
 
-        cricon_select(RtioMaster::Kernel);
         csr::kernel_cpu::reset_write(0);
     }
 
@@ -369,6 +368,7 @@ impl Manager {
             self.load(id)?;
         }
         self.session.kernel_state = KernelState::Running;
+        cricon_select(RtioMaster::Kernel);
     
         kern_acknowledge()
     }

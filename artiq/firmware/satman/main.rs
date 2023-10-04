@@ -112,7 +112,6 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             drtioaux::send(0, &drtioaux::Packet::EchoReply),
         drtioaux::Packet::ResetRequest => {
             info!("resetting RTIO");
-            cricon_select(RtioMaster::Drtio);
             drtiosat_reset(true);
             clock::spin_us(100);
             drtiosat_reset(false);
