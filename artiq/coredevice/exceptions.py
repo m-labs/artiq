@@ -148,6 +148,13 @@ class DMAError(Exception):
     artiq_builtin = True
 
 
+class SubkernelError(Exception):
+    """Raised when an operation regarding a subkernel is invalid 
+    or cannot be completed.
+    """
+    artiq_builtin = True
+
+
 class ClockFailure(Exception):
     """Raised when RTIO PLL has lost lock."""
 
