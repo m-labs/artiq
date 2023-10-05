@@ -2,6 +2,8 @@
 
 from PyQt5 import QtWidgets, QtCore, QtGui
 from artiq.applets.simple import SimpleApplet
+from artiq.tools import scale_from_metadata
+from artiq.gui.tools import LayoutWidget
 
 
 class QResponsiveLCDNumber(QtWidgets.QLCDNumber):
@@ -21,29 +23,41 @@ class QCancellableLineEdit(QtWidgets.QLineEdit):
             super().keyPressEvent(event)
 
 
-class NumberWidget(QtWidgets.QStackedWidget):
+class NumberWidget(LayoutWidget):
     def __init__(self, args, req):
-        QtWidgets.QStackedWidget.__init__(self)
+        LayoutWidget.__init__(self)
         self.dataset_name = args.dataset
         self.req = req
+        self.metadata = dict()
+
+        self.number_area = QtWidgets.QStackedWidget()
+        self.addWidget(self.number_area, 0, 0)
+
+        self.unit_area = QtWidgets.QLabel()
+        self.unit_area.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTop)
+        self.addWidget(self.unit_area, 0, 1)
 
         self.lcd_widget = QResponsiveLCDNumber()
         self.lcd_widget.setDigitCount(args.digit_count)
         self.lcd_widget.doubleClicked.connect(self.start_edit)
-        self.addWidget(self.lcd_widget)
+        self.number_area.addWidget(self.lcd_widget)
 
         self.edit_widget = QCancellableLineEdit()
         self.edit_widget.setValidator(QtGui.QDoubleValidator())
-        self.edit_widget.setAlignment(QtCore.Qt.AlignRight)
+        self.edit_widget.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
         self.edit_widget.editCancelled.connect(self.cancel_edit)
         self.edit_widget.returnPressed.connect(self.confirm_edit)
-        self.addWidget(self.edit_widget)
+        self.number_area.addWidget(self.edit_widget)
 
         font = QtGui.QFont()
         font.setPointSize(60)
         self.edit_widget.setFont(font)
 
-        self.setCurrentWidget(self.lcd_widget)
+        unit_font = QtGui.QFont()
+        unit_font.setPointSize(20)
+        self.unit_area.setFont(unit_font)
+
+        self.number_area.setCurrentWidget(self.lcd_widget)
 
     def start_edit(self):
         # QLCDNumber value property contains the value of zero
@@ -51,22 +65,32 @@ class NumberWidget(QtWidgets.QStackedWidget):
         self.edit_widget.setText(str(self.lcd_widget.value()))
         self.edit_widget.selectAll()
         self.edit_widget.setFocus()
-        self.setCurrentWidget(self.edit_widget)
+        self.number_area.setCurrentWidget(self.edit_widget)
 
     def confirm_edit(self):
-        value = float(self.edit_widget.text())
-        self.req.set_dataset(self.dataset_name, value)
-        self.setCurrentWidget(self.lcd_widget)
+        scale = scale_from_metadata(self.metadata)
+        val = float(self.edit_widget.text())
+        val *= scale
+        self.req.set_dataset(self.dataset_name, val, **self.metadata)
+        self.number_area.setCurrentWidget(self.lcd_widget)
 
     def cancel_edit(self):
-        self.setCurrentWidget(self.lcd_widget)
+        self.number_area.setCurrentWidget(self.lcd_widget)
 
     def data_changed(self, value, metadata, persist, mods):
         try:
-            n = float(value[self.dataset_name])
+            self.metadata = metadata[self.dataset_name]
+            # This applet will degenerate other scalar types to native float on edit
+            # Use the dashboard ChangeEditDialog for consistent type casting 
+            val = float(value[self.dataset_name])
+            scale = scale_from_metadata(self.metadata)
+            val /= scale
         except (KeyError, ValueError, TypeError):
-            n = "---"
-        self.lcd_widget.display(n)
+            val = "---"
+        
+        unit = self.metadata.get("unit", "")
+        self.unit_area.setText(unit)
+        self.lcd_widget.display(val)
 
 
 def main():
