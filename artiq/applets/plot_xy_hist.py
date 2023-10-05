@@ -22,7 +22,7 @@ def _compute_ys(histogram_bins, histograms_counts):
 # pyqtgraph.GraphicsWindow fails to behave like a regular Qt widget
 # and breaks embedding. Do not use as top widget.
 class XYHistPlot(QtWidgets.QSplitter):
-    def __init__(self, args, ctl):
+    def __init__(self, args, req):
         QtWidgets.QSplitter.__init__(self)
         self.resize(1000, 600)
         self.setWindowTitle("XY/Histogram")
