@@ -36,6 +36,9 @@ class DeviceDB:
                 desc = self.data.raw_view[desc]
         return desc
 
+    def get_satellite_cpu_target(self, destination):
+        return self.data.raw_view["satellite_cpu_targets"][destination]
+
 
 class DatasetDB(TaskObject):
     def __init__(self, persist_file, autosave_period=30):
