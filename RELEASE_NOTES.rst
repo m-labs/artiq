@@ -29,7 +29,9 @@ Highlights:
   kernel functions.
 * Distributed DMA is now supported, allowing DMA to be run directly on satellites for corresponding
   RTIO events, increasing bandwidth in scenarios with heavy satellite usage.
-* API extensions have been implemented, enabling applets to directly modify datasets.
+* Applet Request Interfaces have been implemented, enabling applets to directly modify datasets 
+  and temporarily set arguments in the dashboard.
+* EntryArea widget has been implemented, allowing argument entry widgets to be used in applets.
 * Dashboard:
    - The "Close all applets" command (shortcut: Ctrl-Alt-W) now ignores docked applets,
      making it a convenient way to clean up after exploratory work without destroying a
