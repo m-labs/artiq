@@ -14,8 +14,11 @@ impl<T> From<IoError<T>> for Error<T> {
     }
 }
 
-pub const DMA_TRACE_MAX_SIZE: usize = /*max size*/512 - /*CRC*/4 - /*packet ID*/1 - /*trace ID*/4 - /*last*/1 -/*length*/2;
-pub const ANALYZER_MAX_SIZE: usize  = /*max size*/512 - /*CRC*/4 - /*packet ID*/1 - /*last*/1 - /*length*/2;
+// maximum size of arbitrary payloads
+// used by satellite -> master analyzer, subkernel exceptions
+pub const SAT_PAYLOAD_MAX_SIZE: usize  = /*max size*/512 - /*CRC*/4 - /*packet ID*/1 - /*last*/1 - /*length*/2;
+// used by DDMA, subkernel program data (need to provide extra ID and destination)
+pub const MASTER_PAYLOAD_MAX_SIZE: usize = SAT_PAYLOAD_MAX_SIZE - /*destination*/1 - /*ID*/4;
 
 #[derive(PartialEq, Debug)]
 pub enum Packet {
@@ -61,9 +64,9 @@ pub enum Packet {
     AnalyzerHeaderRequest { destination: u8 },
     AnalyzerHeader { sent_bytes: u32, total_byte_count: u64, overflow_occurred: bool },
     AnalyzerDataRequest { destination: u8 },
-    AnalyzerData { last: bool, length: u16, data: [u8; ANALYZER_MAX_SIZE]},
+    AnalyzerData { last: bool, length: u16, data: [u8; SAT_PAYLOAD_MAX_SIZE]},
 
-    DmaAddTraceRequest { destination: u8, id: u32, last: bool, length: u16, trace: [u8; DMA_TRACE_MAX_SIZE] },
+    DmaAddTraceRequest { destination: u8, id: u32, last: bool, length: u16, trace: [u8; MASTER_PAYLOAD_MAX_SIZE] },
     DmaAddTraceReply { succeeded: bool },
     DmaRemoveTraceRequest { destination: u8, id: u32 },
     DmaRemoveTraceReply { succeeded: bool },
@@ -215,7 +218,7 @@ impl Packet {
             0xa3 => {
                 let last = reader.read_bool()?;
                 let length = reader.read_u16()?;
-                let mut data: [u8; ANALYZER_MAX_SIZE] = [0; ANALYZER_MAX_SIZE];
+                let mut data: [u8; SAT_PAYLOAD_MAX_SIZE] = [0; SAT_PAYLOAD_MAX_SIZE];
                 reader.read_exact(&mut data[0..length as usize])?;
                 Packet::AnalyzerData {
                     last: last,
@@ -229,7 +232,7 @@ impl Packet {
                 let id = reader.read_u32()?;
                 let last = reader.read_bool()?;
                 let length = reader.read_u16()?;
-                let mut trace: [u8; DMA_TRACE_MAX_SIZE] = [0; DMA_TRACE_MAX_SIZE];
+                let mut trace: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
                 reader.read_exact(&mut trace[0..length as usize])?;
                 Packet::DmaAddTraceRequest {
                     destination: destination,

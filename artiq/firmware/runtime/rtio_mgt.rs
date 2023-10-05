@@ -17,7 +17,7 @@ pub mod drtio {
     use super::*;
     use alloc::vec::Vec;
     use drtioaux;
-    use proto_artiq::drtioaux_proto::DMA_TRACE_MAX_SIZE;
+    use proto_artiq::drtioaux_proto::MASTER_PAYLOAD_MAX_SIZE;
     use rtio_dma::remote_dma;
     #[cfg(has_rtio_analyzer)]
     use analyzer::remote_analyzer::RemoteBuffer;
@@ -372,28 +372,36 @@ pub mod drtio {
         }
     }
 
-    pub fn ddma_upload_trace(io: &Io, aux_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable,
-            id: u32, destination: u8, trace: &Vec<u8>) -> Result<(), &'static str> {
-        let linkno = routing_table.0[destination as usize][0] - 1;
+    fn partition_data<F>(data: &[u8], send_f: F) -> Result<(), &'static str>
+            where F: Fn(&[u8; MASTER_PAYLOAD_MAX_SIZE], bool, usize) -> Result<(), &'static str> {
         let mut i = 0;
-        while i < trace.len() {
-            let mut trace_slice: [u8; DMA_TRACE_MAX_SIZE] = [0; DMA_TRACE_MAX_SIZE];
-            let len: usize = if i + DMA_TRACE_MAX_SIZE < trace.len() { DMA_TRACE_MAX_SIZE } else { trace.len() - i } as usize;
-            let last = i + len == trace.len();
-            trace_slice[..len].clone_from_slice(&trace[i..i+len]);
+            while i < data.len() {
+                let mut slice: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
+                let len: usize = if i + MASTER_PAYLOAD_MAX_SIZE < data.len() { MASTER_PAYLOAD_MAX_SIZE } else { data.len() - i } as usize;
+                let last = i + len == data.len();
+                slice[..len].clone_from_slice(&data[i..i+len]);
             i += len;
+                send_f(&slice, last, len)?;
+            }
+            Ok(())
+        }
+
+    pub fn ddma_upload_trace(io: &Io, aux_mutex: &Mutex,
+            routing_table: &drtio_routing::RoutingTable,
+            id: u32, destination: u8, trace: &[u8]) -> Result<(), &'static str> {
+        let linkno = routing_table.0[destination as usize][0] - 1;
+        partition_data(trace, |slice, last, len: usize| {
             let reply = aux_transact(io, aux_mutex, linkno, 
                 &drtioaux::Packet::DmaAddTraceRequest {
-                    id: id, destination: destination, last: last, length: len as u16, trace: trace_slice});
+                    id: id, destination: destination, last: last, length: len as u16, trace: *slice});
             match reply {
-                Ok(drtioaux::Packet::DmaAddTraceReply { succeeded: true }) => (),
-                Ok(drtioaux::Packet::DmaAddTraceReply { succeeded: false }) => { 
-                    return Err("error adding trace on satellite"); },
-                Ok(_) => { return Err("adding DMA trace failed, unexpected aux packet"); },
-                Err(_) => { return Err("adding DMA trace failed, aux error"); }
+                Ok(drtioaux::Packet::DmaAddTraceReply { succeeded: true }) => Ok(()),
+                Ok(drtioaux::Packet::DmaAddTraceReply { succeeded: false }) =>  
+                    Err("error adding trace on satellite"),
+                Ok(_) => Err("adding DMA trace failed, unexpected aux packet"),
+                Err(_) => Err("adding DMA trace failed, aux error")
             }
-        }
-        Ok(())
+        })
     }
 
     pub fn ddma_send_erase(io: &Io, aux_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable, 
