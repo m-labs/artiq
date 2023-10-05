@@ -1,9 +1,14 @@
 include ../include/generated/variables.mak
 include $(MISOC_DIRECTORY)/software/common.mak
 
-LDFLAGS += -L../libbase
+CFLAGS += \
+	-I$(LIBUNWIND_DIRECTORY) \
+	-I$(LIBUNWIND_DIRECTORY)/../unwinder/include
 
-RUSTFLAGS += -Cpanic=abort
+LDFLAGS += \
+	-L../libunwind
+
+RUSTFLAGS += -Cpanic=unwind
 
 export XBUILD_SYSROOT_PATH=$(BUILDINC_DIRECTORY)/../sysroot
 
@@ -15,8 +20,12 @@ $(RUSTOUT)/libsatman.a:
 	--manifest-path $(SATMAN_DIRECTORY)/Cargo.toml \
 	--target $(SATMAN_DIRECTORY)/../$(CARGO_TRIPLE).json
 
-satman.elf: $(RUSTOUT)/libsatman.a
-	$(link) -T $(SATMAN_DIRECTORY)/satman.ld
+satman.elf: $(RUSTOUT)/libsatman.a ksupport_data.o
+	$(link) -T $(SATMAN_DIRECTORY)/satman.ld \
+	-lunwind-vexriscv-bare -m elf32lriscv
+
+ksupport_data.o: ../ksupport/ksupport.elf 
+	$(LD) -r -m elf32lriscv -b binary -o $@ $<
 
 %.bin: %.elf
 	$(objcopy) -O binary
