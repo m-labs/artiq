@@ -21,7 +21,6 @@ use dyld::Library;
 use board_artiq::{mailbox, rpc_queue};
 use proto_artiq::{kernel_proto, rpc_proto};
 use kernel_proto::*;
-#[cfg(has_rtio_dma)]
 use board_misoc::csr;
 use riscv::register::{mcause, mepc, mtval};
 
@@ -396,7 +395,7 @@ extern fn dma_retrieve(name: &CSlice<u8>) -> DmaTrace {
     })
 }
 
-#[cfg(has_rtio_dma)]
+#[cfg(kernel_has_rtio_dma)]
 #[unwind(allowed)]
 extern fn dma_playback(timestamp: i64, ptr: i32, _uses_ddma: bool) {
     assert!(ptr % 64 == 0);
@@ -454,10 +453,74 @@ extern fn dma_playback(timestamp: i64, ptr: i32, _uses_ddma: bool) {
     }
 }
 
-#[cfg(not(has_rtio_dma))]
+#[cfg(not(kernel_has_rtio_dma))]
 #[unwind(allowed)]
 extern fn dma_playback(_timestamp: i64, _ptr: i32, _uses_ddma: bool) {
-    unimplemented!("not(has_rtio_dma)")
+    unimplemented!("not(kernel_has_rtio_dma)")
+}
+
+#[unwind(allowed)]
+extern fn subkernel_load_run(id: u32, run: bool) {
+    send(&SubkernelLoadRunRequest { id: id, run: run });
+    recv!(&SubkernelLoadRunReply { succeeded } => {
+        if !succeeded {
+            raise!("SubkernelError",
+                "Error loading or running the subkernel");
+        }
+    });
+}
+
+#[unwind(allowed)]
+extern fn subkernel_await_finish(id: u32, timeout: u64) {
+    send(&SubkernelAwaitFinishRequest { id: id, timeout: timeout });
+    recv!(SubkernelAwaitFinishReply { status } => {
+        match status {
+            SubkernelStatus::NoError => (),
+            SubkernelStatus::IncorrectState => raise!("SubkernelError",
+                "Subkernel not running"),
+            SubkernelStatus::Timeout => raise!("SubkernelError",
+                "Subkernel timed out"),
+            SubkernelStatus::CommLost => raise!("SubkernelError",
+                "Lost communication with satellite"),
+            SubkernelStatus::OtherError => raise!("SubkernelError",
+                "An error occurred during subkernel operation")
+        }
+    })
+}
+
+#[unwind(aborts)]
+extern fn subkernel_send_message(id: u32, count: u8, tag: &CSlice<u8>, data: *const *const ()) {
+    send(&SubkernelMsgSend { 
+        id: id,
+        count: count,
+        tag: tag.as_ref(),
+        data: data 
+    });
+}
+
+#[unwind(allowed)]
+extern fn subkernel_await_message(id: u32, timeout: u64, min: u8, max: u8) -> u8 {
+    send(&SubkernelMsgRecvRequest { id: id, timeout: timeout });
+    recv!(SubkernelMsgRecvReply { status, count } => {
+        match status {
+            SubkernelStatus::NoError => {
+                if count < &min || count > &max {
+                    raise!("SubkernelError",
+                        "Received less or more arguments than expected");
+                }
+                *count
+            }
+            SubkernelStatus::IncorrectState => raise!("SubkernelError",
+                "Subkernel not running"),
+            SubkernelStatus::Timeout => raise!("SubkernelError",
+                "Subkernel timed out"),
+            SubkernelStatus::CommLost => raise!("SubkernelError",
+                "Lost communication with satellite"),
+            SubkernelStatus::OtherError => raise!("SubkernelError",
+                "An error occurred during subkernel operation")
+        }
+    })
+    // RpcRecvRequest should be called `count` times after this to receive message data
 }
 
 unsafe fn attribute_writeback(typeinfo: *const ()) {
