@@ -385,6 +385,50 @@ class TRPC(Type):
     def __hash__(self):
         return hash(self.service)
 
+class TSubkernel(TFunction):
+    """
+    A kernel to be run on a satellite.
+
+    :ivar args: (:class:`collections.OrderedDict` of string to :class:`Type`)
+        function arguments
+    :ivar ret: (:class:`Type`)
+        return type
+    :ivar sid: (int) subkernel ID number
+    :ivar destination: (int) satellite destination number
+    """
+
+    attributes = OrderedDict()
+
+    def __init__(self, args, optargs, ret, sid, destination):
+        assert isinstance(ret, Type)
+        super().__init__(args, optargs, ret)
+        self.sid, self.destination = sid, destination
+        self.delay = TFixedDelay(iodelay.Const(0))
+
+    def unify(self, other):
+        if other is self:
+            return
+        if isinstance(other, TSubkernel) and \
+                self.sid == other.sid and \
+                self.destination == other.destination:
+            self.ret.unify(other.ret)
+        elif isinstance(other, TVar):
+            other.unify(self)
+        else:
+            raise UnificationError(self, other)
+
+    def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+            return str(self)
+        return "artiq.compiler.types.TSubkernel({})".format(repr(self.ret))
+
+    def __eq__(self, other):
+        return isinstance(other, TSubkernel) and \
+                self.sid == other.sid
+
+    def __hash__(self):
+        return hash(self.sid)
+
 class TBuiltin(Type):
     """
     An instance of builtin type. Every instance of a builtin
@@ -644,6 +688,9 @@ def is_function(typ):
 def is_rpc(typ):
     return isinstance(typ.find(), TRPC)
 
+def is_subkernel(typ):
+    return isinstance(typ.find(), TSubkernel)
+
 def is_external_function(typ, name=None):
     typ = typ.find()
     if name is None:
@@ -810,6 +857,10 @@ class TypePrinter(object):
             return "[rpc{} #{}](...)->{}".format(typ.service,
                                                  " async" if typ.is_async else "",
                                                  self.name(typ.ret, depth + 1))
+        elif isinstance(typ, TSubkernel):
+            return "<subkernel{} dest#{}>->{}".format(typ.sid,
+                                                      typ.destination,
+                                                      self.name(typ.ret, depth + 1))
         elif isinstance(typ, TBuiltinFunction):
             return "<function {}>".format(typ.name)
         elif isinstance(typ, (TConstructor, TExceptionConstructor)):

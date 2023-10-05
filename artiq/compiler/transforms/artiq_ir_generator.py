@@ -108,6 +108,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.current_args = None
         self.current_assign = None
         self.current_exception = None
+        self.current_remote_fn = False
         self.break_target = None
         self.continue_target = None
         self.return_target = None
@@ -211,7 +212,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             old_priv_env, self.current_private_env = self.current_private_env, priv_env
 
             self.generic_visit(node)
-            self.terminate(ir.Return(ir.Constant(None, builtins.TNone())))
+            self.terminate(ir.Return(ir.Constant(None, builtins.TNone()),
+                           remote_return=self.current_remote_fn))
 
             return self.functions
         finally:
@@ -294,6 +296,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             old_block, self.current_block = self.current_block, entry
 
             old_globals, self.current_globals = self.current_globals, node.globals_in_scope
+            old_remote_fn = self.current_remote_fn
+            self.current_remote_fn = getattr(node, "remote_fn", False)
 
             env_without_globals = \
                 {var: node.typing_env[var]
@@ -326,7 +330,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self.terminate(ir.Return(result))
             elif builtins.is_none(typ.ret):
                 if not self.current_block.is_terminated():
-                    self.current_block.append(ir.Return(ir.Constant(None, builtins.TNone())))
+                    self.current_block.append(ir.Return(ir.Constant(None, builtins.TNone()), 
+                                                        remote_return=self.current_remote_fn))
             else:
                 if not self.current_block.is_terminated():
                     if len(self.current_block.predecessors()) != 0:
@@ -345,6 +350,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.current_block = old_block
             self.current_globals = old_globals
             self.current_env = old_env
+            self.current_remote_fn = old_remote_fn
             if not is_lambda:
                 self.current_private_env = old_priv_env
 
@@ -367,7 +373,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             return_value = self.visit(node.value)
 
         if self.return_target is None:
-            self.append(ir.Return(return_value))
+            self.append(ir.Return(return_value, 
+                                  remote_return=self.current_remote_fn))
         else:
             self.append(ir.SetLocal(self.current_private_env, "$return", return_value))
             self.append(ir.Branch(self.return_target))
@@ -2524,6 +2531,33 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 or types.is_builtin(typ, "at_mu"):
             return self.append(ir.Builtin(typ.name,
                                           [self.visit(arg) for arg in node.args], node.type))
+        elif types.is_builtin(typ, "subkernel_await"):
+            if len(node.args) == 2 and len(node.keywords) == 0:
+                fn = node.args[0].type
+                timeout = self.visit(node.args[1])
+            elif len(node.args) == 1 and len(node.keywords) == 0:
+                fn = node.args[0].type
+                timeout = ir.Constant(10_000, builtins.TInt64())
+            else:
+                assert False
+            if types.is_method(fn):
+                fn = types.get_method_function(fn)
+            sid = ir.Constant(fn.sid, builtins.TInt32())
+            if not builtins.is_none(fn.ret):
+                ret = self.append(ir.Builtin("subkernel_retrieve_return", [sid, timeout], fn.ret))
+            else:
+                ret = ir.Constant(None, builtins.TNone())
+            self.append(ir.Builtin("subkernel_await_finish", [sid, timeout], builtins.TNone()))
+            return ret
+        elif types.is_builtin(typ, "subkernel_preload"):
+            if len(node.args) == 1 and len(node.keywords) == 0:
+                fn = node.args[0].type
+            else:
+                assert False
+            if types.is_method(fn):
+                fn = types.get_method_function(fn)
+            sid = ir.Constant(fn.sid, builtins.TInt32())
+            return self.append(ir.Builtin("subkernel_preload", [sid], builtins.TNone()))
         elif types.is_exn_constructor(typ):
             return self.alloc_exn(node.type, *[self.visit(arg_node) for arg_node in node.args])
         elif types.is_constructor(typ):
@@ -2535,8 +2569,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 node.loc)
             self.engine.process(diag)
 
-    def _user_call(self, callee, positional, keywords, arg_exprs={}):
-        if types.is_function(callee.type) or types.is_rpc(callee.type):
+    def _user_call(self, callee, positional, keywords, arg_exprs={}, remote_fn=False):
+        if types.is_function(callee.type) or types.is_rpc(callee.type) or types.is_subkernel(callee.type):
             func     = callee
             self_arg = None
             fn_typ   = callee.type
@@ -2551,16 +2585,50 @@ class ARTIQIRGenerator(algorithm.Visitor):
         else:
             assert False
 
-        if types.is_rpc(fn_typ):
-            if self_arg is None:
+        if types.is_rpc(fn_typ) or types.is_subkernel(fn_typ):
+            if self_arg is None or types.is_subkernel(fn_typ):
+                # self is not passed to subkernels by remote
                 args = positional
-            else:
+            elif self_arg is not None:
                 args = [self_arg] + positional
 
             for keyword in keywords:
                 arg = keywords[keyword]
                 args.append(self.append(ir.Alloc([ir.Constant(keyword, builtins.TStr()), arg],
                                                  ir.TKeyword(arg.type))))
+        elif remote_fn:
+            assert self_arg is None
+            assert len(fn_typ.args) >= len(positional)
+            assert len(keywords) == 0  # no keyword support
+            args = [None] * fn_typ.arity()
+            index = 0
+            # fill in first available args
+            for arg in positional:
+                args[index] = arg
+                index += 1
+
+            # remaining args are received through DRTIO
+            if index < len(args):
+                # min/max args received remotely (minus already filled)
+                offset = index
+                min_args = ir.Constant(len(fn_typ.args)-offset, builtins.TInt8())
+                max_args = ir.Constant(fn_typ.arity()-offset, builtins.TInt8())
+
+                rcvd_count = self.append(ir.Builtin("subkernel_await_args", [min_args, max_args], builtins.TNone()))
+                arg_types = list(fn_typ.args.items())[offset:]
+                # obligatory arguments
+                for arg_name, arg_type in arg_types:
+                    args[index] = self.append(ir.GetArgFromRemote(arg_name, arg_type,
+                                            name="ARG.{}".format(arg_name)))
+                    index += 1
+
+                # optional arguments
+                for optarg_name, optarg_type in fn_typ.optargs.items():
+                    idx = ir.Constant(index-offset, builtins.TInt8())
+                    args[index] = \
+                        self.append(ir.GetOptArgFromRemote(optarg_name, optarg_type, rcvd_count, idx))
+                    index += 1
+
         else:
             args = [None] * (len(fn_typ.args) + len(fn_typ.optargs))
 
@@ -2646,7 +2714,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             else:
                 assert False, "Broadcasting for {} arguments not implemented".format(len)
         else:
-            insn = self._user_call(callee, args, keywords, node.arg_exprs)
+            remote_fn = getattr(node, "remote_fn", False)
+            insn = self._user_call(callee, args, keywords, node.arg_exprs, remote_fn)
             if isinstance(node.func, asttyped.AttributeT):
                 attr_node = node.func
                 self.method_map[(attr_node.value.type.find(),

@@ -37,6 +37,7 @@ def globals():
 
         # ARTIQ decorators
         "kernel":               builtins.fn_kernel(),
+        "subkernel":            builtins.fn_kernel(),
         "portable":             builtins.fn_kernel(),
         "rpc":                  builtins.fn_kernel(),
 
@@ -54,4 +55,8 @@ def globals():
         # ARTIQ utility functions
         "rtio_log":             builtins.fn_rtio_log(),
         "core_log":             builtins.fn_print(),
+
+        # ARTIQ subkernel utility functions
+        "subkernel_await":     builtins.fn_subkernel_await(),
+        "subkernel_preload":   builtins.fn_subkernel_preload(),
     }

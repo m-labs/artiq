@@ -38,6 +38,9 @@ class TInt(types.TMono):
     def one():
         return 1
 
+def TInt8():
+    return TInt(types.TValue(8))
+
 def TInt32():
     return TInt(types.TValue(32))
 
@@ -244,6 +247,12 @@ def fn_at_mu():
 def fn_rtio_log():
     return types.TBuiltinFunction("rtio_log")
 
+def fn_subkernel_await():
+    return types.TBuiltinFunction("subkernel_await")
+
+def fn_subkernel_preload():
+    return types.TBuiltinFunction("subkernel_preload")
+
 # Accessors
 
 def is_none(typ):
@@ -326,7 +335,7 @@ def get_iterable_elt(typ):
     # n-dimensional arrays, rather than the n-1 dimensional result of iterating over
     # the first axis, which makes the name a bit misleading.
     if is_str(typ) or is_bytes(typ) or is_bytearray(typ):
-        return TInt(types.TValue(8))
+        return TInt8()
     elif types._is_pointer(typ) or is_iterable(typ):
         return typ.find()["elt"].find()
     else:
@@ -342,5 +351,5 @@ def is_allocated(typ):
                   is_float(typ) or is_range(typ) or
                   types._is_pointer(typ) or types.is_function(typ) or
                   types.is_external_function(typ) or types.is_rpc(typ) or
-                  types.is_method(typ) or types.is_tuple(typ) or
-                  types.is_value(typ))
+                  types.is_subkernel(typ) or types.is_method(typ) or
+                  types.is_tuple(typ) or types.is_value(typ))

@@ -280,7 +280,7 @@ class IODelayEstimator(algorithm.Visitor):
                                   context="as an argument for delay_mu()")
             call_delay = value
         elif not types.is_builtin(typ):
-            if types.is_function(typ) or types.is_rpc(typ):
+            if types.is_function(typ) or types.is_rpc(typ) or types.is_subkernel(typ):
                 offset = 0
             elif types.is_method(typ):
                 offset = 1
@@ -288,7 +288,7 @@ class IODelayEstimator(algorithm.Visitor):
             else:
                 assert False
 
-            if types.is_rpc(typ):
+            if types.is_rpc(typ) or types.is_subkernel(typ):
                 call_delay = iodelay.Const(0)
             else:
                 delay = typ.find().delay.find()
@@ -311,13 +311,20 @@ class IODelayEstimator(algorithm.Visitor):
                         args[arg_name] = arg_node
 
                     free_vars = delay.duration.free_vars()
-                    node.arg_exprs = {
-                        arg: self.evaluate(args[arg], abort=abort,
-                                           context="in the expression for argument '{}' "
-                                                   "that affects I/O delay".format(arg))
-                        for arg in free_vars
-                    }
-                    call_delay = delay.duration.fold(node.arg_exprs)
+                    try:
+                        node.arg_exprs = {
+                            arg: self.evaluate(args[arg], abort=abort,
+                                            context="in the expression for argument '{}' "
+                                                    "that affects I/O delay".format(arg))
+                            for arg in free_vars
+                        }
+                        call_delay = delay.duration.fold(node.arg_exprs)
+                    except KeyError as e:
+                        if getattr(node, "remote_fn", False):
+                            note = diagnostic.Diagnostic("note",
+                                "function called here", {},
+                                node.loc)
+                            self.abort("due to arguments passed remotely", node.loc, note)
                 else:
                     assert False
         else:

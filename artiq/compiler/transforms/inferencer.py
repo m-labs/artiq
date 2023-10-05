@@ -46,6 +46,7 @@ class Inferencer(algorithm.Visitor):
         self.function = None # currently visited function, for Return inference
         self.in_loop = False
         self.has_return = False
+        self.subkernel_arg_types = dict()
 
     def _unify(self, typea, typeb, loca, locb, makenotes=None, when=""):
         try:
@@ -178,7 +179,7 @@ class Inferencer(algorithm.Visitor):
                     # Convert to a method.
                     attr_type = types.TMethod(object_type, attr_type)
                     self._unify_method_self(attr_type, attr_name, attr_loc, loc, value_node.loc)
-                elif types.is_rpc(attr_type):
+                elif types.is_rpc(attr_type) or types.is_subkernel(attr_type):
                     # Convert to a method. We don't have to bother typechecking
                     # the self argument, since for RPCs anything goes.
                     attr_type = types.TMethod(object_type, attr_type)
@@ -1293,6 +1294,55 @@ class Inferencer(algorithm.Visitor):
             # Ignored.
             self._unify(node.type, builtins.TNone(),
                         node.loc, None)
+        elif types.is_builtin(typ, "subkernel_await"):
+            valid_forms = lambda: [
+                valid_form("subkernel_await(f: subkernel) -> f return type"),
+                valid_form("subkernel_await(f: subkernel, timeout: numpy.int64) -> f return type")
+            ]
+            if 1 <= len(node.args) <= 2:
+                arg0 = node.args[0].type
+                if types.is_var(arg0):
+                    pass  # undetermined yet
+                else:
+                    if types.is_method(arg0):
+                        fn = types.get_method_function(arg0)
+                    elif types.is_function(arg0) or types.is_subkernel(arg0):
+                        fn = arg0
+                    else:
+                        diagnose(valid_forms())
+                    self._unify(node.type, fn.ret,
+                                node.loc, None)
+                if len(node.args) == 2:
+                    arg1 = node.args[1]
+                    if types.is_var(arg1.type):
+                        pass
+                    elif builtins.is_int(arg1.type):
+                        # promote to TInt64
+                        self._unify(arg1.type, builtins.TInt64(),
+                                    arg1.loc, None)
+                    else:
+                        diagnose(valid_forms())
+            else:
+                diagnose(valid_forms())
+        elif types.is_builtin(typ, "subkernel_preload"):
+            valid_forms = lambda: [
+                valid_form("subkernel_preload(f: subkernel) -> None")
+            ]
+            if len(node.args) == 1:
+                arg0 = node.args[0].type
+                if types.is_var(arg0):
+                    pass  # undetermined yet
+                else:
+                    if types.is_method(arg0):
+                        fn = types.get_method_function(arg0)
+                    elif types.is_function(arg0) or types.is_subkernel(arg0):
+                        fn = arg0
+                    else:
+                        diagnose(valid_forms())
+                    self._unify(node.type, fn.ret,
+                                node.loc, None)
+            else:
+                diagnose(valid_forms())
         else:
             assert False
 
@@ -1331,6 +1381,7 @@ class Inferencer(algorithm.Visitor):
             typ_args    = typ.args
             typ_optargs = typ.optargs
             typ_ret     = typ.ret
+            typ_func    = typ
         else:
             typ_self    = types.get_method_self(typ)
             typ_func    = types.get_method_function(typ)
@@ -1388,12 +1439,23 @@ class Inferencer(algorithm.Visitor):
                                                     other_node=node.args[0])
                     self._unify(node.type, ret, node.loc, None)
                     return
+        if types.is_subkernel(typ_func) and typ_func.sid not in self.subkernel_arg_types:
+            self.subkernel_arg_types[typ_func.sid] = []
 
         for actualarg, (formalname, formaltyp) in \
                 zip(node.args, list(typ_args.items()) + list(typ_optargs.items())):
             self._unify(actualarg.type, formaltyp,
                         actualarg.loc, None)
             passed_args[formalname] = actualarg.loc
+            if types.is_subkernel(typ_func):
+                if types.is_instance(actualarg.type):
+                    # objects cannot be passed to subkernels, as rpc code doesn't support them
+                    diag = diagnostic.Diagnostic("error",
+                        "argument '{name}' of type: {typ} is not supported in subkernels",
+                        {"name": formalname, "typ": actualarg.type},
+                        actualarg.loc, [])
+                    self.engine.process(diag)
+                self.subkernel_arg_types[typ_func.sid].append((formalname, formaltyp))
 
         for keyword in node.keywords:
             if keyword.arg in passed_args:
@@ -1424,7 +1486,7 @@ class Inferencer(algorithm.Visitor):
             passed_args[keyword.arg] = keyword.arg_loc
 
         for formalname in typ_args:
-            if formalname not in passed_args:
+            if formalname not in passed_args and not node.remote_fn:
                 note = diagnostic.Diagnostic("note",
                     "the called function is of type {type}",
                     {"type": types.TypePrinter().name(node.func.type)},

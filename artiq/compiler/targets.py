@@ -94,8 +94,9 @@ class Target:
     tool_symbolizer = "llvm-symbolizer"
     tool_cxxfilt = "llvm-cxxfilt"
 
-    def __init__(self):
+    def __init__(self, subkernel_id=None):
         self.llcontext = ll.Context()
+        self.subkernel_id = subkernel_id
 
     def target_machine(self):
         lltarget = llvm.Target.from_triple(self.triple)
@@ -148,7 +149,8 @@ class Target:
             ir.BasicBlock._dump_loc = False
 
         type_printer = types.TypePrinter()
-        _dump(os.getenv("ARTIQ_DUMP_IR"), "ARTIQ IR", ".txt",
+        suffix = "_subkernel_{}".format(self.subkernel_id) if self.subkernel_id is not None else ""
+        _dump(os.getenv("ARTIQ_DUMP_IR"), "ARTIQ IR", suffix + ".txt",
               lambda: "\n".join(fn.as_entity(type_printer) for fn in module.artiq_ir))
 
         llmod = module.build_llvm_ir(self)
@@ -160,12 +162,12 @@ class Target:
             _dump("", "LLVM IR (broken)", ".ll", lambda: str(llmod))
             raise
 
-        _dump(os.getenv("ARTIQ_DUMP_UNOPT_LLVM"), "LLVM IR (generated)", "_unopt.ll",
+        _dump(os.getenv("ARTIQ_DUMP_UNOPT_LLVM"), "LLVM IR (generated)", suffix + "_unopt.ll",
               lambda: str(llparsedmod))
 
         self.optimize(llparsedmod)
 
-        _dump(os.getenv("ARTIQ_DUMP_LLVM"), "LLVM IR (optimized)", ".ll",
+        _dump(os.getenv("ARTIQ_DUMP_LLVM"), "LLVM IR (optimized)", suffix + ".ll",
               lambda: str(llparsedmod))
 
         return llparsedmod
