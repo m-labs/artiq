@@ -8,7 +8,7 @@ from artiq.applets.simple import TitleApplet
 
 
 class HistogramPlot(pyqtgraph.PlotWidget):
-    def __init__(self, args, ctl):
+    def __init__(self, args, req):
         pyqtgraph.PlotWidget.__init__(self)
         self.args = args
         self.timer = QTimer()

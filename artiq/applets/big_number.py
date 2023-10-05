@@ -22,10 +22,10 @@ class QCancellableLineEdit(QtWidgets.QLineEdit):
 
 
 class NumberWidget(QtWidgets.QStackedWidget):
-    def __init__(self, args, ctl):
+    def __init__(self, args, req):
         QtWidgets.QStackedWidget.__init__(self)
         self.dataset_name = args.dataset
-        self.ctl = ctl
+        self.req = req
 
         self.lcd_widget = QResponsiveLCDNumber()
         self.lcd_widget.setDigitCount(args.digit_count)
@@ -55,7 +55,7 @@ class NumberWidget(QtWidgets.QStackedWidget):
 
     def confirm_edit(self):
         value = float(self.edit_widget.text())
-        self.ctl.set_dataset(self.dataset_name, value)
+        self.req.set_dataset(self.dataset_name, value)
         self.setCurrentWidget(self.lcd_widget)
 
     def cancel_edit(self):

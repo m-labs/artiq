@@ -251,21 +251,21 @@ class SimpleApplet:
         if self.embed is not None:
             self.ipc.close()
 
-    def ctl_init(self):
+    def req_init(self):
         if self.embed is None:
             dataset_ctl = RPCClient()
             self.loop.run_until_complete(dataset_ctl.connect_rpc(
                 self.args.server, self.args.port_control, "master_dataset_db"))
-            self.ctl = AppletRequestRPC(self.loop, dataset_ctl)
+            self.req = AppletRequestRPC(self.loop, dataset_ctl)
         else:
-            self.ctl = AppletRequestIPC(self.ipc)
+            self.req = AppletRequestIPC(self.ipc)
 
-    def ctl_close(self):
+    def req_close(self):
         if self.embed is None:
-            self.ctl.dataset_ctl.close_rpc()
+            self.req.dataset_ctl.close_rpc()
 
     def create_main_widget(self):
-        self.main_widget = self.main_widget_class(self.args, self.ctl)
+        self.main_widget = self.main_widget_class(self.args, self.req)
         if self.embed is not None:
             self.ipc.set_close_cb(self.main_widget.close)
             if os.name == "nt":
@@ -367,7 +367,7 @@ class SimpleApplet:
         try:
             self.ipc_init()
             try:
-                self.ctl_init()
+                self.req_init()
                 try:
                     self.create_main_widget()
                     self.subscribe()
@@ -376,7 +376,7 @@ class SimpleApplet:
                     finally:
                         self.unsubscribe()
                 finally:
-                    self.ctl_close()
+                    self.req_close()
             finally:
                 self.ipc_close()
         finally:
