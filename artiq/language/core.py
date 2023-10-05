@@ -7,7 +7,7 @@ from functools import wraps
 import numpy
 
 
-__all__ = ["kernel", "portable", "rpc", "syscall", "host_only",
+__all__ = ["kernel", "portable", "rpc", "subkernel", "syscall", "host_only",
            "kernel_from_string", "set_time_manager", "set_watchdog_factory",
            "TerminationRequested"]
 
@@ -21,7 +21,7 @@ __all__.extend(kernel_globals)
 
 
 _ARTIQEmbeddedInfo = namedtuple("_ARTIQEmbeddedInfo",
-                                "core_name portable function syscall forbidden flags")
+                                "core_name portable function syscall forbidden destination flags")
 
 def kernel(arg=None, flags={}):
     """
@@ -54,7 +54,7 @@ def kernel(arg=None, flags={}):
                 return getattr(self, arg).run(run_on_core, ((self,) + k_args), k_kwargs)
             run_on_core.artiq_embedded = _ARTIQEmbeddedInfo(
                 core_name=arg, portable=False, function=function, syscall=None,
-                forbidden=False, flags=set(flags))
+                forbidden=False, destination=None, flags=set(flags))
             return run_on_core
         return inner_decorator
     elif arg is None:
@@ -63,6 +63,50 @@ def kernel(arg=None, flags={}):
         return inner_decorator
     else:
         return kernel("core", flags)(arg)
+
+def subkernel(arg=None, destination=0, flags={}):
+    """
+    This decorator marks an object's method or function for execution on a satellite device.
+    Destination must be given, and it must be between 1 and 255 (inclusive).
+
+    Subkernels behave similarly to kernels, with few key differences:
+
+        - they are started from main kernels,
+        - they do not support RPCs, or running subsequent subkernels on other devices,
+        - but they can call other kernels or subkernels with the same destination.
+
+    Subkernels can accept arguments and return values. However, they must be fully 
+    annotated with ARTIQ types.
+
+    To call a subkernel, call it like a normal function. 
+    
+    To await its finishing execution, call ``subkernel_await(subkernel, [timeout])``.
+    The timeout parameter is optional, and by default is equal to 10000 (miliseconds).
+    This time can be adjusted for subkernels that take a long time to execute.
+
+    The compiled subkernel is copied to satellites, but not yet to the kernel core
+    until it's called. For bigger subkernels it may take some time before they
+    actually start running. To help with that, subkernels can be preloaded, with
+    ``subkernel_preload(subkernel)`` function. A call to a preloaded subkernel 
+    will take less time, but only one subkernel can be preloaded at a time.
+    """
+    if isinstance(arg, str):
+        def inner_decorator(function):
+            @wraps(function)
+            def run_subkernel(self, *k_args, **k_kwargs):
+                sid = getattr(self, arg).prepare_subkernel(destination, run_subkernel, ((self,) + k_args), k_kwargs)
+                getattr(self, arg).run_subkernel(sid)
+            run_subkernel.artiq_embedded = _ARTIQEmbeddedInfo(
+                core_name=arg, portable=False, function=function, syscall=None,
+                forbidden=False, destination=destination, flags=set(flags))
+            return run_subkernel
+        return inner_decorator
+    elif arg is None:
+        def inner_decorator(function):
+            return subkernel(function, destination, flags)
+        return inner_decorator
+    else:
+        return subkernel("core", destination, flags)(arg)
 
 def portable(arg=None, flags={}):
     """
@@ -84,7 +128,7 @@ def portable(arg=None, flags={}):
     else:
         arg.artiq_embedded = \
             _ARTIQEmbeddedInfo(core_name=None, portable=True, function=arg, syscall=None,
-                               forbidden=False, flags=set(flags))
+                               forbidden=False, destination=None, flags=set(flags))
         return arg
 
 def rpc(arg=None, flags={}):
@@ -100,7 +144,7 @@ def rpc(arg=None, flags={}):
     else:
         arg.artiq_embedded = \
             _ARTIQEmbeddedInfo(core_name=None, portable=False, function=arg, syscall=None,
-                               forbidden=False, flags=set(flags))
+                               forbidden=False, destination=None, flags=set(flags))
         return arg
 
 def syscall(arg=None, flags={}):
@@ -118,7 +162,7 @@ def syscall(arg=None, flags={}):
         def inner_decorator(function):
             function.artiq_embedded = \
                 _ARTIQEmbeddedInfo(core_name=None, portable=False, function=None,
-                                   syscall=arg, forbidden=False,
+                                   syscall=arg, forbidden=False, destination=None,
                                    flags=set(flags))
             return function
         return inner_decorator
@@ -136,7 +180,7 @@ def host_only(function):
     """
     function.artiq_embedded = \
         _ARTIQEmbeddedInfo(core_name=None, portable=False, function=None, syscall=None,
-                           forbidden=True, flags={})
+                           forbidden=True, destination=None, flags={})
     return function
 
 

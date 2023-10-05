@@ -73,8 +73,8 @@ def main():
     finally:
         dataset_db.close_db()
 
-    if object_map.has_rpc():
-        raise ValueError("Experiment must not use RPC")
+    if object_map.has_rpc_or_subkernel():
+        raise ValueError("Experiment must not use RPC or subkernels")
 
     output = args.output
     if output is None:

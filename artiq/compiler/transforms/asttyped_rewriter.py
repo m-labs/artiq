@@ -238,7 +238,7 @@ class ASTTypedRewriter(algorithm.Transformer):
             body=node.body, decorator_list=node.decorator_list,
             keyword_loc=node.keyword_loc, name_loc=node.name_loc,
             arrow_loc=node.arrow_loc, colon_loc=node.colon_loc, at_locs=node.at_locs,
-            loc=node.loc)
+            loc=node.loc, remote_fn=False)
 
         try:
             self.env_stack.append(node.typing_env)
@@ -439,8 +439,9 @@ class ASTTypedRewriter(algorithm.Transformer):
 
     def visit_Call(self, node):
         node = self.generic_visit(node)
-        node = asttyped.CallT(type=types.TVar(), iodelay=None, arg_exprs={},
-                              func=node.func, args=node.args, keywords=node.keywords,
+        node = asttyped.CallT(type=types.TVar(), iodelay=None, arg_exprs={}, 
+                              remote_fn=False, func=node.func, 
+                              args=node.args, keywords=node.keywords, 
                               starargs=node.starargs, kwargs=node.kwargs,
                               star_loc=node.star_loc, dstar_loc=node.dstar_loc,
                               begin_loc=node.begin_loc, end_loc=node.end_loc, loc=node.loc)

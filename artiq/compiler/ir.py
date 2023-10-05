@@ -706,6 +706,64 @@ class SetLocal(Instruction):
     def value(self):
         return self.operands[1]
 
+class GetArgFromRemote(Instruction):
+    """
+    An instruction that receives function arguments from remote 
+    (ie. subkernel in DRTIO context)
+
+    :ivar arg_name: (string) argument name
+    :ivar arg_type: argument type
+    """
+
+    """
+    :param arg_name: (string) argument name
+    :param arg_type: argument type
+    """
+    def __init__(self, arg_name, arg_type, name=""):
+        assert isinstance(arg_name, str)
+        super().__init__([], arg_type, name)
+        self.arg_name = arg_name
+        self.arg_type = arg_type
+
+    def copy(self, mapper):
+        self_copy = super().copy(mapper)
+        self_copy.arg_name = self.arg_name
+        self_copy.arg_type = self.arg_type
+        return self_copy
+
+    def opcode(self):
+        return "getargfromremote({})".format(repr(self.arg_name))
+
+class GetOptArgFromRemote(GetArgFromRemote):
+    """
+    An instruction that may or may not retrieve an optional function argument
+    from remote, depending on number of values received by firmware.
+
+    :ivar rcv_count: number of received values,
+                     determined by firmware
+    :ivar index: (integer) index of the current argument, 
+                 in reference to remote arguments
+    """
+
+    """
+    :param rcv_count: number of received valuese
+    :param index: (integer) index of the current argument, 
+                  in reference to remote arguments
+    """
+    def __init__(self, arg_name, arg_type, rcv_count, index, name=""):
+        super().__init__(arg_name, arg_type, name)
+        self.rcv_count = rcv_count
+        self.index = index
+
+    def copy(self, mapper):
+        self_copy = super().copy(mapper)
+        self_copy.rcv_count = self.rcv_count
+        self_copy.index = self.index
+        return self_copy
+
+    def opcode(self):
+        return "getoptargfromremote({})".format(repr(self.arg_name))
+
 class GetAttr(Instruction):
     """
     An intruction that loads an attribute from an object,
@@ -728,7 +786,7 @@ class GetAttr(Instruction):
             typ = obj.type.attributes[attr]
         else:
             typ = obj.type.constructor.attributes[attr]
-            if types.is_function(typ) or types.is_rpc(typ):
+            if types.is_function(typ) or types.is_rpc(typ) or types.is_subkernel(typ):
                 typ = types.TMethod(obj.type, typ)
         super().__init__([obj], typ, name)
         self.attr = attr
@@ -1190,14 +1248,18 @@ class IndirectBranch(Terminator):
 class Return(Terminator):
     """
     A return instruction.
+    :param remote_return: (bool) 
+        marks a return in subkernel context,
+        where the return value is sent back through DRTIO
     """
 
     """
     :param value: (:class:`Value`) return value
     """
-    def __init__(self, value, name=""):
+    def __init__(self, value, remote_return=False, name=""):
         assert isinstance(value, Value)
         super().__init__([value], builtins.TNone(), name)
+        self.remote_return = remote_return
 
     def opcode(self):
         return "return"

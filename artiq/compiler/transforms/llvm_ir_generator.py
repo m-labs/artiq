@@ -215,7 +215,7 @@ class LLVMIRGenerator:
         typ = typ.find()
         if types.is_tuple(typ):
             return ll.LiteralStructType([self.llty_of_type(eltty) for eltty in typ.elts])
-        elif types.is_rpc(typ) or types.is_external_function(typ):
+        elif types.is_rpc(typ) or types.is_external_function(typ) or types.is_subkernel(typ):
             if for_return:
                 return llvoid
             else:
@@ -397,6 +397,15 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(llvoid, [lli32, llsliceptr, llptrptr])
         elif name == "rpc_recv":
             llty = ll.FunctionType(lli32, [llptr])
+
+        elif name == "subkernel_send_message":
+            llty = ll.FunctionType(llvoid, [lli32, lli8, llsliceptr, llptrptr])
+        elif name == "subkernel_load_run":
+            llty = ll.FunctionType(llvoid, [lli32, lli1])
+        elif name == "subkernel_await_finish":
+            llty = ll.FunctionType(llvoid, [lli32, lli64])
+        elif name == "subkernel_await_message":
+            llty = ll.FunctionType(lli8, [lli32, lli64, lli8, lli8])
 
         # with now-pinning
         elif name == "now":
@@ -874,6 +883,53 @@ class LLVMIRGenerator:
             llvalue = self.llbuilder.bitcast(llvalue, llptr.type.pointee)
         return self.llbuilder.store(llvalue, llptr)
 
+    def process_GetArgFromRemote(self, insn):
+        llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
+                                         name="subkernel.arg.stack")
+        llval = self._build_rpc_recv(insn.arg_type, llstackptr)
+        return llval
+
+    def process_GetOptArgFromRemote(self, insn):
+        # optarg = index < rcv_count ? Some(rcv_recv()) : None
+        llhead = self.llbuilder.basic_block
+        llrcv = self.llbuilder.append_basic_block(name="optarg.get.{}".format(insn.arg_name))
+        
+        # argument received
+        self.llbuilder.position_at_end(llrcv)
+        llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
+                                         name="subkernel.arg.stack")
+        llval = self._build_rpc_recv(insn.arg_type, llstackptr)
+        llrpcretblock = self.llbuilder.basic_block  # 'return' from rpc_recv, will be needed later
+        
+        # create the tail block, needs to be after the rpc recv tail block
+        lltail = self.llbuilder.append_basic_block(name="optarg.tail.{}".format(insn.arg_name))
+        self.llbuilder.branch(lltail)
+
+        # go back to head to add a branch to the tail
+        self.llbuilder.position_at_end(llhead)
+        llargrcvd = self.llbuilder.icmp_unsigned("<", self.map(insn.index), self.map(insn.rcv_count))
+        self.llbuilder.cbranch(llargrcvd, llrcv, lltail)
+
+        # argument not received/after arg recvd
+        self.llbuilder.position_at_end(lltail)
+
+        llargtype = self.llty_of_type(insn.arg_type)
+
+        llphi_arg_present = self.llbuilder.phi(lli1, name="optarg.phi.present.{}".format(insn.arg_name))
+        llphi_arg = self.llbuilder.phi(llargtype, name="optarg.phi.{}".format(insn.arg_name))
+
+        llphi_arg_present.add_incoming(ll.Constant(lli1, 0), llhead)
+        llphi_arg.add_incoming(ll.Constant(llargtype, ll.Undefined), llhead)
+
+        llphi_arg_present.add_incoming(ll.Constant(lli1, 1), llrpcretblock)
+        llphi_arg.add_incoming(llval, llrpcretblock)
+        
+        lloptarg = ll.Constant(ll.LiteralStructType([lli1, llargtype]), ll.Undefined)
+        lloptarg = self.llbuilder.insert_value(lloptarg, llphi_arg_present, 0)
+        lloptarg = self.llbuilder.insert_value(lloptarg, llphi_arg, 1)
+
+        return lloptarg
+
     def attr_index(self, typ, attr):
         return list(typ.attributes.keys()).index(attr)
 
@@ -898,8 +954,8 @@ class LLVMIRGenerator:
     def get_global_closure_ptr(self, typ, attr):
         closure_type = typ.attributes[attr]
         assert types.is_constructor(typ)
-        assert types.is_function(closure_type) or types.is_rpc(closure_type)
-        if types.is_external_function(closure_type) or types.is_rpc(closure_type):
+        assert types.is_function(closure_type) or types.is_rpc(closure_type) or types.is_subkernel(closure_type)
+        if types.is_external_function(closure_type) or types.is_rpc(closure_type) or types.is_subkernel(closure_type):
             return None
 
         llty = self.llty_of_type(typ.attributes[attr])
@@ -1344,6 +1400,29 @@ class LLVMIRGenerator:
                 return self.llbuilder.call(self.llbuiltin("delay_mu"), [llinterval])
         elif insn.op == "end_catch":
             return self.llbuilder.call(self.llbuiltin("__artiq_end_catch"), [])
+        elif insn.op == "subkernel_await_args":
+            llmin = self.map(insn.operands[0])
+            llmax = self.map(insn.operands[1])
+            return self.llbuilder.call(self.llbuiltin("subkernel_await_message"), 
+                                       [ll.Constant(lli32, 0), ll.Constant(lli64, 10_000), llmin, llmax],
+                                       name="subkernel.await.args")
+        elif insn.op == "subkernel_await_finish":
+            llsid = self.map(insn.operands[0])
+            lltimeout = self.map(insn.operands[1])
+            return self.llbuilder.call(self.llbuiltin("subkernel_await_finish"), [llsid, lltimeout],
+                                       name="subkernel.await.finish")
+        elif insn.op == "subkernel_retrieve_return":
+            llsid = self.map(insn.operands[0])
+            lltimeout = self.map(insn.operands[1])
+            self.llbuilder.call(self.llbuiltin("subkernel_await_message"), [llsid, lltimeout, ll.Constant(lli8, 1), ll.Constant(lli8, 1)],
+                                name="subkernel.await.message")
+            llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
+                                             name="subkernel.arg.stack")
+            return self._build_rpc_recv(insn.type, llstackptr)
+        elif insn.op == "subkernel_preload":
+            llsid = self.map(insn.operands[0])
+            return self.llbuilder.call(self.llbuiltin("subkernel_load_run"), [llsid, ll.Constant(lli1, 0)], 
+                                name="subkernel.preload")
         else:
             assert False
 
@@ -1426,6 +1505,58 @@ class LLVMIRGenerator:
 
         return llfun, list(llargs), llarg_attrs, llcallstackptr
 
+    def _build_rpc_recv(self, ret, llstackptr, llnormalblock=None, llunwindblock=None):
+        # T result = {
+        #   void *ret_ptr = alloca(sizeof(T));
+        #   void *ptr = ret_ptr;
+        #   loop: int size = rpc_recv(ptr);
+        #   // Non-zero: Provide `size` bytes of extra storage for variable-length data.
+        #   if(size) { ptr = alloca(size); goto loop; }
+        #   else *(T*)ret_ptr
+        # }
+        llprehead   = self.llbuilder.basic_block
+        llhead      = self.llbuilder.append_basic_block(name="rpc.head")
+        if llunwindblock:
+            llheadu = self.llbuilder.append_basic_block(name="rpc.head.unwind")
+        llalloc     = self.llbuilder.append_basic_block(name="rpc.continue")
+        lltail      = self.llbuilder.append_basic_block(name="rpc.tail")
+
+        llretty = self.llty_of_type(ret)
+        llslot = self.llbuilder.alloca(llretty, name="rpc.ret.alloc")
+        llslotgen = self.llbuilder.bitcast(llslot, llptr, name="rpc.ret.ptr")
+        self.llbuilder.branch(llhead)
+
+        self.llbuilder.position_at_end(llhead)
+        llphi = self.llbuilder.phi(llslotgen.type, name="rpc.ptr")
+        llphi.add_incoming(llslotgen, llprehead)
+        if llunwindblock:
+            llsize = self.llbuilder.invoke(self.llbuiltin("rpc_recv"), [llphi],
+                                           llheadu, llunwindblock,
+                                           name="rpc.size.next")
+            self.llbuilder.position_at_end(llheadu)
+        else:
+            llsize = self.llbuilder.call(self.llbuiltin("rpc_recv"), [llphi],
+                                         name="rpc.size.next")
+        lldone = self.llbuilder.icmp_unsigned('==', llsize, ll.Constant(llsize.type, 0),
+                                              name="rpc.done")
+        self.llbuilder.cbranch(lldone, lltail, llalloc)
+
+        self.llbuilder.position_at_end(llalloc)
+        llalloca = self.llbuilder.alloca(lli8, llsize, name="rpc.alloc")
+        llalloca.align = self.max_target_alignment
+        llphi.add_incoming(llalloca, llalloc)
+        self.llbuilder.branch(llhead)
+
+        self.llbuilder.position_at_end(lltail)
+        llret = self.llbuilder.load(llslot, name="rpc.ret")
+        if not ret.fold(False, lambda r, t: r or builtins.is_allocated(t)):
+            # We didn't allocate anything except the slot for the value itself.
+            # Don't waste stack space.
+            self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
+        if llnormalblock:
+            self.llbuilder.branch(llnormalblock)
+        return llret
+
     def _build_rpc(self, fun_loc, fun_type, args, llnormalblock, llunwindblock):
         llservice = ll.Constant(lli32, fun_type.service)
 
@@ -1501,56 +1632,102 @@ class LLVMIRGenerator:
 
             return ll.Undefined
 
-        # T result = {
-        #   void *ret_ptr = alloca(sizeof(T));
-        #   void *ptr = ret_ptr;
-        #   loop: int size = rpc_recv(ptr);
-        #   // Non-zero: Provide `size` bytes of extra storage for variable-length data.
-        #   if(size) { ptr = alloca(size); goto loop; }
-        #   else *(T*)ret_ptr
-        # }
-        llprehead   = self.llbuilder.basic_block
-        llhead      = self.llbuilder.append_basic_block(name="rpc.head")
-        if llunwindblock:
-            llheadu = self.llbuilder.append_basic_block(name="rpc.head.unwind")
-        llalloc     = self.llbuilder.append_basic_block(name="rpc.continue")
-        lltail      = self.llbuilder.append_basic_block(name="rpc.tail")
+        llret = self._build_rpc_recv(fun_type.ret, llstackptr, llnormalblock, llunwindblock)
 
-        llretty = self.llty_of_type(fun_type.ret)
-        llslot = self.llbuilder.alloca(llretty, name="rpc.ret.alloc")
-        llslotgen = self.llbuilder.bitcast(llslot, llptr, name="rpc.ret.ptr")
-        self.llbuilder.branch(llhead)
-
-        self.llbuilder.position_at_end(llhead)
-        llphi = self.llbuilder.phi(llslotgen.type, name="rpc.ptr")
-        llphi.add_incoming(llslotgen, llprehead)
-        if llunwindblock:
-            llsize = self.llbuilder.invoke(self.llbuiltin("rpc_recv"), [llphi],
-                                           llheadu, llunwindblock,
-                                           name="rpc.size.next")
-            self.llbuilder.position_at_end(llheadu)
-        else:
-            llsize = self.llbuilder.call(self.llbuiltin("rpc_recv"), [llphi],
-                                         name="rpc.size.next")
-        lldone = self.llbuilder.icmp_unsigned('==', llsize, ll.Constant(llsize.type, 0),
-                                              name="rpc.done")
-        self.llbuilder.cbranch(lldone, lltail, llalloc)
-
-        self.llbuilder.position_at_end(llalloc)
-        llalloca = self.llbuilder.alloca(lli8, llsize, name="rpc.alloc")
-        llalloca.align = self.max_target_alignment
-        llphi.add_incoming(llalloca, llalloc)
-        self.llbuilder.branch(llhead)
-
-        self.llbuilder.position_at_end(lltail)
-        llret = self.llbuilder.load(llslot, name="rpc.ret")
-        if not fun_type.ret.fold(False, lambda r, t: r or builtins.is_allocated(t)):
-            # We didn't allocate anything except the slot for the value itself.
-            # Don't waste stack space.
-            self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
-        if llnormalblock:
-            self.llbuilder.branch(llnormalblock)
         return llret
+
+    def _build_subkernel_call(self, fun_loc, fun_type, args):
+        llsid = ll.Constant(lli32, fun_type.sid)
+        tag = b""
+
+        for arg in args:
+            def arg_error_handler(typ):
+                printer = types.TypePrinter()
+                note = diagnostic.Diagnostic("note",
+                    "value of type {type}",
+                    {"type": printer.name(typ)},
+                    arg.loc)
+                diag = diagnostic.Diagnostic("error",
+                    "type {type} is not supported in subkernel calls",
+                    {"type": printer.name(arg.type)},
+                    arg.loc, notes=[note])
+                self.engine.process(diag)
+            tag += ir.rpc_tag(arg.type, arg_error_handler)
+        tag += b":"
+
+        # run the kernel first
+        self.llbuilder.call(self.llbuiltin("subkernel_load_run"), [llsid, ll.Constant(lli1, 1)])
+
+        # arg sent in the same vein as RPC
+        llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
+                                         name="subkernel.stack")
+
+        lltag = self.llconst_of_const(ir.Constant(tag, builtins.TStr()))
+        lltagptr = self.llbuilder.alloca(lltag.type)
+        self.llbuilder.store(lltag, lltagptr)
+
+        if args:
+            # only send args if there's anything to send, 'self' is excluded
+            llargs = self.llbuilder.alloca(llptr, ll.Constant(lli32, len(args)),
+                                        name="subkernel.args")
+            for index, arg in enumerate(args):
+                if builtins.is_none(arg.type):
+                    llargslot = self.llbuilder.alloca(llunit,
+                                                    name="subkernel.arg{}".format(index))
+                else:
+                    llarg = self.map(arg)
+                    llargslot = self.llbuilder.alloca(llarg.type,
+                                                    name="subkernel.arg{}".format(index))
+                    self.llbuilder.store(llarg, llargslot)
+                llargslot = self.llbuilder.bitcast(llargslot, llptr)
+
+                llargptr = self.llbuilder.gep(llargs, [ll.Constant(lli32, index)])
+                self.llbuilder.store(llargslot, llargptr)
+
+            llargcount = ll.Constant(lli8, len(args))
+
+            self.llbuilder.call(self.llbuiltin("subkernel_send_message"),
+                                [llsid, llargcount, lltagptr, llargs])
+            self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
+
+        return llsid
+
+    def _build_subkernel_return(self, insn):
+        # builds a remote return.
+        # unlike args, return only sends one thing.
+        if builtins.is_none(insn.value().type):
+            # do not waste time and bandwidth on Nones
+            return
+
+        def ret_error_handler(typ):
+            printer = types.TypePrinter()
+            note = diagnostic.Diagnostic("note",
+                "value of type {type}",
+                {"type": printer.name(typ)},
+                fun_loc)
+            diag = diagnostic.Diagnostic("error",
+                "return type {type} is not supported in subkernel returns",
+                {"type": printer.name(fun_type.ret)},
+                fun_loc, notes=[note])
+            self.engine.process(diag)
+        tag = ir.rpc_tag(insn.value().type, ret_error_handler)
+        tag += b":"
+        lltag = self.llconst_of_const(ir.Constant(tag, builtins.TStr()))
+        lltagptr = self.llbuilder.alloca(lltag.type)
+        self.llbuilder.store(lltag, lltagptr)
+
+        llrets = self.llbuilder.alloca(llptr, ll.Constant(lli32, 1),
+                                    name="subkernel.return")    
+        llret = self.map(insn.value())
+        llretslot = self.llbuilder.alloca(llret.type, name="subkernel.retval")
+        self.llbuilder.store(llret, llretslot)
+        llretslot = self.llbuilder.bitcast(llretslot, llptr)
+        self.llbuilder.store(llretslot, llrets)
+
+        llsid = ll.Constant(lli32, 0)  # return goes back to master, sid is ignored
+        lltagcount = ll.Constant(lli8, 1)  # only one thing is returned
+        self.llbuilder.call(self.llbuiltin("subkernel_send_message"),
+                            [llsid, lltagcount, lltagptr, llrets])
 
     def process_Call(self, insn):
         functiontyp = insn.target_function().type
@@ -1559,6 +1736,10 @@ class LLVMIRGenerator:
                                    functiontyp,
                                    insn.arguments(),
                                    llnormalblock=None, llunwindblock=None)
+        elif types.is_subkernel(functiontyp):
+            return self._build_subkernel_call(insn.target_function().loc,
+                                              functiontyp,
+                                              insn.arguments())
         elif types.is_external_function(functiontyp):
             llfun, llargs, llarg_attrs, llcallstackptr = self._prepare_ffi_call(insn)
         else:
@@ -1595,6 +1776,11 @@ class LLVMIRGenerator:
                                    functiontyp,
                                    insn.arguments(),
                                    llnormalblock, llunwindblock)
+        elif types.is_subkernel(functiontyp):
+            return self._build_subkernel_call(insn.target_function().loc,
+                                         functiontyp,
+                                         insn.arguments(),
+                                         llnormalblock, llunwindblock)
         elif types.is_external_function(functiontyp):
             llfun, llargs, llarg_attrs, llcallstackptr = self._prepare_ffi_call(insn)
         else:
@@ -1673,7 +1859,8 @@ class LLVMIRGenerator:
                 attrvalue = getattr(value, attr)
                 is_class_function = (types.is_constructor(typ) and
                                      types.is_function(typ.attributes[attr]) and
-                                     not types.is_external_function(typ.attributes[attr]))
+                                     not types.is_external_function(typ.attributes[attr]) and
+                                     not types.is_subkernel(typ.attributes[attr]))
                 if is_class_function:
                     attrvalue = self.embedding_map.specialize_function(typ.instance, attrvalue)
                 if not (types.is_instance(typ) and attr in typ.constant_attributes):
@@ -1758,7 +1945,8 @@ class LLVMIRGenerator:
             llelts = [self._quote(v, t, lambda: path() + [str(i)])
                 for i, (v, t) in enumerate(zip(value, typ.elts))]
             return ll.Constant(llty, llelts)
-        elif types.is_rpc(typ) or types.is_external_function(typ) or types.is_builtin_function(typ):
+        elif types.is_rpc(typ) or types.is_external_function(typ) or \
+                types.is_builtin_function(typ) or types.is_subkernel(typ):
             # RPC, C and builtin functions have no runtime representation.
             return ll.Constant(llty, ll.Undefined)
         elif types.is_function(typ):
@@ -1813,6 +2001,8 @@ class LLVMIRGenerator:
         return llinsn
 
     def process_Return(self, insn):
+        if insn.remote_return:
+            self._build_subkernel_return(insn)
         if builtins.is_none(insn.value().type):
             return self.llbuilder.ret_void()
         else:
