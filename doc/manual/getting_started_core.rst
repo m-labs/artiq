@@ -267,3 +267,83 @@ This argument is ignored on standalone systems, as it does not apply there.
 Enabling DDMA on a purely local sequence on a DRTIO system introduces an overhead during trace recording which comes from additional processing done on the record, so careful use is advised.
 
 Due to the extra time that communicating with relevant satellites takes, an additional delay before playback may be necessary to prevent a :exc:`~artiq.coredevice.exceptions.RTIOUnderflow` when playing back a DDMA-enabled sequence.
+
+Subkernels
+----------
+
+Subkernels refer to kernels running on a satellite device. This allows you to offload some of the processing and control over remote RTIO devices, freeing up resources on the master.
+
+Subkernels behave in most part as regular kernels, they accept arguments and can return values. However, there are few caveats:
+
+   - they do not support RPCs or calling subsequent subkernels on other devices,
+   - they do not support DRTIO,
+   - their return value must be fully annotated with an ARTIQ type,
+   - their arguments should be annotated, and only basic ARTIQ types are supported,
+   - while ``self`` is allowed, there is no attribute writeback - any changes to it will be discarded when the subkernel is done,
+   - they can raise exceptions, but they cannot be caught by the master,
+   - they begin execution as soon as possible when called, and they can be awaited.
+
+To define a subkernel, use the subkernel decorator (``@subkernel(destination=X)``). The destination is the satellite number as defined in the routing table, and must be between 1 and 255. To call a subkernel, call it like a normal function; and to await its result, use ``subkernel_await(function, [timeout])`` built-in function.
+
+For example, a subkernel performing integer addition: ::
+
+    from artiq.experiment import *
+
+
+    @subkernel(destination=1)
+    def subkernel_add(a: TInt32, b: TInt32) -> TInt32:
+        return a + b
+
+    class SubkernelExperiment(EnvExperiment):
+        def build(self):
+            self.setattr_device("core")
+
+        @kernel
+        def run(self):
+            subkernel_add(2, 2)
+            result = subkernel_await(subkernel_add)
+            assert result == 4
+
+Sometimes the subkernel execution may take more time - and the await has a default timeout of 10000 milliseconds (10 seconds). It can be adjusted, as ``subkernel_await()`` accepts an optional timeout argument.
+
+Subkernels are compiled after the main kernel, and then immediately uploaded to satellites. When called, master instructs the appropriate satellite to load the subkernel into their kernel core and to run it. If the subkernel is complex, and its binary relatively big, the delay between the call and actually running the subkernel may be substantial; if that delay has to be minimized, ``subkernel_preload(function)`` should be used before the call.
+
+While ``self`` is accepted as an argument for subkernels, it is embedded into the compiled data. Any changes made by the main kernel or other subkernels, will not be available.
+
+Subkernels can call other kernels and subkernels, if they're within the same destination. For a more complex example: ::
+
+    from artiq.experiment import *
+
+    class SubkernelExperiment(EnvExperiment):
+        def build(self):
+            self.setattr_device("core")
+            self.setattr_device("ttl0")
+            self.setattr_device("ttl8")  # assuming it's on satellite
+
+        @subkernel(destination=1)
+        def add_and_pulse(self, a: TInt32, b: TInt32) -> TInt32:
+            c = a + b
+            self.pulse_ttl(c)
+            return c
+
+        @subkernel(destination=1)
+        def pulse_ttl(self, delay: TInt32) -> TNone:
+            self.ttl8.pulse(delay*us)
+
+        @kernel
+        def run(self):
+            subkernel_preload(self.add_and_pulse)
+            self.core.reset()
+            delay(10*ms)
+            self.add_and_pulse(2, 2)
+            self.ttl0.pulse(15*us)
+            result = subkernel_await(self.add_and_pulse)
+            assert result == 4
+            self.pulse_ttl(20)
+
+Without the preload, the delay after the core reset would need to be longer. It's still an operation that can take some time, depending on the connection. Notice that the method ``pulse_ttl()`` can be also called both within a subkernel, and on its own. 
+
+In general, subkernels do not have to be awaited, but awaiting is required to retrieve returned values and exceptions.
+
+.. note::
+    When a subkernel is running, regardless of devices used by it, RTIO devices on that satellite are not available to the master. Control is returned to master after the subkernel finishes - to be sure that you can use the device, the subkernel should be awaited before any RTIO operations on the affected satellite are performed.
