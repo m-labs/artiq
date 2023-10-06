@@ -111,7 +111,7 @@ class Config:
 
 
 @nac3
-class Volt:
+class DCBias:
     """Shuttler Core cubic DC-bias spline.
 
     A Shuttler channel can generate a waveform `w(t)` that is the sum of a
@@ -145,7 +145,7 @@ class Volt:
     def set_waveform(self, a0: int32, a1: int32, a2: int64, a3: int64):
         """Set the DC-bias spline waveform.
 
-        Given `a(t)` as defined in :class:`Volt`, the coefficients should be
+        Given `a(t)` as defined in :class:`DCBias`, the coefficients should be
         configured by the following formulae.
 
         .. math::
@@ -189,7 +189,7 @@ class Volt:
 
 
 @nac3
-class Dds:
+class DDS:
     """Shuttler Core DDS spline.
 
     A Shuttler channel can generate a waveform `w(t)` that is the sum of a
@@ -228,7 +228,7 @@ class Dds:
             c0: int32, c1: int32, c2: int32):
         """Set the DDS spline waveform.
 
-        Given `b(t)` and `c(t)` as defined in :class:`Dds`, the coefficients
+        Given `b(t)` and `c(t)` as defined in :class:`DDS`, the coefficients
         should be configured by the following formulae.
 
         .. math::
@@ -308,7 +308,7 @@ class Trigger:
 
         Each bit corresponds to a Shuttler waveform generator core. Setting
         `trig_out` bits commits the pending coefficient update (from
-        `set_waveform` in :class:`Volt` and :class:`Dds`) to the Shuttler Core
+        `set_waveform` in :class:`DCBias` and :class:`DDS`) to the Shuttler Core
         synchronously.
 
         :param trig_out: Coefficient update trigger bits. The MSB corresponds
@@ -580,7 +580,7 @@ class ADC:
         self.core.delay(2500.*us)
 
     @kernel
-    def calibrate(self, volts: list[Volt], trigger: Trigger, config: Config, samples: Option[list[float]] = none):
+    def calibrate(self, volts: list[DCBias], trigger: Trigger, config: Config, samples: Option[list[float]] = none):
         """Calibrate the Shuttler waveform generator using the ADC on the AFE.
 
         It finds the average slope rate and average offset by samples, and
@@ -599,7 +599,7 @@ class ADC:
             :meth:`Config.set_offset`
 
         :param volts: A list of all 16 cubic DC-bias spline.
-            (See :class:`Volt`)
+            (See :class:`DCBias`)
         :param trigger: The Shuttler spline coefficient update trigger.
         :param config: The Shuttler Core configuration registers.
         :param samples: A list of sample voltages for calibration. There must

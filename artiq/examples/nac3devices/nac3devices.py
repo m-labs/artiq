@@ -14,7 +14,7 @@ from artiq.coredevice.edge_counter import EdgeCounter
 from artiq.coredevice.grabber import Grabber
 from artiq.coredevice.fastino import Fastino
 from artiq.coredevice.phaser import Phaser
-from artiq.coredevice.shuttler import Volt as ShuttlerDCBias, Dds as ShuttlerDDS
+from artiq.coredevice.shuttler import DCBias as ShuttlerDCBias, DDS as ShuttlerDDS
 
 
 @nac3
@@ -35,7 +35,7 @@ class NAC3Devices(EnvExperiment):
     grabber0: KernelInvariant[Grabber]
     fastino0: KernelInvariant[Fastino]
     phaser0: KernelInvariant[Phaser]
-    shuttler0_volt0: KernelInvariant[ShuttlerDCBias]
+    shuttler0_dcbias0: KernelInvariant[ShuttlerDCBias]
     shuttler0_dds0: KernelInvariant[ShuttlerDDS]
 
     def build(self):
@@ -55,7 +55,7 @@ class NAC3Devices(EnvExperiment):
         self.setattr_device("grabber0")
         self.setattr_device("fastino0")
         self.setattr_device("phaser0")
-        self.setattr_device("shuttler0_volt0")
+        self.setattr_device("shuttler0_dcbias0")
         self.setattr_device("shuttler0_dds0")
 
     @kernel
