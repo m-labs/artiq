@@ -101,8 +101,7 @@ class Shuttler(EnvExperiment):
 
         print_rpc("Example Waveforms are on OUT0 and OUT1")
         self.core.break_realtime()
-        #while not(self.scheduler.check_termination()):
-        while True:
+        while not(self.scheduler.check_termination()):
             self.core.delay(1.*s)
             self.example_waveform()
 
