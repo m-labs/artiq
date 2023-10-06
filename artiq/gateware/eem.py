@@ -716,11 +716,11 @@ class HVAmp(_EEM):
             target.rtio_channels.append(rtio.Channel.from_phy(phy))
 
 
-class EFC(_EEM):
+class Shuttler(_EEM):
     @staticmethod
     def io(eem, iostandard=default_iostandard):
         # Master: Pair 0~3 data IN, 4~7 OUT
-        data_in = ("efc{}_drtio_rx".format(eem), 0,
+        data_in = ("shuttler{}_drtio_rx".format(eem), 0,
             Subsignal("p", Pins("{} {} {} {}".format(*[
                 _eem_pin(eem, i, "p") for i in range(4)
             ]))),
@@ -731,7 +731,7 @@ class EFC(_EEM):
             Misc("DIFF_TERM=TRUE"),
         )
 
-        data_out = ("efc{}_drtio_tx".format(eem), 0,
+        data_out = ("shuttler{}_drtio_tx".format(eem), 0,
             Subsignal("p", Pins("{} {} {} {}".format(*[
                 _eem_pin(eem, i, "p") for i in range(4, 8)
             ]))),
@@ -746,4 +746,4 @@ class EFC(_EEM):
     @classmethod
     def add_std(cls, target, eem, eem_aux, iostandard=default_iostandard):
         cls.add_extension(target, eem, is_drtio_over_eem=True, iostandard=iostandard)
-        target.eem_drtio_channels.append((target.platform.request("efc{}_drtio_rx".format(eem), 0), target.platform.request("efc{}_drtio_tx".format(eem), 0)))
+        target.eem_drtio_channels.append((target.platform.request("shuttler{}_drtio_rx".format(eem), 0), target.platform.request("shuttler{}_drtio_tx".format(eem), 0)))

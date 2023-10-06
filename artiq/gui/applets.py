@@ -14,17 +14,181 @@ from sipyco.pipe_ipc import AsyncioParentComm
 from sipyco.logging_tools import LogParser
 from sipyco import pyon
 
-from artiq.gui.tools import QDockWidgetCloseDetect, LayoutWidget
+from artiq.gui.entries import procdesc_to_entry
+from artiq.gui.tools import (QDockWidgetCloseDetect, LayoutWidget,
+                             WheelFilter)
 
 
 logger = logging.getLogger(__name__)
 
+class EntryArea(QtWidgets.QTreeWidget):
+    def __init__(self):
+        QtWidgets.QTreeWidget.__init__(self)
+        self.setColumnCount(3)
+        self.header().setStretchLastSection(False)
+        if hasattr(self.header(), "setSectionResizeMode"):
+            set_resize_mode = self.header().setSectionResizeMode
+        else:
+            set_resize_mode = self.header().setResizeMode
+        set_resize_mode(0, QtWidgets.QHeaderView.ResizeToContents)
+        set_resize_mode(1, QtWidgets.QHeaderView.Stretch)
+        self.header().setVisible(False)
+        self.setSelectionMode(self.NoSelection)
+        self.setHorizontalScrollMode(self.ScrollPerPixel)
+        self.setVerticalScrollMode(self.ScrollPerPixel)
+
+        self.setStyleSheet("QTreeWidget {background: " +
+                           self.palette().midlight().color().name() + " ;}")
+
+        self.viewport().installEventFilter(WheelFilter(self.viewport(), True))
+
+        self._groups = dict()
+        self._arg_to_widgets = dict()
+        self._arguments = dict()
+
+        self.gradient = QtGui.QLinearGradient(
+            0, 0, 0, QtGui.QFontMetrics(self.font()).lineSpacing()*2.5)
+        self.gradient.setColorAt(0, self.palette().base().color())
+        self.gradient.setColorAt(1, self.palette().midlight().color())
+
+        reset_all_button = QtWidgets.QPushButton("Restore defaults")
+        reset_all_button.setToolTip("Reset all to default values")
+        reset_all_button.setIcon(
+            QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_BrowserReload))
+        reset_all_button.clicked.connect(self.reset_all)
+        buttons = LayoutWidget()
+        buttons.layout.setColumnStretch(0, 1)
+        buttons.layout.setColumnStretch(1, 0)
+        buttons.layout.setColumnStretch(2, 1)
+        buttons.addWidget(reset_all_button, 0, 1)
+        self.bottom_item = QtWidgets.QTreeWidgetItem()
+        self.addTopLevelItem(self.bottom_item)
+        self.setItemWidget(self.bottom_item, 1, buttons)
+        self.bottom_item.setHidden(True)
+    
+    def setattr_argument(self, name, proc, group=None, tooltip=None):
+        argument = dict()
+        desc = proc.describe()
+        argument["desc"] = desc
+        argument["group"] = group
+        argument["tooltip"] = tooltip
+        self._arguments[name] = argument
+        widgets = dict()
+        self._arg_to_widgets[name] = widgets
+        entry_class = procdesc_to_entry(argument["desc"])
+        argument["state"] = entry_class.default_state(argument["desc"])
+        entry = entry_class(argument)
+        widget_item = QtWidgets.QTreeWidgetItem([name])
+        if argument["tooltip"]:
+            widget_item.setToolTip(0, argument["tooltip"])
+        widgets["entry"] = entry
+        widgets["widget_item"] = widget_item
+
+        if len(self._arguments) > 1:
+            self.bottom_item.setHidden(False)
+
+        for col in range(3):
+            widget_item.setBackground(col, self.gradient)
+        font = widget_item.font(0)
+        font.setBold(True)
+        widget_item.setFont(0, font)
+
+        if argument["group"] is None:
+            self.insertTopLevelItem(self.indexFromItem(self.bottom_item).row(), widget_item)
+        else:
+            self._get_group(argument["group"]).addChild(widget_item)
+            self.bottom_item.setHidden(False)
+        fix_layout = LayoutWidget()
+        widgets["fix_layout"] = fix_layout
+        fix_layout.addWidget(entry)
+        self.setItemWidget(widget_item, 1, fix_layout)
+
+        reset_value = QtWidgets.QToolButton()
+        reset_value.setToolTip("Reset to default value")
+        reset_value.setIcon(
+            QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_BrowserReload))
+        reset_value.clicked.connect(partial(self.reset_value, name))
+
+        tool_buttons = LayoutWidget()
+        tool_buttons.addWidget(reset_value, 0)
+        self.setItemWidget(widget_item, 2, tool_buttons)
+
+    def _get_group(self, name):
+        if name in self._groups:
+            return self._groups[name]
+        group = QtWidgets.QTreeWidgetItem([name])
+        for col in range(3):
+            group.setBackground(col, self.palette().mid())
+            group.setForeground(col, self.palette().brightText())
+            font = group.font(col)
+            font.setBold(True)
+            group.setFont(col, font)
+        self.insertTopLevelItem(self.indexFromItem(self.bottom_item).row(), group)
+        self._groups[name] = group
+        return group
+    
+    def __getattr__(self, name):
+        return self.get_value(name)
+
+    def get_value(self, name):
+        entry = self._arg_to_widgets[name]["entry"]
+        argument = self._arguments[name]
+        return entry.state_to_value(argument["state"])
+
+    def set_value(self, name, value):
+        ty = self._arguments[name]["desc"]["ty"]
+        if ty == "Scannable":
+            desc = value.describe()
+            self._arguments[name]["state"][desc["ty"]] = desc
+            self._arguments[name]["state"]["selected"] = desc["ty"]
+        else:
+            self._arguments[name]["state"] = value
+        self.update_value(name)
+
+    def get_values(self):
+        d = dict()
+        for name in self._arguments.keys():
+            d[name] = self.get_value(name)
+        return d
+
+    def set_values(self, values):
+        for name, value in values.items():
+            self.set_value(name, value)
+
+    def update_value(self, name):
+        widgets = self._arg_to_widgets[name]
+        argument = self._arguments[name]
+
+        # Qt needs a setItemWidget() to handle layout correctly,
+        # simply replacing the entry inside the LayoutWidget
+        # results in a bug.
+
+        widgets["entry"].deleteLater()
+        widgets["entry"] = procdesc_to_entry(argument["desc"])(argument)
+        widgets["fix_layout"].deleteLater()
+        widgets["fix_layout"] = LayoutWidget()
+        widgets["fix_layout"].addWidget(widgets["entry"])
+        self.setItemWidget(widgets["widget_item"], 1, widgets["fix_layout"])
+        self.updateGeometries()
+
+    def reset_value(self, name):
+        procdesc = self._arguments[name]["desc"] 
+        self._arguments[name]["state"] = procdesc_to_entry(procdesc).default_state(procdesc)
+        self.update_value(name)
+
+    def reset_all(self):
+        for name in self._arguments.keys():
+            self.reset_value(name)
+
 
 class AppletIPCServer(AsyncioParentComm):
-    def __init__(self, dataset_sub, dataset_ctl):
+    def __init__(self, dataset_sub, dataset_ctl, expmgr):
         AsyncioParentComm.__init__(self)
         self.dataset_sub = dataset_sub
         self.dataset_ctl = dataset_ctl
+        self.expmgr = expmgr
         self.datasets = set()
         self.dataset_prefixes = []
 
@@ -50,6 +214,13 @@ class AppletIPCServer(AsyncioParentComm):
 
     def _on_mod(self, mod):
         if mod["action"] == "init":
+            if not (self.datasets or self.dataset_prefixes):
+                # The dataset db connection just came online, and an applet is
+                # running but did not call `subscribe` yet (e.g. because the
+                # dashboard was just restarted and a previously enabled applet
+                # is being re-opened). We will later synthesize an "init" `mod`
+                # message once the applet actually subscribes.
+                return
             mod = self._synthesize_init(mod["struct"])
         else:
             if mod["path"]:
@@ -83,6 +254,8 @@ class AppletIPCServer(AsyncioParentComm):
                         await self.dataset_ctl.set(obj["key"], obj["value"], metadata=obj["metadata"], persist=obj["persist"])
                     elif action == "update_dataset":
                         await self.dataset_ctl.update(obj["mod"])
+                    elif action == "set_argument_value":
+                        self.expmgr.set_argument_value(obj["expurl"], obj["name"], obj["value"])
                     else:
                         raise ValueError("unknown action in applet message")
                 except:
@@ -108,7 +281,7 @@ class AppletIPCServer(AsyncioParentComm):
 
 
 class _AppletDock(QDockWidgetCloseDetect):
-    def __init__(self, dataset_sub, dataset_ctl, uid, name, spec, extra_substitutes):
+    def __init__(self, dataset_sub, dataset_ctl, expmgr, uid, name, spec, extra_substitutes):
         QDockWidgetCloseDetect.__init__(self, "Applet: " + name)
         self.setObjectName("applet" + str(uid))
 
@@ -118,6 +291,7 @@ class _AppletDock(QDockWidgetCloseDetect):
 
         self.dataset_sub = dataset_sub
         self.dataset_ctl = dataset_ctl
+        self.expmgr = expmgr
         self.applet_name = name
         self.spec = spec
         self.extra_substitutes = extra_substitutes
@@ -136,7 +310,7 @@ class _AppletDock(QDockWidgetCloseDetect):
             return
         self.starting_stopping = True
         try:
-            self.ipc = AppletIPCServer(self.dataset_sub, self.dataset_ctl)
+            self.ipc = AppletIPCServer(self.dataset_sub, self.dataset_ctl, self.expmgr)
             env = os.environ.copy()
             env["PYTHONUNBUFFERED"] = "1"
             env["ARTIQ_APPLET_EMBED"] = self.ipc.get_address()
@@ -333,7 +507,7 @@ class _CompleterDelegate(QtWidgets.QStyledItemDelegate):
 
 
 class AppletsDock(QtWidgets.QDockWidget):
-    def __init__(self, main_window, dataset_sub, dataset_ctl, extra_substitutes={}, *, loop=None):
+    def __init__(self, main_window, dataset_sub, dataset_ctl, expmgr, extra_substitutes={}, *, loop=None):
         """
         :param extra_substitutes: Map of extra ``${strings}`` to substitute in applet
             commands to their respective values.
@@ -346,6 +520,7 @@ class AppletsDock(QtWidgets.QDockWidget):
         self.main_window = main_window
         self.dataset_sub = dataset_sub
         self.dataset_ctl = dataset_ctl
+        self.expmgr = expmgr
         self.extra_substitutes = extra_substitutes
         self.applet_uids = set()
 
@@ -397,11 +572,12 @@ class AppletsDock(QtWidgets.QDockWidget):
         delete_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         delete_action.triggered.connect(self.delete)
         self.table.addAction(delete_action)
-        close_all_action = QtWidgets.QAction("Close all applets", self.table)
-        close_all_action.setShortcut("CTRL+ALT+W")
-        close_all_action.setShortcutContext(QtCore.Qt.ApplicationShortcut)
-        close_all_action.triggered.connect(self.close_all)
-        self.table.addAction(close_all_action)
+        close_nondocked_action = QtWidgets.QAction("Close non-docked applets", self.table)
+        close_nondocked_action.setShortcut("CTRL+ALT+W")
+        close_nondocked_action.setShortcutContext(QtCore.Qt.ApplicationShortcut)
+        close_nondocked_action.triggered.connect(self.close_nondocked)
+        self.table.addAction(close_nondocked_action)
+
         new_group_action = QtWidgets.QAction("New group", self.table)
         new_group_action.triggered.connect(partial(self.new_with_parent, self.new_group))
         self.table.addAction(new_group_action)
@@ -447,7 +623,7 @@ class AppletsDock(QtWidgets.QDockWidget):
             self.table.itemChanged.connect(self.item_changed)
 
     def create(self, item, name, spec):
-        dock = _AppletDock(self.dataset_sub, self.dataset_ctl, item.applet_uid, name, spec, self.extra_substitutes)
+        dock = _AppletDock(self.dataset_sub, self.dataset_ctl, self.expmgr, item.applet_uid, name, spec, self.extra_substitutes)
         self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
         dock.setFloating(True)
         asyncio.ensure_future(dock.start(), loop=self._loop)
@@ -674,12 +850,15 @@ class AppletsDock(QtWidgets.QDockWidget):
     def restore_state(self, state):
         self.restore_state_item(state, None)
 
-    def close_all(self):
+    def close_nondocked(self):
         def walk(wi):
             for i in range(wi.childCount()):
                 cwi = wi.child(i)
                 if cwi.ty == "applet":
                     if cwi.checkState(0) == QtCore.Qt.Checked:
+                        if cwi.applet_dock is not None:
+                            if not cwi.applet_dock.isFloating():
+                                continue
                         cwi.setCheckState(0, QtCore.Qt.Unchecked)
                 elif cwi.ty == "group":
                     walk(cwi)

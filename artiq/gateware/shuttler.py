@@ -1,5 +1,7 @@
 # Copyright 2013-2017 Robert Jordens <jordens@gmail.com>
 #
+# shuttler is developed based on pdq.
+#
 # pdq is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -91,20 +93,54 @@ class DacInterface(Module, AutoCSR):
                     p_DDR_CLK_EDGE="SAME_EDGE") 
                 for bit in range(bit_width)]
 
+
+class SigmaDeltaModulator(Module):
+    """First order Sigma-Delta modulator."""
+    def __init__(self, x_width, y_width):
+        self.x = Signal(x_width)
+        self.y = Signal(y_width)
+
+        # SDM can at most output the max DAC code `Replicate(1, y_width-1)`,
+        # which represents the sample of value
+        # `Replicate(1, y_width-1) << (x_width-y_width)`.
+        #
+        # If the input sample exceeds such limit, SDM may overflow.
+        x_capped = Signal(x_width)
+        max_dac_code = Replicate(1, (y_width-1))
+        self.comb += If(self.x[x_width-y_width:] == max_dac_code,
+            x_capped.eq(Cat(Replicate(0, x_width-y_width), max_dac_code)),
+        ).Else(
+            x_capped.eq(self.x),
+        )
+
+        acc = Signal(x_width)
+
+        self.comb += self.y.eq(acc[x_width-y_width:])
+        self.sync.rio += acc.eq(x_capped - Cat(Replicate(0, x_width-y_width), self.y) + acc)
+
+
 class Dac(Module):
     """Output module.
 
     Holds the two output line executors.
 
     Attributes:
-        data (Signal[16]): Output value to be send to the DAC.
+        data (Signal[14]): Output value to be send to the DAC.
         clear (Signal): Clear accumulated phase offset when loading a new
                         waveform. Input.
+        gain (Signal[16]): Output value gain. The gain signal represents the
+                           decimal part os the gain in 2's complement.
+        offset (Signal[16]): Output value offset.
         i (Endpoint[]): Coefficients of the output lines.
     """
-    def __init__(self):
+    def __init__(self, sdm=False):
         self.clear = Signal()
-        self.data = Signal(16)
+        self.data = Signal(14)
+        self.gain = Signal(16)
+        self.offset = Signal(16)
+
+        overflow = Signal()
+        underflow = Signal()
 
         ###
 
@@ -113,9 +149,43 @@ class Dac(Module):
             Dds(self.clear),
         ]
 
+        # Infer signed multiplication
+        data_raw = Signal((16, True))
+        # Buffer data should have 2 more bits than the desired output width
+        # It is to perform overflow/underflow detection
+        data_buf = Signal(18)
+        data_sink = Signal(16)
+
+        if sdm:
+            self.submodules.sdm = SigmaDeltaModulator(16, 14)
+
         self.sync.rio += [
-            self.data.eq(reduce(add, [sub.data for sub in subs])),
+            data_raw.eq(reduce(add, [sub.data for sub in subs])),
+            # Extra buffer for timing for the DSP
+            data_buf.eq(((data_raw * Cat(self.gain, ~self.gain[-1])) + (self.offset << 16))[16:]),
+            If(overflow,
+                data_sink.eq(0x7fff),
+            ).Elif(underflow,
+                data_sink.eq(0x8000),
+            ).Else(
+                data_sink.eq(data_buf),
+            ),
         ]
+
+        self.comb += [
+            # Overflow condition
+            overflow.eq(~data_buf[-1] & (data_buf[-2] | data_buf[-3])),
+            # Underflow condition
+            underflow.eq(data_buf[-1] & (~data_buf[-2] | ~data_buf[-3])),
+        ]
+
+        if sdm:
+            self.comb += [
+                self.sdm.x.eq(data_sink),
+                self.data.eq(self.sdm.y),
+            ]
+        else:
+            self.comb += self.data.eq(data_sink[2:])
 
         self.i = [ sub.i for sub in subs ]
         self.submodules += subs
@@ -229,11 +299,43 @@ class Dds(Module):
 class Config(Module):
     def __init__(self):
         self.clr = Signal(16, reset=0xFFFF)
-        self.i = Endpoint([("data", 16)])
+        self.gain = [ Signal(16) for _ in range(16) ]
+        self.offset = [ Signal(16) for _ in range(16) ]
+
+        reg_file = Array(self.gain + self.offset + [self.clr])
+        self.i = Endpoint([
+            ("data", 16),
+            ("addr",  7),
+        ])
+        self.o = Endpoint([
+            ("data", 16),
+        ])
 
         # This introduces 1 extra latency to everything in config
         # See the latency/delay attributes in Volt & DDS Endpoints/rtlinks
-        self.sync.rio += If(self.i.stb, self.clr.eq(self.i.data))
+        #
+        # Gain & offsets are intended for initial calibration only, latency
+        # is NOT adjusted to match outputs to the DAC interface
+        #
+        # Interface address bits mapping:
+        # 6: Read bit. Assert to read, deassert to write.
+        # 5: Clear bit. Assert to write clr. clr is write-only.
+        # 4: Gain/Offset. (De)Assert to access (Gain)Offset registers.
+        # 0-3: Channel selection for the Gain & Offset registers.
+        #
+        # Reading Gain / Offset register generates an RTIOInput event
+        self.sync.rio += [
+            self.o.stb.eq(0),
+            If(self.i.stb,
+                If(~self.i.addr[6],
+                    reg_file[self.i.addr[:6]].eq(self.i.data),
+                ).Else(
+                    # clr register is unreadable, as an optimization
+                    self.o.data.eq(reg_file[self.i.addr[:5]]),
+                    self.o.stb.eq(1),
+                )
+            ),
+        ]
 
 
 Phy = namedtuple("Phy", "rtlink probes overrides")
@@ -250,7 +352,7 @@ class Shuttler(Module, AutoCSR):
     Attributes:
         phys (list): List of Endpoints.
     """
-    def __init__(self, pads):
+    def __init__(self, pads, sdm=False):
         NUM_OF_DACS = 16
 
         self.submodules.dac_interface = DacInterface(pads)
@@ -258,13 +360,23 @@ class Shuttler(Module, AutoCSR):
         self.phys = []
 
         self.submodules.cfg = Config()
-        cfg_rtl_iface = rtlink.Interface(rtlink.OInterface(
-            data_width=len(self.cfg.i.data),
-            enable_replace=False))
+        cfg_rtl_iface = rtlink.Interface(
+            rtlink.OInterface(
+                data_width=len(self.cfg.i.data),
+                address_width=len(self.cfg.i.addr),
+                enable_replace=False,
+            ),
+            rtlink.IInterface(
+                data_width=len(self.cfg.o.data),
+            ),
+        )
 
         self.comb += [
             self.cfg.i.stb.eq(cfg_rtl_iface.o.stb),
+            self.cfg.i.addr.eq(cfg_rtl_iface.o.address),
             self.cfg.i.data.eq(cfg_rtl_iface.o.data),
+            cfg_rtl_iface.i.stb.eq(self.cfg.o.stb),
+            cfg_rtl_iface.i.data.eq(self.cfg.o.data),
         ]
         self.phys.append(Phy(cfg_rtl_iface, [], []))
 
@@ -274,9 +386,11 @@ class Shuttler(Module, AutoCSR):
         self.phys.append(Phy(trigger_iface, [], []))
 
         for idx in range(NUM_OF_DACS):
-            dac = Dac()
+            dac = Dac(sdm=sdm)
             self.comb += [
                 dac.clear.eq(self.cfg.clr[idx]),
+                dac.gain.eq(self.cfg.gain[idx]),
+                dac.offset.eq(self.cfg.offset[idx]),
                 self.dac_interface.data[idx // 2][idx % 2].eq(dac.data)
             ]
 

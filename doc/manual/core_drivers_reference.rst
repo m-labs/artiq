@@ -137,6 +137,12 @@ DAC/ADC drivers
 .. automodule:: artiq.coredevice.fastino
     :members:
 
+:mod:`artiq.coredevice.shuttler` module
+++++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: artiq.coredevice.shuttler
+    :members:
+
 
 Miscellaneous
 -------------

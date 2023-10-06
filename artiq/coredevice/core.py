@@ -62,7 +62,11 @@ class Core:
     def close(self):
         self.comm.close()
 
-    def compile(self, method, args, kwargs, embedding_map, file_output=None):
+    def compile(self, method, args, kwargs, embedding_map, file_output=None, target=None):
+        if target is not None:
+            # NAC3TODO: subkernels
+            raise NotImplementedError
+
         if not self.analyzed:
             self.compiler.analyze(core_language._registered_functions, core_language._registered_classes)
             self.analyzed = True

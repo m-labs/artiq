@@ -142,7 +142,7 @@
             "properties": {
                 "type": {
                     "type": "string",
-                    "enum": ["dio", "dio_spi", "urukul", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser", "hvamp", "efc"]
+                    "enum": ["dio", "dio_spi", "urukul", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser", "hvamp", "shuttler"]
                 },
                 "board": {
                     "type": "string"
@@ -563,11 +563,11 @@
                     "required": ["ports"]
                 }
             },{
-                "title": "EFC",
+                "title": "Shuttler",
                 "if": {
                     "properties": {
                         "type": {
-                            "const": "efc"
+                            "const": "shuttler"
                         }
                     }
                 },
@@ -580,6 +580,10 @@
                             },
                             "minItems": 1,
                             "maxItems": 2
+                        },
+                        "drtio_destination": {
+                            "type": "integer",
+                            "default": 4
                         }
                     },
                     "required": ["ports"]

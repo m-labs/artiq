@@ -222,9 +222,6 @@ class _RangeScan(LayoutWidget):
 
         start = ScientificSpinBox()
         start.setStyleSheet("QDoubleSpinBox {color:blue}")
-        start.setMinimumSize(110, 0)
-        start.setSizePolicy(QtWidgets.QSizePolicy(
-            QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed))
         disable_scroll_wheel(start)
         self.addWidget(start, 0, 1)
 
@@ -236,12 +233,14 @@ class _RangeScan(LayoutWidget):
 
         stop = ScientificSpinBox()
         stop.setStyleSheet("QDoubleSpinBox {color:red}")
-        stop.setMinimumSize(110, 0)
         disable_scroll_wheel(stop)
         self.addWidget(stop, 2, 1)
 
         randomize = QtWidgets.QCheckBox("Randomize")
         self.addWidget(randomize, 3, 1)
+
+        self.layout.setColumnStretch(0, 4)
+        self.layout.setColumnStretch(1, 1)
 
         apply_properties(start)
         start.setSigFigs()

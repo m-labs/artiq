@@ -1,0 +1,18 @@
+{
+    "target": "kasli",
+    "variant": "master",
+    "hw_rev": "v2.0",
+    "base": "master",
+    "peripherals": [
+        {
+            "type": "shuttler",
+                "ports": [0]
+        },
+        {
+            "type": "dio",
+            "ports": [1],
+            "bank_direction_low": "input",
+            "bank_direction_high": "output"
+        }
+    ]
+}   

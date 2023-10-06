@@ -22,7 +22,6 @@ class GenericStandalone(StandaloneBase):
             hw_rev = description["hw_rev"]
         self.class_name_override = description["variant"]
         StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
-        self.config["DRTIO_ROLE"] = description["drtio_role"]
         self.config["RTIO_FREQUENCY"] = "{:.1f}".format(description["rtio_frequency"]/1e6)
         if "ext_ref_frequency" in description:
             self.config["SI5324_EXT_REF"] = None
@@ -71,14 +70,13 @@ class GenericMaster(MasterBase):
         if hw_rev is None:
             hw_rev = description["hw_rev"]
         self.class_name_override = description["variant"]
-        has_drtio_over_eem = any(peripheral["type"] == "efc" for peripheral in description["peripherals"])
+        has_drtio_over_eem = any(peripheral["type"] == "shuttler" for peripheral in description["peripherals"])
         MasterBase.__init__(self,
             hw_rev=hw_rev,
             rtio_clk_freq=description["rtio_frequency"],
             enable_sata=description["enable_sata_drtio"],
             enable_sys5x=has_drtio_over_eem,
             **kwargs)
-        self.config["DRTIO_ROLE"] = description["drtio_role"]
         if "ext_ref_frequency" in description:
             self.config["SI5324_EXT_REF"] = None
             self.config["EXT_REF_FREQUENCY"] = "{:.1f}".format(
@@ -123,7 +121,6 @@ class GenericSatellite(SatelliteBase):
                                rtio_clk_freq=description["rtio_frequency"],
                                enable_sata=description["enable_sata_drtio"],
                                **kwargs)
-        self.config["DRTIO_ROLE"] = description["drtio_role"]
         if hw_rev == "v1.0":
             # EEM clock fan-out from Si5324, not MMCX
             self.comb += self.platform.request("clk_sel").eq(1)
@@ -177,9 +174,9 @@ def main():
     else:
         raise ValueError("Invalid DRTIO role")
 
-    has_efc = any(peripheral["type"] == "efc" for peripheral in description["peripherals"])
-    if has_efc and (description["drtio_role"] == "standalone"):
-        raise ValueError("EFC requires DRTIO, please switch role to master")
+    has_shuttler = any(peripheral["type"] == "shuttler" for peripheral in description["peripherals"])
+    if has_shuttler and (description["drtio_role"] == "standalone"):
+        raise ValueError("Shuttler requires DRTIO, please switch role to master")
 
     soc = cls(description, gateware_identifier_str=args.gateware_identifier_str, **soc_kasli_argdict(args))
     args.variant = description["variant"]

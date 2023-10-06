@@ -109,37 +109,44 @@ fn process_aux_packet(_manager: &mut DmaManager, analyzer: &mut Analyzer, _repea
             let hop = 0;
 
             if hop == 0 {
-                let errors;
-                unsafe {
-                    errors = csr::drtiosat::rtio_error_read();
-                }
-                if errors & 1 != 0 {
-                    let channel;
+                // async messages
+                if let Some(status) = _manager.check_state() {
+                    info!("playback done, error: {}, channel: {}, timestamp: {}", status.error, status.channel, status.timestamp);
+                    drtioaux::send(0, &drtioaux::Packet::DmaPlaybackStatus { 
+                        destination: _destination, id: status.id, error: status.error, channel: status.channel, timestamp: status.timestamp })?;
+                } else {
+                    let errors;
                     unsafe {
-                        channel = csr::drtiosat::sequence_error_channel_read();
-                        csr::drtiosat::rtio_error_write(1);
+                        errors = csr::drtiosat::rtio_error_read();
                     }
-                    drtioaux::send(0,
-                        &drtioaux::Packet::DestinationSequenceErrorReply { channel })?;
-                } else if errors & 2 != 0 {
-                    let channel;
-                    unsafe {
-                        channel = csr::drtiosat::collision_channel_read();
-                        csr::drtiosat::rtio_error_write(2);
+                    if errors & 1 != 0 {
+                        let channel;
+                        unsafe {
+                            channel = csr::drtiosat::sequence_error_channel_read();
+                            csr::drtiosat::rtio_error_write(1);
+                        }
+                        drtioaux::send(0,
+                            &drtioaux::Packet::DestinationSequenceErrorReply { channel })?;
+                    } else if errors & 2 != 0 {
+                        let channel;
+                        unsafe {
+                            channel = csr::drtiosat::collision_channel_read();
+                            csr::drtiosat::rtio_error_write(2);
+                        }
+                        drtioaux::send(0,
+                            &drtioaux::Packet::DestinationCollisionReply { channel })?;
+                    } else if errors & 4 != 0 {
+                        let channel;
+                        unsafe {
+                            channel = csr::drtiosat::busy_channel_read();
+                            csr::drtiosat::rtio_error_write(4);
+                        }
+                        drtioaux::send(0,
+                            &drtioaux::Packet::DestinationBusyReply { channel })?;
                     }
-                    drtioaux::send(0,
-                        &drtioaux::Packet::DestinationCollisionReply { channel })?;
-                } else if errors & 4 != 0 {
-                    let channel;
-                    unsafe {
-                        channel = csr::drtiosat::busy_channel_read();
-                        csr::drtiosat::rtio_error_write(4);
+                    else {
+                        drtioaux::send(0, &drtioaux::Packet::DestinationOkReply)?;
                     }
-                    drtioaux::send(0,
-                        &drtioaux::Packet::DestinationBusyReply { channel })?;
-                }
-                else {
-                    drtioaux::send(0, &drtioaux::Packet::DestinationOkReply)?;
                 }
             }
 
@@ -641,13 +648,6 @@ pub extern fn main() -> i32 {
                 }
                 if let Err(e) = drtioaux::send(0, &drtioaux::Packet::TSCAck) {
                     error!("aux packet error: {}", e);
-                }
-            }
-            if let Some(status) = dma_manager.check_state() {
-                info!("playback done, error: {}, channel: {}, timestamp: {}", status.error, status.channel, status.timestamp);
-                if let Err(e) = drtioaux::send(0, &drtioaux::Packet::DmaPlaybackStatus { 
-                    destination: rank, id: status.id, error: status.error, channel: status.channel, timestamp: status.timestamp }) {
-                    error!("error sending DMA playback status: {}", e);
                 }
             }
         }

@@ -11,7 +11,8 @@ from sipyco import pyon
 
 from artiq.gui.entries import procdesc_to_entry, ScanEntry
 from artiq.gui.fuzzy_select import FuzzySelectWidget
-from artiq.gui.tools import LayoutWidget, log_level_to_name, get_open_file_name
+from artiq.gui.tools import (LayoutWidget, WheelFilter, 
+                             log_level_to_name, get_open_file_name)
 
 
 logger = logging.getLogger(__name__)
@@ -21,15 +22,6 @@ logger = logging.getLogger(__name__)
 # 1. repo:<experiment name>
 #    (file name and class name to be retrieved from explist)
 # 2. file:<class name>@<file name>
-
-
-class _WheelFilter(QtCore.QObject):
-    def eventFilter(self, obj, event):
-        if (event.type() == QtCore.QEvent.Wheel and
-                event.modifiers() != QtCore.Qt.NoModifier):
-            event.ignore()
-            return True
-        return False
 
 
 class _ArgumentEditor(QtWidgets.QTreeWidget):
@@ -55,7 +47,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         self.setStyleSheet("QTreeWidget {background: " +
                            self.palette().midlight().color().name() + " ;}")
 
-        self.viewport().installEventFilter(_WheelFilter(self.viewport()))
+        self.viewport().installEventFilter(WheelFilter(self.viewport(), True))
 
         self._groups = dict()
         self._arg_to_widgets = dict()
@@ -159,6 +151,23 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         self._groups[name] = group
         return group
 
+    def update_argument(self, name, argument):
+        widgets = self._arg_to_widgets[name]
+
+        # Qt needs a setItemWidget() to handle layout correctly,
+        # simply replacing the entry inside the LayoutWidget
+        # results in a bug.
+
+        widgets["entry"].deleteLater()
+        widgets["entry"] = procdesc_to_entry(argument["desc"])(argument)
+        widgets["disable_other_scans"].setVisible(
+            isinstance(widgets["entry"], ScanEntry))
+        widgets["fix_layout"].deleteLater()
+        widgets["fix_layout"] = LayoutWidget()
+        widgets["fix_layout"].addWidget(widgets["entry"])
+        self.setItemWidget(widgets["widget_item"], 1, widgets["fix_layout"])
+        self.updateGeometries()
+
     def _recompute_argument_clicked(self, name):
         asyncio.ensure_future(self._recompute_argument(name))
 
@@ -175,22 +184,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         state = procdesc_to_entry(procdesc).default_state(procdesc)
         argument["desc"] = procdesc
         argument["state"] = state
-
-        # Qt needs a setItemWidget() to handle layout correctly,
-        # simply replacing the entry inside the LayoutWidget
-        # results in a bug.
-
-        widgets = self._arg_to_widgets[name]
-
-        widgets["entry"].deleteLater()
-        widgets["entry"] = procdesc_to_entry(procdesc)(argument)
-        widgets["disable_other_scans"].setVisible(
-            isinstance(widgets["entry"], ScanEntry))
-        widgets["fix_layout"].deleteLater()
-        widgets["fix_layout"] = LayoutWidget()
-        widgets["fix_layout"].addWidget(widgets["entry"])
-        self.setItemWidget(widgets["widget_item"], 1, widgets["fix_layout"])
-        self.updateGeometries()
+        self.update_argument(name, argument)
 
     def _disable_other_scans(self, current_name):
         for name, widgets in self._arg_to_widgets.items():
@@ -664,6 +658,20 @@ class ExperimentManager:
         self.submission_arguments[expurl] = arguments
         self.argument_ui_names[expurl] = ui_name
         return arguments
+    
+    def set_argument_value(self, expurl, name, value):
+        try:
+            argument = self.submission_arguments[expurl][name]
+            if argument["desc"]["ty"] == "Scannable":
+                ty = value["ty"]
+                argument["state"]["selected"] = ty
+                argument["state"][ty] = value
+            else:
+                argument["state"] = value
+            if expurl in self.open_experiments.keys():
+                self.open_experiments[expurl].argeditor.update_argument(name, argument)
+        except:
+            logger.warn("Failed to set value for argument \"{}\" in experiment: {}.".format(name, expurl), exc_info=1)
 
     def get_submission_arguments(self, expurl):
         if expurl in self.submission_arguments:

@@ -11,11 +11,51 @@ from sipyco.pc_rpc import AsyncioClient as RPCClient
 from sipyco import pyon
 from sipyco.pipe_ipc import AsyncioChildComm
 
+from artiq.language.scan import ScanObject
+
 
 logger = logging.getLogger(__name__)
 
 
-class AppletControlIPC:
+class _AppletRequestInterface:
+    def __init__(self):
+        raise NotImplementedError
+
+    def set_dataset(self, key, value, unit=None, scale=None, precision=None, persist=None):
+        """
+        Set a dataset.
+        See documentation of ``artiq.language.environment.set_dataset``.
+        """
+        raise NotImplementedError
+
+    def mutate_dataset(self, key, index, value):
+        """
+        Mutate a dataset.
+        See documentation of ``artiq.language.environment.mutate_dataset``.
+        """
+        raise NotImplementedError
+
+    def append_to_dataset(self, key, value):
+        """
+        Append to a dataset.
+        See documentation of ``artiq.language.environment.append_to_dataset``.
+        """
+        raise NotImplementedError
+
+    def set_argument_value(self, expurl, name, value):
+        """
+        Temporarily set the value of an argument in a experiment in the dashboard.
+        The value resets to default value when recomputing the argument.
+
+        :param expurl: Experiment URL identifying the experiment in the dashboard. Example: 'repo:ArgumentsDemo'.
+        :param name: Name of the argument in the experiment.
+        :param value: Object representing the new temporary value of the argument. For ``Scannable`` arguments, this parameter
+            should be a ``ScanObject``. The type of the ``ScanObject`` will be set as the selected type when this function is called. 
+        """
+        raise NotImplementedError
+
+
+class AppletRequestIPC(_AppletRequestInterface):
     def __init__(self, ipc):
         self.ipc = ipc
 
@@ -37,8 +77,13 @@ class AppletControlIPC:
         mod = {"action": "append", "path": [key, 1], "x": value}
         self.ipc.update_dataset(mod)
 
+    def set_argument_value(self, expurl, name, value):
+        if isinstance(value, ScanObject):
+            value = value.describe()
+        self.ipc.set_argument_value(expurl, name, value)
 
-class AppletControlRPC:
+
+class AppletRequestRPC(_AppletRequestInterface):
     def __init__(self, loop, dataset_ctl):
         self.loop = loop
         self.dataset_ctl = dataset_ctl
@@ -137,6 +182,12 @@ class AppletIPCClient(AsyncioChildComm):
         self.write_pyon({"action": "update_dataset",
                          "mod": mod})
 
+    def set_argument_value(self, expurl, name, value):
+        self.write_pyon({"action": "set_argument_value",
+                         "expurl": expurl,
+                         "name": name,
+                         "value": value})
+
 
 class SimpleApplet:
     def __init__(self, main_widget_class, cmd_description=None,
@@ -200,21 +251,21 @@ class SimpleApplet:
         if self.embed is not None:
             self.ipc.close()
 
-    def ctl_init(self):
+    def req_init(self):
         if self.embed is None:
             dataset_ctl = RPCClient()
             self.loop.run_until_complete(dataset_ctl.connect_rpc(
                 self.args.server, self.args.port_control, "master_dataset_db"))
-            self.ctl = AppletControlRPC(self.loop, dataset_ctl)
+            self.req = AppletRequestRPC(self.loop, dataset_ctl)
         else:
-            self.ctl = AppletControlIPC(self.ipc)
+            self.req = AppletRequestIPC(self.ipc)
 
-    def ctl_close(self):
+    def req_close(self):
         if self.embed is None:
-            self.ctl.dataset_ctl.close_rpc()
+            self.req.dataset_ctl.close_rpc()
 
     def create_main_widget(self):
-        self.main_widget = self.main_widget_class(self.args, self.ctl)
+        self.main_widget = self.main_widget_class(self.args, self.req)
         if self.embed is not None:
             self.ipc.set_close_cb(self.main_widget.close)
             if os.name == "nt":
@@ -316,7 +367,7 @@ class SimpleApplet:
         try:
             self.ipc_init()
             try:
-                self.ctl_init()
+                self.req_init()
                 try:
                     self.create_main_widget()
                     self.subscribe()
@@ -325,7 +376,7 @@ class SimpleApplet:
                     finally:
                         self.unsubscribe()
                 finally:
-                    self.ctl_close()
+                    self.req_close()
             finally:
                 self.ipc_close()
         finally:
