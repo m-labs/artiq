@@ -1,20 +1,21 @@
-import numpy
+from numpy import int32, int64
 
-from artiq.language.core import *
-from artiq.language.types import *
+from artiq.language.core import nac3, Kernel, KernelInvariant, kernel, portable, Option, none
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
-from artiq.coredevice import spi2 as spi
+from artiq.coredevice.core import Core
+from artiq.coredevice.spi2 import *
 from artiq.language.units import us
 
 
 @portable
-def shuttler_volt_to_mu(volt):
+def shuttler_volt_to_mu(volt: float) -> int32:
     """Return the equivalent DAC code. Valid input range is from -10 to
     10 - LSB.
     """
-    return round((1 << 16) * (volt / 20.0)) & 0xffff
+    return round(float(1 << 16) * (volt / 20.0)) & 0xffff
 
 
+@nac3
 class Config:
     """Shuttler configuration registers interface.
 
@@ -30,10 +31,13 @@ class Config:
     :param channel: RTIO channel number of this interface.
     :param core_device: Core device name.
     """
-    kernel_invariants = {
-        "core", "channel", "target_base", "target_read",
-        "target_gain", "target_offset", "target_clr"
-    }
+    core: KernelInvariant[Core]
+    channel: KernelInvariant[int32]
+    target_base: KernelInvariant[int32]
+    target_read: KernelInvariant[int32]
+    target_gain: KernelInvariant[int32]
+    target_offset: KernelInvariant[int32]
+    target_clr: KernelInvariant[int32]
 
     def __init__(self, dmgr, channel, core_device="core"):
         self.core = dmgr.get(core_device)
@@ -45,7 +49,7 @@ class Config:
         self.target_clr    = 1 * (1 << 5)
 
     @kernel
-    def set_clr(self, clr):
+    def set_clr(self, clr: int32):
         """Set/Unset waveform phase clear bits.
 
         Each bit corresponds to a Shuttler waveform generator core. Setting a
@@ -59,7 +63,7 @@ class Config:
         rtio_output(self.target_base | self.target_clr, clr)
     
     @kernel
-    def set_gain(self, channel, gain):
+    def set_gain(self, channel: int32, gain: int32):
         """Set the 16-bits pre-DAC gain register of a Shuttler Core channel.
 
         The `gain` parameter represents the decimal portion of the gain
@@ -72,7 +76,7 @@ class Config:
         rtio_output(self.target_base | self.target_gain | channel, gain)
     
     @kernel
-    def get_gain(self, channel):
+    def get_gain(self, channel: int32) -> int32:
         """Return the pre-DAC gain value of a Shuttler Core channel.
 
         :param channel: The Shuttler Core channel.
@@ -83,7 +87,7 @@ class Config:
         return rtio_input_data(self.channel)
     
     @kernel
-    def set_offset(self, channel, offset):
+    def set_offset(self, channel: int32, offset: int32):
         """Set the 16-bits pre-DAC offset register of a Shuttler Core channel.
 
         .. seealso::
@@ -95,7 +99,7 @@ class Config:
         rtio_output(self.target_base | self.target_offset | channel, offset)
 
     @kernel
-    def get_offset(self, channel):
+    def get_offset(self, channel: int32) -> int32:
         """Return the pre-DAC offset value of a Shuttler Core channel.
 
         :param channel: The Shuttler Core channel.
@@ -106,6 +110,7 @@ class Config:
         return rtio_input_data(self.channel)
 
 
+@nac3
 class Volt:
     """Shuttler Core cubic DC-bias spline.
 
@@ -127,7 +132,9 @@ class Volt:
     :param channel: RTIO channel number of this DC-bias spline interface.
     :param core_device: Core device name.
     """
-    kernel_invariants = {"core", "channel", "target_o"}
+    core: KernelInvariant[Core]
+    channel: KernelInvariant[int32]
+    target_o: KernelInvariant[int32]
 
     def __init__(self, dmgr, channel, core_device="core"):
         self.core = dmgr.get(core_device)
@@ -135,7 +142,7 @@ class Volt:
         self.target_o = channel << 8
 
     @kernel
-    def set_waveform(self, a0: TInt32, a1: TInt32, a2: TInt64, a3: TInt64):
+    def set_waveform(self, a0: int32, a1: int32, a2: int64, a3: int64):
         """Set the DC-bias spline waveform.
 
         Given `a(t)` as defined in :class:`Volt`, the coefficients should be
@@ -168,12 +175,12 @@ class Volt:
             a0,
             a1,
             a1 >> 16,
-            a2 & 0xFFFF,
-            (a2 >> 16) & 0xFFFF,
-            (a2 >> 32) & 0xFFFF,
-            a3 & 0xFFFF,
-            (a3 >> 16) & 0xFFFF,
-            (a3 >> 32) & 0xFFFF,
+            int32(a2 & int64(0xFFFF)),
+            int32((a2 >> int64(16)) & int64(0xFFFF)),
+            int32((a2 >> int64(32)) & int64(0xFFFF)),
+            int32(a3 & int64(0xFFFF)),
+            int32((a3 >> int64(16)) & int64(0xFFFF)),
+            int32((a3 >> int64(32)) & int64(0xFFFF)),
         ]
 
         for i in range(len(coef_words)):
@@ -181,6 +188,7 @@ class Volt:
             delay_mu(int64(self.core.ref_multiplier))
 
 
+@nac3
 class Dds:
     """Shuttler Core DDS spline.
 
@@ -206,7 +214,9 @@ class Dds:
     :param channel: RTIO channel number of this DC-bias spline interface.
     :param core_device: Core device name.
     """
-    kernel_invariants = {"core", "channel", "target_o"}
+    core: KernelInvariant[Core]
+    channel: KernelInvariant[int32]
+    target_o: KernelInvariant[int32]
 
     def __init__(self, dmgr, channel, core_device="core"):
         self.core = dmgr.get(core_device)
@@ -214,8 +224,8 @@ class Dds:
         self.target_o = channel << 8
 
     @kernel
-    def set_waveform(self, b0: TInt32, b1: TInt32, b2: TInt64, b3: TInt64,
-            c0: TInt32, c1: TInt32, c2: TInt32):
+    def set_waveform(self, b0: int32, b1: int32, b2: int64, b3: int64,
+            c0: int32, c1: int32, c2: int32):
         """Set the DDS spline waveform.
 
         Given `b(t)` and `c(t)` as defined in :class:`Dds`, the coefficients
@@ -258,12 +268,12 @@ class Dds:
             b0,
             b1,
             b1 >> 16,
-            b2 & 0xFFFF,
-            (b2 >> 16) & 0xFFFF,
-            (b2 >> 32) & 0xFFFF,
-            b3 & 0xFFFF,
-            (b3 >> 16) & 0xFFFF,
-            (b3 >> 32) & 0xFFFF,
+            int32(b2 & int64(0xFFFF)),
+            int32((b2 >> int64(16)) & int64(0xFFFF)),
+            int32((b2 >> int64(32)) & int64(0xFFFF)),
+            int32(b3 & int64(0xFFFF)),
+            int32((b3 >> int64(16)) & int64(0xFFFF)),
+            int32((b3 >> int64(32)) & int64(0xFFFF)),
             c0,
             c1,
             c1 >> 16,
@@ -276,13 +286,16 @@ class Dds:
             delay_mu(int64(self.core.ref_multiplier))
 
 
+@nac3
 class Trigger:
     """Shuttler Core spline coefficients update trigger.
 
     :param channel: RTIO channel number of the trigger interface.
     :param core_device: Core device name.
     """
-    kernel_invariants = {"core", "channel", "target_o"}
+    core: KernelInvariant[Core]
+    channel: KernelInvariant[int32]
+    target_o: KernelInvariant[int32]
 
     def __init__(self, dmgr, channel, core_device="core"):
         self.core = dmgr.get(core_device)
@@ -290,7 +303,7 @@ class Trigger:
         self.target_o = channel << 8
 
     @kernel
-    def trigger(self, trig_out):
+    def trigger(self, trig_out: int32):
         """Triggers coefficient update of (a) Shuttler Core channel(s).
 
         Each bit corresponds to a Shuttler waveform generator core. Setting
@@ -304,15 +317,15 @@ class Trigger:
         rtio_output(self.target_o, trig_out)
 
 
-RELAY_SPI_CONFIG = (0*spi.SPI_OFFLINE | 1*spi.SPI_END |
-                    0*spi.SPI_INPUT | 0*spi.SPI_CS_POLARITY |
-                    0*spi.SPI_CLK_POLARITY | 0*spi.SPI_CLK_PHASE |
-                    0*spi.SPI_LSB_FIRST | 0*spi.SPI_HALF_DUPLEX)
+RELAY_SPI_CONFIG = (0*SPI_OFFLINE | 1*SPI_END |
+                    0*SPI_INPUT | 0*SPI_CS_POLARITY |
+                    0*SPI_CLK_POLARITY | 0*SPI_CLK_PHASE |
+                    0*SPI_LSB_FIRST | 0*SPI_HALF_DUPLEX)
 
-ADC_SPI_CONFIG = (0*spi.SPI_OFFLINE | 0*spi.SPI_END |
-                  0*spi.SPI_INPUT | 0*spi.SPI_CS_POLARITY |
-                  1*spi.SPI_CLK_POLARITY | 1*spi.SPI_CLK_PHASE |
-                  0*spi.SPI_LSB_FIRST | 0*spi.SPI_HALF_DUPLEX)
+ADC_SPI_CONFIG = (0*SPI_OFFLINE | 0*SPI_END |
+                  0*SPI_INPUT | 0*SPI_CS_POLARITY |
+                  1*SPI_CLK_POLARITY | 1*SPI_CLK_PHASE |
+                  0*SPI_LSB_FIRST | 0*SPI_HALF_DUPLEX)
 
 # SPI clock write and read dividers
 # CS should assert at least 9.5 ns after clk pulse
@@ -335,6 +348,7 @@ _AD4115_REG_CH0 = 0x10
 _AD4115_REG_SETUPCON0 = 0x20
 
 
+@nac3
 class Relay:
     """Shuttler AFE relay switches.
 
@@ -349,7 +363,8 @@ class Relay:
     :param spi_device: SPI bus device name.
     :param core_device: Core device name.
     """
-    kernel_invariant = {"core", "bus"}
+    core: KernelInvariant[Core]
+    bus: KernelInvariant[SPIMaster]
 
     def __init__(self, dmgr, spi_device, core_device="core"):
         self.core = dmgr.get(core_device)
@@ -366,7 +381,7 @@ class Relay:
             RELAY_SPI_CONFIG, 16, SPIT_RELAY_WR, CS_RELAY | CS_LED)
 
     @kernel
-    def enable(self, en: TInt32):
+    def enable(self, en: int32):
         """Enable/Disable relay switches of corresponding channels.
 
         Each bit corresponds to the relay switch of a channel. Asserting a bit
@@ -379,20 +394,22 @@ class Relay:
         self.bus.write(en << 16)
 
 
+@nac3
 class ADC:
     """Shuttler AFE ADC (AD4115) driver.
 
     :param spi_device: SPI bus device name.
     :param core_device: Core device name.
     """
-    kernel_invariant = {"core", "bus"}
+    core: KernelInvariant[Core]
+    bus: KernelInvariant[SPIMaster]
 
     def __init__(self, dmgr, spi_device, core_device="core"):
         self.core = dmgr.get(core_device)
         self.bus = dmgr.get(spi_device)
 
     @kernel
-    def read_id(self) -> TInt32:
+    def read_id(self) -> int32:
         """Read the product ID of the ADC.
 
         The expected return value is 0x38DX, the 4 LSbs are don't cares.
@@ -414,86 +431,86 @@ class ADC:
             after the transfer appears to interrupt the start-up sequence.
         """
         self.bus.set_config_mu(ADC_SPI_CONFIG, 32, SPIT_ADC_WR, CS_ADC)
-        self.bus.write(0xffffffff)
-        self.bus.write(0xffffffff)
+        self.bus.write(-1)
+        self.bus.write(-1)
         self.bus.set_config_mu(
-            ADC_SPI_CONFIG | spi.SPI_END, 32, SPIT_ADC_WR, CS_ADC)
-        self.bus.write(0xffffffff)
+            ADC_SPI_CONFIG | SPI_END, 32, SPIT_ADC_WR, CS_ADC)
+        self.bus.write(-1)
 
     @kernel
-    def read8(self, addr: TInt32) -> TInt32:
+    def read8(self, addr: int32) -> int32:
         """Read from 8 bit register.
 
         :param addr: Register address.
         :return: Read-back register content.
         """
         self.bus.set_config_mu(
-            ADC_SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT,
+            ADC_SPI_CONFIG | SPI_END | SPI_INPUT,
             16, SPIT_ADC_RD, CS_ADC)
         self.bus.write((addr | 0x40) << 24)
         return self.bus.read() & 0xff
 
     @kernel
-    def read16(self, addr: TInt32) -> TInt32:
+    def read16(self, addr: int32) -> int32:
         """Read from 16 bit register.
 
         :param addr: Register address.
         :return: Read-back register content.
         """
         self.bus.set_config_mu(
-            ADC_SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT,
+            ADC_SPI_CONFIG | SPI_END | SPI_INPUT,
             24, SPIT_ADC_RD, CS_ADC)
         self.bus.write((addr | 0x40) << 24)
         return self.bus.read() & 0xffff
 
     @kernel
-    def read24(self, addr: TInt32) -> TInt32:
+    def read24(self, addr: int32) -> int32:
         """Read from 24 bit register.
 
         :param addr: Register address.
         :return: Read-back register content.
         """
         self.bus.set_config_mu(
-            ADC_SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT,
+            ADC_SPI_CONFIG | SPI_END | SPI_INPUT,
             32, SPIT_ADC_RD, CS_ADC)
         self.bus.write((addr | 0x40) << 24)
         return self.bus.read() & 0xffffff
 
     @kernel
-    def write8(self, addr: TInt32, data: TInt32):
+    def write8(self, addr: int32, data: int32):
         """Write to 8 bit register.
 
         :param addr: Register address.
         :param data: Data to be written.
         """
         self.bus.set_config_mu(
-            ADC_SPI_CONFIG | spi.SPI_END, 16, SPIT_ADC_WR, CS_ADC)
+            ADC_SPI_CONFIG | SPI_END, 16, SPIT_ADC_WR, CS_ADC)
         self.bus.write(addr << 24 | (data & 0xff) << 16)
 
     @kernel
-    def write16(self, addr: TInt32, data: TInt32):
+    def write16(self, addr: int32, data: int32):
         """Write to 16 bit register.
 
         :param addr: Register address.
         :param data: Data to be written.
         """
         self.bus.set_config_mu(
-            ADC_SPI_CONFIG | spi.SPI_END, 24, SPIT_ADC_WR, CS_ADC)
+            ADC_SPI_CONFIG | SPI_END, 24, SPIT_ADC_WR, CS_ADC)
         self.bus.write(addr << 24 | (data & 0xffff) << 8)
 
     @kernel
-    def write24(self, addr: TInt32, data: TInt32):
+    def write24(self, addr: int32, data: int32):
         """Write to 24 bit register.
 
         :param addr: Register address.
         :param data: Data to be written.
         """
         self.bus.set_config_mu(
-            ADC_SPI_CONFIG | spi.SPI_END, 32, SPIT_ADC_WR, CS_ADC)
+            ADC_SPI_CONFIG | SPI_END, 32, SPIT_ADC_WR, CS_ADC)
         self.bus.write(addr << 24 | (data & 0xffffff))
 
     @kernel
-    def read_ch(self, channel: TInt32) -> TFloat:
+    def read_ch(self, channel: int32) -> float:
         """Sample a Shuttler channel on the AFE.
 
         It performs a single conversion using profile 0 and setup 0, on the
@@ -507,9 +524,9 @@ class ADC:
         self.write16(_AD4115_REG_SETUPCON0, 0x1300)
         self.single_conversion()
 
-        delay(100*us)
+        self.core.delay(100.*us)
         adc_code = self.read24(_AD4115_REG_DATA)
-        return ((adc_code / (1 << 23)) - 1) * 2.5 / 0.1
+        return ((float(adc_code) / float(1 << 23)) - 1.) * 2.5 / 0.1
     
     @kernel
     def single_conversion(self):
@@ -560,10 +577,10 @@ class ADC:
         self.reset()
         # Although the datasheet claims 500 us reset wait time, only waiting
         # for ~500 us can result in DOUT pin stuck in high
-        delay(2500*us)
+        self.core.delay(2500.*us)
 
     @kernel
-    def calibrate(self, volts, trigger, config, samples=[-5.0, 0.0, 5.0]):
+    def calibrate(self, volts: list[Volt], trigger: Trigger, config: Config, samples: Option[list[float]] = none):
         """Calibrate the Shuttler waveform generator using the ADC on the AFE.
 
         It finds the average slope rate and average offset by samples, and
@@ -588,33 +605,35 @@ class ADC:
         :param samples: A list of sample voltages for calibration. There must
             be at least 2 samples to perform slope rate calculation.
         """
-        assert len(volts) == 16
-        assert len(samples) > 1
+        samples_l = samples.unwrap() if samples.is_some() else [-5.0, 0.0, 5.0]
 
-        measurements = [0.0] * len(samples)
+        assert len(volts) == 16
+        assert len(samples_l) > 1
+
+        measurements = [0.0 for _ in range(len(samples_l))]
 
         for ch in range(16):
             # Find the average slope rate and offset
-            for i in range(len(samples)):
+            for i in range(len(samples_l)):
                 self.core.break_realtime()
                 volts[ch].set_waveform(
-                    shuttler_volt_to_mu(samples[i]), 0, 0, 0)
+                    shuttler_volt_to_mu(samples_l[i]), 0, int64(0), int64(0))
                 trigger.trigger(1 << ch)
                 measurements[i] = self.read_ch(ch)
 
             # Find the average output slope
             slope_sum = 0.0
-            for i in range(len(samples) - 1):
-                slope_sum += (measurements[i+1] - measurements[i])/(samples[i+1] - samples[i])
-            slope_avg = slope_sum / (len(samples) - 1)
+            for i in range(len(samples_l) - 1):
+                slope_sum += (measurements[i+1] - measurements[i])/(samples_l[i+1] - samples_l[i])
+            slope_avg = slope_sum / float(len(samples_l) - 1)
 
-            gain_code = int32(1 / slope_avg * (2 ** 16)) & 0xffff
+            gain_code = int32(1. / slope_avg * float(2 ** 16)) & 0xffff
 
             # Scale the measurements by 1/slope, find average offset
             offset_sum = 0.0
-            for i in range(len(samples)):
-                offset_sum += (measurements[i] / slope_avg) - samples[i]
-            offset_avg = offset_sum / len(samples)
+            for i in range(len(samples_l)):
+                offset_sum += (measurements[i] / slope_avg) - samples_l[i]
+            offset_avg = offset_sum / float(len(samples_l))
 
             offset_code = shuttler_volt_to_mu(-offset_avg)
 

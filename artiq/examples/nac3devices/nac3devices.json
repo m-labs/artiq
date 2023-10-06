@@ -3,7 +3,7 @@
     "min_artiq_version": "9.0",
     "variant": "nac3devices",
     "hw_rev": "v2.0",
-    "base": "standalone",
+    "drtio_role": "master",
     "core_addr": "192.168.1.70",
     "peripherals": [
         {
@@ -51,6 +51,10 @@
         {
             "type": "phaser",
             "ports": [10]
+        },
+        {
+            "type": "shuttler",
+            "ports": [11]
         }
     ]
 }
