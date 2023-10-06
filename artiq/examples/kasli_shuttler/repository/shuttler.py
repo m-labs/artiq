@@ -60,7 +60,7 @@ class Shuttler(EnvExperiment):
         self.shuttler0_leds = [ self.get_device("shuttler0_led{}".format(i)) for i in range(2) ]
         self.setattr_device("shuttler0_config")
         self.setattr_device("shuttler0_trigger")
-        self.shuttler0_volt = [ self.get_device("shuttler0_volt{}".format(i)) for i in range(16) ]
+        self.shuttler0_dcbias = [ self.get_device("shuttler0_dcbias{}".format(i)) for i in range(16) ]
         self.shuttler0_dds = [ self.get_device("shuttler0_dds{}".format(i)) for i in range(16) ]
         self.setattr_device("shuttler0_relay")
         self.setattr_device("shuttler0_adc")
@@ -102,7 +102,7 @@ class Shuttler(EnvExperiment):
 
     @kernel
     def shuttler_channel_reset(self, ch):
-        self.shuttler0_volt[ch].set_waveform(
+        self.shuttler0_dcbias[ch].set_waveform(
             a0=0,
             a1=0,
             a2=0,
@@ -226,7 +226,7 @@ class Shuttler(EnvExperiment):
         delay(500*us)
 
         ## Step 5 ##
-        self.shuttler0_volt[0].set_waveform(
+        self.shuttler0_dcbias[0].set_waveform(
             a0=shuttler_volt_amp_mu(-5.0),
             a1=int32(shuttler_volt_damp_mu(0.01)),
             a2=0,
@@ -241,7 +241,7 @@ class Shuttler(EnvExperiment):
             c1=shuttler_freq_mu(end_f_MHz),
             c2=0,
         )
-        self.shuttler0_volt[1].set_waveform(
+        self.shuttler0_dcbias[1].set_waveform(
             a0=shuttler_volt_amp_mu(-5.0),
             a1=int32(shuttler_volt_damp_mu(0.01)),
             a2=0,
@@ -260,7 +260,7 @@ class Shuttler(EnvExperiment):
         delay(1000*us)
         
         ## Step 6 ##
-        self.shuttler0_volt[0].set_waveform(
+        self.shuttler0_dcbias[0].set_waveform(
             a0=shuttler_volt_amp_mu(-2.5),
             a1=int32(shuttler_volt_damp_mu(0.01)),
             a2=0,
@@ -280,7 +280,7 @@ class Shuttler(EnvExperiment):
         delay(500*us)
 
         ## Step 7 ##
-        self.shuttler0_volt[0].set_waveform(
+        self.shuttler0_dcbias[0].set_waveform(
             a0=shuttler_volt_amp_mu(2.5),
             a1=int32(shuttler_volt_damp_mu(-0.01)),
             a2=0,
@@ -327,4 +327,4 @@ class Shuttler(EnvExperiment):
         # The actual output voltage is limited by the hardware, the calculated calibration gain and offset.
         # For example, if the system has a calibration gain of 1.06, then the max output voltage = 10 / 1.06 = 9.43V.
         # Setting a value larger than 9.43V will result in overflow.
-        self.shuttler0_adc.calibrate(self.shuttler0_volt, self.shuttler0_trigger, self.shuttler0_config)
+        self.shuttler0_adc.calibrate(self.shuttler0_dcbias, self.shuttler0_trigger, self.shuttler0_config)

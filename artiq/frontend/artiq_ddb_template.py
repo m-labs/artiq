@@ -652,10 +652,10 @@ class PeripheralManager:
             channel=rtio_offset + next(channel))
         for i in range(16):
             self.gen("""
-                device_db["{name}_volt{ch}"] = {{
+                device_db["{name}_dcbias{ch}"] = {{
                     "type": "local",
                     "module": "artiq.coredevice.shuttler",
-                    "class": "Volt",
+                    "class": "DCBias",
                     "arguments": {{"channel": 0x{channel:06x}}},
                 }}""",
                 name=shuttler_name,
@@ -665,7 +665,7 @@ class PeripheralManager:
                 device_db["{name}_dds{ch}"] = {{
                     "type": "local",
                     "module": "artiq.coredevice.shuttler",
-                    "class": "Dds",
+                    "class": "DDS",
                     "arguments": {{"channel": 0x{channel:06x}}},
                 }}""",
                 name=shuttler_name,
