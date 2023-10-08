@@ -102,8 +102,20 @@ class RegionOf(algorithm.Visitor):
         if types.is_external_function(node.func.type, "cache_get"):
             # The cache is borrow checked dynamically
             return Global()
-        else:
-            self.visit_sometimes_allocating(node)
+
+        if (types.is_builtin_function(node.func.type, "array")
+              or types.is_builtin_function(node.func.type, "make_array")
+              or types.is_builtin_function(node.func.type, "numpy.transpose")):
+            # While lifetime tracking across function calls in general is currently
+            # broken (see below), these special builtins that allocate an array on
+            # the stack of the caller _always_ allocate regardless of the parameters,
+            # and we can thus handle them without running into the precision issue
+            # mentioned in commit ae999db.
+            return self.visit_allocating(node)
+
+        # FIXME: Return statement missing here, but see m-labs/artiq#1497 and
+        # commit ae999db.
+        self.visit_sometimes_allocating(node)
 
     # Value lives as long as the object/container, if it's mutable,
     # or else forever

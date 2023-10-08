@@ -95,24 +95,6 @@ tracked across function calls (see `#1497 <https://github.com/m-labs/artiq/issue
         def run(self):
             # results in memory corruption
             return func([1, 2, 3])
-or if the return value is obfuscated by an if-statement like here: ::
-
-    class ProblemReturn2(EnvExperiment):
-        def build(self):
-            self.setattr_device("core")
-
-        @kernel
-        def meth(self):
-            # if statement for obfuscation
-            if self.core.get_rtio_counter_mu() % 2:
-                return np.array([1,2,3])
-            else:
-                return np.array([4,5,6])
-
-        @kernel
-        def run(self):
-            # also results in memory corrption
-            return self.meth()
 
 This results in memory corruption at runtime.
 
