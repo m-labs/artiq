@@ -21,7 +21,7 @@ $(RUSTOUT)/libsatman.a:
 	--target $(SATMAN_DIRECTORY)/../$(CARGO_TRIPLE).json
 
 satman.elf: $(RUSTOUT)/libsatman.a ksupport_data.o
-	$(link) -T $(SATMAN_DIRECTORY)/satman.ld \
+	$(link) -T $(SATMAN_DIRECTORY)/../firmware.ld \
 	-lunwind-vexriscv-bare -m elf32lriscv
 
 ksupport_data.o: ../ksupport/ksupport.elf 
