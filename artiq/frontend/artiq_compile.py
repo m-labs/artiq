@@ -63,7 +63,7 @@ def main():
             core_name = exp.run.artiq_embedded.core_name
             core = getattr(exp_inst, core_name)
 
-            object_map, kernel_library, _, _ = \
+            object_map, kernel_library, _, _, _ = \
                 core.compile(exp.run, [exp_inst], {},
                              attribute_writeback=False, print_as_rpc=False)
         except CompileError as error:
