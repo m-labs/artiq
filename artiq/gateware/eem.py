@@ -792,5 +792,7 @@ class Shuttler(_EEM):
 
     @classmethod
     def add_std(cls, target, eem, eem_aux, iostandard=default_iostandard):
+        if iostandard(eem).name != "LVDS_25":
+            raise ValueError("EEM{} does not support LVDS_25 IOStandard".format(eem))
         cls.add_extension(target, eem, is_drtio_over_eem=True, iostandard=iostandard)
         target.eem_drtio_channels.append((target.platform.request("shuttler{}_drtio_rx".format(eem), 0), target.platform.request("shuttler{}_drtio_tx".format(eem), 0)))
