@@ -108,11 +108,11 @@
     "src-migen": {
       "flake": false,
       "locked": {
-        "lastModified": 1693990700,
-        "narHash": "sha256-qJLA03QcZ5S9DrqrseuzIQBTWS7rjAbYJxLYZEQ8rxA=",
+        "lastModified": 1697013661,
+        "narHash": "sha256-qNCqgWyE4vTDmyjE2XMJqW1djuBxT25A36AzQfZqluU=",
         "owner": "m-labs",
         "repo": "migen",
-        "rev": "2cfee3e0db6fdca9b5918686ea77c93252e7cebd",
+        "rev": "aadc19df93b7aa9ca761aaebbb98a11e0cf2d7c7",
         "type": "github"
       },
       "original": {
