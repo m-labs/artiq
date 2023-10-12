@@ -630,8 +630,7 @@
                             "maxItems": 2
                         },
                         "drtio_destination": {
-                            "type": "integer",
-                            "default": 4
+                            "type": "integer"
                         }
                     },
                     "required": ["ports"]
