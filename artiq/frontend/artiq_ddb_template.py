@@ -767,7 +767,17 @@ def process(output, primary_description, satellites):
             n_channels = pm.process(rtio_offset, peripheral)
             rtio_offset += n_channels
     
-    for peripheral in drtio_peripherals:
+    for i, peripheral in enumerate(drtio_peripherals):
+        if not("drtio_destination" in peripheral):
+            if primary_description["target"] == "kasli":
+                if primary_description["hw_rev"] in ("v1.0", "v1.1"):
+                    peripheral["drtio_destination"] = 3 + i
+                else:
+                    peripheral["drtio_destination"] = 4 + i
+            elif primary_description["target"] == "kasli_soc":
+                peripheral["drtio_destination"] = 5 + i
+            else:
+                raise NotImplementedError
         print(textwrap.dedent("""
             # DEST#{dest} peripherals
 
