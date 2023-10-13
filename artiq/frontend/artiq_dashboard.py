@@ -85,6 +85,18 @@ class MdiArea(QtWidgets.QMdiArea):
         self.pixmap = QtGui.QPixmap(os.path.join(
             artiq_dir, "gui", "logo_ver.svg"))
 
+        self.setActivationOrder(self.ActivationHistoryOrder)
+
+        self.tile = QtWidgets.QShortcut(
+            QtGui.QKeySequence('Ctrl+Shift+T'), self)
+        self.tile.activated.connect(
+            lambda: self.tileSubWindows())
+
+        self.cascade = QtWidgets.QShortcut(
+            QtGui.QKeySequence('Ctrl+Shift+C'), self)
+        self.cascade.activated.connect(
+            lambda: self.cascadeSubWindows())
+
     def paintEvent(self, event):
         QtWidgets.QMdiArea.paintEvent(self, event)
         painter = QtGui.QPainter(self.viewport())

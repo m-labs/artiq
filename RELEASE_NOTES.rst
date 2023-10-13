@@ -38,6 +38,9 @@ Highlights:
    - The "Close all applets" command (shortcut: Ctrl-Alt-W) now ignores docked applets,
      making it a convenient way to clean up after exploratory work without destroying a
      carefully arranged default workspace.
+   - Hotkeys now organize experiment windows in the order they were last interacted with:
+      + CTRL+SHIFT+T tiles experiment windows
+      + CTRL+SHIFT+C cascades experiment windows
 * Persistent datasets are now stored in a LMDB database for improved performance. PYON databases can
   be converted with the script below.
 
