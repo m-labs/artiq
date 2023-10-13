@@ -632,7 +632,8 @@ pub extern fn main() -> i32 {
     #[cfg(soc_platform = "efc")]
     {
         io_expander = board_misoc::io_expander::IoExpander::new().unwrap();
-        
+        io_expander.init().expect("I2C I/O expander initialization failed");
+
         // Enable LEDs
         io_expander.set_oe(0, 1 << 5 | 1 << 6 | 1 << 7).unwrap();
         
