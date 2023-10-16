@@ -20,3 +20,27 @@ ARTIQ itself does not depend on Nix, and it is also possible to compile everythi
 * Flash the binaries into the FPGA board with a command such as ``$ artiq_flash --srcbuild -d artiq_kasli/<your_variant>``. You need to configure OpenOCD as explained :ref:`in the user section <configuring-openocd>`. OpenOCD is already part of the flake's development environment.
 * Check that the board boots and examine the UART messages by running a serial terminal program, e.g. ``$ flterm /dev/ttyUSB1`` (``flterm`` is part of MiSoC and installed in the flake's development environment). Leave the terminal running while you are flashing the board, so that you see the startup messages when the board boots immediately after flashing. You can also restart the board (without reflashing it) with ``$ artiq_flash start``.
 * The communication parameters are 115200 8-N-1. Ensure that your user has access to the serial device (e.g. by adding the user account to the ``dialout`` group).
+
+Testing Custom NAC3 Builds
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To test a version of NAC3 from source using ARTIQ kernels or test cases on real hardware, follow these instructions:
+
+1. Clone or download the source code of NAC3. This path will be referred to as ``<path-to-nac3>``.
+2. Build NAC3 from source, e.g.:
+
+.. code-block::
+
+    $ cd <path-to-nac3>
+    $ nix develop
+    [nix-shell] $ cargo clean && cargo build --release
+
+3. Symlink ``nac3artiq.so`` to ``libnac3artiq.so``, i.e. ``ln -s target/release/libnac3artiq.so target/release/nac3artiq.so``
+4. Enter the development environment for ARTIQ, e.g. ``cd <path-to-artiq> && nix develop``
+5. Run the Python command, overriding ``PYTHONPATH`` with the directory containing ``nac3artiq.so``, e.g.:
+
+.. code-block::
+
+    [nix-shell] $ PYTHONPATH="<path-to-nac3>/target/release:$PYTHONPATH" python ...
+
+This will run the ARTIQ command using the custom build of NAC3.
