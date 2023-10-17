@@ -190,9 +190,9 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
     }
 }
 
-pub fn recv_return<R, E>(reader: &mut R, tag_bytes: &[u8], data: *mut (),
+pub fn recv_return<'a, R, E>(reader: &mut R, tag_bytes: &'a [u8], data: *mut (),
                          alloc: &dyn Fn(usize) -> Result<*mut (), E>)
-                        -> Result<(), E>
+                        -> Result<&'a [u8], E>
     where R: Read + ?Sized,
           E: From<Error<R::ReadError>>
 {
@@ -204,14 +204,16 @@ pub fn recv_return<R, E>(reader: &mut R, tag_bytes: &[u8], data: *mut (),
     let mut data = data;
     unsafe { recv_value(reader, tag, &mut data, alloc)? };
 
-    Ok(())
+    Ok(it.data)
 }
 
-unsafe fn send_elements<W>(writer: &mut W, elt_tag: Tag, length: usize, data: *const ())
+unsafe fn send_elements<W>(writer: &mut W, elt_tag: Tag, length: usize, data: *const (), write_tags: bool)
                           -> Result<(), Error<W::WriteError>>
     where W: Write + ?Sized
 {
-    writer.write_u8(elt_tag.as_u8())?;
+    if write_tags {
+        writer.write_u8(elt_tag.as_u8())?;
+    }
     match elt_tag {
         // we cannot use NativeEndian::from_slice_i32 as the data is not mutable,
         // and that is not needed as the data is already in native endian
@@ -230,14 +232,14 @@ unsafe fn send_elements<W>(writer: &mut W, elt_tag: Tag, length: usize, data: *c
         _ => {
             let mut data = data;
             for _ in 0..length {
-                send_value(writer, elt_tag, &mut data)?;
+                send_value(writer, elt_tag, &mut data, write_tags)?;
             }
         }
     }
     Ok(())
 }
 
-unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
+unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const (), write_tags: bool)
                        -> Result<(), Error<W::WriteError>>
     where W: Write + ?Sized
 {
@@ -248,8 +250,9 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
             $map
         })
     }
-
-    writer.write_u8(tag.as_u8())?;
+    if write_tags {
+        writer.write_u8(tag.as_u8())?;
+    }
     match tag {
         Tag::None => Ok(()),
         Tag::Bool =>
@@ -269,12 +272,14 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
                 writer.write_bytes((*ptr).as_ref())),
         Tag::Tuple(it, arity) => {
             let mut it = it.clone();
-            writer.write_u8(arity)?;
+            if write_tags {
+                writer.write_u8(arity)?;
+            }
             let mut max_alignment = 0;
             for _ in 0..arity {
                 let tag = it.next().expect("truncated tag");
                 max_alignment = core::cmp::max(max_alignment, tag.alignment());
-                send_value(writer, tag, data)?
+                send_value(writer, tag, data, write_tags)?
             }
             *data = round_up_const(*data, max_alignment);
             Ok(())
@@ -286,11 +291,13 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
                 let length = (**ptr).length as usize;
                 writer.write_u32((**ptr).length)?;
                 let tag = it.clone().next().expect("truncated tag");
-                send_elements(writer, tag, length, (**ptr).elements)
+                send_elements(writer, tag, length, (**ptr).elements, write_tags)
             })
         }
         Tag::Array(it, num_dims) => {
-            writer.write_u8(num_dims)?;
+            if write_tags {
+                writer.write_u8(num_dims)?;
+            }
             consume_value!(*const(), |buffer| {
                 let elt_tag = it.clone().next().expect("truncated tag");
 
@@ -302,14 +309,14 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
                     })
                 }
                 let length = total_len as usize;
-                send_elements(writer, elt_tag, length, *buffer)
+                send_elements(writer, elt_tag, length, *buffer, write_tags)
             })
         }
         Tag::Range(it) => {
             let tag = it.clone().next().expect("truncated tag");
-            send_value(writer, tag, data)?;
-            send_value(writer, tag, data)?;
-            send_value(writer, tag, data)?;
+            send_value(writer, tag, data, write_tags)?;
+            send_value(writer, tag, data, write_tags)?;
+            send_value(writer, tag, data, write_tags)?;
             Ok(())
         }
         Tag::Keyword(it) => {
@@ -319,7 +326,7 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
                 writer.write_string(str::from_utf8((*ptr).name.as_ref()).unwrap())?;
                 let tag = it.clone().next().expect("truncated tag");
                 let mut data = ptr.offset(1) as *const ();
-                send_value(writer, tag, &mut data)
+                send_value(writer, tag, &mut data, write_tags)
             })
             // Tag::Keyword never appears in composite types, so we don't have
             // to accurately advance data.
@@ -333,7 +340,7 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
     }
 }
 
-pub fn send_args<W>(writer: &mut W, service: u32, tag_bytes: &[u8], data: *const *const ())
+pub fn send_args<W>(writer: &mut W, service: u32, tag_bytes: &[u8], data: *const *const (), write_tags: bool)
                    -> Result<(), Error<W::WriteError>>
     where W: Write + ?Sized
 {
@@ -350,7 +357,7 @@ pub fn send_args<W>(writer: &mut W, service: u32, tag_bytes: &[u8], data: *const
     for index in 0.. {
         if let Some(arg_tag) = args_it.next() {
             let mut data = unsafe { *data.offset(index) };
-            unsafe { send_value(writer, arg_tag, &mut data)? };
+            unsafe { send_value(writer, arg_tag, &mut data, write_tags)? };
         } else {
             break
         }
@@ -482,7 +489,7 @@ mod tag {
 
     #[derive(Debug, Clone, Copy)]
     pub struct TagIterator<'a> {
-        data: &'a [u8]
+        pub data: &'a [u8]
     }
 
     impl<'a> TagIterator<'a> {

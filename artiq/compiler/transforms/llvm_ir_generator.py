@@ -405,7 +405,7 @@ class LLVMIRGenerator:
         elif name == "subkernel_await_finish":
             llty = ll.FunctionType(llvoid, [lli32, lli64])
         elif name == "subkernel_await_message":
-            llty = ll.FunctionType(lli8, [lli32, lli64, lli8, lli8])
+            llty = ll.FunctionType(lli8, [lli32, lli64, llsliceptr, lli8, lli8])
 
         # with now-pinning
         elif name == "now":
@@ -1400,12 +1400,6 @@ class LLVMIRGenerator:
                 return self.llbuilder.call(self.llbuiltin("delay_mu"), [llinterval])
         elif insn.op == "end_catch":
             return self.llbuilder.call(self.llbuiltin("__artiq_end_catch"), [])
-        elif insn.op == "subkernel_await_args":
-            llmin = self.map(insn.operands[0])
-            llmax = self.map(insn.operands[1])
-            return self.llbuilder.call(self.llbuiltin("subkernel_await_message"), 
-                                       [ll.Constant(lli32, 0), ll.Constant(lli64, 10_000), llmin, llmax],
-                                       name="subkernel.await.args")
         elif insn.op == "subkernel_await_finish":
             llsid = self.map(insn.operands[0])
             lltimeout = self.map(insn.operands[1])
@@ -1414,7 +1408,9 @@ class LLVMIRGenerator:
         elif insn.op == "subkernel_retrieve_return":
             llsid = self.map(insn.operands[0])
             lltimeout = self.map(insn.operands[1])
-            self.llbuilder.call(self.llbuiltin("subkernel_await_message"), [llsid, lltimeout, ll.Constant(lli8, 1), ll.Constant(lli8, 1)],
+            lltagptr = self._build_subkernel_tags([insn.type])
+            self.llbuilder.call(self.llbuiltin("subkernel_await_message"), 
+                                [llsid, lltimeout, lltagptr, ll.Constant(lli8, 1), ll.Constant(lli8, 1)],
                                 name="subkernel.await.message")
             llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
                                              name="subkernel.arg.stack")
@@ -1425,6 +1421,14 @@ class LLVMIRGenerator:
                                 name="subkernel.preload")
         else:
             assert False
+
+    def process_SubkernelAwaitArgs(self, insn):
+        llmin = self.map(insn.operands[0])
+        llmax = self.map(insn.operands[1])
+        lltagptr = self._build_subkernel_tags(insn.arg_types)
+        return self.llbuilder.call(self.llbuiltin("subkernel_await_message"), 
+                                    [ll.Constant(lli32, 0), ll.Constant(lli64, 10_000), lltagptr, llmin, llmax],
+                                    name="subkernel.await.args")
 
     def process_Closure(self, insn):
         llenv = self.map(insn.environment())
@@ -1504,6 +1508,24 @@ class LLVMIRGenerator:
                 llfun.attributes.add('inaccessiblememonly')
 
         return llfun, list(llargs), llarg_attrs, llcallstackptr
+
+    def _build_subkernel_tags(self, tag_list):
+        def ret_error_handler(typ):
+            printer = types.TypePrinter()
+            note = diagnostic.Diagnostic("note",
+                "value of type {type}",
+                {"type": printer.name(typ)},
+                fun_loc)
+            diag = diagnostic.Diagnostic("error",
+                "type {type} is not supported in subkernels",
+                {"type": printer.name(fun_type.ret)},
+                fun_loc, notes=[note])
+            self.engine.process(diag)
+        tag = b"".join([ir.rpc_tag(arg_type, ret_error_handler) for arg_type in tag_list])
+        lltag = self.llconst_of_const(ir.Constant(tag, builtins.TStr()))
+        lltagptr = self.llbuilder.alloca(lltag.type)
+        self.llbuilder.store(lltag, lltagptr)
+        return lltagptr
 
     def _build_rpc_recv(self, ret, llstackptr, llnormalblock=None, llunwindblock=None):
         # T result = {
