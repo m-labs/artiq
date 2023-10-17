@@ -6,7 +6,7 @@ use board_artiq::{mailbox, spi};
 use board_misoc::{csr, clock, i2c};
 use proto_artiq::{kernel_proto as kern, session_proto::Reply::KernelException as HostKernelException, rpc_proto as rpc};
 use eh::eh_artiq;
-use io::{Cursor, ProtoRead};
+use io::Cursor;
 use kernel::eh_artiq::StackPointerBacktrace;
 
 use ::{cricon_select, RtioMaster};
@@ -52,12 +52,12 @@ mod kernel_cpu {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum KernelState {
     Absent,
     Loaded,
     Running,
-    MsgAwait { max_time: u64 },
+    MsgAwait { max_time: u64, tags: Vec<u8> },
     MsgSending
 }
 
@@ -99,7 +99,6 @@ pub struct Sliceable {
 /* represents interkernel messages */
 struct Message {
     count: u8,
-    tag: u8,
     data: Vec<u8>
 }
 
@@ -201,8 +200,7 @@ impl MessageManager {
             None => {
                 self.in_buffer = Some(Message {
                     count: data[0],
-                    tag: data[1],
-                    data: data[2..length].to_vec()
+                    data: data[1..length].to_vec()
                 });
             }
         };
@@ -264,7 +262,7 @@ impl MessageManager {
 
     pub fn accept_outgoing(&mut self, count: u8, tag: &[u8], data: *const *const ()) -> Result<(), Error>  {
         let mut writer = Cursor::new(Vec::new());
-        rpc::send_args(&mut writer, 0, tag, data)?;
+        rpc::send_args(&mut writer, 0, tag, data, false)?;
         // skip service tag, but write the count
         let mut data = writer.into_inner().split_off(3);
         data[0] = count;
@@ -507,17 +505,18 @@ impl Manager {
     }
 
     fn process_external_messages(&mut self) -> Result<(), Error> {
-        match self.session.kernel_state {
-            KernelState::MsgAwait { max_time } => {
-                if clock::get_ms() > max_time {
+        match &self.session.kernel_state {
+            KernelState::MsgAwait { max_time, tags } => {
+                if clock::get_ms() > *max_time {
                     kern_send(&kern::SubkernelMsgRecvReply { status: kern::SubkernelStatus::Timeout, count: 0 })?;
                     self.session.kernel_state = KernelState::Running;
                     return Ok(())
                 }
                 if let Some(message) = self.session.messages.get_incoming() {
                     kern_send(&kern::SubkernelMsgRecvReply { status: kern::SubkernelStatus::NoError, count: message.count })?;
+                    let tags = tags.clone();
                     self.session.kernel_state = KernelState::Running;
-                    pass_message_to_kernel(&message)
+                    pass_message_to_kernel(&message, &tags)
                 } else {
                     Err(Error::AwaitingMessage)
                 }
@@ -538,7 +537,7 @@ impl Manager {
         // returns Ok(with_exception) on finish
         // None if the kernel is still running
         kern_recv(|request| {
-            match (request, self.session.kernel_state) {
+            match (request, &self.session.kernel_state) {
                 (&kern::LoadReply(_), KernelState::Loaded) => {
                     // We're standing by; ignore the message.
                     return Ok(None)
@@ -611,9 +610,9 @@ impl Manager {
                     Ok(())
                 }
 
-                &kern::SubkernelMsgRecvRequest { id: _, timeout } => {
+                &kern::SubkernelMsgRecvRequest { id: _, timeout, tags } => {
                     let max_time = clock::get_ms() + timeout as u64;
-                    self.session.kernel_state = KernelState::MsgAwait { max_time: max_time };
+                    self.session.kernel_state = KernelState::MsgAwait { max_time: max_time, tags: tags.to_vec() };
                     Ok(())
                 },
 
@@ -695,10 +694,9 @@ fn slice_kernel_exception(exceptions: &[Option<eh_artiq::Exception>],
     }
 }
 
-fn pass_message_to_kernel(message: &Message) -> Result<(), Error> {
+fn pass_message_to_kernel(message: &Message, tags: &[u8]) -> Result<(), Error> {
     let mut reader = Cursor::new(&message.data);
-    let mut tag: [u8; 1] = [message.tag];
-    let count = message.count;
+    let mut current_tags = tags;
     let mut i = 0;
     loop {
         let slot = kern_recv_w_timeout(100, |reply| {
@@ -712,8 +710,7 @@ fn pass_message_to_kernel(message: &Message) -> Result<(), Error> {
                     "expected root value slot from kernel CPU, not {:?}", other)
             }
         })?;
-
-        let res = rpc::recv_return(&mut reader, &tag, slot, &|size| -> Result<_, Error> {
+        let res = rpc::recv_return(&mut reader, current_tags, slot, &|size| -> Result<_, Error> {
             if size == 0 {
                 return Ok(0 as *mut ())
             }
@@ -735,17 +732,19 @@ fn pass_message_to_kernel(message: &Message) -> Result<(), Error> {
             })?)
         });
         match res {
-            Ok(_) => kern_send(&kern::RpcRecvReply(Ok(0)))?,
+            Ok(new_tags) => {
+                kern_send(&kern::RpcRecvReply(Ok(0)))?;
+                i += 1;
+                if i < message.count {
+                    // update the tag for next read
+                    current_tags = new_tags;
+                } else {
+                    // should be done by then
+                    break;
+                }
+            },
             Err(_) => unexpected!("expected valid subkernel message data")
         };
-        i += 1;
-        if i < count {
-            // update the tag for next read
-            tag[0] = reader.read_u8()?;
-        } else {
-            // should be done by then
-            break;
-        }
     }
     Ok(())
 }

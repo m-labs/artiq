@@ -2614,8 +2614,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 min_args = ir.Constant(len(fn_typ.args)-offset, builtins.TInt8())
                 max_args = ir.Constant(fn_typ.arity()-offset, builtins.TInt8())
 
-                rcvd_count = self.append(ir.Builtin("subkernel_await_args", [min_args, max_args], builtins.TNone()))
-                arg_types = list(fn_typ.args.items())[offset:]
+                arg_types = list(fn_typ.args.items())[offset:] 
+                arg_type_list = [a[1] for a in arg_types] + [a[1] for a in fn_typ.optargs.items()]
+                rcvd_count = self.append(ir.SubkernelAwaitArgs([min_args, max_args], arg_type_list))
                 # obligatory arguments
                 for arg_name, arg_type in arg_types:
                     args[index] = self.append(ir.GetArgFromRemote(arg_name, arg_type,

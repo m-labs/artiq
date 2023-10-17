@@ -307,8 +307,7 @@ pub mod subkernel {
 
     pub struct Message {
         from_id: u32,
-        pub tag_count: u8,
-        pub tag: u8,
+        pub count: u8,
         pub data: Vec<u8>
     }
 
@@ -334,9 +333,8 @@ pub mod subkernel {
             None => unsafe {
                 CURRENT_MESSAGES.insert(id, Message {
                     from_id: id,
-                    tag_count: data[0],
-                    tag: data[1],
-                    data: data[2..length].to_vec()
+                    count: data[0],
+                    data: data[1..length].to_vec()
                 });
             }
         };
@@ -404,7 +402,7 @@ pub mod subkernel {
         let destination = unsafe { SUBKERNELS.get(&id).unwrap().destination };
 
         // reuse rpc code for sending arbitrary data
-        rpc::send_args(&mut writer, 0, tag, message)?;
+        rpc::send_args(&mut writer, 0, tag, message, false)?;
         // skip service tag, but overwrite first byte with tag count
         let data = &mut writer.into_inner()[3..];
         data[0] = count;

@@ -502,7 +502,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                     None => unexpected!("unexpected RPC in flash kernel"),
                     Some(ref mut stream) => {
                         host_write(stream, host::Reply::RpcRequest { async: async })?;
-                        rpc::send_args(stream, service, tag, data)?;
+                        rpc::send_args(stream, service, tag, data, true)?;
                         if !async {
                             session.kernel_state = KernelState::RpcWait
                         }
@@ -608,10 +608,10 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 kern_acknowledge()
             }
             #[cfg(has_drtio)]
-            &kern::SubkernelMsgRecvRequest { id, timeout } => {
+            &kern::SubkernelMsgRecvRequest { id, timeout, tags } => {
                 let message_received = subkernel::message_await(io, _subkernel_mutex, id, timeout);
                 let (status, count) = match message_received {
-                    Ok(ref message) => (kern::SubkernelStatus::NoError, message.tag_count),
+                    Ok(ref message) => (kern::SubkernelStatus::NoError, message.count),
                     Err(SubkernelError::Timeout) => (kern::SubkernelStatus::Timeout, 0),
                     Err(SubkernelError::IncorrectState) => (kern::SubkernelStatus::IncorrectState, 0),
                     Err(SubkernelError::SubkernelFinished) => {
@@ -628,11 +628,11 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                     }
                     Err(_) => (kern::SubkernelStatus::OtherError, 0)
                 };
-                kern_send(io, &kern::SubkernelMsgRecvReply { status: status, count: count })?;
+                kern_send(io, &kern::SubkernelMsgRecvReply { status: status, count: count})?;
                 if let Ok(message) = message_received {
                     // receive code almost identical to RPC recv, except we are not reading from a stream
                     let mut reader = Cursor::new(message.data);
-                    let mut tag: [u8; 1] = [message.tag];
+                    let mut current_tags = tags;
                     let mut i = 0;
                     loop {
                         // kernel has to consume all arguments in the whole message
@@ -643,7 +643,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                                     "expected root value slot from kernel CPU, not {:?}", other)
                             }
                         })?;
-                        let res = rpc::recv_return(&mut reader, &tag, slot, &|size| -> Result<_, Error<SchedError>> {
+                        let res = rpc::recv_return(&mut reader, current_tags, slot, &|size| -> Result<_, Error<SchedError>> {
                             if size == 0 {
                                 return Ok(0 as *mut ())
                             }
@@ -657,17 +657,19 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                             })?)
                         });
                         match res {
-                            Ok(_) => kern_send(io, &kern::RpcRecvReply(Ok(0)))?,
+                            Ok(new_tags) => {
+                                kern_send(io, &kern::RpcRecvReply(Ok(0)))?;
+                                i += 1;
+                                if i < message.count {
+                                    // update the tag for next read
+                                    current_tags = new_tags;
+                                } else {
+                                    // should be done by then
+                                    break;
+                                }
+                            },
                             Err(_) => unexpected!("expected valid subkernel message data")
                         };
-                        i += 1;
-                        if i < message.tag_count {
-                            // update the tag for next read
-                            tag[0] = reader.read_u8()?;
-                        } else {
-                            // should be done by then
-                            break;
-                        }
                     }
                     Ok(())
                 } else {

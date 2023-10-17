@@ -764,6 +764,23 @@ class GetOptArgFromRemote(GetArgFromRemote):
     def opcode(self):
         return "getoptargfromremote({})".format(repr(self.arg_name))
 
+class SubkernelAwaitArgs(Instruction):
+    """
+    A builtin instruction that takes min and max received messages as operands,
+    and a list of received types.
+
+    :ivar arg_types: (list of types) types of passed arguments (including optional)
+    """
+
+    """
+    :param arg_types: (list of types) types of passed arguments (including optional)
+    """
+
+    def __init__(self, operands, arg_types, name=None):
+        assert isinstance(arg_types, list)
+        self.arg_types = arg_types
+        super().__init__(operands, builtins.TNone(), name)
+
 class GetAttr(Instruction):
     """
     An intruction that loads an attribute from an object,

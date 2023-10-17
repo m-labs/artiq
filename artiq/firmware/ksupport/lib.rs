@@ -138,7 +138,7 @@ extern fn rpc_send_async(service: u32, tag: &CSlice<u8>, data: *const *const ())
     rpc_queue::enqueue(|mut slice| {
         let length = {
             let mut writer = Cursor::new(&mut slice[4..]);
-            rpc_proto::send_args(&mut writer, service, tag.as_ref(), data)?;
+            rpc_proto::send_args(&mut writer, service, tag.as_ref(), data, true)?;
             writer.position()
         };
         io::ProtoWrite::write_u32(&mut slice, length as u32)
@@ -499,8 +499,8 @@ extern fn subkernel_send_message(id: u32, count: u8, tag: &CSlice<u8>, data: *co
 }
 
 #[unwind(allowed)]
-extern fn subkernel_await_message(id: u32, timeout: u64, min: u8, max: u8) -> u8 {
-    send(&SubkernelMsgRecvRequest { id: id, timeout: timeout });
+extern fn subkernel_await_message(id: u32, timeout: u64, tags: &CSlice<u8>, min: u8, max: u8) -> u8 {
+    send(&SubkernelMsgRecvRequest { id: id, timeout: timeout, tags: tags.as_ref() });
     recv!(SubkernelMsgRecvReply { status, count } => {
         match status {
             SubkernelStatus::NoError => {
