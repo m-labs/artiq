@@ -44,8 +44,8 @@ class GenericStandalone(StandaloneBase):
                 phy = ttl_simple.Output(sfp_ctl.led)
                 self.submodules += phy
                 self.rtio_channels.append(rtio.Channel.from_phy(phy))
-        if hw_rev == "v2.0":
-            for i in (1, 2):
+        if hw_rev in ("v1.1", "v2.0"):
+            for i in range(3):
                 print("USER LED at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
                 phy = ttl_simple.Output(self.platform.request("user_led", i))
                 self.submodules += phy
@@ -93,6 +93,13 @@ class GenericMaster(MasterBase):
 
         self.rtio_channels = []
         eem_7series.add_peripherals(self, description["peripherals"])
+        if hw_rev in ("v1.1", "v2.0"):
+            for i in range(3):
+                print("USER LED at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
+                phy = ttl_simple.Output(self.platform.request("user_led", i))
+                self.submodules += phy
+                self.rtio_channels.append(rtio.Channel.from_phy(phy))
+
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
         self.rtio_channels.append(rtio.LogChannel())
@@ -131,6 +138,13 @@ class GenericSatellite(SatelliteBase):
 
         self.rtio_channels = []
         eem_7series.add_peripherals(self, description["peripherals"])
+        if hw_rev in ("v1.1", "v2.0"):
+            for i in range(3):
+                print("USER LED at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
+                phy = ttl_simple.Output(self.platform.request("user_led", i))
+                self.submodules += phy
+                self.rtio_channels.append(rtio.Channel.from_phy(phy))
+
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
         self.rtio_channels.append(rtio.LogChannel())
