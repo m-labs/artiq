@@ -34,7 +34,7 @@ def process_header(output, description):
                 "type": "local",
                 "module": "artiq.coredevice.core",
                 "class": "Core",
-                "arguments": {{"host": core_addr, "ref_period": {ref_period}, "target": "{cpu_target}"}},
+                "arguments": {{"host": core_addr, "ref_period": {ref_period}, "target": "{cpu_target}", "satellite_cpu_targets": {{}} }},
             }},
             "core_log": {{
                 "type": "controller",
@@ -59,8 +59,6 @@ def process_header(output, description):
                 "module": "artiq.coredevice.dma",
                 "class": "CoreDMA"
             }},
-
-            "satellite_cpu_targets": {{}},
 
             "i2c_switch0": {{
                 "type": "local",
@@ -760,7 +758,7 @@ def process(output, primary_description, satellites):
         print(textwrap.dedent("""
             # DEST#{dest} peripherals
 
-            device_db["satellite_cpu_targets"][{dest}] = \"{target}\"""").format(
+            device_db["core"]["arguments"]["satellite_cpu_targets"][{dest}] = \"{target}\"""").format(
                 dest=destination,
                 target=get_cpu_target(description)),
             file=output)
@@ -773,7 +771,7 @@ def process(output, primary_description, satellites):
         print(textwrap.dedent("""
             # DEST#{dest} peripherals
 
-            device_db["satellite_cpu_targets"][{dest}] = \"{target}\"""").format(
+            device_db["core"]["arguments"]["satellite_cpu_targets"][{dest}] = \"{target}\"""").format(
                 dest=peripheral["drtio_destination"],
                 target=get_cpu_target(peripheral)),
             file=output)

@@ -84,9 +84,11 @@ class Core:
         "core", "ref_period", "coarse_ref_period", "ref_multiplier",
     }
 
-    def __init__(self, dmgr, host, ref_period, ref_multiplier=8, target="rv32g"):
+    def __init__(self, dmgr, host, ref_period, ref_multiplier=8, 
+                 target="rv32g", satellite_cpu_targets={}):
         self.ref_period = ref_period
         self.ref_multiplier = ref_multiplier
+        self.satellite_cpu_targets = satellite_cpu_targets
         self.target_cls = get_target_cls(target)
         self.coarse_ref_period = ref_period*ref_multiplier
         if host is None:
@@ -159,7 +161,7 @@ class Core:
                 if subkernel_args[0][0] == 'self':
                     self_arg = args[:1]
             destination = subkernel_fn.artiq_embedded.destination
-            destination_tgt = self.dmgr.ddb.get_satellite_cpu_target(destination)
+            destination_tgt = self.satellite_cpu_targets[destination]
             target = get_target_cls(destination_tgt)(subkernel_id=sid)
             object_map, kernel_library, _, _, _ = \
                 self.compile(subkernel_fn, self_arg, {}, attribute_writeback=False,
