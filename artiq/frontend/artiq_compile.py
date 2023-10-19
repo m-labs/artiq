@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, sys, logging, argparse
+import os, sys, io, tarfile, logging, argparse
 
 from sipyco import common_args
 
@@ -63,9 +63,16 @@ def main():
             core_name = exp.run.artiq_embedded.core_name
             core = getattr(exp_inst, core_name)
 
-            object_map, kernel_library, _, _, _ = \
+            object_map, main_kernel_library, _, _, subkernel_arg_types = \
                 core.compile(exp.run, [exp_inst], {},
                              attribute_writeback=False, print_as_rpc=False)
+
+            subkernels = {}
+            for sid, subkernel_fn in object_map.subkernels().items():
+                destination, subkernel_library = core.compile_subkernel(
+                    sid, subkernel_fn, object_map, 
+                    [exp_inst], subkernel_arg_types)
+                subkernels[sid] = (destination, subkernel_library)
         except CompileError as error:
             return
         finally:
@@ -73,16 +80,39 @@ def main():
     finally:
         dataset_db.close_db()
 
-    if object_map.has_rpc_or_subkernel():
-        raise ValueError("Experiment must not use RPC or subkernels")
+    if object_map.has_rpc():
+        raise ValueError("Experiment must not use RPC")
 
     output = args.output
-    if output is None:
-        basename, ext = os.path.splitext(args.file)
-        output = "{}.elf".format(basename)
 
-    with open(output, "wb") as f:
-        f.write(kernel_library)
+    if not subkernels:
+        # just write the ELF file
+        if output is None:
+            basename, ext = os.path.splitext(args.file)
+            output = "{}.elf".format(basename)
+
+        with open(output, "wb") as f:
+            f.write(main_kernel_library)
+    else:
+        # combine them in a tar archive
+        if output is None:
+            basename, ext = os.path.splitext(args.file)
+            output = "{}.tar".format(basename)
+
+        with tarfile.open(output, "w:") as tar:
+            # write the main lib as "main.elf"
+            main_kernel_fileobj = io.BytesIO(main_kernel_library)
+            main_kernel_info = tarfile.TarInfo(name="main.elf")
+            main_kernel_info.size = len(main_kernel_library)
+            tar.addfile(main_kernel_info, fileobj=main_kernel_fileobj)
+
+            # subkernels as "<sid> <destination>.elf"
+            for sid, (destination, subkernel_library) in subkernels.items():
+                subkernel_fileobj = io.BytesIO(subkernel_library)
+                subkernel_info = tarfile.TarInfo(name="{} {}.elf".format(sid, destination))
+                subkernel_info.size = len(subkernel_library)
+                tar.addfile(subkernel_info, fileobj=subkernel_fileobj)
+
 
 if __name__ == "__main__":
     main()

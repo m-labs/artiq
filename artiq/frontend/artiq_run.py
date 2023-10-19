@@ -4,6 +4,7 @@
 
 import argparse
 import sys
+import tarfile
 from operator import itemgetter
 import logging
 from collections import defaultdict
@@ -86,6 +87,20 @@ class LLVMBitcodeRunner(FileRunner):
         return self.target.link([self.target.assemble(llmodule)])
 
 
+class TARRunner(FileRunner):
+    def compile(self):
+        with tarfile.open(self.file, "r:") as tar:
+            for entry in tar:
+                if entry.name == 'main.elf':
+                    main_lib = tar.extractfile(entry).read()
+                else:
+                    subkernel_name = entry.name.removesuffix(".elf")
+                    sid, dest = tuple(map(lambda x: int(x), subkernel_name.split(" ")))
+                    subkernel_lib = tar.extractfile(entry).read()
+                    self.core.comm.upload_subkernel(subkernel_lib, sid, dest)
+        return main_lib
+
+
 class DummyScheduler:
     def __init__(self):
         self.rid = 0
@@ -156,6 +171,7 @@ def _build_experiment(device_mgr, dataset_mgr, args):
     argument_mgr = ProcessArgumentManager(arguments)
     managers = (device_mgr, dataset_mgr, argument_mgr, {})
     if hasattr(args, "file"):
+        is_tar = tarfile.is_tarfile(args.file)
         is_elf = args.file.endswith(".elf")
         is_ll  = args.file.endswith(".ll")
         is_bc  = args.file.endswith(".bc")
@@ -165,7 +181,9 @@ def _build_experiment(device_mgr, dataset_mgr, args):
             if args.class_name:
                 raise ValueError("class-name not supported "
                                  "for precompiled kernels")
-        if is_elf:
+        if is_tar:
+            return TARRunner(managers, file=args.file)
+        elif is_elf:
             return ELFRunner(managers, file=args.file)
         elif is_ll:
             return LLVMIRRunner(managers, file=args.file)

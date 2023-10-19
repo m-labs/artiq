@@ -193,6 +193,13 @@ class EmbeddingMap:
                     subkernels[k] = v
         return subkernels
 
+    def has_rpc(self):
+        return any(filter(
+                lambda x: (inspect.isfunction(x) or inspect.ismethod(x)) and \
+                    (not hasattr(x, "artiq_embedded") or x.artiq_embedded.destination is None),
+                self.object_forward_map.values()
+            ))
+
     def has_rpc_or_subkernel(self):
         return any(filter(lambda x: inspect.isfunction(x) or inspect.ismethod(x),
                           self.object_forward_map.values()))
