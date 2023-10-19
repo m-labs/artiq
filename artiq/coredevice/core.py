@@ -147,28 +147,34 @@ class Core:
             result = new_result
         embedding_map, kernel_library, symbolizer, demangler, subkernel_arg_types = \
             self.compile(function, args, kwargs, set_result)
-        self.compile_subkernels(embedding_map, args, subkernel_arg_types)
+        self.compile_and_upload_subkernels(embedding_map, args, subkernel_arg_types)
         self._run_compiled(kernel_library, embedding_map, symbolizer, demangler)
         return result
 
-    def compile_subkernels(self, embedding_map, args, subkernel_arg_types):
+    def compile_subkernel(self, sid, subkernel_fn, embedding_map, args, subkernel_arg_types):
+        # pass self to subkernels (if applicable)
+        # assuming the first argument is self
+        subkernel_args = getfullargspec(subkernel_fn.artiq_embedded.function)
+        self_arg = []
+        if len(subkernel_args[0]) > 0:
+            if subkernel_args[0][0] == 'self':
+                self_arg = args[:1]
+        destination = subkernel_fn.artiq_embedded.destination
+        destination_tgt = self.satellite_cpu_targets[destination]
+        target = get_target_cls(destination_tgt)(subkernel_id=sid)
+        object_map, kernel_library, _, _, _ = \
+            self.compile(subkernel_fn, self_arg, {}, attribute_writeback=False,
+                        print_as_rpc=False, target=target, destination=destination, 
+                        subkernel_arg_types=subkernel_arg_types.get(sid, []))
+        if object_map.has_rpc_or_subkernel():
+            raise ValueError("Subkernel must not use RPC or subkernels in other destinations")
+        return destination, kernel_library
+
+    def compile_and_upload_subkernels(self, embedding_map, args, subkernel_arg_types):
         for sid, subkernel_fn in embedding_map.subkernels().items():
-            # pass self to subkernels (if applicable)
-            # assuming the first argument is self
-            subkernel_args = getfullargspec(subkernel_fn.artiq_embedded.function)
-            self_arg = []
-            if len(subkernel_args[0]) > 0:
-                if subkernel_args[0][0] == 'self':
-                    self_arg = args[:1]
-            destination = subkernel_fn.artiq_embedded.destination
-            destination_tgt = self.satellite_cpu_targets[destination]
-            target = get_target_cls(destination_tgt)(subkernel_id=sid)
-            object_map, kernel_library, _, _, _ = \
-                self.compile(subkernel_fn, self_arg, {}, attribute_writeback=False,
-                            print_as_rpc=False, target=target, destination=destination, 
-                            subkernel_arg_types=subkernel_arg_types.get(sid, []))
-            if object_map.has_rpc_or_subkernel():
-                raise ValueError("Subkernel must not use RPC or subkernels in other destinations")
+            destination, kernel_library = \
+                self.compile_subkernel(sid, subkernel_fn, embedding_map,
+                                       args, subkernel_arg_types)
             self.comm.upload_subkernel(kernel_library, sid, destination)
 
     def precompile(self, function, *args, **kwargs):
