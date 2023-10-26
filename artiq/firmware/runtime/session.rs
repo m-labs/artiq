@@ -5,7 +5,7 @@ use cslice::CSlice;
 
 use io::{Read, Write, Error as IoError};
 #[cfg(has_drtio)]
-use io::{Cursor, ProtoRead};
+use io::Cursor;
 use board_misoc::{ident, cache, config};
 use {mailbox, rpc_queue, kernel};
 use urc::Urc;
@@ -16,6 +16,8 @@ use rtio_dma::Manager as DmaManager;
 use rtio_dma::remote_dma;
 #[cfg(has_drtio)]
 use kernel::{subkernel, subkernel::Error as SubkernelError};
+#[cfg(has_drtio)]
+use rtio_mgt::drtio;
 use rtio_mgt::get_async_errors;
 use cache::Cache;
 use kern_hwreq;
@@ -40,8 +42,14 @@ pub enum Error<T> {
     #[fail(display = "subkernel io error")]
     SubkernelIoError,
     #[cfg(has_drtio)]
+    #[fail(display = "DDMA error: {}", _0)]
+    Ddma(#[cause] remote_dma::Error),
+    #[cfg(has_drtio)]
     #[fail(display = "subkernel error: {}", _0)]
     Subkernel(#[cause] SubkernelError),
+    #[cfg(has_drtio)]
+    #[fail(display = "drtio aux error: {}", _0)]
+    DrtioAux(#[cause] drtio::Error),
     #[fail(display = "{}", _0)]
     Unexpected(String),
 }
@@ -49,6 +57,16 @@ pub enum Error<T> {
 impl<T> From<host::Error<T>> for Error<T> {
     fn from(value: host::Error<T>) -> Error<T> {
         Error::Protocol(value)
+    }
+}
+
+#[cfg(has_drtio)]
+impl From<drtio::Error> for Error<SchedError> {
+    fn from(value: drtio::Error) -> Error<SchedError> {
+        match value {
+            drtio::Error::SchedError(x) => Error::from(x),
+            x => Error::DrtioAux(x),
+        }
     }
 }
 
@@ -79,7 +97,22 @@ impl From<io::Error<!>> for Error<SchedError> {
 #[cfg(has_drtio)]
 impl From<SubkernelError> for Error<SchedError> {
     fn from(value: SubkernelError) -> Error<SchedError> {
-        Error::Subkernel(value)
+        match value {
+            SubkernelError::SchedError(x) => Error::from(x),
+            SubkernelError::DrtioError(x) => Error::from(x),
+            x => Error::Subkernel(x),
+        }
+    }
+}
+
+#[cfg(has_drtio)]
+impl From<remote_dma::Error> for Error<SchedError> {
+    fn from(value: remote_dma::Error) -> Error<SchedError> {
+        match value {
+            remote_dma::Error::SchedError(x) => Error::from(x),
+            remote_dma::Error::DrtioError(x) => Error::from(x),
+            x => Error::Ddma(x),
+        }
     }
 }
 
@@ -371,7 +404,7 @@ fn process_host_message(io: &Io, _aux_mutex: &Mutex, _ddma_mutex: &Mutex, _subke
         host::Request::UploadSubkernel { id: _id, destination: _dest, kernel: _kernel } => {
             #[cfg(has_drtio)]
             {
-                subkernel::add_subkernel(io, _subkernel_mutex, _id, _dest, _kernel);
+                subkernel::add_subkernel(io, _subkernel_mutex, _id, _dest, _kernel)?;
                 match subkernel::upload(io, _aux_mutex, _subkernel_mutex, _routing_table, _id) {
                     Ok(_) => host_write(stream, host::Reply::LoadCompleted)?,
                     Err(error) => {
@@ -434,7 +467,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 if let Some(_id) = session.congress.dma_manager.record_start(name) {
                     // replace the record
                     #[cfg(has_drtio)]
-                    remote_dma::erase(io, aux_mutex, ddma_mutex, routing_table, _id);
+                    remote_dma::erase(io, aux_mutex, ddma_mutex, routing_table, _id)?;
                 }
                 kern_acknowledge()
             }
@@ -443,10 +476,10 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 kern_acknowledge()
             }
             &kern::DmaRecordStop { duration, enable_ddma } => {
-                let _id = session.congress.dma_manager.record_stop(duration, enable_ddma, io, ddma_mutex);
+                let _id = session.congress.dma_manager.record_stop(duration, enable_ddma, io, ddma_mutex)?;
                 #[cfg(has_drtio)]
                 if enable_ddma {
-                    remote_dma::upload_traces(io, aux_mutex, ddma_mutex, routing_table, _id);
+                    remote_dma::upload_traces(io, aux_mutex, ddma_mutex, routing_table, _id)?;
                 }
                 cache::flush_l2_cache();
                 kern_acknowledge()
@@ -454,7 +487,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             &kern::DmaEraseRequest { name } => {
                 #[cfg(has_drtio)]
                 if let Some(id) = session.congress.dma_manager.get_id(name) {
-                    remote_dma::erase(io, aux_mutex, ddma_mutex, routing_table, *id);
+                    remote_dma::erase(io, aux_mutex, ddma_mutex, routing_table, *id)?;
                 }
                 session.congress.dma_manager.erase(name);
                 kern_acknowledge()
@@ -463,7 +496,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 session.congress.dma_manager.with_trace(name, |trace, duration| {
                     #[cfg(has_drtio)]
                     let uses_ddma = match trace {
-                        Some(trace) => remote_dma::has_remote_traces(io, aux_mutex, trace.as_ptr() as u32),
+                        Some(trace) => remote_dma::has_remote_traces(io, aux_mutex, trace.as_ptr() as u32)?,
                         None => false
                     };
                     #[cfg(not(has_drtio))]
@@ -477,7 +510,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             }
             &kern::DmaStartRemoteRequest { id: _id, timestamp: _timestamp } => {
                 #[cfg(has_drtio)]
-                remote_dma::playback(io, aux_mutex, ddma_mutex, routing_table, _id as u32, _timestamp as u64);
+                remote_dma::playback(io, aux_mutex, ddma_mutex, routing_table, _id as u32, _timestamp as u64)?;
                 kern_acknowledge()
             }
             &kern::DmaAwaitRemoteRequest { id: _id } => {
@@ -703,7 +736,7 @@ fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
                       congress: &mut Congress) -> Result<(), Error<SchedError>> {
     let mut session = Session::new(congress);
     #[cfg(has_drtio)]
-    subkernel::clear_subkernels(&io, &subkernel_mutex);
+    subkernel::clear_subkernels(&io, &subkernel_mutex)?;
 
     loop {
         if stream.can_recv() {
@@ -785,7 +818,7 @@ fn respawn<F>(io: &Io, handle: &mut Option<ThreadHandle>, f: F)
         }
     }
 
-    *handle = Some(io.spawn(16384, f))
+    *handle = Some(io.spawn(24576, f))
 }
 
 pub fn thread(io: Io, aux_mutex: &Mutex,
@@ -857,16 +890,19 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
                     Err(Error::Protocol(host::Error::Io(IoError::UnexpectedEnd))) =>
                         info!("connection closed"),
                     Err(Error::Protocol(host::Error::Io(
-                            IoError::Other(SchedError::Interrupted)))) =>
-                        info!("kernel interrupted"),
+                            IoError::Other(SchedError::Interrupted)))) => {
+                        info!("kernel interrupted");
+                        #[cfg(has_drtio)]
+                        drtio::clear_buffers(&io, &aux_mutex);
+                    }
                     Err(err) => {
                         congress.finished_cleanly.set(false);
                         error!("session aborted: {}", err);
+                        #[cfg(has_drtio)]
+                        drtio::clear_buffers(&io, &aux_mutex);
                     }
                 }
                 stream.close().expect("session: close socket");
-                #[cfg(has_drtio)]
-                subkernel::clear_subkernels(&io, &subkernel_mutex);
             });
         }
 
@@ -887,15 +923,23 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
                     Ok(()) =>
                         info!("idle kernel finished, standing by"),
                     Err(Error::Protocol(host::Error::Io(
-                            IoError::Other(SchedError::Interrupted)))) =>
-                        info!("idle kernel interrupted"),
+                            IoError::Other(SchedError::Interrupted)))) => {
+                        info!("idle kernel interrupted");
+                        // clear state for regular kernel
+                        #[cfg(has_drtio)]
+                        drtio::clear_buffers(&io, &aux_mutex);
+                    }
                     Err(Error::KernelNotFound) => {
                         info!("no idle kernel found");
                         while io.relinquish().is_ok() {}
                     }
-                    Err(err) =>
-                        error!("idle kernel aborted: {}", err)
+                    Err(err) => {
+                        error!("idle kernel aborted: {}", err);
+                        #[cfg(has_drtio)]
+                        drtio::clear_buffers(&io, &aux_mutex);
+                    }
                 }
+
             })
         }
 

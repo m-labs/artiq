@@ -1,6 +1,6 @@
 use core::mem;
 use alloc::{vec::Vec, string::String, collections::btree_map::BTreeMap};
-use sched::{Io, Mutex};
+use sched::{Io, Mutex, Error as SchedError};
 
 const ALIGNMENT: usize = 64;
 
@@ -39,19 +39,48 @@ pub mod remote_dma {
         }
     }
 
+    #[derive(Fail, Debug)]
+    pub enum Error {
+        #[fail(display = "Timed out waiting for DMA results")]
+        Timeout,
+        #[fail(display = "DDMA trace is in incorrect state for the given operation")]
+        IncorrectState,
+        #[fail(display = "scheduler error: {}", _0)]
+        SchedError(#[cause] SchedError),
+        #[fail(display = "DRTIO error: {}", _0)]
+        DrtioError(#[cause] drtio::Error),
+    }
+
+    impl From<drtio::Error> for Error {
+        fn from(value: drtio::Error) -> Error {
+            match value {
+                drtio::Error::SchedError(x) => Error::SchedError(x),
+                x => Error::DrtioError(x),
+            }
+        }
+    }
+
+    impl From<SchedError> for Error {
+        fn from(value: SchedError) -> Error {
+                Error::SchedError(value)
+        }
+    }
+
     // remote traces map. ID -> destination, trace pair
     static mut TRACES: BTreeMap<u32, BTreeMap<u8, RemoteTrace>> = BTreeMap::new();
 
-    pub fn add_traces(io: &Io, ddma_mutex: &Mutex, id: u32, traces: BTreeMap<u8, Vec<u8>>) {
-        let _lock = ddma_mutex.lock(io);
+    pub fn add_traces(io: &Io, ddma_mutex: &Mutex, id: u32, traces: BTreeMap<u8, Vec<u8>>
+    ) -> Result<(), SchedError> {
+        let _lock = ddma_mutex.lock(io)?;
         let mut trace_map: BTreeMap<u8, RemoteTrace> = BTreeMap::new();
         for (destination, trace) in traces {
             trace_map.insert(destination, trace.into());
         }
         unsafe { TRACES.insert(id, trace_map); }
+        Ok(())
     }
 
-    pub fn await_done(io: &Io, ddma_mutex: &Mutex, id: u32, timeout: u64) -> Result<RemoteState, &'static str> {
+    pub fn await_done(io: &Io, ddma_mutex: &Mutex, id: u32, timeout: u64) -> Result<RemoteState, Error> {
         let max_time = clock::get_ms() + timeout as u64;
         io.until(|| {
             if clock::get_ms() > max_time {
@@ -70,15 +99,15 @@ pub mod remote_dma {
                 }
             }
             true
-        }).unwrap();
+        })?;
         if clock::get_ms() > max_time {
             error!("Remote DMA await done timed out");
-            return Err("Timed out waiting for results.");
+            return Err(Error::Timeout);
         }
         // clear the internal state, and if there have been any errors, return one of them
         let mut playback_state: RemoteState = RemoteState::PlaybackEnded { error: 0, channel: 0, timestamp: 0 };
         {
-            let _lock = ddma_mutex.lock(io).unwrap();
+            let _lock = ddma_mutex.lock(io)?;
             let traces = unsafe { TRACES.get_mut(&id).unwrap() };
             for (_dest, trace) in traces {
                 match trace.state {
@@ -92,8 +121,8 @@ pub mod remote_dma {
     }
 
     pub fn erase(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex,
-            routing_table: &RoutingTable, id: u32) {
-        let _lock = ddma_mutex.lock(io).unwrap();
+            routing_table: &RoutingTable, id: u32) -> Result<(), Error> {
+        let _lock = ddma_mutex.lock(io)?;
         let destinations = unsafe { TRACES.get(&id).unwrap() };
         for destination in destinations.keys() {
             match drtio::ddma_send_erase(io, aux_mutex, routing_table, id, *destination) {
@@ -102,42 +131,39 @@ pub mod remote_dma {
             } 
         }
         unsafe { TRACES.remove(&id); }
+        Ok(())
     }
 
     pub fn upload_traces(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex,
-            routing_table: &RoutingTable, id: u32) {
-        let _lock = ddma_mutex.lock(io);
+            routing_table: &RoutingTable, id: u32) -> Result<(), Error> {
+        let _lock = ddma_mutex.lock(io)?;
         let traces = unsafe { TRACES.get_mut(&id).unwrap() };
         for (destination, mut trace) in traces {
-            match drtio::ddma_upload_trace(io, aux_mutex, routing_table, id, *destination, trace.get_trace())
-            {
-                Ok(_) => trace.state = RemoteState::Loaded,
-                Err(e) => error!("Error adding DMA trace on destination {}: {}", destination, e)
-            }
+            drtio::ddma_upload_trace(io, aux_mutex, routing_table, id, *destination, trace.get_trace())?;
+            trace.state = RemoteState::Loaded;
         }
+        Ok(())
     }
 
     pub fn playback(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex,
-            routing_table: &RoutingTable, id: u32, timestamp: u64) {
+            routing_table: &RoutingTable, id: u32, timestamp: u64) -> Result<(), Error>{
         // triggers playback on satellites
         let destinations = unsafe { 
-            let _lock = ddma_mutex.lock(io).unwrap();
+            let _lock = ddma_mutex.lock(io)?;
             TRACES.get(&id).unwrap() };
         for (destination, trace) in destinations {
             {
                 // need to drop the lock before sending the playback request to avoid a deadlock
                 // if a PlaybackStatus is returned from another satellite in the meanwhile.
-                let _lock = ddma_mutex.lock(io).unwrap();
+                let _lock = ddma_mutex.lock(io)?;
                 if trace.state != RemoteState::Loaded {
                     error!("Destination {} not ready for DMA, state: {:?}", *destination, trace.state);
-                    continue;
+                    return Err(Error::IncorrectState);
                 }
             }
-            match drtio::ddma_send_playback(io, aux_mutex, routing_table, id, *destination, timestamp) {
-                Ok(_) => (),
-                Err(e) => error!("Error during remote DMA playback: {}", e)
-            }
+            drtio::ddma_send_playback(io, aux_mutex, routing_table, id, *destination, timestamp)?;
         }
+        Ok(())
     }
 
     pub fn playback_done(io: &Io, ddma_mutex: &Mutex, 
@@ -172,10 +198,10 @@ pub mod remote_dma {
         }
     }
 
-    pub fn has_remote_traces(io: &Io, ddma_mutex: &Mutex, id: u32) -> bool {
-        let _lock = ddma_mutex.lock(io).unwrap();
+    pub fn has_remote_traces(io: &Io, ddma_mutex: &Mutex, id: u32) -> Result<bool, Error> {
+        let _lock = ddma_mutex.lock(io)?;
         let trace_list = unsafe { TRACES.get(&id).unwrap() };
-        !trace_list.is_empty()
+        Ok(!trace_list.is_empty())
     }
 
 }
@@ -225,11 +251,11 @@ impl Manager {
     }
 
     pub fn record_stop(&mut self, duration: u64, _enable_ddma: bool,
-            _io: &Io, _ddma_mutex: &Mutex) -> u32 {
+            _io: &Io, _ddma_mutex: &Mutex) -> Result<u32, SchedError> {
         let mut local_trace = Vec::new();
         let mut _remote_traces: BTreeMap<u8, Vec<u8>> = BTreeMap::new();
 
-        if _enable_ddma & cfg!(has_drtio) {
+        if _enable_ddma && cfg!(has_drtio) {
             let mut trace = Vec::new();
             mem::swap(&mut self.recording_trace, &mut trace);
             trace.push(0);
@@ -284,9 +310,9 @@ impl Manager {
         self.name_map.insert(name, id);
 
         #[cfg(has_drtio)]
-        remote_dma::add_traces(_io, _ddma_mutex, id, _remote_traces);
+        remote_dma::add_traces(_io, _ddma_mutex, id, _remote_traces)?;
 
-        id
+        Ok(id)
     }
 
     pub fn erase(&mut self, name: &str) {
