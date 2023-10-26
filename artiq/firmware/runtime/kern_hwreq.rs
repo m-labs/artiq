@@ -32,7 +32,7 @@ mod remote_i2c {
             }
             Err(e) => {
                 error!("aux packet error ({})", e);
-                Err(e)
+                Err("aux packet error")
             }
         }
     }
@@ -55,7 +55,7 @@ mod remote_i2c {
             }
             Err(e) => {
                 error!("aux packet error ({})", e);
-                Err(e)
+                Err("aux packet error")
             }
         }
     }
@@ -78,7 +78,7 @@ mod remote_i2c {
             }
             Err(e) => {
                 error!("aux packet error ({})", e);
-                Err(e)
+                Err("aux packet error")
             }
         }
     }
@@ -102,7 +102,7 @@ mod remote_i2c {
             }
             Err(e) => {
                 error!("aux packet error ({})", e);
-                Err(e)
+                Err("aux packet error")
             }
         }
     }
@@ -126,7 +126,7 @@ mod remote_i2c {
             }
             Err(e) => {
                 error!("aux packet error ({})", e);
-                Err(e)
+                Err("aux packet error")
             }
         }
     }
@@ -151,7 +151,7 @@ mod remote_i2c {
             }
             Err(e) => {
                 error!("aux packet error ({})", e);
-                Err(e)
+                Err("aux packet error")
             }
         }
     }

@@ -91,8 +91,7 @@ pub fn validate(ptr: usize) -> bool {
 
 #[cfg(has_drtio)]
 pub mod subkernel {
-    use alloc::{vec::Vec, collections::btree_map::BTreeMap, string::String, string::ToString};
-    use core::str;
+    use alloc::{vec::Vec, collections::btree_map::BTreeMap};
     use board_artiq::drtio_routing::RoutingTable;
     use board_misoc::clock;
     use proto_artiq::{drtioaux_proto::{PayloadStatus, MASTER_PAYLOAD_MAX_SIZE}, rpc_proto as rpc};
@@ -119,32 +118,30 @@ pub mod subkernel {
     pub enum Error {
         #[fail(display = "Timed out waiting for subkernel")]
         Timeout,
-        #[fail(display = "Session killed while waiting for subkernel")]
-        SessionKilled,
         #[fail(display = "Subkernel is in incorrect state for the given operation")]
         IncorrectState,
         #[fail(display = "DRTIO error: {}", _0)]
-        DrtioError(String),
-        #[fail(display = "scheduler error")]
-        SchedError(SchedError),
+        DrtioError(#[cause] drtio::Error),
+        #[fail(display = "scheduler error: {}", _0)]
+        SchedError(#[cause] SchedError),
         #[fail(display = "rpc io error")]
         RpcIoError,
         #[fail(display = "subkernel finished prematurely")]
         SubkernelFinished,
     }
 
-    impl From<&str> for Error {
-        fn from(value: &str) -> Error {
-            Error::DrtioError(value.to_string())
+    impl From<drtio::Error> for Error {
+        fn from(value: drtio::Error) -> Error {
+            match value {
+                drtio::Error::SchedError(x) => Error::SchedError(x),
+                x => Error::DrtioError(x),
+            }
         }
     }
 
     impl From<SchedError> for Error {
         fn from(value: SchedError) -> Error {
-            match value {
-                SchedError::Interrupted => Error::SessionKilled,
-                x => Error::SchedError(x)
-            }
+                Error::SchedError(value)
         }
     }
 
@@ -178,14 +175,15 @@ pub mod subkernel {
 
     static mut SUBKERNELS: BTreeMap<u32, Subkernel> = BTreeMap::new();
 
-    pub fn add_subkernel(io: &Io, subkernel_mutex: &Mutex, id: u32, destination: u8, kernel: Vec<u8>) {
-        let _lock = subkernel_mutex.lock(io).unwrap();
+    pub fn add_subkernel(io: &Io, subkernel_mutex: &Mutex, id: u32, destination: u8, kernel: Vec<u8>) -> Result<(), Error> {
+        let _lock = subkernel_mutex.lock(io)?;
         unsafe { SUBKERNELS.insert(id, Subkernel::new(destination, kernel)); }
+        Ok(())
     }
 
     pub fn upload(io: &Io, aux_mutex: &Mutex, subkernel_mutex: &Mutex, 
              routing_table: &RoutingTable, id: u32) -> Result<(), Error> {
-        let _lock = subkernel_mutex.lock(io).unwrap();
+        let _lock = subkernel_mutex.lock(io)?;
         let subkernel = unsafe { SUBKERNELS.get_mut(&id).unwrap() };
         drtio::subkernel_upload(io, aux_mutex, routing_table, id, 
             subkernel.destination, &subkernel.data)?;
@@ -195,9 +193,10 @@ pub mod subkernel {
 
     pub fn load(io: &Io, aux_mutex: &Mutex, subkernel_mutex: &Mutex, routing_table: &RoutingTable,
             id: u32, run: bool) -> Result<(), Error> {
-        let _lock = subkernel_mutex.lock(io).unwrap();
+        let _lock = subkernel_mutex.lock(io)?;
         let subkernel = unsafe { SUBKERNELS.get_mut(&id).unwrap() };
         if subkernel.state != SubkernelState::Uploaded {
+            error!("for id: {} expected Uploaded, got: {:?}", id, subkernel.state);
             return Err(Error::IncorrectState);
         }
         drtio::subkernel_load(io, aux_mutex, routing_table, id, subkernel.destination, run)?;
@@ -207,13 +206,14 @@ pub mod subkernel {
         Ok(())
     }
 
-    pub fn clear_subkernels(io: &Io, subkernel_mutex: &Mutex) {
-        let _lock = subkernel_mutex.lock(io).unwrap();
+    pub fn clear_subkernels(io: &Io, subkernel_mutex: &Mutex) -> Result<(), Error> {
+        let _lock = subkernel_mutex.lock(io)?;
         unsafe {
             SUBKERNELS = BTreeMap::new();
             MESSAGE_QUEUE = Vec::new();
             CURRENT_MESSAGES = BTreeMap::new();
         }
+        Ok(())
     }
 
     pub fn subkernel_finished(io: &Io, subkernel_mutex: &Mutex, id: u32, with_exception: bool) {
@@ -222,10 +222,13 @@ pub mod subkernel {
         let subkernel = unsafe { SUBKERNELS.get_mut(&id) };
         // may be None if session ends and is cleared
         if let Some(subkernel) = subkernel {
-            subkernel.state = SubkernelState::Finished {
-                status: match with_exception {
-                true => FinishStatus::Exception,
-                false => FinishStatus::Ok,
+            // ignore other messages, could be a late finish reported
+            if subkernel.state == SubkernelState::Running {
+                subkernel.state = SubkernelState::Finished {
+                    status: match with_exception {
+                    true => FinishStatus::Exception,
+                    false => FinishStatus::Ok,
+                    }
                 }
             }
         }
@@ -269,7 +272,9 @@ pub mod subkernel {
                     } else { None }
                 })
             },
-            _ => Err(Error::IncorrectState)
+            _ => {
+                Err(Error::IncorrectState)
+            }
         }
     }
 
@@ -279,7 +284,9 @@ pub mod subkernel {
             let _lock = subkernel_mutex.lock(io)?;
             match unsafe { SUBKERNELS.get(&id).unwrap().state } {
                 SubkernelState::Running | SubkernelState::Finished { .. } => (),
-                _ => return Err(Error::IncorrectState)
+                _ => {
+                    return Err(Error::IncorrectState);
+                }
             }
         }
         let max_time = clock::get_ms() + timeout as u64;
@@ -324,9 +331,15 @@ pub mod subkernel {
             // may get interrupted, when session is cancelled or main kernel finishes without await
             Err(_) => return,
         };
-        if unsafe { SUBKERNELS.get(&id).is_none() } {
-            // do not add messages for non-existing or deleted subkernels
+        let subkernel = unsafe { SUBKERNELS.get(&id) };
+        if subkernel.is_none() || subkernel.unwrap().state != SubkernelState::Running {
+            // do not add messages for non-existing, non-running or deleted subkernels
             return
+        }
+        if status.is_first() {
+            unsafe {
+                CURRENT_MESSAGES.remove(&id);
+            }
         }
         match unsafe { CURRENT_MESSAGES.get_mut(&id) } {
             Some(message) => message.data.extend(&data[..length]),
@@ -398,7 +411,7 @@ pub mod subkernel {
         routing_table: &RoutingTable, id: u32, count: u8, tag: &'a [u8], message: *const *const ()
     ) -> Result<(), Error> {
         let mut writer = Cursor::new(Vec::new());
-        let _lock = subkernel_mutex.lock(io).unwrap();
+        let _lock = subkernel_mutex.lock(io)?;
         let destination = unsafe { SUBKERNELS.get(&id).unwrap().destination };
 
         // reuse rpc code for sending arbitrary data

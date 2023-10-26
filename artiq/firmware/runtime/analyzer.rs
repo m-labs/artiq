@@ -54,19 +54,16 @@ pub mod remote_analyzer {
 
     pub fn get_data(io: &Io, aux_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable,
         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>
-    ) -> Result<RemoteBuffer, &'static str> {
+    ) -> Result<RemoteBuffer, drtio::Error> {
             // gets data from satellites and returns consolidated data
             let mut remote_data: Vec<u8> = Vec::new();
             let mut remote_overflow = false;
             let mut remote_sent_bytes = 0;
             let mut remote_total_bytes = 0;
 
-            let data_vec = match drtio::analyzer_query(
+            let data_vec = drtio::analyzer_query(
                 io, aux_mutex, routing_table, up_destinations
-            ) {
-                Ok(data_vec) => data_vec,
-                Err(e) => return Err(e)
-            };
+            )?;
             for data in data_vec {
                 remote_total_bytes += data.total_byte_count;
                 remote_sent_bytes += data.sent_bytes;
