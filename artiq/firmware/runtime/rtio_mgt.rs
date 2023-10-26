@@ -17,7 +17,7 @@ pub mod drtio {
     use super::*;
     use alloc::vec::Vec;
     use drtioaux;
-    use proto_artiq::drtioaux_proto::MASTER_PAYLOAD_MAX_SIZE;
+    use proto_artiq::drtioaux_proto::{MASTER_PAYLOAD_MAX_SIZE, PayloadStatus};
     use rtio_dma::remote_dma;
     #[cfg(has_rtio_analyzer)]
     use analyzer::remote_analyzer::RemoteBuffer;
@@ -75,8 +75,8 @@ pub mod drtio {
                 subkernel::subkernel_finished(io, subkernel_mutex, id, with_exception);
                 None
             },
-            drtioaux::Packet::SubkernelMessage { id, destination: from, last, length, data } => {
-                subkernel::message_handle_incoming(io, subkernel_mutex, id, last, length as usize, &data);
+            drtioaux::Packet::SubkernelMessage { id, destination: from, status, length, data } => {
+                subkernel::message_handle_incoming(io, subkernel_mutex, id, status, length as usize, &data);
                 // acknowledge receiving part of the message
                 drtioaux::send(linkno, 
                     &drtioaux::Packet::SubkernelMessageAck { destination: from }
@@ -391,15 +391,18 @@ pub mod drtio {
     }
 
     fn partition_data<F>(data: &[u8], send_f: F) -> Result<(), &'static str>
-            where F: Fn(&[u8; MASTER_PAYLOAD_MAX_SIZE], bool, usize) -> Result<(), &'static str> {
+            where F: Fn(&[u8; MASTER_PAYLOAD_MAX_SIZE], PayloadStatus, usize) -> Result<(), &'static str> {
             let mut i = 0;
+            let mut first = true;
             while i < data.len() {
                 let mut slice: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
                 let len: usize = if i + MASTER_PAYLOAD_MAX_SIZE < data.len() { MASTER_PAYLOAD_MAX_SIZE } else { data.len() - i } as usize;
                 let last = i + len == data.len();
+                let status = PayloadStatus::from_status(first, last);
                 slice[..len].clone_from_slice(&data[i..i+len]);
                 i += len;
-                send_f(&slice, last, len)?;
+                send_f(&slice, status, len)?;
+                first = false;
             }
             Ok(())
         }
@@ -408,10 +411,10 @@ pub mod drtio {
             routing_table: &drtio_routing::RoutingTable,
             id: u32, destination: u8, trace: &[u8]) -> Result<(), &'static str> {
         let linkno = routing_table.0[destination as usize][0] - 1;
-        partition_data(trace, |slice, last, len: usize| {
+        partition_data(trace, |slice, status, len: usize| {
             let reply = aux_transact(io, aux_mutex, linkno, 
                 &drtioaux::Packet::DmaAddTraceRequest {
-                    id: id, destination: destination, last: last, length: len as u16, trace: *slice});
+                    id: id, destination: destination, status: status, length: len as u16, trace: *slice});
             match reply {
                 Ok(drtioaux::Packet::DmaAddTraceReply { succeeded: true }) => Ok(()),
                 Ok(drtioaux::Packet::DmaAddTraceReply { succeeded: false }) =>  
@@ -504,10 +507,10 @@ pub mod drtio {
     pub fn subkernel_upload(io: &Io, aux_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable,
             id: u32, destination: u8, data: &Vec<u8>) -> Result<(), &'static str> {
         let linkno = routing_table.0[destination as usize][0] - 1;
-        partition_data(data, |slice, last, len: usize| {
+        partition_data(data, |slice, status, len: usize| {
             let reply = aux_transact(io, aux_mutex, linkno, 
                 &drtioaux::Packet::SubkernelAddDataRequest {
-                    id: id, destination: destination, last: last, length: len as u16, data: *slice});
+                    id: id, destination: destination, status: status, length: len as u16, data: *slice});
             match reply {
                 Ok(drtioaux::Packet::SubkernelAddDataReply { succeeded: true }) => Ok(()),
                 Ok(drtioaux::Packet::SubkernelAddDataReply { succeeded: false }) =>  
@@ -557,10 +560,10 @@ pub mod drtio {
         routing_table: &drtio_routing::RoutingTable, id: u32, destination: u8, message: &[u8]
     ) -> Result<(), &'static str> {
         let linkno = routing_table.0[destination as usize][0] - 1;
-        partition_data(message, |slice, last, len: usize| {
+        partition_data(message, |slice, status, len: usize| {
             let reply = aux_transact(io, aux_mutex, linkno, 
                 &drtioaux::Packet::SubkernelMessage {
-                    destination: destination, id: id, last: last, length: len as u16, data: *slice});
+                    destination: destination, id: id, status: status, length: len as u16, data: *slice});
             match reply {
                 Ok(drtioaux::Packet::SubkernelMessageAck { .. }) => Ok(()),
                 Ok(_) => Err("sending message to subkernel failed, unexpected aux packet"),
