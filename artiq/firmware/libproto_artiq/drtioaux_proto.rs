@@ -20,6 +20,46 @@ pub const SAT_PAYLOAD_MAX_SIZE: usize  = /*max size*/512 - /*CRC*/4 - /*packet I
 // used by DDMA, subkernel program data (need to provide extra ID and destination)
 pub const MASTER_PAYLOAD_MAX_SIZE: usize = SAT_PAYLOAD_MAX_SIZE - /*destination*/1 - /*ID*/4;
 
+#[derive(PartialEq, Clone, Copy, Debug)]
+#[repr(u8)]
+pub enum PayloadStatus {
+    Middle = 0,
+    First = 1,
+    Last = 2,
+    FirstAndLast = 3,
+}
+
+impl From<u8> for PayloadStatus {
+    fn from(value: u8) -> PayloadStatus {
+        match value {
+            0 => PayloadStatus::Middle,
+            1 => PayloadStatus::First,
+            2 => PayloadStatus::Last,
+            3 => PayloadStatus::FirstAndLast,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl PayloadStatus {
+    pub fn is_first(self) -> bool {
+        self == PayloadStatus::First || self == PayloadStatus::FirstAndLast
+    }
+
+    pub fn is_last(self) -> bool {
+        self == PayloadStatus::Last || self == PayloadStatus::FirstAndLast
+    }
+
+    pub fn from_status(first: bool, last: bool) -> PayloadStatus {
+        match (first, last) {
+            (true, true) => PayloadStatus::FirstAndLast,
+            (true, false) => PayloadStatus::First,
+            (false, true) => PayloadStatus::Last,
+            (false, false) => PayloadStatus::Middle
+        }
+    }
+}
+
 #[derive(PartialEq, Debug)]
 pub enum Packet {
     EchoRequest,
@@ -66,7 +106,7 @@ pub enum Packet {
     AnalyzerDataRequest { destination: u8 },
     AnalyzerData { last: bool, length: u16, data: [u8; SAT_PAYLOAD_MAX_SIZE]},
 
-    DmaAddTraceRequest { destination: u8, id: u32, last: bool, length: u16, trace: [u8; MASTER_PAYLOAD_MAX_SIZE] },
+    DmaAddTraceRequest { destination: u8, id: u32, status: PayloadStatus, length: u16, trace: [u8; MASTER_PAYLOAD_MAX_SIZE] },
     DmaAddTraceReply { succeeded: bool },
     DmaRemoveTraceRequest { destination: u8, id: u32 },
     DmaRemoveTraceReply { succeeded: bool },
@@ -74,14 +114,14 @@ pub enum Packet {
     DmaPlaybackReply { succeeded: bool },
     DmaPlaybackStatus { destination: u8, id: u32, error: u8, channel: u32, timestamp: u64 },
 
-    SubkernelAddDataRequest { destination: u8, id: u32, last: bool, length: u16, data: [u8; MASTER_PAYLOAD_MAX_SIZE] },
+    SubkernelAddDataRequest { destination: u8, id: u32, status: PayloadStatus, length: u16, data: [u8; MASTER_PAYLOAD_MAX_SIZE] },
     SubkernelAddDataReply { succeeded: bool },
     SubkernelLoadRunRequest { destination: u8, id: u32, run: bool },
     SubkernelLoadRunReply { succeeded: bool },
     SubkernelFinished { id: u32, with_exception: bool },
     SubkernelExceptionRequest { destination: u8 },
     SubkernelException { last: bool, length: u16, data: [u8; SAT_PAYLOAD_MAX_SIZE] },
-    SubkernelMessage { destination: u8, id: u32, last: bool, length: u16, data: [u8; MASTER_PAYLOAD_MAX_SIZE] },
+    SubkernelMessage { destination: u8, id: u32, status: PayloadStatus, length: u16, data: [u8; MASTER_PAYLOAD_MAX_SIZE] },
     SubkernelMessageAck { destination: u8 },
 }
 
@@ -240,14 +280,14 @@ impl Packet {
             0xb0 => { 
                 let destination = reader.read_u8()?;
                 let id = reader.read_u32()?;
-                let last = reader.read_bool()?;
+                let status = reader.read_u8()?;
                 let length = reader.read_u16()?;
                 let mut trace: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
                 reader.read_exact(&mut trace[0..length as usize])?;
                 Packet::DmaAddTraceRequest {
                     destination: destination,
                     id: id,
-                    last: last,
+                    status: PayloadStatus::from(status),
                     length: length as u16,
                     trace: trace,
                 }
@@ -281,14 +321,14 @@ impl Packet {
             0xc0 => { 
                 let destination = reader.read_u8()?;
                 let id = reader.read_u32()?;
-                let last = reader.read_bool()?;
+                let status = reader.read_u8()?;
                 let length = reader.read_u16()?;
                 let mut data: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
                 reader.read_exact(&mut data[0..length as usize])?;
                 Packet::SubkernelAddDataRequest {
                     destination: destination,
                     id: id,
-                    last: last,
+                    status: PayloadStatus::from(status),
                     length: length as u16,
                     data: data,
                 }
@@ -325,14 +365,14 @@ impl Packet {
             0xcb => {
                 let destination = reader.read_u8()?;
                 let id = reader.read_u32()?;
-                let last = reader.read_bool()?;
+                let status = reader.read_u8()?;
                 let length = reader.read_u16()?;
                 let mut data: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
                 reader.read_exact(&mut data[0..length as usize])?;
                 Packet::SubkernelMessage {
                     destination: destination,
                     id: id,
-                    last: last,
+                    status: PayloadStatus::from(status),
                     length: length as u16,
                     data: data,
                 }
@@ -521,11 +561,11 @@ impl Packet {
                 writer.write_all(&data[0..length as usize])?;
             },
 
-            Packet::DmaAddTraceRequest { destination, id, last, trace, length } => {
+            Packet::DmaAddTraceRequest { destination, id, status, trace, length } => {
                 writer.write_u8(0xb0)?;
                 writer.write_u8(destination)?;
                 writer.write_u32(id)?;
-                writer.write_bool(last)?;
+                writer.write_u8(status as u8)?;
                 // trace may be broken down to fit within drtio aux memory limit
                 // will be reconstructed by satellite
                 writer.write_u16(length)?;
@@ -563,11 +603,11 @@ impl Packet {
                 writer.write_u64(timestamp)?;
             },
 
-            Packet::SubkernelAddDataRequest { destination, id, last, data, length } => {
+            Packet::SubkernelAddDataRequest { destination, id, status, data, length } => {
                 writer.write_u8(0xc0)?;
                 writer.write_u8(destination)?;
                 writer.write_u32(id)?;
-                writer.write_bool(last)?;
+                writer.write_u8(status as u8)?;
                 writer.write_u16(length)?;
                 writer.write_all(&data[0..length as usize])?;
             },
@@ -600,11 +640,11 @@ impl Packet {
                 writer.write_u16(length)?;
                 writer.write_all(&data[0..length as usize])?;
             },
-            Packet::SubkernelMessage { destination, id, last, data, length } => {
+            Packet::SubkernelMessage { destination, id, status, data, length } => {
                 writer.write_u8(0xcb)?;
                 writer.write_u8(destination)?;
                 writer.write_u32(id)?;
-                writer.write_bool(last)?;
+                writer.write_u8(status as u8)?;
                 writer.write_u16(length)?;
                 writer.write_all(&data[0..length as usize])?;
             },

@@ -145,7 +145,7 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
                     let meta = kernelmgr.message_get_slice(&mut data_slice).unwrap();
                     drtioaux::send(0, &drtioaux::Packet::SubkernelMessage {
                         destination: destination, id: kernelmgr.get_current_id().unwrap(),
-                        last: meta.last, length: meta.len as u16, data: data_slice
+                        status: meta.status, length: meta.len as u16, data: data_slice
                     })?;
                 } else {
                     let errors;
@@ -370,9 +370,9 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             })
         }
 
-        drtioaux::Packet::DmaAddTraceRequest { destination: _destination, id, last, length, trace } => {
+        drtioaux::Packet::DmaAddTraceRequest { destination: _destination, id, status, length, trace } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
-            let succeeded = dmamgr.add(id, last, &trace, length as usize).is_ok();
+            let succeeded = dmamgr.add(id, status, &trace, length as usize).is_ok();
             drtioaux::send(0,
                 &drtioaux::Packet::DmaAddTraceReply { succeeded: succeeded })
         }
@@ -390,9 +390,9 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
                 &drtioaux::Packet::DmaPlaybackReply { succeeded: succeeded })
         }
 
-        drtioaux::Packet::SubkernelAddDataRequest { destination: _destination, id, last, length, data } => {
+        drtioaux::Packet::SubkernelAddDataRequest { destination: _destination, id, status, length, data } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
-            let succeeded = kernelmgr.add(id, last, &data, length as usize).is_ok();
+            let succeeded = kernelmgr.add(id, status, &data, length as usize).is_ok();
             drtioaux::send(0,
                 &drtioaux::Packet::SubkernelAddDataReply { succeeded: succeeded })
         }
@@ -416,14 +416,14 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             let mut data_slice: [u8; SAT_PAYLOAD_MAX_SIZE] = [0; SAT_PAYLOAD_MAX_SIZE];
             let meta = kernelmgr.exception_get_slice(&mut data_slice);
             drtioaux::send(0, &drtioaux::Packet::SubkernelException {
-                last: meta.last,
+                last: meta.status.is_last(),
                 length: meta.len,
                 data: data_slice,
             })
         }
-        drtioaux::Packet::SubkernelMessage { destination, id: _id, last, length, data } => {
+        drtioaux::Packet::SubkernelMessage { destination, id: _id, status, length, data } => {
             forward!(_routing_table, destination, *_rank, _repeaters, &packet);
-            kernelmgr.message_handle_incoming(last, length as usize, &data);
+            kernelmgr.message_handle_incoming(status, length as usize, &data);
             drtioaux::send(0, &drtioaux::Packet::SubkernelMessageAck {
                 destination: destination
             })
@@ -435,7 +435,7 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
                 if let Some(meta) = kernelmgr.message_get_slice(&mut data_slice) {
                     drtioaux::send(0, &drtioaux::Packet::SubkernelMessage {
                         destination: *_rank, id: kernelmgr.get_current_id().unwrap(),
-                        last: meta.last, length: meta.len as u16, data: data_slice
+                        status: meta.status, length: meta.len as u16, data: data_slice
                     })?
                 } else {
                     error!("Error receiving message slice");

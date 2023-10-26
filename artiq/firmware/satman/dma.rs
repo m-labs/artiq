@@ -1,4 +1,5 @@
 use board_misoc::{csr, cache::flush_l2_cache};
+use proto_artiq::drtioaux_proto::PayloadStatus;
 use alloc::{vec::Vec, collections::btree_map::BTreeMap};
 use ::{cricon_select, RtioMaster};
 
@@ -51,7 +52,10 @@ impl Manager {
         }
     }
 
-    pub fn add(&mut self, id: u32, last: bool, trace: &[u8], trace_len: usize) -> Result<(), Error> {
+    pub fn add(&mut self, id: u32, status: PayloadStatus, trace: &[u8], trace_len: usize) -> Result<(), Error> {
+        if status.is_first() {
+            self.entries.remove(&id);
+        }
         let entry = match self.entries.get_mut(&id) {
             Some(entry) => {
                 if entry.complete {
@@ -76,7 +80,7 @@ impl Manager {
         };
         entry.trace.extend(&trace[0..trace_len]);
 
-        if last {
+        if status.is_last() {
             entry.trace.push(0);
             let data_len = entry.trace.len();
     
