@@ -11,16 +11,23 @@ class EmbeddingMap:
         # must be kept in sync with EXCEPTION_ID_LOOKUP in artiq/firmware/ksupport/eh_artiq.rs,
         # and src/runtime/src/eh_artiq.rs (Zynq)
         self.preallocate_runtime_exception_names(["RuntimeError",
-                                          "RTIOUnderflow",
-                                          "RTIOOverflow",
-                                          "RTIODestinationUnreachable",
-                                          "DMAError",
-                                          "I2CError",
-                                          "CacheError",
-                                          "SPIError",
-                                          "0:ZeroDivisionError",
-                                          "0:IndexError",
-                                          "0:UnwrapNoneError"])
+                                                  "RTIOUnderflow",
+                                                  "RTIOOverflow",
+                                                  "RTIODestinationUnreachable",
+                                                  "DMAError",
+                                                  "I2CError",
+                                                  "CacheError",
+                                                  "SPIError",
+                                                  "0:ZeroDivisionError",
+                                                  "0:IndexError",
+                                                  "0:ValueError",
+                                                  "0:RuntimeError",
+                                                  "0:AssertionError",
+                                                  "0:KeyError",
+                                                  "0:NotImplementedError",
+                                                  "0:OverflowError",
+                                                  "0:IOError",
+                                                  "0:UnwrapNoneError"])
 
     def preallocate_runtime_exception_names(self, names):
         for i, name in enumerate(names):
