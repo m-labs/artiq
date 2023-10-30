@@ -595,10 +595,10 @@ class SinaraTester(EnvExperiment):
         if phaser.gw_rev == PHASER_GW_BASE:
             phaser.channel[0].set_duc_frequency(duc)
             phaser.channel[0].set_duc_cfg()
-            phaser.channel[0].set_att(6*dB)
+            phaser.channel[0].set_att(6.*dB)
             phaser.channel[1].set_duc_frequency(-duc)
             phaser.channel[1].set_duc_cfg()
-            phaser.channel[1].set_att(6*dB)
+            phaser.channel[1].set_att(6.*dB)
             phaser.duc_stb()
             self.core.delay(1.*ms)
             for i in range(len(osc)):
@@ -609,20 +609,20 @@ class SinaraTester(EnvExperiment):
                 self.core.delay(1.*ms)
         elif phaser.gw_rev == PHASER_GW_MIQRO:
             for ch in range(2):
-                phaser.channel[ch].set_att(6*dB)
+                phaser.channel[ch].set_att(6.*dB)
                 phaser.channel[ch].set_duc_cfg()
-                sign = 1. - 2.*ch
+                sign = 1. - 2.*float(ch)
                 for i in range(len(osc)):
                     phaser.channel[ch].miqro.set_profile(i, profile=1,
-                        frequency=sign*(duc + osc[i]), amplitude=1./len(osc))
+                                                         frequency=sign*(duc + osc[i]), amplitude=1./float(len(osc)))
                     self.core.delay(100.*us)
                 phaser.channel[ch].miqro.set_window(
-                    start=0x000, iq=[[1., 0.]], order=0, tail=0)
+                    start=0x000, iq=[(1., 0.)], order=0, tail=False)
                 phaser.channel[ch].miqro.pulse(
                     window=0x000, profiles=[1 for _ in range(len(osc))])
                 self.core.delay(1.*ms)
         else:
-            raise ValueError
+            raise ValueError()
 
     @kernel
     def phaser_led_wave(self, phasers: list[Phaser]):
