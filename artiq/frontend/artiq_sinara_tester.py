@@ -13,7 +13,8 @@ from artiq.coredevice.core import Core
 from artiq.coredevice.ttl import TTLOut, TTLInOut
 from artiq.coredevice.urukul import CPLD as UrukulCPLD
 from artiq.coredevice.ad9910 import AD9910, SyncDataEeprom
-from artiq.coredevice.mirny import Mirny, Almazny
+from artiq.coredevice.mirny import Mirny
+from artiq.coredevice.almazny import AlmaznyLegacy
 from artiq.coredevice.adf5356 import ADF5356
 from artiq.coredevice.sampler import Sampler
 from artiq.coredevice.zotino import Zotino
@@ -376,23 +377,23 @@ class SinaraTester(EnvExperiment):
                 channel.pulse(100.*ms)
                 self.core.delay(100.*ms)
     @kernel
-    def init_almazny(self, almazny: Almazny):
+    def init_almazny(self, almazny: AlmaznyLegacy):
         self.core.break_realtime()
         almazny.init()
         almazny.output_toggle(True)
 
     @kernel
-    def almazny_set_attenuators_mu(self, almazny: Almazny, ch: int32, atts: int32):
+    def almazny_set_attenuators_mu(self, almazny: AlmaznyLegacy, ch: int32, atts: int32):
         self.core.break_realtime()
         almazny.set_att_mu(ch, atts)
 
     @kernel
-    def almazny_set_attenuators(self, almazny: Almazny, ch: int32, atts: float):
+    def almazny_set_attenuators(self, almazny: AlmaznyLegacy, ch: int32, atts: float):
         self.core.break_realtime()
         almazny.set_att(ch, atts)
 
     @kernel
-    def almazny_toggle_output(self, almazny: Almazny, rf_on: bool):
+    def almazny_toggle_output(self, almazny: AlmaznyLegacy, rf_on: bool):
         self.core.break_realtime()
         almazny.output_toggle(rf_on)
 
