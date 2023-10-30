@@ -249,6 +249,7 @@
             lockFile = ./artiq/firmware/Cargo.lock;
             outputHashes = {
               "fringe-1.2.1" = "sha256-m4rzttWXRlwx53LWYpaKuU5AZe4GSkbjHS6oINt5d3Y=";
+              "tar-no-std-0.1.8" = "sha256-xm17108v4smXOqxdLvHl9CxTCJslmeogjm4Y87IXFuM=";
             };
           };
           nativeBuildInputs = [

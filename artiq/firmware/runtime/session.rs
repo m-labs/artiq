@@ -2,7 +2,10 @@ use core::{mem, str, cell::{Cell, RefCell}, fmt::Write as FmtWrite};
 use alloc::{vec::Vec, string::{String, ToString}};
 use byteorder::{ByteOrder, NativeEndian};
 use cslice::CSlice;
+#[cfg(has_drtio)]
+use tar_no_std::TarArchiveRef;
 
+use dyld::elf;
 use io::{Read, Write, Error as IoError};
 #[cfg(has_drtio)]
 use io::Cursor;
@@ -44,6 +47,9 @@ pub enum Error<T> {
     #[cfg(has_drtio)]
     #[fail(display = "DDMA error: {}", _0)]
     Ddma(#[cause] remote_dma::Error),
+    #[cfg(has_drtio)]
+    #[fail(display = "subkernel destination is down")]
+    DestinationDown,
     #[cfg(has_drtio)]
     #[fail(display = "subkernel error: {}", _0)]
     Subkernel(#[cause] SubkernelError),
@@ -307,6 +313,63 @@ fn kern_run(session: &mut Session) -> Result<(), Error<SchedError>> {
     session.kernel_state = KernelState::Running;
     // TODO: make this a separate request
     kern_acknowledge()
+}
+
+
+fn process_flash_kernel(io: &Io, _aux_mutex: &Mutex, _subkernel_mutex: &Mutex, 
+                        _routing_table: &drtio_routing::RoutingTable,
+                        _up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
+                        session: &mut Session, kernel: &[u8]
+) -> Result<(), Error<SchedError>> {
+    // handle ELF and TAR files
+    if kernel[0] == elf::ELFMAG0 && kernel[1] == elf::ELFMAG1 &&
+       kernel[2] == elf::ELFMAG2 && kernel[3] == elf::ELFMAG3 {
+        // assume ELF file, proceed as before
+        unsafe {
+            // make a copy as kernel CPU cannot read SPI directly
+            kern_load(io, session, Vec::from(kernel).as_ref())
+        }
+    } else {
+        #[cfg(has_drtio)]
+        {  
+            let archive = TarArchiveRef::new(kernel);
+            let entries = archive.entries();
+            let mut main_lib: Option<&[u8]> = None;
+            for entry in entries {
+                if entry.filename().as_str() == "main.elf" {
+                    main_lib = Some(entry.data());
+                } else {
+                    // subkernel filename must be in format:
+                    // "<subkernel id> <destination>.elf"
+                    let filename = entry.filename();
+                    let mut iter = filename.as_str().split_whitespace();
+                    let sid: u32 = iter.next().unwrap()
+                                    .parse().unwrap();
+                    let dest: u8 = iter.next().unwrap()
+                                    .strip_suffix(".elf").unwrap()
+                                    .parse().unwrap();
+                    let up = {
+                        let up_destinations = _up_destinations.borrow();
+                        up_destinations[dest as usize]
+                    };
+                    if up {
+                        let subkernel_lib = entry.data().to_vec();
+                        subkernel::add_subkernel(io, _subkernel_mutex, sid, dest, subkernel_lib)?;
+                        subkernel::upload(io, _aux_mutex, _subkernel_mutex, _routing_table, sid)?;
+                    } else {
+                        return Err(Error::DestinationDown);
+                    }
+                }
+            }
+            unsafe {
+                kern_load(io, session, Vec::from(main_lib.unwrap()).as_ref())
+            }
+        }
+        #[cfg(not(has_drtio))]
+        {
+            unexpected!("multi-kernel libraries are not supported in standalone systems")
+        }
+    }
 }
 
 fn process_host_message(io: &Io, _aux_mutex: &Mutex, _ddma_mutex: &Mutex, _subkernel_mutex: &Mutex,
@@ -777,11 +840,17 @@ fn flash_kernel_worker(io: &Io, aux_mutex: &Mutex,
 
     config::read(config_key, |result| {
         match result {
-            Ok(kernel) => unsafe {
-                // kernel CPU cannot access the SPI flash address space directly,
-                // so make a copy.
-                kern_load(io, &mut session, Vec::from(kernel).as_ref())
-            },
+            Ok(kernel) => {
+                // process .ELF or .TAR kernels
+                let res = process_flash_kernel(io, aux_mutex, subkernel_mutex, routing_table, up_destinations, &mut session, kernel);
+                #[cfg(has_drtio)]
+                match res {
+                    // wait to establish the DRTIO connection
+                    Err(Error::DestinationDown) => io.sleep(500)?,
+                    _ => ()
+                }
+                res
+            }
             _ => Err(Error::KernelNotFound)
         }
     })?;
