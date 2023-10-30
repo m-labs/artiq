@@ -341,12 +341,13 @@
 
       sphinxcontrib-wavedrom = pkgs.python3Packages.buildPythonPackage rec {
         pname = "sphinxcontrib-wavedrom";
-        version = "3.0.2";
+        version = "3.0.4";
+        format = "pyproject";
         src = pkgs.python3Packages.fetchPypi {
           inherit pname version;
-          sha256 = "sha256-ukZd3ajt0Sx3LByof4R80S31F5t1yo+L8QUADrMMm2A=";
+          sha256 = "sha256-0zTHVBr9kXwMEo4VRTFsxdX2HI31DxdHfLUHCQmw1Ko=";
         };
-        buildInputs = [ pkgs.python3Packages.setuptools_scm ];
+        nativeBuildInputs = [ pkgs.python3Packages.setuptools-scm ];
         propagatedBuildInputs = (with pkgs.python3Packages; [ wavedrom sphinx xcffib cairosvg ]);
       };
       latex-artiq-manual = pkgs.texlive.combine {
