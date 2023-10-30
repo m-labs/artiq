@@ -14,6 +14,12 @@ name = "alloc_list"
 version = "0.0.0"
 
 [[package]]
+name = "arrayvec"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
+
+[[package]]
 name = "bare-metal"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -332,6 +338,7 @@ dependencies = [
  "proto_artiq",
  "riscv",
  "smoltcp",
+ "tar-no-std",
  "unwind_backtrace",
 ]
 
@@ -414,6 +421,16 @@ checksum = "3a761d12e6d8dcb4dcf952a7a89b475e3a9d69e4a69307e01a470977642914bd"
 dependencies = [
  "quote",
  "syn",
+]
+
+[[package]]
+name = "tar-no-std"
+version = "0.1.8"
+source = "git+https://git.m-labs.hk/M-Labs/tar-no-std?rev=2ab6dc5#2ab6dc58e5249c59c4eb03eaf3a119bcdd678d32"
+dependencies = [
+ "arrayvec",
+ "bitflags",
+ "log",
 ]
 
 [[package]]

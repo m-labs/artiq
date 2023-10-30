@@ -25,6 +25,8 @@ extern crate board_artiq;
 extern crate logger_artiq;
 extern crate proto_artiq;
 extern crate riscv;
+#[cfg(has_drtio)]
+extern crate tar_no_std;
 
 use alloc::collections::BTreeMap;
 use core::cell::RefCell;
