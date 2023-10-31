@@ -18,7 +18,7 @@ __all__ = [
     "print_rpc",
     "Option", "Some", "none", "UnwrapNoneError",
     "set_time_manager",
-    "parallel", "sequential",
+    "parallel", "legacy_parallel", "sequential",
     "delay_mu", "now_mu", "at_mu",
     "set_watchdog_factory", "watchdog", "TerminationRequested",
 ]
@@ -211,6 +211,7 @@ class _SequentialContextManager:
         _time_manager.exit()
 
 parallel = _ParallelContextManager()
+legacy_parallel = _ParallelContextManager()
 sequential = _SequentialContextManager()
 
 
