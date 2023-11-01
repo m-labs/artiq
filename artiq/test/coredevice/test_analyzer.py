@@ -54,7 +54,6 @@ class WriteLog(EnvExperiment):
 
 
 class AnalyzerTest(ExperimentCase):
-    @unittest.skip("NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/298")
     def test_ttl_pulse(self):
         core_host = self.device_mgr.get_desc("core")["arguments"]["host"]
 
