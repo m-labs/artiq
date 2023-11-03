@@ -255,7 +255,7 @@ pub fn init() {
         };
         if switched == 0 {
             info!("Switching sys clock, rebooting...");
-            clock::spin_us(500); // delay for clean UART log
+            clock::spin_us(3000); // delay for clean UART log
             unsafe {
                 // clock switch and reboot will begin after TX is initialized
                 // and TX will be initialized after this
