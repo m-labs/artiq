@@ -119,11 +119,17 @@ To track down ``RTIOUnderflows`` in an experiment there are a few approaches:
     code.
   * The :any:`integrated logic analyzer <core-device-rtio-analyzer-tool>` shows the timeline context that lead to the exception. The analyzer is always active and supports plotting of RTIO slack. RTIO slack is the difference between timeline cursor and wall clock time (``now - rtio_counter``).
 
+.. _sequence-errors:
+
 Sequence errors
 ---------------
 A sequence error happens when the sequence of coarse timestamps cannot be supported by the gateware. For example, there may have been too many timeline rewinds.
 
-Internally, the gateware stores output events in an array of FIFO buffers (the "lanes") and the timestamps in each lane must be strictly increasing. If an event with a decreasing or equal timestamp is submitted, the gateware selects the next lane, wrapping around if the final lane is reached. If this lane also contains an event with a timestamp beyond the one being submitted then a sequence error occurs. See `this issue <https://github.com/m-labs/artiq/issues/1081>`_ for a real-life example of how this works. 
+Internally, the gateware's scalable event dispatcher (SED) stores output events in an array of FIFO buffers (the "lanes") and the timestamps in each lane must be strictly increasing. If an event with a decreasing or equal timestamp is submitted, the gateware selects the next lane, wrapping around if the final lane is reached. If this lane also contains an event with a timestamp beyond the one being submitted then a sequence error occurs. See `this issue <https://github.com/m-labs/artiq/issues/1081>`_ for a real-life example of how this works. 
+
+By default, the SED has 8 lanes which allows ``parallel`` events to work without sequence errors in most cases, however if many (>8) events are queued with conflicting timestamps this error can surface.
+
+Sequence errors can usually be overcome by reordering the generation of the events. Alternatively, the number of SED lanes can be increased in the gateware.
 
 Notes:
 
