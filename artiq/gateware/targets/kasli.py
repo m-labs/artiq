@@ -326,7 +326,8 @@ class MasterBase(MiniSoC, AMPSoC):
 
         txout_buf = Signal()
         self.specials += Instance("BUFG", i_I=gtp.txoutclk, o_O=txout_buf)
-        self.crg.configure(txout_buf, clk_sw=gtp.tx_init.done)
+        self.crg.configure(txout_buf, clk_sw=self.gt_drtio.stable_clkin.storage, ext_async_rst=self.crg.clk_sw_fsm.o_clk_sw & ~gtp.tx_init.done)
+        self.specials += MultiReg(self.crg.clk_sw_fsm.o_clk_sw & self.crg.mmcm_locked, self.gt_drtio.clk_path_ready, odomain="bootstrap")
 
         platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
@@ -596,7 +597,8 @@ class SatelliteBase(BaseSoC, AMPSoC):
         gtp = self.gt_drtio.gtps[0]
         txout_buf = Signal()
         self.specials += Instance("BUFG", i_I=gtp.txoutclk, o_O=txout_buf)
-        self.crg.configure(txout_buf, clk_sw=gtp.tx_init.done)
+        self.crg.configure(txout_buf, clk_sw=self.gt_drtio.stable_clkin.storage, ext_async_rst=self.crg.clk_sw_fsm.o_clk_sw & ~gtp.tx_init.done)
+        self.specials += MultiReg(self.crg.clk_sw_fsm.o_clk_sw & self.crg.mmcm_locked, self.gt_drtio.clk_path_ready, odomain="bootstrap")
 
         platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)

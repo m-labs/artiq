@@ -18,7 +18,7 @@ class GTPSingle(Module):
 
         # # #
 
-        self.stable_clkin = Signal()
+        self.clk_path_ready = Signal()
         self.txenable = Signal()
         self.submodules.encoder = encoder = Encoder(2, True)
         self.submodules.decoders = decoders = [ClockDomainsRenamer("rtio_rx")(
@@ -40,7 +40,7 @@ class GTPSingle(Module):
         self.submodules += rx_init
 
         self.comb += [
-            tx_init.stable_clkin.eq(self.stable_clkin),
+            tx_init.clk_path_ready.eq(self.clk_path_ready),
             qpll_channel.reset.eq(tx_init.pllreset),
             tx_init.plllock.eq(qpll_channel.lock)
         ]
@@ -715,7 +715,7 @@ class GTP(Module, TransceiverInterface):
     def __init__(self, qpll_channel, data_pads, sys_clk_freq, rtio_clk_freq, master=0):
         self.nchannels = nchannels = len(data_pads)
         self.gtps = []
-
+        self.clk_path_ready = Signal()
         # # #
 
         channel_interfaces = []
@@ -736,7 +736,7 @@ class GTP(Module, TransceiverInterface):
         TransceiverInterface.__init__(self, channel_interfaces)
         for n, gtp in enumerate(self.gtps):
             self.comb += [
-                  gtp.stable_clkin.eq(self.stable_clkin.storage),
+                  gtp.clk_path_ready.eq(self.clk_path_ready),
                   gtp.txenable.eq(self.txenable.storage[n])
             ]
 

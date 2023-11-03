@@ -571,7 +571,7 @@ fn sysclk_setup() {
         si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
         info!("Switching sys clock, rebooting...");
         // delay for clean UART log, wait until UART FIFO is empty
-        clock::spin_us(1300);
+        clock::spin_us(3000);
         unsafe {
             csr::gt_drtio::stable_clkin_write(1);
         }
