@@ -279,14 +279,13 @@ class GTX(Module, TransceiverInterface):
         self.nchannels = nchannels = len(pads)
         self.gtxs = []
         self.rtio_clk_freq = clk_freq
-
+        self.clk_path_ready = Signal()
         # # #
 
         refclk = Signal()
 
-        clk_enable = Signal()
         self.specials += Instance("IBUFDS_GTE2",
-            i_CEB=~clk_enable,
+            i_CEB=0,
             i_I=clock_pads.p,
             i_IB=clock_pads.n,
             o_O=refclk,
@@ -315,14 +314,10 @@ class GTX(Module, TransceiverInterface):
         for n, gtx in enumerate(self.gtxs):
             self.comb += [
                 gtx.txenable.eq(self.txenable.storage[n]),
-                gtx.tx_init.stable_clkin.eq(clk_enable)
+                gtx.tx_init.clk_path_ready.eq(self.clk_path_ready)
             ]
             # rx_init is in SYS domain, rather than bootstrap
-            self.specials += MultiReg(clk_enable, gtx.rx_init.stable_clkin)
-
-        # stable_clkin resets after reboot since it's in SYS domain
-        # still need to keep clk_enable high after this
-        self.sync.bootstrap += clk_enable.eq(self.stable_clkin.storage | self.gtxs[0].tx_init.cplllock)
+            self.specials += MultiReg(self.clk_path_ready, gtx.rx_init.clk_path_ready)
 
         # Connect slave i's `rtio_rx` clock to `rtio_rxi` clock
         for i in range(nchannels):

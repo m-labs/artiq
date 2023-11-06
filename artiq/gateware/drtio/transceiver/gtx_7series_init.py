@@ -16,7 +16,7 @@ class GTXInit(Module):
         assert mode in ["single", "master", "slave"]
         self.mode = mode
 
-        self.stable_clkin = Signal()
+        self.clk_path_ready = Signal()
 
         self.done = Signal()
         self.restart = Signal()
@@ -110,7 +110,7 @@ class GTXInit(Module):
 
         startup_fsm.act("INITIAL",
             startup_timer.wait.eq(1),
-            If(startup_timer.done & self.stable_clkin, NextState("RESET_PLL"))
+            If(startup_timer.done & self.clk_path_ready, NextState("RESET_PLL"))
         )
         startup_fsm.act("RESET_PLL",
             gtXxreset.eq(1),
