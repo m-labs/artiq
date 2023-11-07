@@ -84,6 +84,8 @@ Old syntax should be replaced with the form shown on the right.
 * The ``ndecimals`` parameter in ``NumberValue`` and ``Scannable`` has been renamed to ``precision``. 
   Parameters after and including ``scale`` in both constructors are now keyword-only.
   Refer to the updated ``no_hardware/arguments_demo.py`` example for current usage.
+* ``artiq_ddb_template`` requires latest generic Kasli gateware to function properly 
+  due to RTIO channel renumbering.
 
 
 ARTIQ-7
