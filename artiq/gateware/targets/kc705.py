@@ -273,7 +273,8 @@ class _MasterBase(MiniSoC, AMPSoC):
 
         txout_buf = Signal()
         self.specials += Instance("BUFG", i_I=gtx0.txoutclk, o_O=txout_buf)
-        self.crg.configure(txout_buf, clk_sw=gtx0.tx_init.done)
+        self.crg.configure(txout_buf, clk_sw=self.gt_drtio.stable_clkin.storage, ext_async_rst=self.crg.clk_sw_fsm.o_clk_sw & ~gtx0.tx_init.done)
+        self.specials += MultiReg(self.crg.clk_sw_fsm.o_clk_sw & self.crg.mmcm_locked, self.gt_drtio.clk_path_ready, odomain="bootstrap")
 
         self.comb += [
             platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx0")),
@@ -440,7 +441,8 @@ class _SatelliteBase(BaseSoC, AMPSoC):
 
         txout_buf = Signal()
         self.specials += Instance("BUFG", i_I=gtx0.txoutclk, o_O=txout_buf)
-        self.crg.configure(txout_buf, clk_sw=gtx0.tx_init.done)
+        self.crg.configure(txout_buf, clk_sw=self.gt_drtio.stable_clkin.storage, ext_async_rst=self.crg.clk_sw_fsm.o_clk_sw & ~gtx0.tx_init.done)
+        self.specials += MultiReg(self.crg.clk_sw_fsm.o_clk_sw & self.crg.mmcm_locked, self.gt_drtio.clk_path_ready, odomain="bootstrap")
 
         self.comb += [
             platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx0")),
