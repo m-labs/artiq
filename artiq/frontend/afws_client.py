@@ -146,7 +146,8 @@ class Client:
             print(error_msg)
             table = PrettyTable()
             table.field_names = ["Variant", "Expiry date"]
-            table.add_rows(variants)
+            for variant in variants:
+                table.add_row(variant)
             print(table)
             sys.exit(1)
         return variants[0][0]
@@ -244,10 +245,11 @@ def main():
                 sys.exit(1)
             zip_unarchive(contents, args.directory)
         elif args.action == "get_variants":
-            data = client.get_variants()
+            variants = client.get_variants()
             table = PrettyTable()
             table.field_names = ["Variant", "Expiry date"]
-            table.add_rows(data)        
+            for variant in variants:
+                table.add_row(variant)
             print(table)
         elif args.action == "get_json":
             if args.variant:
