@@ -8,41 +8,76 @@ ARTIQ-8 (Unreleased)
 
 Highlights:
 
-* Hardware support:
+* New hardware support:
+   - Support for Shuttler, a 16-channel 125MSPS DAC card intended for ion transport.
+     Waveform generator and user API are similar to the NIST PDQ.
    - Implemented Phaser-servo. This requires recent gateware on Phaser.
-   - Implemented Phaser-MIQRO support. This requires the Phaser MIQRO gateware
-     variant.
+   - Almazny v1.2 with finer RF switch control.
+   - Metlino and Sayma support has been dropped due to complications with synchronous RTIO clocking.
+   - More user LEDs are exposed to RTIO on Kasli.
+   - Implemented Phaser-MIQRO support. This requires the proprietary Phaser MIQRO gateware
+     variant from QUARTIQ.
    - Sampler: fixed ADC MU to Volt conversion factor for Sampler v2.2+.
      For earlier hardware versions, specify the hardware version in the device
      database file (e.g. ``"hw_rev": "v2.1"``) to use the correct conversion factor.
-   - Almazny v1.2. It is incompatible with the legacy versions and is the default. To use legacy
-     versions, specify ``almazny_hw_rev`` in the JSON description.
-   - Metlino and Sayma support has been dropped due to complications with synchronous RTIO clocking.
+* Support for distributed DMA, where DMA is run directly on satellites for corresponding
+  RTIO events, increasing bandwidth in scenarios with heavy satellite usage.
+* Support for subkernels, where kernels are run on satellite device CPUs to offload some
+  of the processing and RTIO operations.
 * CPU (on softcore platforms) and AXI bus (on Zynq) are now clocked synchronously with the RTIO
   clock, to facilitate implementation of local processing on DRTIO satellites, and to slightly
   reduce RTIO latency.
-* MSYS2 packaging for Windows, which replaces Conda. Conda packages are still available to
-  support legacy installations, but may be removed in a future release.
-* Added channel names to RTIO errors.
-* Full Python 3.10 support.
-* Python's built-in types (such as `float`, or `List[...]`) can now be used in type annotations on
-  kernel functions.
-* Distributed DMA is now supported, allowing DMA to be run directly on satellites for corresponding
-  RTIO events, increasing bandwidth in scenarios with heavy satellite usage.
-* Subkernels are now supported, allowing running kernels on satellite devices, offloading some
-  of the processing, and RTIO events.
-* Applet Request Interfaces have been implemented, enabling applets to directly modify datasets 
-  and temporarily set arguments in the dashboard.
-* EntryArea widget has been implemented, allowing argument entry widgets to be used in applets.
-* Dashboard:
+* Support for DRTIO-over-EEM, used with Shuttler.
+* Added channel names to RTIO error messages.
+* GUI:
+   - Implemented Applet Request Interfaces which allow applets to modify datasets and set the
+     current values of widgets in the dashboard's experiment windows.
+   - Implemented a new EntryArea widget which allows argument entry widgets to be used in applets.
    - The "Close all applets" command (shortcut: Ctrl-Alt-W) now ignores docked applets,
      making it a convenient way to clean up after exploratory work without destroying a
      carefully arranged default workspace.
    - Hotkeys now organize experiment windows in the order they were last interacted with:
       + CTRL+SHIFT+T tiles experiment windows
       + CTRL+SHIFT+C cascades experiment windows
-* Persistent datasets are now stored in a LMDB database for improved performance. PYON databases can
-  be converted with the script below.
+* Persistent datasets are now stored in a LMDB database for improved performance.
+* Python's built-in types (such as ``float``, or ``List[...]``) can now be used in type annotations on
+  kernel functions.
+* Full Python 3.10 support.
+* MSYS2 packaging for Windows, which replaces Conda. Conda packages are still available to
+  support legacy installations, but may be removed in a future release.
+
+Breaking changes:
+
+* ``SimpleApplet`` now calls widget constructors with an additional ``ctl`` parameter for control
+  operations, which includes dataset operations. It can be ignored if not needed. For an example usage,
+  refer to the ``big_number.py`` applet.
+* ``SimpleApplet`` and ``TitleApplet`` now call ``data_changed`` with additional parameters. Derived applets
+  should change the function signature as below:
+
+::
+
+  # SimpleApplet
+  def data_changed(self, value, metadata, persist, mods)
+  # SimpleApplet (old version)
+  def data_changed(self, data, mods)
+  # TitleApplet
+  def data_changed(self, value, metadata, persist, mods, title)
+  # TitleApplet (old version)
+  def data_changed(self, data, mods, title)
+
+Accesses to the data argument should be replaced as below:
+
+::
+
+  data[key][0] ==> persist[key]
+  data[key][1] ==> value[key]
+
+* The ``ndecimals`` parameter in ``NumberValue`` and ``Scannable`` has been renamed to ``precision``. 
+  Parameters after and including ``scale`` in both constructors are now keyword-only.
+  Refer to the updated ``no_hardware/arguments_demo.py`` example for current usage.
+* Almazny v1.2 is incompatible with the legacy versions and is the default.
+  To use legacy versions, specify ``almazny_hw_rev`` in the JSON description.
+* Legacy PYON databases should be converted to LMDB with the script below:
 
 ::
 
@@ -55,37 +90,6 @@ Highlights:
     for key, value in old.items():
       txn.put(key.encode(), pyon.encode((value, {})).encode())
   new.close()
-
-Breaking changes:
-
-* ``SimpleApplet`` now calls widget constructors with an additional ``ctl`` parameter for control
-  operations, which includes dataset operations. It can be ignored if not needed. For an example usage,
-  refer to the ``big_number.py`` applet.
-* ``SimpleApplet`` and ``TitleApplet`` now call ``data_changed`` with additional parameters. Wrapped widgets
-  should refactor the function signature as seen below:
-::
-
-  # SimpleApplet
-  def data_changed(self, value, metadata, persist, mods)
-  # SimpleApplet (old version)
-  def data_changed(self, data, mods)
-  # TitleApplet
-  def data_changed(self, value, metadata, persist, mods, title)
-  # TitleApplet (old version)
-  def data_changed(self, data, mods, title)
-
-Old syntax should be replaced with the form shown on the right.
-::
-
-  data[key][0] ==> persist[key]
-  data[key][1] ==> value[key]
-  data[key][2] ==> metadata[key]
-
-* The ``ndecimals`` parameter in ``NumberValue`` and ``Scannable`` has been renamed to ``precision``. 
-  Parameters after and including ``scale`` in both constructors are now keyword-only.
-  Refer to the updated ``no_hardware/arguments_demo.py`` example for current usage.
-* ``artiq_ddb_template`` requires latest generic Kasli gateware to function properly 
-  due to RTIO channel renumbering.
 
 
 ARTIQ-7
