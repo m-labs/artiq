@@ -90,6 +90,35 @@ If your favorite package is not available with Nix, contact us using the helpdes
 Troubleshooting
 ^^^^^^^^^^^^^^^
 
+"Do you want to allow configuration setting... (y/N)?"
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+When installing and initializing ARTIQ using commands like ``nix shell``, ``nix develop``, or ``nix profile install``, you may encounter prompts to modify certain configuration settings. These settings correspond to the ``nixConfig`` flag within the ARTIQ flake:
+
+::
+
+  do you want to allow configuration setting 'extra-sandbox-paths' to be set to '/opt' (y/N)?
+  do you want to allow configuration setting 'extra-substituters' to be set to 'https://nixbld.m-labs.hk' (y/N)?
+  do you want to allow configuration setting 'extra-trusted-public-keys' to be set to 'nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc=' (y/N)?
+
+We recommend accepting these settings by responding with ``y``. If asked to permanently mark these values as trusted, choose ``y`` again. This action saves the configuration to ``~/.local/share/nix/trusted-settings.json``, allowing future prompts to be bypassed.
+
+Alternatively, you can also use the option `accept-flake-config <https://nixos.org/manual/nix/stable/command-ref/conf-file#conf-accept-flake-config>`_ by appending ``--accept-flake-config`` to your nix command:
+
+::
+
+  nix develop --accept-flake-config
+
+Or add the option to ``~/.config/nix/nix.conf`` to make the setting more permanent:
+
+::
+
+  extra-experimental-features = flakes
+  accept-flake-config = true
+
+.. note::
+  Should you wish to revert to the default settings, you can do so by editing the appropriate options in the aforementioned configuration files.
+
 "Ignoring untrusted substituter, you are not a trusted user"
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
