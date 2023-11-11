@@ -332,7 +332,7 @@ class AD9910:
         self.bus.write(0)
         hi = self.bus.read()
         lo = self.bus.read()
-        return (int64(hi) << int64(32)) | int64(lo)
+        return (int64(hi) << 32) | int64(lo)
 
     @kernel
     def write64(self, addr: int32, data_high: int32, data_low: int32):
@@ -633,8 +633,8 @@ class AD9910:
         data = int64(self.read64(_AD9910_REG_PROFILE0 + profile))
         # Extract and return fields
         ftw = int32(data)
-        pow_ = int32(data >> int64(32)) & 0xffff
-        asf = int32(data >> int64(48)) & 0x3fff
+        pow_ = int32(data >> 32) & 0xffff
+        asf = int32(data >> 48) & 0x3fff
         return ftw, pow_, asf
 
     @kernel

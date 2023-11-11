@@ -201,7 +201,7 @@ class ADF5356:
         # select minimal output divider
         rf_div_sel = 0
         while freq < ADF5356_MIN_VCO_FREQ:
-            freq <<= int64(1)
+            freq <<= 1
             rf_div_sel += 1
 
         if (1 << rf_div_sel) > 64:
@@ -274,7 +274,7 @@ class ADF5356:
 
             # calculate PLL at f_pfd/2
             n, frac1, (frac2_msb, frac2_lsb), (mod2_msb, mod2_lsb) = calculate_pll(
-                self.f_vco(), f_pfd >> int64(1)
+                self.f_vco(), f_pfd >> 1
             )
             self.core.delay(200. * us)     # Slack
 
@@ -596,8 +596,8 @@ def calculate_pll(f_vco: int64, f_pfd: int64) -> tuple[int32, int32, tuple[int32
     mod2 = f_pfd
 
     while mod2 > int64(ADF5356_MAX_MODULUS2):
-        mod2 >>= int64(1)
-        frac2 >>= int64(1)
+        mod2 >>= 1
+        frac2 >>= 1
 
     gcd_div = gcd(frac2, mod2)
     mod2 //= gcd_div

@@ -189,7 +189,7 @@ class AD9912:
         self.bus.write((AD9912_POW1 << 16) | (3 << 29))
         self.bus.set_config_mu(SPI_CONFIG, 32,
                                SPIT_DDS_WR, self.chip_select)
-        self.bus.write((pow_ << 16) | (int32(ftw >> int64(32)) & 0xffff))
+        self.bus.write((pow_ << 16) | (int32(ftw >> 32) & 0xffff))
         self.bus.set_config_mu(SPI_CONFIG | SPI_END, 32,
                                SPIT_DDS_WR, self.chip_select)
         self.bus.write(int32(ftw))
@@ -209,7 +209,7 @@ class AD9912:
         self.core.break_realtime()  # Regain slack to perform second read
         low = self.read(AD9912_FTW3, 4)
         # Extract and return fields
-        ftw = (int64(high & 0xffff) << int64(32)) | (int64(low) & int64(0xffffffff))
+        ftw = (int64(high & 0xffff) << 32) | (int64(low) & int64(0xffffffff))
         pow_ = (high >> 16) & 0x3fff
         return ftw, pow_
 
@@ -219,7 +219,7 @@ class AD9912:
         frequency.
         """
         return round64(self.ftw_per_hz * frequency) & (
-                (int64(1) << int64(48)) - int64(1))
+                (int64(1) << 48) - int64(1))
 
     @portable
     def ftw_to_frequency(self, ftw: int64) -> float:
