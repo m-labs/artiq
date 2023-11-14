@@ -77,6 +77,9 @@ Accesses to the data argument should be replaced as below:
   Refer to the updated ``no_hardware/arguments_demo.py`` example for current usage.
 * Almazny v1.2 is incompatible with the legacy versions and is the default.
   To use legacy versions, specify ``almazny_hw_rev`` in the JSON description.
+* kasli_generic.py has been merged into kasli.py, and the demonstration designs without JSON descriptions
+  have been removed. The base classes remain present in kasli.py to support third-party flows without
+  JSON descriptions.
 * Legacy PYON databases should be converted to LMDB with the script below:
 
 ::
