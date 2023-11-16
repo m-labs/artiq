@@ -173,7 +173,9 @@
       vivado = pkgs.buildFHSEnv {
         name = "vivado";
         targetPkgs = vivadoDeps;
-        profile = "set -e; source /opt/Xilinx/Vivado/2022.2/settings64.sh";
+        # Include /usr/lib to FHS env to fix `libtinfo.so.5` not found error
+        # Path has been removed in https://github.com/NixOS/nixpkgs/pull/263201
+        profile = "set -e; source /opt/Xilinx/Vivado/2022.2/settings64.sh; export LD_LIBRARY_PATH=/usr/lib:$LD_LIBRARY_PATH";
         runScript = "vivado";
       };
 
