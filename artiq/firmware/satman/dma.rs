@@ -33,7 +33,7 @@ struct Entry {
 
 #[derive(Debug)]
 pub struct Manager {
-    entries: BTreeMap<u32, Entry>,
+    entries: BTreeMap<(u8, u32), Entry>,
     state: ManagerState,
     currentid: u32
 }
@@ -52,30 +52,30 @@ impl Manager {
         }
     }
 
-    pub fn add(&mut self, id: u32, status: PayloadStatus, trace: &[u8], trace_len: usize) -> Result<(), Error> {
+    pub fn add(&mut self, source: u8, id: u32, status: PayloadStatus, trace: &[u8], trace_len: usize) -> Result<(), Error> {
         if status.is_first() {
-            self.entries.remove(&id);
+            self.entries.remove(&(source, id));
         }
-        let entry = match self.entries.get_mut(&id) {
+        let entry = match self.entries.get_mut(&(source, id)) {
             Some(entry) => {
                 if entry.complete {
                     // replace entry
-                    self.entries.remove(&id);
-                    self.entries.insert(id, Entry {
+                    self.entries.remove(&(source, id));
+                    self.entries.insert((source, id), Entry {
                         trace: Vec::new(),
                         padding_len: 0,
                         complete: false });
-                    self.entries.get_mut(&id).unwrap()
+                    self.entries.get_mut(&(source, id)).unwrap()
                 } else {
                     entry
                 }
             },
             None => {
-                self.entries.insert(id, Entry {
+                self.entries.insert((source, id), Entry {
                     trace: Vec::new(),
                     padding_len: 0,
                     complete: false });
-                self.entries.get_mut(&id).unwrap()
+                self.entries.get_mut(&(source, id)).unwrap()
             },
         };
         entry.trace.extend(&trace[0..trace_len]);
@@ -102,19 +102,19 @@ impl Manager {
         Ok(())
     }
 
-    pub fn erase(&mut self, id: u32) -> Result<(), Error> {
-        match self.entries.remove(&id) {
+    pub fn erase(&mut self, source: u8, id: u32) -> Result<(), Error> {
+        match self.entries.remove(&(source, id)) {
             Some(_) => Ok(()),
             None => Err(Error::IdNotFound)
         }
     }
 
-    pub fn playback(&mut self, id: u32, timestamp: u64) -> Result<(), Error> {
+    pub fn playback(&mut self, source: u8, id: u32, timestamp: u64) -> Result<(), Error> {
         if self.state != ManagerState::Idle {
             return Err(Error::PlaybackInProgress);
         }
 
-        let entry = match self.entries.get(&id){
+        let entry = match self.entries.get(&(source, id)){
             Some(entry) => entry,
             None => { return Err(Error::IdNotFound); }
         };
