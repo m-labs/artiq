@@ -103,7 +103,7 @@ pub mod subkernel {
     pub enum FinishStatus {
         Ok,
         CommLost,
-        Exception
+        Exception(u8) // exception source
     }
 
     #[derive(Debug, PartialEq, Clone, Copy)]
@@ -216,7 +216,7 @@ pub mod subkernel {
         Ok(())
     }
 
-    pub fn subkernel_finished(io: &Io, subkernel_mutex: &Mutex, id: u32, with_exception: bool) {
+    pub fn subkernel_finished(io: &Io, subkernel_mutex: &Mutex, id: u32, with_exception: bool, exception_src: u8) {
         // called upon receiving DRTIO SubkernelRunDone
         let _lock = subkernel_mutex.lock(io).unwrap();
         let subkernel = unsafe { SUBKERNELS.get_mut(&id) };
@@ -226,7 +226,7 @@ pub mod subkernel {
             if subkernel.state == SubkernelState::Running {
                 subkernel.state = SubkernelState::Finished {
                     status: match with_exception {
-                    true => FinishStatus::Exception,
+                    true => FinishStatus::Exception(exception_src),
                     false => FinishStatus::Ok,
                     }
                 }
@@ -266,9 +266,9 @@ pub mod subkernel {
                 Ok(SubkernelFinished {
                     id: id,
                     comm_lost: status == FinishStatus::CommLost,
-                    exception: if status == FinishStatus::Exception { 
+                    exception: if let FinishStatus::Exception(dest) = status { 
                         Some(drtio::subkernel_retrieve_exception(io, aux_mutex,
-                            routing_table, subkernel.destination)?) 
+                            routing_table, dest)?) 
                     } else { None }
                 })
             },

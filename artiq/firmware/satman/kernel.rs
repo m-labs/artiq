@@ -128,6 +128,7 @@ struct Session {
     kernel_state: KernelState,
     log_buffer: String,
     last_exception: Option<Sliceable>,
+    source: u8, // which destination requested running the kernel
     messages: MessageManager
 }
 
@@ -147,7 +148,9 @@ pub struct Manager {
 
 pub struct SubkernelFinished {
     pub id: u32,
-    pub with_exception: bool
+    pub with_exception: bool,
+    pub exception_source: u8,
+    pub source: u8
 }
 
 pub struct SliceMeta {
@@ -288,6 +291,7 @@ impl Session {
             kernel_state: KernelState::Absent,
             log_buffer: String::new(),
             last_exception: None,
+            source: 0,
             messages: MessageManager::new()
         }
     }
@@ -369,12 +373,13 @@ impl Manager {
         unsafe { self.cache.unborrow() }
     }
 
-    pub fn run(&mut self, id: u32) -> Result<(), Error> {
+    pub fn run(&mut self, source: u8, id: u32) -> Result<(), Error> {
         info!("starting subkernel #{}", id);
         if self.session.kernel_state != KernelState::Loaded
             || self.current_id != id {
             self.load(id)?;
         }
+        self.session.source = source;
         self.session.kernel_state = KernelState::Running;
         cricon_select(RtioMaster::Kernel);
     
@@ -477,7 +482,7 @@ impl Manager {
         }
     }
 
-    pub fn process_kern_requests(&mut self, rank: u8) {
+    pub fn process_kern_requests(&mut self, destination: u8) {
         if !self.is_running() {
             return;
         }
@@ -490,26 +495,34 @@ impl Manager {
                 self.session.kernel_state = KernelState::Absent;
                 unsafe { self.cache.unborrow() }
                 self.session.last_exception = Some(exception);
-                self.last_finished = Some(SubkernelFinished { id: self.current_id, with_exception: true })
+                self.last_finished = Some(SubkernelFinished { 
+                    source: self.session.source, id: self.current_id, with_exception: true, exception_source: destination 
+                })
             },
             Err(e) => { 
                 error!("Error while running processing external messages: {:?}", e);
                 self.stop();
                 self.runtime_exception(e);
-                self.last_finished = Some(SubkernelFinished { id: self.current_id, with_exception: true })
+                self.last_finished = Some(SubkernelFinished { 
+                    source: self.session.source, id: self.current_id, with_exception: true, exception_source: destination 
+                })
              }
         }
 
-        match self.process_kern_message(rank) {
+        match self.process_kern_message(destination) {
             Ok(Some(with_exception)) => {
-                self.last_finished = Some(SubkernelFinished { id: self.current_id, with_exception: with_exception })
+                self.last_finished = Some(SubkernelFinished { 
+                    source: self.session.source, id: self.current_id, with_exception: with_exception, exception_source: destination 
+                })
             },
             Ok(None) | Err(Error::NoMessage) => (),
             Err(e) => { 
                 error!("Error while running kernel: {:?}", e); 
                 self.stop(); 
                 self.runtime_exception(e);
-                self.last_finished = Some(SubkernelFinished { id: self.current_id, with_exception: true })
+                self.last_finished = Some(SubkernelFinished { 
+                    source: self.session.source, id: self.current_id, with_exception: true, exception_source: destination 
+                })
             }
         }
     }
@@ -543,7 +556,7 @@ impl Manager {
         }
     }
 
-    fn process_kern_message(&mut self, rank: u8) -> Result<Option<bool>, Error> {
+    fn process_kern_message(&mut self, destination: u8) -> Result<Option<bool>, Error> {
         // returns Ok(with_exception) on finish
         // None if the kernel is still running
         kern_recv(|request| {
@@ -559,7 +572,7 @@ impl Manager {
                 },
             }
 
-            if process_kern_hwreq(request, rank)? {
+            if process_kern_hwreq(request, destination)? {
                 return Ok(None)
             }
 
@@ -759,7 +772,7 @@ fn pass_message_to_kernel(message: &Message, tags: &[u8]) -> Result<(), Error> {
     Ok(())
 }
 
-fn process_kern_hwreq(request: &kern::Message, rank: u8) -> Result<bool, Error> {
+fn process_kern_hwreq(request: &kern::Message, self_destination: u8) -> Result<bool, Error> {
     match request {
         &kern::RtioInitRequest => {
             unsafe {
@@ -774,7 +787,7 @@ fn process_kern_hwreq(request: &kern::Message, rank: u8) -> Result<bool, Error> 
             // only local destination is considered "up"
             // no access to other DRTIO destinations
             kern_send(&kern::RtioDestinationStatusReply { 
-                up: destination == rank })
+                up: destination == self_destination })
         }
 
         &kern::I2cStartRequest { busno } => {
