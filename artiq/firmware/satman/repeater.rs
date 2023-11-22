@@ -1,6 +1,7 @@
 use board_artiq::{drtioaux, drtio_routing};
 #[cfg(has_drtio_routing)]
 use board_misoc::{csr, clock};
+use routing::{Router, get_routable_packet_destination};
 
 #[cfg(has_drtio_routing)]
 fn rep_link_rx_up(repno: u8) -> bool {
@@ -48,7 +49,7 @@ impl Repeater {
         self.state == RepeaterState::Up
     }
 
-    pub fn service(&mut self, routing_table: &drtio_routing::RoutingTable, rank: u8) {
+    pub fn service(&mut self, routing_table: &drtio_routing::RoutingTable, rank: u8, router: &mut Router) {
         self.process_local_errors();
 
         match self.state {
@@ -106,7 +107,7 @@ impl Repeater {
                 }
             }
             RepeaterState::Up => {
-                self.process_unsolicited_aux();
+                self.process_unsolicited_aux(routing_table, rank, router);
                 if !rep_link_rx_up(self.repno) {
                     info!("[REP#{}] link is down", self.repno);
                     self.state = RepeaterState::Down;
@@ -121,9 +122,21 @@ impl Repeater {
         }
     }
 
-    fn process_unsolicited_aux(&self) {
+    fn process_unsolicited_aux(&self, routing_table: &drtio_routing::RoutingTable, rank: u8, router: &mut Router) {
         match drtioaux::recv(self.auxno) {
-            Ok(Some(packet)) => warn!("[REP#{}] unsolicited aux packet: {:?}", self.repno, packet),
+            Ok(Some(packet)) => {
+                let destination = get_routable_packet_destination(&packet);
+                if destination.is_none() {
+                    warn!("[REP#{}] unsolicited aux packet: {:?}", self.repno, packet);
+                } else {
+                    // routable packet
+                    let res = router.route(packet, routing_table, rank);
+                    match res {
+                        Ok(()) => drtioaux::send(self.auxno, &drtioaux::Packet::RoutingAck).unwrap(),
+                        Err(e) => warn!("[REP#{}] Error routing packet: {:?}", self.repno, e),
+                    }
+                }
+            }
             Ok(None) => (),
             Err(_) => warn!("[REP#{}] aux packet error", self.repno)
         }
