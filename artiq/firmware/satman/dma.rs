@@ -12,8 +12,9 @@ enum ManagerState {
 }
 
 pub struct RtioStatus {
+    pub source: u8,
     pub id: u32, 
-    pub error: u8, 
+    pub error: u8,
     pub channel: u32, 
     pub timestamp: u64
 }
@@ -35,7 +36,8 @@ struct Entry {
 pub struct Manager {
     entries: BTreeMap<(u8, u32), Entry>,
     state: ManagerState,
-    currentid: u32
+    current_id: u32,
+    current_source: u8
 }
 
 impl Manager {
@@ -47,7 +49,8 @@ impl Manager {
         }
         Manager {
             entries: BTreeMap::new(),
-            currentid: 0,
+            current_id: 0,
+            current_source: 0,
             state: ManagerState::Idle,
         }
     }
@@ -125,7 +128,8 @@ impl Manager {
         assert!(ptr as u32 % 64 == 0);
 
         self.state = ManagerState::Playback;
-        self.currentid = id;
+        self.current_id = id;
+        self.current_source = source;
 
         unsafe {
             csr::rtio_dma::base_address_write(ptr as u64);
@@ -156,8 +160,9 @@ impl Manager {
                 if error != 0 {
                     csr::rtio_dma::error_write(1);
                 }
-                return Some(RtioStatus { 
-                    id: self.currentid, 
+                return Some(RtioStatus {
+                    source: self.current_source,
+                    id: self.current_id,
                     error: error,
                     channel: channel, 
                     timestamp: timestamp });
