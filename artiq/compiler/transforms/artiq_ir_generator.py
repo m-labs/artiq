@@ -2557,7 +2557,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             if types.is_method(fn):
                 fn = types.get_method_function(fn)
             sid = ir.Constant(fn.sid, builtins.TInt32())
-            return self.append(ir.Builtin("subkernel_preload", [sid], builtins.TNone()))
+            dest = ir.Constant(fn.destination, builtins.TInt32())
+            return self.append(ir.Builtin("subkernel_preload", [sid, dest], builtins.TNone()))
         elif types.is_exn_constructor(typ):
             return self.alloc_exn(node.type, *[self.visit(arg_node) for arg_node in node.args])
         elif types.is_constructor(typ):

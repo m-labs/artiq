@@ -399,9 +399,9 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(lli32, [llptr])
 
         elif name == "subkernel_send_message":
-            llty = ll.FunctionType(llvoid, [lli32, lli8, llsliceptr, llptrptr])
+            llty = ll.FunctionType(llvoid, [lli32, lli1, lli8, lli8, llsliceptr, llptrptr])
         elif name == "subkernel_load_run":
-            llty = ll.FunctionType(llvoid, [lli32, lli1])
+            llty = ll.FunctionType(llvoid, [lli32, lli8, lli1])
         elif name == "subkernel_await_finish":
             llty = ll.FunctionType(llvoid, [lli32, lli64])
         elif name == "subkernel_await_message":
@@ -1417,7 +1417,8 @@ class LLVMIRGenerator:
             return self._build_rpc_recv(insn.type, llstackptr)
         elif insn.op == "subkernel_preload":
             llsid = self.map(insn.operands[0])
-            return self.llbuilder.call(self.llbuiltin("subkernel_load_run"), [llsid, ll.Constant(lli1, 0)], 
+            lldest = ll.Constant(lli8, insn.operands[1].value)
+            return self.llbuilder.call(self.llbuiltin("subkernel_load_run"), [llsid, lldest, ll.Constant(lli1, 0)], 
                                 name="subkernel.preload")
         else:
             assert False
@@ -1660,6 +1661,7 @@ class LLVMIRGenerator:
 
     def _build_subkernel_call(self, fun_loc, fun_type, args):
         llsid = ll.Constant(lli32, fun_type.sid)
+        lldest = ll.Constant(lli8, fun_type.destination)
         tag = b""
 
         for arg in args:
@@ -1678,7 +1680,7 @@ class LLVMIRGenerator:
         tag += b":"
 
         # run the kernel first
-        self.llbuilder.call(self.llbuiltin("subkernel_load_run"), [llsid, ll.Constant(lli1, 1)])
+        self.llbuilder.call(self.llbuiltin("subkernel_load_run"), [llsid, lldest, ll.Constant(lli1, 1)])
 
         # arg sent in the same vein as RPC
         llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
@@ -1708,8 +1710,10 @@ class LLVMIRGenerator:
 
             llargcount = ll.Constant(lli8, len(args))
 
+            llisreturn = ll.Constant(lli1, False)
+
             self.llbuilder.call(self.llbuiltin("subkernel_send_message"),
-                                [llsid, llargcount, lltagptr, llargs])
+                                [llsid, llisreturn, lldest, llargcount, lltagptr, llargs])
             self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
 
         return llsid
@@ -1746,10 +1750,12 @@ class LLVMIRGenerator:
         llretslot = self.llbuilder.bitcast(llretslot, llptr)
         self.llbuilder.store(llretslot, llrets)
 
-        llsid = ll.Constant(lli32, 0)  # return goes back to master, sid is ignored
+        llsid = ll.Constant(lli32, 0)  # return goes back to the caller, sid is ignored
         lltagcount = ll.Constant(lli8, 1)  # only one thing is returned
+        llisreturn = ll.Constant(lli1, True)  # it's a return, so destination is ignored
+        lldest = ll.Constant(lli8, 0)
         self.llbuilder.call(self.llbuiltin("subkernel_send_message"),
-                            [llsid, lltagcount, lltagptr, llrets])
+                            [llsid, llisreturn, lldest, lltagcount, lltagptr, llrets])
 
     def process_Call(self, insn):
         functiontyp = insn.target_function().type

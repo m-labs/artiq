@@ -116,7 +116,7 @@ pub enum Packet {
     DmaRemoveTraceReply { destination: u8, succeeded: bool },
     DmaPlaybackRequest { source: u8, destination: u8, id: u32, timestamp: u64 },
     DmaPlaybackReply { destination: u8, succeeded: bool },
-    DmaPlaybackStatus { destination: u8, id: u32, error: u8, channel: u32, timestamp: u64 },
+    DmaPlaybackStatus { source: u8, destination: u8, id: u32, error: u8, channel: u32, timestamp: u64 },
 
     SubkernelAddDataRequest { destination: u8, id: u32, status: PayloadStatus, length: u16, data: [u8; MASTER_PAYLOAD_MAX_SIZE] },
     SubkernelAddDataReply { succeeded: bool },
@@ -322,6 +322,7 @@ impl Packet {
                 succeeded: reader.read_bool()?
             },
             0xb6 => Packet::DmaPlaybackStatus {
+                source: reader.read_u8()?,
                 destination: reader.read_u8()?,
                 id: reader.read_u32()?,
                 error: reader.read_u8()?,
@@ -617,8 +618,9 @@ impl Packet {
                 writer.write_u8(destination)?;
                 writer.write_bool(succeeded)?;
             },
-            Packet::DmaPlaybackStatus { destination, id, error, channel, timestamp } => {
+            Packet::DmaPlaybackStatus { source, destination, id, error, channel, timestamp } => {
                 writer.write_u8(0xb6)?;
+                writer.write_u8(source)?;
                 writer.write_u8(destination)?;
                 writer.write_u32(id)?;
                 writer.write_u8(error)?;
