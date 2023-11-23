@@ -49,7 +49,7 @@ impl Repeater {
         self.state == RepeaterState::Up
     }
 
-    pub fn service(&mut self, routing_table: &drtio_routing::RoutingTable, rank: u8, router: &mut Router) {
+    pub fn service(&mut self, routing_table: &drtio_routing::RoutingTable, rank: u8, destination: u8, router: &mut Router) {
         self.process_local_errors();
 
         match self.state {
@@ -107,7 +107,7 @@ impl Repeater {
                 }
             }
             RepeaterState::Up => {
-                self.process_unsolicited_aux(routing_table, rank, router);
+                self.process_unsolicited_aux(routing_table, rank, destination, router);
                 if !rep_link_rx_up(self.repno) {
                     info!("[REP#{}] link is down", self.repno);
                     self.state = RepeaterState::Down;
@@ -122,7 +122,7 @@ impl Repeater {
         }
     }
 
-    fn process_unsolicited_aux(&self, routing_table: &drtio_routing::RoutingTable, rank: u8, router: &mut Router) {
+    fn process_unsolicited_aux(&self, routing_table: &drtio_routing::RoutingTable, rank: u8, self_destination: u8, router: &mut Router) {
         match drtioaux::recv(self.auxno) {
             Ok(Some(packet)) => {
                 let destination = get_routable_packet_destination(&packet);
@@ -130,7 +130,7 @@ impl Repeater {
                     warn!("[REP#{}] unsolicited aux packet: {:?}", self.repno, packet);
                 } else {
                     // routable packet
-                    let res = router.route(packet, routing_table, rank);
+                    let res = router.route(packet, routing_table, rank, self_destination);
                     match res {
                         Ok(()) => drtioaux::send(self.auxno, &drtioaux::Packet::RoutingAck).unwrap(),
                         Err(e) => warn!("[REP#{}] Error routing packet: {:?}", self.repno, e),
@@ -212,9 +212,8 @@ impl Repeater {
             (csr::DRTIOREP[repno].set_time_write)(1);
             while (csr::DRTIOREP[repno].set_time_read)() == 1 {}
         }
-
-        // TSCAck is the only aux packet that is sent spontaneously
-        // by the satellite, in response to a TSC set on the RT link.
+        // TSCAck is sent spontaneously by the satellite,
+        // in response to a TSC set on the RT link.
         let reply = self.recv_aux_timeout(10000)?;
         if reply == drtioaux::Packet::TSCAck {
             return Ok(());
@@ -288,7 +287,7 @@ pub struct Repeater {
 impl Repeater {
     pub fn new(_repno: u8) -> Repeater { Repeater::default() }
 
-    pub fn service(&self, _routing_table: &drtio_routing::RoutingTable, _rank: u8) { }
+    pub fn service(&self, _routing_table: &drtio_routing::RoutingTable, _rank: u8, _destination: u8, _router: &mut Router) { }
 
     pub fn sync_tsc(&self) -> Result<(), drtioaux::Error<!>> { Ok(()) }
 

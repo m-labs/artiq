@@ -67,12 +67,21 @@ def main():
                 core.compile(exp.run, [exp_inst], {},
                              attribute_writeback=False, print_as_rpc=False)
 
-            subkernels = {}
-            for sid, subkernel_fn in object_map.subkernels().items():
-                destination, subkernel_library = core.compile_subkernel(
-                    sid, subkernel_fn, object_map, 
-                    [exp_inst], subkernel_arg_types)
-                subkernels[sid] = (destination, subkernel_library)
+            subkernels = object_map.subkernels()
+            compiled_subkernels = {}
+            while True:
+                new_subkernels = {}
+                for sid, subkernel_fn in subkernels.items():
+                    if sid in compiled_subkernels.keys():
+                        continue
+                    destination, subkernel_library, embedding_map = core.compile_subkernel(
+                        sid, subkernel_fn, object_map, 
+                        [exp_inst], subkernel_arg_types, subkernels)
+                    compiled_subkernels[sid] = (destination, subkernel_library)
+                    new_subkernels.update(embedding_map.subkernels())
+                if new_subkernels == subkernels:
+                    break
+                subkernels.update(new_subkernels)
         except CompileError as error:
             return
         finally:
@@ -107,7 +116,7 @@ def main():
             tar.addfile(main_kernel_info, fileobj=main_kernel_fileobj)
 
             # subkernels as "<sid> <destination>.elf"
-            for sid, (destination, subkernel_library) in subkernels.items():
+            for sid, (destination, subkernel_library) in compiled_subkernels.items():
                 subkernel_fileobj = io.BytesIO(subkernel_library)
                 subkernel_info = tarfile.TarInfo(name="{} {}.elf".format(sid, destination))
                 subkernel_info.size = len(subkernel_library)

@@ -103,11 +103,11 @@ pub enum Message<'a> {
     SpiReadReply { succeeded: bool, data: u32 },
     SpiBasicReply { succeeded: bool },
 
-    SubkernelLoadRunRequest { id: u32, run: bool },
+    SubkernelLoadRunRequest { id: u32, destination: u8, run: bool },
     SubkernelLoadRunReply { succeeded: bool },
     SubkernelAwaitFinishRequest { id: u32, timeout: u64 },
     SubkernelAwaitFinishReply { status: SubkernelStatus },
-    SubkernelMsgSend { id: u32, count: u8, tag: &'a [u8], data: *const *const () },
+    SubkernelMsgSend { id: u32, destination: Option<u8>, count: u8, tag: &'a [u8], data: *const *const () },
     SubkernelMsgRecvRequest { id: u32, timeout: u64, tags: &'a [u8] },
     SubkernelMsgRecvReply { status: SubkernelStatus, count: u8 },
 

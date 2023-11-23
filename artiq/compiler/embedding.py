@@ -48,7 +48,7 @@ class SpecializedFunction:
 
 
 class EmbeddingMap:
-    def __init__(self):
+    def __init__(self, subkernels={}):
         self.object_current_key = 0
         self.object_forward_map = {}
         self.object_reverse_map = {}
@@ -64,6 +64,13 @@ class EmbeddingMap:
         self.function_map = {}
         self.str_forward_map = {}
         self.str_reverse_map = {}
+        
+        # subkernels: dict of ID: function, just like object_forward_map
+        # allow the embedding map to be aware of subkernels from other kernels
+        for key, obj_ref in subkernels.items():
+            self.object_forward_map[key] = obj_ref
+            obj_id = id(obj_ref)
+            self.object_reverse_map[obj_id] = key
 
         self.preallocate_runtime_exception_names(["RuntimeError",
                                                   "RTIOUnderflow",
@@ -165,6 +172,11 @@ class EmbeddingMap:
             return self.object_reverse_map[obj_id]
 
         self.object_current_key += 1
+        while self.object_forward_map.get(self.object_current_key):
+            # make sure there's no collisions with previously inserted subkernels
+            # their identifiers must be consistent between kernels/subkernels
+            self.object_current_key += 1
+        
         self.object_forward_map[self.object_current_key] = obj_ref
         self.object_reverse_map[obj_id] = self.object_current_key
         return self.object_current_key
@@ -199,10 +211,6 @@ class EmbeddingMap:
                     (not hasattr(x, "artiq_embedded") or x.artiq_embedded.destination is None),
                 self.object_forward_map.values()
             ))
-
-    def has_rpc_or_subkernel(self):
-        return any(filter(lambda x: inspect.isfunction(x) or inspect.ismethod(x),
-                          self.object_forward_map.values()))
 
 
 class ASTSynthesizer:
@@ -794,7 +802,7 @@ class TypedtreeHasher(algorithm.Visitor):
         return hash(tuple(freeze(getattr(node, field_name)) for field_name in fields))
 
 class Stitcher:
-    def __init__(self, core, dmgr, engine=None, print_as_rpc=True, destination=0, subkernel_arg_types=[]):
+    def __init__(self, core, dmgr, engine=None, print_as_rpc=True, destination=0, subkernel_arg_types=[], subkernels={}):
         self.core = core
         self.dmgr = dmgr
         if engine is None:
@@ -816,7 +824,7 @@ class Stitcher:
 
         self.functions = {}
 
-        self.embedding_map = EmbeddingMap()
+        self.embedding_map = EmbeddingMap(subkernels)
         self.value_map = defaultdict(lambda: [])
         self.definitely_changed = False
 

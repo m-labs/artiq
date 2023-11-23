@@ -65,7 +65,7 @@ pub mod drtio {
         let up_destinations = up_destinations.clone();
         let ddma_mutex = ddma_mutex.clone();
         let subkernel_mutex = subkernel_mutex.clone();
-        io.spawn(8192, move |io| {
+        io.spawn(10240, move |io| {
             let routing_table = routing_table.borrow();
             link_thread(io, &aux_mutex, &routing_table, &up_destinations, &ddma_mutex, &subkernel_mutex);
         });
@@ -96,17 +96,57 @@ pub mod drtio {
         }
     }
 
-    fn process_async_packets(io: &Io, ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
-            routing_table: &drtio_routing::RoutingTable, linkno: u8, packet: drtioaux::Packet
-    ) -> Option<drtioaux::Packet> {
-        // returns None if a packet has been consumed or re-routed
-        macro_rules! route_packet {
-            ($dest:ident) => {{
-                let dest_link = routing_table.0[$dest as usize][0] - 1; 
-                if dest_link == linkno {
-                    warn!("[LINK#{}] Re-routed packet would return to the same link, dropping: {:?}", linkno, packet);
-                } else if $dest == 0 {
-                    warn!("[LINK#{}] Received invalid routable packet: {:?}", linkno, packet)
+    fn process_async_packets(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
+            routing_table: &drtio_routing::RoutingTable, linkno: u8)
+    {
+        if link_has_async_ready(linkno) {
+            loop {
+                let reply = aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::RoutingRetrievePackets);
+                if let Ok(packet) = reply {
+                    match packet {
+                        // packets to be consumed locally
+                        drtioaux::Packet::DmaPlaybackStatus { id, source, destination: 0, error, channel, timestamp } => {
+                            remote_dma::playback_done(io, ddma_mutex, id, source, error, channel, timestamp);
+                        },
+                        drtioaux::Packet::SubkernelFinished { id, destination: 0, with_exception, exception_src } => {
+                            subkernel::subkernel_finished(io, subkernel_mutex, id, with_exception, exception_src);
+                        },
+                        drtioaux::Packet::SubkernelMessage { id, source: from, destination: 0, status, length, data } => {
+                            subkernel::message_handle_incoming(io, subkernel_mutex, id, status, length as usize, &data);
+                            // acknowledge receiving part of the message
+                            drtioaux::send(linkno, 
+                                &drtioaux::Packet::SubkernelMessageAck { destination: from }
+                            ).unwrap();
+                        },
+                        // routable packets
+                        drtioaux::Packet::DmaAddTraceRequest      { destination, .. } |
+                            drtioaux::Packet::DmaAddTraceReply        { destination, .. } |
+                            drtioaux::Packet::DmaRemoveTraceRequest   { destination, .. } |
+                            drtioaux::Packet::DmaRemoveTraceReply     { destination, .. } |
+                            drtioaux::Packet::DmaPlaybackRequest      { destination, .. } |
+                            drtioaux::Packet::DmaPlaybackReply        { destination, .. } |
+                            drtioaux::Packet::SubkernelLoadRunRequest { destination, .. } |
+                            drtioaux::Packet::SubkernelLoadRunReply   { destination, .. } |
+                            drtioaux::Packet::SubkernelMessage        { destination, .. } |
+                            drtioaux::Packet::SubkernelMessageAck     { destination, .. } |
+                            drtioaux::Packet::DmaPlaybackStatus       { destination, .. } |
+                            drtioaux::Packet::SubkernelFinished       { destination, .. } => {
+                            let dest_link = routing_table.0[destination as usize][0] - 1; 
+                            if dest_link == linkno {
+                                warn!("[LINK#{}] Re-routed packet would return to the same link, dropping: {:?}", linkno, packet);
+                            } else if destination == 0 {
+                                warn!("[LINK#{}] Received invalid routable packet: {:?}", linkno, packet)
+                            } else {
+                                drtioaux::send(dest_link, &packet).unwrap();
+                            }
+                        }
+
+                        drtioaux::Packet::RoutingNoPackets => break,
+
+                        other => warn!("[LINK#{}] Received an unroutable packet: {:?}", linkno, other)
+                    }
+                } else {
+                    warn!("[LINK#{}] Error handling async packets ({})", linkno, reply.unwrap_err());
                 }
                 else {
                     drtioaux::send(dest_link, &packet).unwrap();

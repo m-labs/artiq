@@ -120,13 +120,15 @@ class Core:
 
     def compile(self, function, args, kwargs, set_result=None,
                 attribute_writeback=True, print_as_rpc=True,
-                target=None, destination=0, subkernel_arg_types=[]):
+                target=None, destination=0, subkernel_arg_types=[],
+                subkernels={}):
         try:
             engine = _DiagnosticEngine(all_errors_are_fatal=True)
 
             stitcher = Stitcher(engine=engine, core=self, dmgr=self.dmgr,
                                 print_as_rpc=print_as_rpc,
-                                destination=destination, subkernel_arg_types=subkernel_arg_types)
+                                destination=destination, subkernel_arg_types=subkernel_arg_types,
+                                subkernels=subkernels)
             stitcher.stitch_call(function, args, kwargs, set_result)
             stitcher.finalize()
 
@@ -165,7 +167,7 @@ class Core:
         self._run_compiled(kernel_library, embedding_map, symbolizer, demangler)
         return result
 
-    def compile_subkernel(self, sid, subkernel_fn, embedding_map, args, subkernel_arg_types):
+    def compile_subkernel(self, sid, subkernel_fn, embedding_map, args, subkernel_arg_types, subkernels):
         # pass self to subkernels (if applicable)
         # assuming the first argument is self
         subkernel_args = getfullargspec(subkernel_fn.artiq_embedded.function)
@@ -179,17 +181,30 @@ class Core:
         object_map, kernel_library, _, _, _ = \
             self.compile(subkernel_fn, self_arg, {}, attribute_writeback=False,
                         print_as_rpc=False, target=target, destination=destination, 
-                        subkernel_arg_types=subkernel_arg_types.get(sid, []))
-        if object_map.has_rpc_or_subkernel():
-            raise ValueError("Subkernel must not use RPC or subkernels in other destinations")
-        return destination, kernel_library
+                        subkernel_arg_types=subkernel_arg_types.get(sid, []),
+                        subkernels=subkernels)
+        if object_map.has_rpc():
+            raise ValueError("Subkernel must not use RPC")
+        return destination, kernel_library, object_map
 
     def compile_and_upload_subkernels(self, embedding_map, args, subkernel_arg_types):
-        for sid, subkernel_fn in embedding_map.subkernels().items():
-            destination, kernel_library = \
-                self.compile_subkernel(sid, subkernel_fn, embedding_map,
-                                       args, subkernel_arg_types)
-            self.comm.upload_subkernel(kernel_library, sid, destination)
+        subkernels = embedding_map.subkernels()
+        subkernels_compiled = []
+        while True:
+            new_subkernels = {}
+            for sid, subkernel_fn in subkernels.items():
+                if sid in subkernels_compiled:
+                    continue
+                destination, kernel_library, sub_embedding_map = \
+                    self.compile_subkernel(sid, subkernel_fn, embedding_map,
+                                        args, subkernel_arg_types, subkernels)
+                self.comm.upload_subkernel(kernel_library, sid, destination)
+                new_subkernels.update(sub_embedding_map.subkernels())
+                subkernels_compiled.append(sid)
+            if new_subkernels == subkernels:
+                break
+            subkernels.update(new_subkernels)
+
 
     def precompile(self, function, *args, **kwargs):
         """Precompile a kernel and return a callable that executes it on the core device

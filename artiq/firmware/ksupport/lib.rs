@@ -460,8 +460,8 @@ extern fn dma_playback(_timestamp: i64, _ptr: i32, _uses_ddma: bool) {
 }
 
 #[unwind(allowed)]
-extern fn subkernel_load_run(id: u32, run: bool) {
-    send(&SubkernelLoadRunRequest { id: id, run: run });
+extern fn subkernel_load_run(id: u32, destination: u8, run: bool) {
+    send(&SubkernelLoadRunRequest { id: id, destination: destination, run: run });
     recv!(&SubkernelLoadRunReply { succeeded } => {
         if !succeeded {
             raise!("SubkernelError",
@@ -489,9 +489,11 @@ extern fn subkernel_await_finish(id: u32, timeout: u64) {
 }
 
 #[unwind(aborts)]
-extern fn subkernel_send_message(id: u32, count: u8, tag: &CSlice<u8>, data: *const *const ()) {
+extern fn subkernel_send_message(id: u32, is_return: bool, destination: u8, 
+    count: u8, tag: &CSlice<u8>, data: *const *const ()) {
     send(&SubkernelMsgSend { 
         id: id,
+        destination: if is_return { None } else { Some(destination) },
         count: count,
         tag: tag.as_ref(),
         data: data 

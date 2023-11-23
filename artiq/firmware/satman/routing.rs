@@ -1,6 +1,5 @@
 use alloc::collections::vec_deque::VecDeque;
 use board_artiq::{drtioaux, drtio_routing};
-use board_misoc::csr;
 
 // Packets from downstream (further satellites) are received and routed appropriately.
 // they're passed immediately if it's possible (within the subtree), or sent upstream.
@@ -51,7 +50,8 @@ impl Router {
     // called by local sources (DDMA, kernel) and by repeaters on receiving unsolicited data
     // messages are always buffered for upstream, or passed downstream directly
     pub fn route(&mut self, packet: drtioaux::Packet,
-        _routing_table: &drtio_routing::RoutingTable, _rank: u8
+        _routing_table: &drtio_routing::RoutingTable, _rank: u8,
+        _self_destination: u8
     ) -> Result<(), drtioaux::Error<!>>  {
         #[cfg(has_drtio_routing)]
         {
@@ -59,14 +59,12 @@ impl Router {
             if let Some(destination) = destination {
                 let hop = _routing_table.0[destination as usize][_rank as usize];
                 let auxno = if destination == 0 { 0 } else { hop };
-                if hop != 0 {
-                    if hop as usize <= csr::DRTIOREP.len() {
-                        drtioaux::send(auxno, &packet)?;
-                    } else {
-                        self.out_messages.push_back(packet);
-                    }
-                } else {
+                if destination == _self_destination {
                     self.local_messages.push_back(packet);
+                } else if _rank > 1 {
+                    drtioaux::send(auxno, &packet)?;
+                } else {
+                    self.out_messages.push_back(packet);
                 }
             } else {
                 return Err(drtioaux::Error::RoutingError);
@@ -81,7 +79,7 @@ impl Router {
 
     // Sends a packet to a required destination, routing if it's necessary
     pub fn send(&mut self, packet: drtioaux::Packet,
-        _routing_table: &drtio_routing::RoutingTable, _rank: u8) -> Result<(), drtioaux::Error<!>> {
+        _routing_table: &drtio_routing::RoutingTable, _rank: u8, _destination: u8) -> Result<(), drtioaux::Error<!>> {
         #[cfg(has_drtio_routing)]
         {
             let destination = get_routable_packet_destination(&packet);
@@ -89,7 +87,7 @@ impl Router {
                 // send upstream directly (response to master)
                 drtioaux::send(0, &packet)
             } else {
-                self.route(packet, _routing_table, _rank)
+                self.route(packet, _routing_table, _rank, _destination)
             }
         }
         #[cfg(not(has_drtio_routing))]
