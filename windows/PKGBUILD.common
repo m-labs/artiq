@@ -1,32 +1,29 @@
 arch=("any")
-mingw_arch=("mingw64")
+mingw_arch=("clang64")
 pkgver=${DRV_VERSION}
 url="https://m-labs.hk"
 source=("source.tar")
 sha256sums=("SKIP")
 
 build() {
-  mkdir mingw64
-  export PYTHONPATH=`pwd`/mingw64/lib/python3.10/site-packages
+  mkdir clang64
+  export PYTHONPATH=`pwd`/clang64/lib/python3.11/site-packages
   chmod +w -R source
   cd source
-  wine-msys2-build python setup.py install --single-version-externally-managed --prefix=../mingw64 --record=setuptools-sucks.txt
+  wine-msys2-build python setup.py install --single-version-externally-managed --prefix=../clang64 --record=setuptools-sucks.txt
   cd ..
 
-  # setuptools creates this file if it doesn't already exist, which causes conflicts between pacman packages
-  # see: https://corte.si/posts/code/setuptoolssucks/
-  rm -f mingw64/lib/python3.10/site-packages/easy-install.pth
   # patch broken shebangs (Z:/nix/store/...)
-  for entrypoint in mingw64/bin/*-script.py; do
+  for entrypoint in clang64/bin/*-script.py; do
     [ -f "$entrypoint" ] || continue
     sed -i "1s|#!.*|#!python|" $entrypoint
   done
-  for entrypoint in mingw64/bin/*-script.pyw; do
+  for entrypoint in clang64/bin/*-script.pyw; do
     [ -f "$entrypoint" ] || continue
     sed -i "1s|#!.*|#!pythonw|" $entrypoint
   done
 }
 
 package() {
-  cp -R mingw64 ${pkgdir}
+  cp -R clang64 ${pkgdir}
 }
