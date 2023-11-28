@@ -46,9 +46,16 @@
         postPatch = "substituteInPlace src/sysroot.rs --replace 2021 2018";
       });
 
-      vivadoDeps = pkgs: with pkgs; [
+      vivadoDeps = pkgs: with pkgs; let
+        # Apply patch from https://github.com/nix-community/nix-environments/pull/54
+        # to fix ncurses libtinfo.so's soname issue
+        ncurses' = ncurses5.overrideAttrs (old: {
+          configureFlags = old.configureFlags ++ [ "--with-termlib" ];
+          postFixup = "";
+        });
+      in [
         libxcrypt-legacy
-        ncurses5
+        (ncurses'.override { unicodeSupport = false; })
         zlib
         libuuid
         xorg.libSM
