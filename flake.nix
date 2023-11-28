@@ -363,7 +363,7 @@
         inherit (pkgs.texlive)
           scheme-basic latexmk cmap collection-fontsrecommended fncychap
           titlesec tabulary varwidth framed fancyvrb float wrapfig parskip
-          upquote capt-of needspace etoolbox;
+          upquote capt-of needspace etoolbox booktabs;
       };
     in rec {
       packages.x86_64-linux = {
