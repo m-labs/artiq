@@ -17,12 +17,11 @@ class RTController(Module, AutoCSR):
 
         self.sync += rt_packet.reset.eq(self.reset.storage)
 
-        set_time_stb = Signal()
         self.sync += [
-            If(rt_packet.set_time_stb, set_time_stb.eq(0)),
-            If(self.set_time.re, set_time_stb.eq(1))
+            If(rt_packet.set_time_ack, rt_packet.set_time_stb.eq(0)),
+            If(self.set_time.re, rt_packet.set_time_stb.eq(1))
         ]
-        self.comb += self.set_time.w.eq(set_time_stb)
+        self.comb += self.set_time.w.eq(rt_packet.set_time_stb)
 
         errors = [
             (rt_packet.err_unknown_packet_type, "rtio_rx", None, None),
