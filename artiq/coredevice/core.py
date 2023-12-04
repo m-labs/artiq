@@ -212,7 +212,7 @@ class Core:
 
         embedding_map, kernel_library, symbolizer, demangler, subkernel_arg_types = \
             self.compile(function, args, kwargs, set_result, attribute_writeback=False)
-        self.compile_subkernels(embedding_map, args, subkernel_arg_types)
+        self.compile_and_upload_subkernels(embedding_map, args, subkernel_arg_types)
 
         @wraps(function)
         def run_precompiled():
