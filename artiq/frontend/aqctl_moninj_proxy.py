@@ -183,6 +183,8 @@ def get_argparser():
         ("proxy", "proxying", 1383),
         ("control", "control", 1384)
     ])
+    parser.add_argument("--simulation", action="store_true",
+                        help="Simulation - does not connect to device")
     parser.add_argument("core_addr", metavar="CORE_ADDR",
                         help="hostname or IP address of the core device")
     return parser
