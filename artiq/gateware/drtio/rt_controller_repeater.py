@@ -14,6 +14,7 @@ class RTController(Module, AutoCSR):
         self.command_missed_cmd = CSRStatus(2)
         self.command_missed_chan_sel = CSRStatus(24)
         self.buffer_space_timeout_dest = CSRStatus(8)
+        self.async_messages_ready = CSR()
 
         self.sync += rt_packet.reset.eq(self.reset.storage)
 
@@ -22,6 +23,12 @@ class RTController(Module, AutoCSR):
             If(self.set_time.re, rt_packet.set_time_stb.eq(1))
         ]
         self.comb += self.set_time.w.eq(rt_packet.set_time_stb)
+
+        self.sync += [
+            If(rt_packet.async_messages_ready, self.async_messages_ready.w.eq(1)),
+            If(self.async_messages_ready.re, self.async_messages_ready.w.eq(0))
+        ]
+
 
         errors = [
             (rt_packet.err_unknown_packet_type, "rtio_rx", None, None),
