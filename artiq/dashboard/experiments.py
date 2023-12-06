@@ -333,9 +333,10 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         if "repo_rev" in options:
             repo_rev = QtWidgets.QLineEdit()
             repo_rev.setPlaceholderText("current")
-            repo_rev_label = QtWidgets.QLabel("Revision:")
+            repo_rev_label = QtWidgets.QLabel("Rev / ref:")
             repo_rev_label.setToolTip("Experiment repository revision "
-                                      "(commit ID) to use")
+                                      "(commit ID) or reference (branch "
+                                      "or tag) to use")
             self.layout.addWidget(repo_rev_label, 3, 2)
             self.layout.addWidget(repo_rev, 3, 3)
 
@@ -719,8 +720,13 @@ class ExperimentManager:
         del self.open_experiments[expurl]
 
     async def _submit_task(self, expurl, *args):
-        rid = await self.schedule_ctl.submit(*args)
-        logger.info("Submitted '%s', RID is %d", expurl, rid)
+        try:
+            rid = await self.schedule_ctl.submit(*args)
+        except KeyError:
+            expid = args[1]
+            logger.error("Submission failed - revision \"%s\" was not found", expid["repo_rev"])
+        else:
+            logger.info("Submitted '%s', RID is %d", expurl, rid)
 
     def submit(self, expurl):
         file, class_name, _ = self.resolve_expurl(expurl)
