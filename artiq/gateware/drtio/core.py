@@ -78,6 +78,7 @@ class DRTIOSatellite(Module):
         self.reset = CSRStorage(reset=1)
         self.reset_phy = CSRStorage(reset=1)
         self.tsc_loaded = CSR()
+        self.async_messages_ready = CSR()
         # master interface in the sys domain
         self.cri = cri.Interface()
         self.async_errors = Record(async_errors_layout)
@@ -129,6 +130,9 @@ class DRTIOSatellite(Module):
             link_layer_sync, interface=self.cri)
         self.comb += self.rt_packet.reset.eq(self.cd_rio.rst)
 
+        self.sync += If(self.async_messages_ready.re, self.rt_packet.async_msg_stb.eq(1))
+        self.comb += self.async_messages_ready.w.eq(self.rt_packet.async_msg_ack)
+
         self.comb += [
             tsc.load.eq(self.rt_packet.tsc_load),
             tsc.load_value.eq(self.rt_packet.tsc_load_value)
@@ -136,14 +140,14 @@ class DRTIOSatellite(Module):
 
         self.sync += [
             If(self.tsc_loaded.re, self.tsc_loaded.w.eq(0)),
-            If(self.rt_packet.tsc_load, self.tsc_loaded.w.eq(1))
+            If(self.rt_packet.tsc_load, self.tsc_loaded.w.eq(1)),
         ]
 
         self.submodules.rt_errors = rt_errors_satellite.RTErrorsSatellite(
             self.rt_packet, tsc, self.async_errors)
 
     def get_csrs(self):
-        return ([self.reset, self.reset_phy, self.tsc_loaded] +
+        return ([self.reset, self.reset_phy, self.tsc_loaded, self.async_messages_ready] +
                 self.link_layer.get_csrs() + self.link_stats.get_csrs() +
                 self.rt_errors.get_csrs())
 
