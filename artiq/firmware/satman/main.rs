@@ -66,6 +66,12 @@ fn drtiosat_tsc_loaded() -> bool {
     }
 }
 
+fn drtiosat_async_ready() {
+    unsafe {
+        csr::drtiosat::async_messages_ready_write(1);
+    }
+}
+
 pub enum RtioMaster {
     Drtio,
     Dma,
@@ -90,7 +96,14 @@ macro_rules! forward {
         if hop != 0 {
             let repno = (hop - 1) as usize;
             if repno < $repeaters.len() {
-                return $repeaters[repno].aux_forward($packet);
+                if $packet.expects_response() {
+                    return $repeaters[repno].aux_forward($packet);
+                } else {
+                    let res = $repeaters[repno].aux_send($packet);
+                    // allow the satellite to parse the packet before next
+                    clock::spin_us(10_000);
+                    return res;
+                }
             } else {
                 return Err(drtioaux::Error::RoutingError);
             }
@@ -135,7 +148,8 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
                 *self_destination = destination;
                 // async messages
                 if *rank == 1 {
-                    if let Some(packet) = router.get_upstream_packet(*rank) {
+                    // for now, master ignores the async_messages_ready packet
+                    if let Some(packet) = router.get_upstream_packet() {
                         // pass any async or routed packets to master
                         // this does mean that DDMA/SK packets to master will "trickle down" to higher rank
                         return drtioaux::send(0, &packet)
@@ -236,14 +250,10 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             drtioaux::send(0, &drtioaux::Packet::RoutingAck)
         }
 
-        #[cfg(has_drtio_routing)]
-        drtioaux::Packet::RoutingAck => {
-            if *rank > 1 {
-                router.routing_ack_received();
-            } else {
-                warn!("received unexpected RoutingAck");
-            }
-            Ok(())
+        drtioaux::Packet::RoutingRetrievePackets => {
+            let packet = router.get_upstream_packet().or(
+                Some(drtioaux::Packet::RoutingNoPackets)).unwrap();
+            drtioaux::send(0, &packet)
         }
 
         drtioaux::Packet::MonitorRequest { destination: _destination, channel, probe } => {
@@ -453,10 +463,11 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             if kernelmgr.message_ack_slice() {
                 let mut data_slice: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
                 if let Some(meta) = kernelmgr.message_get_slice(&mut data_slice) {
-                    router.send(drtioaux::Packet::SubkernelMessage {
+                    // route and not send immediately as ACKs are not a beginning of a transaction
+                    router.route(drtioaux::Packet::SubkernelMessage {
                         source: *self_destination, destination: meta.destination, id: kernelmgr.get_current_id().unwrap(),
                         status: meta.status, length: meta.len as u16, data: data_slice
-                    }, _routing_table, *rank, *self_destination)?;
+                    }, _routing_table, *rank, *self_destination);
                 } else {
                     error!("Error receiving message slice");
                 }
@@ -476,16 +487,16 @@ fn process_aux_packets(dma_manager: &mut DmaManager, analyzer: &mut Analyzer,
         routing_table: &mut drtio_routing::RoutingTable, rank: &mut u8, router: &mut routing::Router,
         destination: &mut u8) {
     let result =
-        drtioaux::recv(0).or_else(|_| Ok(router.get_local_packet())).and_then(|packet| {
-            if let Some(packet) = packet {
-                process_aux_packet(dma_manager, analyzer, kernelmgr, repeaters, routing_table, rank, router, destination, packet)
+        drtioaux::recv(0).and_then(|packet| {
+            if let Some(packet) = packet.or_else(|| router.get_local_packet()) {
+                process_aux_packet(dma_manager, analyzer, kernelmgr, 
+                    repeaters, routing_table, rank, router, destination, packet)
             } else {
                 Ok(())
             }
         });
-    match result {
-        Ok(()) => (),
-        Err(e) => warn!("aux packet error ({})", e)
+    if let Err(e) = result {
+        warn!("aux packet error ({})", e);
     }
 }
 
@@ -765,21 +776,21 @@ pub extern fn main() -> i32 {
             if let Some(status) = dma_manager.get_status() {
                 info!("playback done, error: {}, channel: {}, timestamp: {}", status.error, status.channel, status.timestamp);
                 router.route(drtioaux::Packet::DmaPlaybackStatus { 
-                    source: destination, destination: status.source, id: status.id, 
-                    error: status.error, channel: status.channel, timestamp: status.timestamp 
-                }, &routing_table, rank, destination);
+                    destination: status.source, id: status.id, error: status.error, 
+                    channel: status.channel, timestamp: status.timestamp 
+                }, &routing_table, rank, destination)
             }
 
             kernelmgr.process_kern_requests(&mut router, &routing_table, rank, destination);
 
-            if rank > 1 {
-                if let Some(packet) = router.get_upstream_packet(rank) {
-                    // in sat-sat communications, it can be async
-                    let res = drtioaux::send(0, &packet);
-                    if let Err(e) = res {
-                        warn!("error routing packet: {}", e);
-                    }
+            if let Some((repno, packet)) = router.get_downstream_packet() {
+                if let Err(e) = repeaters[repno].aux_send(&packet) {
+                    warn!("[REP#{}] Error when sending packet to satellite ({:?})", repno, e)
                 }
+            }
+
+            if router.any_upstream_waiting() {
+                drtiosat_async_ready();
             }
         }
 
