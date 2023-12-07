@@ -650,6 +650,8 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 unsafe { kernel::stop() }
                 session.kernel_state = KernelState::Absent;
                 unsafe { session.congress.cache.unborrow() }
+                #[cfg(has_drtio)]
+                subkernel::clear_subkernels(io, _subkernel_mutex)?;
 
                 match stream {
                     None => {

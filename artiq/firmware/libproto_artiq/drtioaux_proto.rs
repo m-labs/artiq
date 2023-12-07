@@ -77,6 +77,8 @@ pub enum Packet {
 
     RoutingSetPath { destination: u8, hops: [u8; 32] },
     RoutingSetRank { rank: u8 },
+    RoutingRetrievePackets,
+    RoutingNoPackets,
     RoutingAck,
 
     MonitorRequest { destination: u8, channel: u16, probe: u8 },
@@ -168,6 +170,8 @@ impl Packet {
                 rank: reader.read_u8()?
             },
             0x32 => Packet::RoutingAck,
+            0x33 => Packet::RoutingRetrievePackets,
+            0x34 => Packet::RoutingNoPackets,
 
             0x40 => Packet::MonitorRequest {
                 destination: reader.read_u8()?,
@@ -450,6 +454,10 @@ impl Packet {
             },
             Packet::RoutingAck =>
                 writer.write_u8(0x32)?,
+            Packet::RoutingRetrievePackets =>
+                writer.write_u8(0x33)?,
+            Packet::RoutingNoPackets =>
+                writer.write_u8(0x34)?,
 
             Packet::MonitorRequest { destination, channel, probe } => {
                 writer.write_u8(0x40)?;
@@ -684,5 +692,24 @@ impl Packet {
             },
         }
         Ok(())
+    }
+
+    pub fn routable_destination(&self) -> Option<u8> {
+        // only for packets that could be re-routed, not only forwarded
+        match self {
+            Packet::DmaAddTraceRequest      { destination, .. } => Some(*destination),
+            Packet::DmaAddTraceReply        { destination, .. } => Some(*destination),
+            Packet::DmaRemoveTraceRequest   { destination, .. } => Some(*destination),
+            Packet::DmaRemoveTraceReply     { destination, .. } => Some(*destination),
+            Packet::DmaPlaybackRequest      { destination, .. } => Some(*destination),
+            Packet::DmaPlaybackReply        { destination, .. } => Some(*destination),
+            Packet::SubkernelLoadRunRequest { destination, .. } => Some(*destination),
+            Packet::SubkernelLoadRunReply   { destination, .. } => Some(*destination),
+            Packet::SubkernelMessage        { destination, .. } => Some(*destination),
+            Packet::SubkernelMessageAck     { destination, .. } => Some(*destination),
+            Packet::DmaPlaybackStatus       { destination, .. } => Some(*destination),
+            Packet::SubkernelFinished       { destination, .. } => Some(*destination),
+            _ => None
+        }
     }
 }

@@ -140,7 +140,7 @@ struct Session {
     last_exception: Option<Sliceable>,
     source: u8, // which destination requested running the kernel
     messages: MessageManager,
-    subkernels_finished: VecDeque<(u32, bool, u8)> // tuple of id, with_exception, exception_source
+    subkernels_finished: Vec<u32> // ids of subkernels finished
 }
 
 #[derive(Debug)]
@@ -286,13 +286,10 @@ impl MessageManager {
         let mut data_slice: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
         self.out_state = OutMessageState::MessageBeingSent;
         let meta = self.get_outgoing_slice(&mut data_slice).unwrap();
-        let res = router.route(drtioaux::Packet::SubkernelMessage {
+        router.route(drtioaux::Packet::SubkernelMessage {
                 source: self_destination, destination: destination, id: id,
                 status: meta.status, length: meta.len as u16, data: data_slice
         }, routing_table, rank, self_destination);
-        if let Err(e) = res {
-            warn!("error sending SubkernelMessage: {}", e);
-        }
         Ok(())
     }
 
@@ -309,7 +306,7 @@ impl Session {
             last_exception: None,
             source: 0,
             messages: MessageManager::new(),
-            subkernels_finished: VecDeque::new()
+            subkernels_finished: Vec::new()
         }
     }
 
@@ -500,6 +497,15 @@ impl Manager {
                 with_exception: $with_exception, exception_source: destination 
             }) }}
         }
+
+        if let Some(subkernel_finished) = self.last_finished.take() {
+            info!("subkernel {} finished, with exception: {}", subkernel_finished.id, subkernel_finished.with_exception);
+            router.route(drtioaux::Packet::SubkernelFinished {
+                destination: subkernel_finished.source, id: subkernel_finished.id, 
+                with_exception: subkernel_finished.with_exception, exception_src: subkernel_finished.exception_source
+            }, &routing_table, rank, destination);
+        }
+
         if !self.is_running() {
             return;
         }
@@ -532,17 +538,6 @@ impl Manager {
                 self.stop(); 
                 self.runtime_exception(e);
                 self.last_finished = finished!(true);
-            }
-        }
-
-        if let Some(subkernel_finished) = self.last_finished.take() {
-            info!("subkernel {} finished, with exception: {}", subkernel_finished.id, subkernel_finished.with_exception);
-            let res = router.route(drtioaux::Packet::SubkernelFinished {
-                destination: subkernel_finished.source, id: subkernel_finished.id, 
-                with_exception: subkernel_finished.with_exception, exception_src: destination
-            }, &routing_table, rank, destination);
-            if let Err(e) = res {
-                warn!("error sending SubkernelFinished: {}", e);
             }
         }
     }
@@ -578,25 +573,14 @@ impl Manager {
                     self.session.kernel_state = KernelState::Running;
                 } else {
                     let mut i = 0;
-                    for status in self.session.subkernels_finished.iter() {
-                        if status.0 == *id {
+                    for status in &self.session.subkernels_finished {
+                        if *status == *id {
+                            kern_send(&kern::SubkernelAwaitFinishReply { status: kern::SubkernelStatus::NoError })?;
+                            self.session.kernel_state = KernelState::Running;
+                            self.session.subkernels_finished.swap_remove(i);
                             break;
                         }
                         i += 1;
-                    }
-                    if let Some(finish_status) = self.session.subkernels_finished.remove(i) {
-                        if finish_status.1 {
-                            unsafe { kernel_cpu::stop() }
-                            self.session.kernel_state = KernelState::Absent;
-                            unsafe { self.cache.unborrow() }
-                            self.last_finished = Some(SubkernelFinished { 
-                                source: self.session.source, id: self.current_id,
-                                with_exception: true, exception_source: finish_status.2
-                            })
-                        } else {
-                            kern_send(&kern::SubkernelAwaitFinishReply { status: kern::SubkernelStatus::NoError })?;
-                            self.session.kernel_state = KernelState::Running;
-                        }
                     }
                 }
                 Ok(())
@@ -623,7 +607,17 @@ impl Manager {
     }
 
     pub fn remote_subkernel_finished(&mut self, id: u32, with_exception: bool, exception_source: u8) {
-        self.session.subkernels_finished.push_back((id, with_exception, exception_source));
+        if with_exception {
+            unsafe { kernel_cpu::stop() }
+            self.session.kernel_state = KernelState::Absent;
+            unsafe { self.cache.unborrow() }
+            self.last_finished = Some(SubkernelFinished {
+                source: self.session.source, id: self.current_id,
+                with_exception: true, exception_source: exception_source
+            })
+        } else {
+            self.session.subkernels_finished.push(id);
+        }
     }
 
     fn process_kern_message(&mut self, router: &mut Router, 
@@ -722,7 +716,7 @@ impl Manager {
                     self.session.kernel_state = KernelState::SubkernelAwaitLoad;
                     router.route(drtioaux::Packet::SubkernelLoadRunRequest { 
                         source: destination, destination: sk_destination, id: id, run: run 
-                    }, routing_table, rank, destination).map_err(|_| Error::DrtioError)?;
+                    }, routing_table, rank, destination);
                     kern_acknowledge()
                 }
 

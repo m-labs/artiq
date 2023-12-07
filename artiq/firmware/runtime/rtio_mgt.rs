@@ -65,7 +65,7 @@ pub mod drtio {
         let up_destinations = up_destinations.clone();
         let ddma_mutex = ddma_mutex.clone();
         let subkernel_mutex = subkernel_mutex.clone();
-        io.spawn(10240, move |io| {
+        io.spawn(8192, move |io| {
             let routing_table = routing_table.borrow();
             link_thread(io, &aux_mutex, &routing_table, &up_destinations, &ddma_mutex, &subkernel_mutex);
         });
