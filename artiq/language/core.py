@@ -72,8 +72,8 @@ def subkernel(arg=None, destination=0, flags={}):
     Subkernels behave similarly to kernels, with few key differences:
 
         - they are started from main kernels,
-        - they do not support RPCs, or running subsequent subkernels on other devices,
-        - but they can call other kernels or subkernels with the same destination.
+        - they do not support RPCs,
+        - but they can call other kernels or subkernels.
 
     Subkernels can accept arguments and return values. However, they must be fully 
     annotated with ARTIQ types.
