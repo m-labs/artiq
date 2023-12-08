@@ -471,6 +471,7 @@ fn process_host_message(io: &Io, _aux_mutex: &Mutex, _ddma_mutex: &Mutex, _subke
                 match subkernel::upload(io, _aux_mutex, _subkernel_mutex, _routing_table, _id) {
                     Ok(_) => host_write(stream, host::Reply::LoadCompleted)?,
                     Err(error) => {
+                        subkernel::clear_subkernels(io, _subkernel_mutex)?;
                         let mut description = String::new();
                         write!(&mut description, "{}", error).unwrap();
                         host_write(stream, host::Reply::LoadFailed(&description))?

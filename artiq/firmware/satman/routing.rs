@@ -101,8 +101,11 @@ impl Router {
     }
 
     pub fn get_upstream_packet(&mut self) -> Option<drtioaux::Packet> {
-        self.upstream_notified = false;
-        self.upstream_queue.pop_front()
+        let packet = self.upstream_queue.pop_front();
+        if packet.is_none() {
+            self.upstream_notified = false;
+        }
+        packet
     }
 
     pub fn get_downstream_packet(&mut self) -> Option<(usize, drtioaux::Packet)> {

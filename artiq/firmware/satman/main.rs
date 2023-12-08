@@ -146,15 +146,6 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
 
             if hop == 0 {
                 *self_destination = destination;
-                // async messages
-                if *rank == 1 {
-                    // for now, master ignores the async_messages_ready packet
-                    if let Some(packet) = router.get_upstream_packet() {
-                        // pass any async or routed packets to master
-                        // this does mean that DDMA/SK packets to master will "trickle down" to higher rank
-                        return drtioaux::send(0, &packet)
-                    }
-                }
                 let errors;
                 unsafe {
                     errors = csr::drtiosat::rtio_error_read();
@@ -776,9 +767,9 @@ pub extern fn main() -> i32 {
             if let Some(status) = dma_manager.get_status() {
                 info!("playback done, error: {}, channel: {}, timestamp: {}", status.error, status.channel, status.timestamp);
                 router.route(drtioaux::Packet::DmaPlaybackStatus { 
-                    destination: status.source, id: status.id, error: status.error, 
-                    channel: status.channel, timestamp: status.timestamp 
-                }, &routing_table, rank, destination)
+                    source: destination, destination: status.source, id: status.id,
+                    error: status.error, channel: status.channel, timestamp: status.timestamp 
+                }, &routing_table, rank, destination);
             }
 
             kernelmgr.process_kern_requests(&mut router, &routing_table, rank, destination);
