@@ -12,7 +12,7 @@ from artiq.language import import_cache
 
 
 __all__ = [
-    "Kernel", "KernelInvariant", "virtual",
+    "Kernel", "KernelInvariant", "virtual", "ConstGeneric",
     "round64", "floor64", "ceil64",
     "extern", "kernel", "portable", "nac3", "rpc",
     "print_rpc",
@@ -34,6 +34,12 @@ class KernelInvariant(Generic[T]):
 
 class virtual(Generic[T]):
     pass
+
+class _ConstGenericMarker:
+    pass
+
+def ConstGeneric(name, constraint):
+    return TypeVar(name, _ConstGenericMarker, constraint)
 
 
 def round64(x):
