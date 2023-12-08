@@ -275,7 +275,7 @@ Subkernels refer to kernels running on a satellite device. This allows you to of
 
 Subkernels behave in most part as regular kernels, they accept arguments and can return values. However, there are few caveats:
 
-   - they do not support RPCs or calling subsequent subkernels on other devices,
+   - they do not support RPCs,
    - they do not support DRTIO,
    - their return value must be fully annotated with an ARTIQ type,
    - their arguments should be annotated, and only basic ARTIQ types are supported,
@@ -310,7 +310,7 @@ Subkernels are compiled after the main kernel, and then immediately uploaded to 
 
 While ``self`` is accepted as an argument for subkernels, it is embedded into the compiled data. Any changes made by the main kernel or other subkernels, will not be available.
 
-Subkernels can call other kernels and subkernels, if they're within the same destination. For a more complex example: ::
+Subkernels can call other kernels and subkernels. For a more complex example: ::
 
     from artiq.experiment import *
 
