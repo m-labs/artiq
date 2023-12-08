@@ -364,8 +364,11 @@ pub mod subkernel {
         {
             let _lock = subkernel_mutex.lock(io)?;
             match unsafe { SUBKERNELS.get(&id).unwrap().state } {
-                SubkernelState::Finished { .. } => return Err(Error::SubkernelFinished),
+                SubkernelState::Finished { status: FinishStatus::Ok } |
                 SubkernelState::Running => (),
+                SubkernelState::Finished {
+                    status: FinishStatus::CommLost,
+                    } => return Err(Error::SubkernelFinished),
                 _ => return Err(Error::IncorrectState)
             }
         }
@@ -385,7 +388,8 @@ pub mod subkernel {
                 }
             }
             match unsafe { SUBKERNELS.get(&id).unwrap().state } {
-                SubkernelState::Finished { .. } => return Ok(None),
+                SubkernelState::Finished { status: FinishStatus::CommLost } | 
+                    SubkernelState::Finished { status: FinishStatus::Exception(_) }  => return Ok(None),
                 _ => ()
             }
             Err(())

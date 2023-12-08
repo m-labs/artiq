@@ -712,4 +712,17 @@ impl Packet {
             _ => None
         }
     }
+
+    pub fn expects_response(&self) -> bool {
+        // returns true if the routable packet should elicit a response
+        // e.g. reply, ACK packets end a conversation,
+        // and firmware should not wait for response
+        match self {
+            Packet::DmaAddTraceReply { .. } | Packet::DmaRemoveTraceReply { .. } |
+                Packet::DmaPlaybackReply { .. } | Packet::SubkernelLoadRunReply { .. } |
+                Packet::SubkernelMessageAck { .. } | Packet::DmaPlaybackStatus { .. } |
+                Packet::SubkernelFinished { .. } => false,
+            _ => true
+        }
+    }
 }
