@@ -139,6 +139,15 @@ Core device RTIO analyzer tool
 
 .. _routing-table-tool:
 
+Core device RTIO analyzer proxy
+-------------------------------
+
+:mod:`~artiq.frontend.aqctl_coreanalyzer_proxy` is a tool to distribute the core analyzer dump to several clients such as the dashboard. 
+
+.. argparse::
+   :ref: artiq.frontend.aqctl_coreanalyzer_proxy.get_argparser
+   :prog: aqctl_coreanalyzer_proxy
+
 DRTIO routing table manipulation tool
 -------------------------------------
 
