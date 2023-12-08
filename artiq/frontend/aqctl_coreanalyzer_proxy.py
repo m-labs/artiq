@@ -2,12 +2,13 @@ import argparse
 import asyncio
 import atexit
 import logging
-import struct
+
 from sipyco.asyncio_tools import AsyncioServer, SignalHandler, atexit_register_coroutine
 from sipyco.pc_rpc import Server
 from sipyco import common_args
 
 from artiq.coredevice.comm_analyzer import get_analyzer_dump
+
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +39,8 @@ class ProxyServer(AsyncioServer):
             writer.close()
 
     def request_dump_cb(self, dump):
-        encoded_dump = struct.pack(">L", len(dump)) + dump
         for recipient in self._recipients:
-            recipient.put_nowait(encoded_dump)
+            recipient.put_nowait(dump)
 
 
 class ProxyControl:
@@ -98,8 +98,6 @@ def main():
     server = Server({"coreanalyzer_proxy_control": controller}, None, True)
     loop.run_until_complete(server.start(bind_address, args.port_control))
     atexit_register_coroutine(server.stop, loop=loop)
-
-    logger.info("ARTIQ core analyzer proxy is ready.")
 
     _, pending = loop.run_until_complete(asyncio.wait(
         [loop.create_task(signal_handler.wait_terminate()),
