@@ -4,6 +4,7 @@ from numpy import int32, int64
 import nac3artiq
 
 from artiq.language.core import *
+from artiq.language.core import _ConstGenericMarker  # nac3artiq.NAC3 needs to look up this private class
 from artiq.language import core as core_language
 from artiq.language.units import *
 from artiq.language.embedding_map import EmbeddingMap
