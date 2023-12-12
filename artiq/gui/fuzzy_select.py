@@ -2,7 +2,7 @@ import re
 
 from functools import partial
 from typing import List, Tuple
-from PyQt5 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from artiq.gui.tools import LayoutWidget
 
@@ -19,7 +19,7 @@ class FuzzySelectWidget(LayoutWidget):
 
     #: Raised when an entry has been selected, giving the label of the user
     #: choice and any additional QEvent.modifiers() (e.g. Ctrl key pressed).
-    finished = QtCore.pyqtSignal(str, int)
+    finished = QtCore.pyqtSignal(str, QtCore.Qt.KeyboardModifier)
 
     def __init__(self,
                  choices: List[Tuple[str, int]] = [],
@@ -138,16 +138,16 @@ class FuzzySelectWidget(LayoutWidget):
         first_action = None
         last_action = None
         for choice in filtered_choices:
-            action = QtWidgets.QAction(choice, self.menu)
+            action = QtGui.QAction(choice, self.menu)
             action.triggered.connect(partial(self._finish, action, choice))
-            action.modifiers = 0
+            action.modifiers = QtCore.Qt.KeyboardModifier.NoModifier
             self.menu.addAction(action)
             if not first_action:
                 first_action = action
             last_action = action
 
         if num_omitted > 0:
-            action = QtWidgets.QAction("<{} not shown>".format(num_omitted),
+            action = QtGui.QAction("<{} not shown>".format(num_omitted),
                                        self.menu)
             action.setEnabled(False)
             self.menu.addAction(action)
@@ -239,9 +239,9 @@ class _FocusEventFilter(QtCore.QObject):
     focus_lost = QtCore.pyqtSignal()
 
     def eventFilter(self, obj, event):
-        if event.type() == QtCore.QEvent.FocusIn:
+        if event.type() == QtCore.QEvent.Type.FocusIn:
             self.focus_gained.emit()
-        elif event.type() == QtCore.QEvent.FocusOut:
+        elif event.type() == QtCore.QEvent.Type.FocusOut:
             self.focus_lost.emit()
         return False
 
@@ -251,8 +251,8 @@ class _EscapeKeyFilter(QtCore.QObject):
     escape_pressed = QtCore.pyqtSignal()
 
     def eventFilter(self, obj, event):
-        if event.type() == QtCore.QEvent.KeyPress:
-            if event.key() == QtCore.Qt.Key_Escape:
+        if event.type() == QtCore.QEvent.Type.KeyPress:
+            if event.key() == QtCore.Qt.Key.Key_Escape:
                 self.escape_pressed.emit()
         return False
 
@@ -266,13 +266,13 @@ class _UpDownKeyFilter(QtCore.QObject):
         self.last_item = last_item
 
     def eventFilter(self, obj, event):
-        if event.type() == QtCore.QEvent.KeyPress:
-            if event.key() == QtCore.Qt.Key_Down:
+        if event.type() == QtCore.QEvent.Type.KeyPress:
+            if event.key() == QtCore.Qt.Key.Key_Down:
                 self.menu.setActiveAction(self.first_item)
                 self.menu.setFocus()
                 return True
 
-            if event.key() == QtCore.Qt.Key_Up:
+            if event.key() == QtCore.Qt.Key.Key_Up:
                 self.menu.setActiveAction(self.last_item)
                 self.menu.setFocus()
                 return True
@@ -286,16 +286,16 @@ class _NonUpDownKeyFilter(QtCore.QObject):
         self.target = target
 
     def eventFilter(self, obj, event):
-        if event.type() == QtCore.QEvent.KeyPress:
+        if event.type() == QtCore.QEvent.Type.KeyPress:
             k = event.key()
-            if k in (QtCore.Qt.Key_Return, QtCore.Qt.Key_Enter):
+            if k in (QtCore.Qt.Key.Key_Return, QtCore.Qt.Key.Key_Enter):
                 action = obj.activeAction()
                 if action is not None:
                     action.modifiers = event.modifiers()
                     return False
-            if (k != QtCore.Qt.Key_Down and k != QtCore.Qt.Key_Up
-                    and k != QtCore.Qt.Key_Enter
-                    and k != QtCore.Qt.Key_Return):
+            if (k != QtCore.Qt.Key.Key_Down and k != QtCore.Qt.Key.Key_Up
+                    and k != QtCore.Qt.Key.Key_Enter
+                    and k != QtCore.Qt.Key.Key_Return):
                 QtWidgets.QApplication.sendEvent(self.target, event)
                 return True
         return False

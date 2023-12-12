@@ -27,9 +27,9 @@ SOFTWARE.
 
 import math
 
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
+from PyQt6.QtCore import *
+from PyQt6.QtGui import *
+from PyQt6.QtWidgets import *
 
 
 class QtWaitingSpinner(QWidget):
@@ -37,7 +37,7 @@ class QtWaitingSpinner(QWidget):
         super().__init__()
 
         # WAS IN initialize()
-        self._color = QColor(Qt.black)
+        self._color = Qt.GlobalColor.black
         self._roundness = 100.0
         self._minimumTrailOpacity = 3.14159265358979323846
         self._trailFadePercentage = 80.0
@@ -54,17 +54,17 @@ class QtWaitingSpinner(QWidget):
         self.updateTimer()
         # END initialize()
 
-        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
     def paintEvent(self, QPaintEvent):
         painter = QPainter(self)
-        painter.fillRect(self.rect(), Qt.transparent)
-        painter.setRenderHint(QPainter.Antialiasing, True)
+        painter.fillRect(self.rect(), Qt.GlobalColor.transparent)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
 
         if self._currentCounter >= self._numberOfLines:
             self._currentCounter = 0
 
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.PenStyle.NoPen)
         for i in range(0, self._numberOfLines):
             painter.save()
             painter.translate(self._innerRadius + self._lineLength, self._innerRadius + self._lineLength)
@@ -76,7 +76,7 @@ class QtWaitingSpinner(QWidget):
                                           self._minimumTrailOpacity, self._color)
             painter.setBrush(color)
             painter.drawRoundedRect(QRect(0, int(-self._lineWidth / 2), self._lineLength, self._lineWidth), self._roundness,
-                                    self._roundness, Qt.RelativeSize)
+                                    self._roundness, Qt.SizeMode.RelativeSize)
             painter.restore()
 
     def start(self):
@@ -136,7 +136,7 @@ class QtWaitingSpinner(QWidget):
     def setRoundness(self, roundness):
         self._roundness = max(0.0, min(100.0, roundness))
 
-    def setColor(self, color=Qt.black):
+    def setColor(self, color=Qt.GlobalColor.black):
         self._color = QColor(color)
 
     def setRevolutionsPerSecond(self, revolutionsPerSecond):

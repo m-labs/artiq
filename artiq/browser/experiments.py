@@ -4,7 +4,7 @@ import os
 from functools import partial
 from collections import OrderedDict
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 import h5py
 
 from sipyco import pyon
@@ -27,13 +27,13 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
             set_resize_mode = self.header().setSectionResizeMode
         except AttributeError:
             set_resize_mode = self.header().setResizeMode
-        set_resize_mode(0, QtWidgets.QHeaderView.ResizeToContents)
-        set_resize_mode(1, QtWidgets.QHeaderView.Stretch)
-        set_resize_mode(2, QtWidgets.QHeaderView.ResizeToContents)
+        set_resize_mode(0, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        set_resize_mode(1, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        set_resize_mode(2, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
         self.header().setVisible(False)
-        self.setSelectionMode(self.NoSelection)
-        self.setHorizontalScrollMode(self.ScrollPerPixel)
-        self.setVerticalScrollMode(self.ScrollPerPixel)
+        self.setSelectionMode(self.SelectionMode.NoSelection)
+        self.setHorizontalScrollMode(self.ScrollMode.ScrollPerPixel)
+        self.setVerticalScrollMode(self.ScrollMode.ScrollPerPixel)
 
         self.setStyleSheet("QTreeWidget {background: " +
                            self.palette().midlight().color().name() + " ;}")
@@ -82,7 +82,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
                                           "method and take the default value")
             recompute_argument.setIcon(
                 QtWidgets.QApplication.style().standardIcon(
-                    QtWidgets.QStyle.SP_BrowserReload))
+                    QtWidgets.QStyle.StandardPixmap.SP_BrowserReload))
             recompute_argument.clicked.connect(
                 partial(self._recompute_argument_clicked, name))
             fix_layout = LayoutWidget()
@@ -94,13 +94,13 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         recompute_arguments = QtWidgets.QPushButton("Recompute all arguments")
         recompute_arguments.setIcon(
             QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_BrowserReload))
+                QtWidgets.QStyle.StandardPixmap.SP_BrowserReload))
         recompute_arguments.clicked.connect(self._recompute_arguments_clicked)
 
         load = QtWidgets.QPushButton("Set arguments from HDF5")
         load.setToolTip("Set arguments from currently selected HDF5 file")
         load.setIcon(QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_DialogApplyButton))
+                QtWidgets.QStyle.StandardPixmap.SP_DialogApplyButton))
         load.clicked.connect(self._load_clicked)
 
         buttons = LayoutWidget()
@@ -183,7 +183,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.resize(100*qfm.averageCharWidth(), 30*qfm.lineSpacing())
         self.setWindowTitle(expurl)
         self.setWindowIcon(QtWidgets.QApplication.style().standardIcon(
-            QtWidgets.QStyle.SP_FileDialogContentsView))
+            QtWidgets.QStyle.StandardPixmap.SP_FileDialogContentsView))
         self.setAcceptDrops(True)
 
         self.layout = QtWidgets.QGridLayout()
@@ -223,22 +223,22 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
         run = QtWidgets.QPushButton("Analyze")
         run.setIcon(QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_DialogOkButton))
+                QtWidgets.QStyle.StandardPixmap.SP_DialogOkButton))
         run.setToolTip("Run analysis stage (Ctrl+Return)")
         run.setShortcut("CTRL+RETURN")
-        run.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
-                          QtWidgets.QSizePolicy.Expanding)
+        run.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
+                          QtWidgets.QSizePolicy.Policy.Expanding)
         self.layout.addWidget(run, 2, 4)
         run.clicked.connect(self._run_clicked)
         self._run = run
 
         terminate = QtWidgets.QPushButton("Terminate")
         terminate.setIcon(QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_DialogCancelButton))
+                QtWidgets.QStyle.StandardPixmap.SP_DialogCancelButton))
         terminate.setToolTip("Terminate analysis (Ctrl+Backspace)")
         terminate.setShortcut("CTRL+BACKSPACE")
-        terminate.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
-                                QtWidgets.QSizePolicy.Expanding)
+        terminate.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
+                                QtWidgets.QSizePolicy.Policy.Expanding)
         self.layout.addWidget(terminate, 3, 4)
         terminate.clicked.connect(self._terminate_clicked)
         terminate.setEnabled(False)
@@ -413,7 +413,7 @@ class ExperimentsArea(QtWidgets.QMdiArea):
         asyncio.ensure_future(sub.load_hdf5_task(path))
 
     def mousePressEvent(self, ev):
-        if ev.button() == QtCore.Qt.LeftButton:
+        if ev.button() == QtCore.Qt.MouseButton.LeftButton:
             self.select_experiment()
 
     def paintEvent(self, event):
@@ -501,7 +501,7 @@ class ExperimentsArea(QtWidgets.QMdiArea):
                            exc_info=True)
             dock = _ExperimentDock(self, expurl, {})
             asyncio.ensure_future(dock._recompute_arguments())
-        dock.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        dock.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
         self.addSubWindow(dock)
         dock.show()
         dock.sigClosed.connect(partial(self.on_dock_closed, dock))

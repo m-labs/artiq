@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import PyQt5  # make sure pyqtgraph imports Qt5
+import PyQt6  # make sure pyqtgraph imports Qt6
 import pyqtgraph
 
 from artiq.applets.simple import SimpleApplet

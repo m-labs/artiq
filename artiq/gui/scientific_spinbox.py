@@ -1,6 +1,6 @@
 import re
 from math import inf, copysign
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 
 _float_acceptable = re.compile(
@@ -16,8 +16,8 @@ class ScientificSpinBox(QtWidgets.QDoubleSpinBox):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setGroupSeparatorShown(False)
-        self.setInputMethodHints(QtCore.Qt.ImhNone)
-        self.setCorrectionMode(self.CorrectToPreviousValue)
+        self.setInputMethodHints(QtCore.Qt.InputMethodHint.ImhNone)
+        self.setCorrectionMode(self.CorrectionMode.CorrectToPreviousValue)
         # singleStep: resolution for step, buttons, accelerators
         # decimals: absolute rounding granularity
         # sigFigs: number of significant digits shown
@@ -69,11 +69,11 @@ class ScientificSpinBox(QtWidgets.QDoubleSpinBox):
             clean = clean.rsplit(self.suffix(), 1)[0]
         try:
             float(clean)  # faster than matching
-            return QtGui.QValidator.Acceptable, text, pos
+            return QtGui.QValidator.State.Acceptable, text, pos
         except ValueError:
             if re.fullmatch(_float_intermediate, clean):
-                return QtGui.QValidator.Intermediate, text, pos
-            return QtGui.QValidator.Invalid, text, pos
+                return QtGui.QValidator.State.Intermediate, text, pos
+            return QtGui.QValidator.State.Invalid, text, pos
 
     def stepBy(self, s):
         if abs(s) < 10:  # unaccelerated buttons, keys, wheel/trackpad

@@ -7,7 +7,7 @@ import os
 import logging
 import sys
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 from qasync import QEventLoop
 
 from sipyco.asyncio_tools import atexit_register_coroutine
@@ -68,9 +68,9 @@ class Browser(QtWidgets.QMainWindow):
             browse_root, dataset_sub)
         smgr.register(self.experiments)
         self.experiments.setHorizontalScrollBarPolicy(
-            QtCore.Qt.ScrollBarAsNeeded)
+            QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.experiments.setVerticalScrollBarPolicy(
-            QtCore.Qt.ScrollBarAsNeeded)
+            QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setCentralWidget(self.experiments)
 
         self.files = files.FilesDock(dataset_sub, browse_root)
@@ -91,29 +91,29 @@ class Browser(QtWidgets.QMainWindow):
 
         self.log = log.LogDock(None, "log")
         smgr.register(self.log)
-        self.log.setFeatures(self.log.DockWidgetMovable |
-                             self.log.DockWidgetFloatable)
+        self.log.setFeatures(self.log.DockWidgetFeature.DockWidgetMovable |
+                             self.log.DockWidgetFeature.DockWidgetFloatable)
 
-        self.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self.files)
-        self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.applets)
-        self.addDockWidget(QtCore.Qt.RightDockWidgetArea, self.datasets)
-        self.addDockWidget(QtCore.Qt.BottomDockWidgetArea, self.log)
+        self.addDockWidget(QtCore.Qt.DockWidgetArea.LeftDockWidgetArea, self.files)
+        self.addDockWidget(QtCore.Qt.DockWidgetArea.BottomDockWidgetArea, self.applets)
+        self.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, self.datasets)
+        self.addDockWidget(QtCore.Qt.DockWidgetArea.BottomDockWidgetArea, self.log)
 
         g = self.menuBar().addMenu("&Experiment")
-        a = QtWidgets.QAction("&Open", self)
+        a = QtGui.QAction("&Open", self)
         a.setIcon(QtWidgets.QApplication.style().standardIcon(
-            QtWidgets.QStyle.SP_DialogOpenButton))
-        a.setShortcuts(QtGui.QKeySequence.Open)
+            QtWidgets.QStyle.StandardPixmap.SP_DialogOpenButton))
+        a.setShortcuts(QtGui.QKeySequence.StandardKey.Open)
         a.setStatusTip("Open an experiment")
         a.triggered.connect(self.experiments.select_experiment)
         g.addAction(a)
 
         g = self.menuBar().addMenu("&View")
-        a = QtWidgets.QAction("Cascade", self)
+        a = QtGui.QAction("Cascade", self)
         a.setStatusTip("Cascade experiment windows")
         a.triggered.connect(self.experiments.cascadeSubWindows)
         g.addAction(a)
-        a = QtWidgets.QAction("Tile", self)
+        a = QtGui.QAction("Tile", self)
         a.setStatusTip("Tile experiment windows")
         a.triggered.connect(self.experiments.tileSubWindows)
         g.addAction(a)

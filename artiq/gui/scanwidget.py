@@ -1,6 +1,6 @@
 import logging
 
-from PyQt5 import QtGui, QtCore, QtWidgets
+from PyQt6 import QtGui, QtCore, QtWidgets
 import numpy as np
 
 from .ticker import Ticker
@@ -23,15 +23,15 @@ class ScanWidget(QtWidgets.QWidget):
 
         self.ticker = Ticker()
 
-        self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        action = QtWidgets.QAction("V&iew range", self)
+        self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
+        action = QtGui.QAction("V&iew range", self)
         action.setShortcut(QtGui.QKeySequence("CTRL+i"))
-        action.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        action.setShortcutContext(QtCore.Qt.ShortcutContext.WidgetShortcut)
         action.triggered.connect(self.viewRange)
         self.addAction(action)
-        action = QtWidgets.QAction("Sna&p range", self)
+        action = QtGui.QAction("Sna&p range", self)
         action.setShortcut(QtGui.QKeySequence("CTRL+p"))
-        action.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        action.setShortcutContext(QtCore.Qt.ShortcutContext.WidgetShortcut)
         action.triggered.connect(self.snapRange)
         self.addAction(action)
 
@@ -143,56 +143,56 @@ class ScanWidget(QtWidgets.QWidget):
         if ev.buttons() ^ ev.button():  # buttons changed
             ev.ignore()
             return
-        if ev.modifiers() & QtCore.Qt.ShiftModifier:
+        if ev.modifiers() & QtCore.Qt.KeyboardModifier.ShiftModifier:
             self._drag = "select"
-            self.setStart(self._pixelToAxis(ev.x()))
+            self.setStart(self._pixelToAxis(ev.position().x()))
             self.setStop(self._start)
-        elif ev.modifiers() & QtCore.Qt.ControlModifier:
+        elif ev.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier:
             self._drag = "zoom"
-            self._offset = QtCore.QPoint(ev.x(), 0)
+            self._offset = QtCore.QPoint(ev.position().x(), 0)
             self._rubber = QtWidgets.QRubberBand(
                 QtWidgets.QRubberBand.Rectangle, self)
             self._rubber.setGeometry(QtCore.QRect(
-                self._offset, QtCore.QPoint(ev.x(), self.height() - 1)))
+                self._offset, QtCore.QPoint(ev.position().x(), self.height() - 1)))
             self._rubber.show()
         else:
             qfm = QtGui.QFontMetrics(self.font())
-            if ev.y() <= 2.5*qfm.lineSpacing():
+            if ev.position().y() <= 2.5*qfm.lineSpacing():
                 self._drag = "axis"
-                self._offset = ev.x() - self._axisView[0]
+                self._offset = ev.position().x() - self._axisView[0]
             # testing should match inverse drawing order for start/stop
             elif abs(self._axisToPixel(self._stop) -
-                     ev.x()) < qfm.lineSpacing()/2:
+                     ev.position().x()) < qfm.lineSpacing()/2:
                 self._drag = "stop"
-                self._offset = ev.x() - self._axisToPixel(self._stop)
+                self._offset = ev.position().x() - self._axisToPixel(self._stop)
             elif abs(self._axisToPixel(self._start) -
-                     ev.x()) < qfm.lineSpacing()/2:
+                     ev.position().x()) < qfm.lineSpacing()/2:
                 self._drag = "start"
-                self._offset = ev.x() - self._axisToPixel(self._start)
+                self._offset = ev.position().x() - self._axisToPixel(self._start)
             else:
                 self._drag = "both"
-                self._offset = (ev.x() - self._axisToPixel(self._start),
-                                ev.x() - self._axisToPixel(self._stop))
+                self._offset = (ev.position().x() - self._axisToPixel(self._start),
+                                ev.position().x() - self._axisToPixel(self._stop))
 
     def mouseMoveEvent(self, ev):
         if not self._drag:
             ev.ignore()
             return
         if self._drag == "select":
-            self.setStop(self._pixelToAxis(ev.x()))
+            self.setStop(self._pixelToAxis(ev.position().x()))
         elif self._drag == "zoom":
             self._rubber.setGeometry(QtCore.QRect(
-                self._offset, QtCore.QPoint(ev.x(), self.height() - 1)
+                self._offset, QtCore.QPoint(ev.position().x(), self.height() - 1)
             ).normalized())
         elif self._drag == "axis":
-            self._setView(ev.x() - self._offset, self._axisView[1])
+            self._setView(ev.position().x() - self._offset, self._axisView[1])
         elif self._drag == "start":
-            self.setStart(self._pixelToAxis(ev.x() - self._offset))
+            self.setStart(self._pixelToAxis(ev.position().x() - self._offset))
         elif self._drag == "stop":
-            self.setStop(self._pixelToAxis(ev.x() - self._offset))
+            self.setStop(self._pixelToAxis(ev.position().x() - self._offset))
         elif self._drag == "both":
-            self.setStart(self._pixelToAxis(ev.x() - self._offset[0]))
-            self.setStop(self._pixelToAxis(ev.x() - self._offset[1]))
+            self.setStart(self._pixelToAxis(ev.position().x() - self._offset[0]))
+            self.setStop(self._pixelToAxis(ev.position().x() - self._offset[1]))
 
     def mouseReleaseEvent(self, ev):
         if self._drag == "zoom":
@@ -217,10 +217,10 @@ class ScanWidget(QtWidgets.QWidget):
         y = round(ev.angleDelta().y()/120.)
         if not y:
             return
-        if ev.modifiers() & QtCore.Qt.ShiftModifier:
+        if ev.modifiers() & QtCore.Qt.KeyboardModifier.ShiftModifier:
             self.setNum(max(1, self._num + y))
         else:
-            self._zoom(self.zoomFactor**y, ev.x())
+            self._zoom(self.zoomFactor**y, ev.position().x())
 
     def resizeEvent(self, ev):
         if not ev.oldSize().isValid() or not ev.oldSize().width():
@@ -245,8 +245,8 @@ class ScanWidget(QtWidgets.QWidget):
         ticks, prefix, labels = self.ticker(self._pixelToAxis(0),
                                             self._pixelToAxis(self.width()))
         rect = QtCore.QRect(0, 0, self.width(), lineSpacing)
-        painter.drawText(rect, QtCore.Qt.AlignLeft, prefix)
-        painter.drawText(rect, QtCore.Qt.AlignRight, self.suffix)
+        painter.drawText(rect, QtCore.Qt.AlignmentFlag.AlignLeft, prefix)
+        painter.drawText(rect, QtCore.Qt.AlignmentFlag.AlignRight, self.suffix)
 
         painter.translate(0, lineSpacing + ascent)
 
@@ -264,7 +264,7 @@ class ScanWidget(QtWidgets.QWidget):
             painter.drawLine(int(p), 0, int(p), int(lineSpacing/2))
         painter.translate(0, int(lineSpacing/2))
 
-        for x, c in (self._start, QtCore.Qt.blue), (self._stop, QtCore.Qt.red):
+        for x, c in (self._start, QtCore.Qt.GlobalColor.blue), (self._stop, QtCore.Qt.GlobalColor.red):
             x = self._axisToPixel(x)
             painter.setPen(c)
             painter.setBrush(c)
