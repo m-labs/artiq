@@ -317,6 +317,83 @@ class WishboneHandler:
         raise NotImplementedError
 
 
+class GenericWishboneHandler(WishboneHandler):
+    """Generic Wishbone Bus Data Handler.
+
+    Useful for testing out-of-tree PHY devices and viewing their bus transactions
+    in a VCD file.
+    """
+
+    comm_buses_and_width = {
+        "out_address": 8,
+        "out_data": 32,
+        "out_stb": 1,
+        "in_data": 14,
+        "in_stb": 1
+    }
+    def __init__(self, vcd_manager, name, channel):
+        """Create the Wishbone Data Handler.
+
+        Args:
+            vcd_manager (VCDManager): VCD Manager to add this device's channels to.
+            name (str): Name of the coredevice that communicates on this channel.
+        """
+        self.channels = {}
+        with vcd_manager.scope("bus_device/{}(chan{})".format(name, channel)):
+            for bus_name, bus_width in self.comm_buses_and_width.items():
+                self.channels[bus_name] = vcd_manager.get_channel(
+                    "{}/{}".format(name, bus_name),
+                    bus_width
+                )
+
+    def set_channel(self, channel_name, value):
+        """Set channel to a specific value.
+
+        Formats the data properly for interpretation by VCD viewer
+        (on a per-channel basis).
+
+        Args:
+            channel_name (str): Name of the channel to write
+            value (int): Value to be stored to VCD. Should be some sort of integer.
+        """
+        # format all outputs as binary of proper length
+        chan_fmt_string = "{{:0{}b}}".format(self.comm_buses_and_width[channel_name])
+        self.channels[channel_name].set_value(chan_fmt_string.format(value))
+
+    def process_message(self, message):
+        """Process a Wishbone message into VCD events.
+
+        Args:
+            message (typing.Union[InputMessage, OutputMessage]):
+                A message from the coredevice, either an InputMessage
+                (signal from PHY to coredevice) or an OutputMessage
+                (signal from coredevice to PHY).
+        """
+        # TODO: doesn't reset bus (addr/data) to 0 after bus transaction is done
+        # TODO: stb doesn't display width, but edges register when jumping through waveform
+        if isinstance(message, OutputMessage):
+            logger.debug(
+                "Wishbone out @%d adr=0x%02x data=0x%08x",
+                message.timestamp,
+                message.address,
+                message.data
+            )
+            self.set_channel("out_stb", 1)
+            self.set_channel("out_stb", 0)
+            self.set_channel("out_address", message.address)
+            self.set_channel("out_data", message.data)
+        elif isinstance(message, InputMessage):
+            logger.debug(
+                "Wishbone in @%d(ts=%d) data=0x%08x",
+                message.rtio_counter,
+                message.timestamp,
+                message.data
+            )
+            self.set_channel("in_data", message.data)
+            self.set_channel("in_stb", 1)
+            self.set_channel("in_stb", 0)
+
+
 class SPIMasterHandler(WishboneHandler):
     def __init__(self, vcd_manager, name):
         self.channels = {}
@@ -484,11 +561,11 @@ def create_channel_handlers(vcd_manager, devices, ref_period,
                     and desc["class"] in {"TTLOut", "TTLInOut"}):
                 channel = desc["arguments"]["channel"]
                 channel_handlers[channel] = TTLHandler(vcd_manager, name)
-            if (desc["module"] == "artiq.coredevice.ttl"
+            elif (desc["module"] == "artiq.coredevice.ttl"
                     and desc["class"] == "TTLClockGen"):
                 channel = desc["arguments"]["channel"]
                 channel_handlers[channel] = TTLClockGenHandler(vcd_manager, name, ref_period)
-            if (desc["module"] == "artiq.coredevice.ad9914"
+            elif (desc["module"] == "artiq.coredevice.ad9914"
                     and desc["class"] == "AD9914"):
                 dds_bus_channel = desc["arguments"]["bus_channel"]
                 dds_channel = desc["arguments"]["channel"]
@@ -498,11 +575,29 @@ def create_channel_handlers(vcd_manager, devices, ref_period,
                     dds_handler = DDSHandler(vcd_manager, dds_onehot_sel, dds_sysclk)
                     channel_handlers[dds_bus_channel] = dds_handler
                 dds_handler.add_dds_channel(name, dds_channel)
-            if (desc["module"] == "artiq.coredevice.spi2" and
+            elif (desc["module"] == "artiq.coredevice.spi2" and
                     desc["class"] == "SPIMaster"):
                 channel = desc["arguments"]["channel"]
                 channel_handlers[channel] = SPIMaster2Handler(
                         vcd_manager, name)
+            elif (
+                "channel" in desc["arguments"].keys() and
+                desc["type"] == "local" and
+                "core" not in name.lower() and
+                "core" not in desc["class"].lower()
+            ):
+                channel = desc["arguments"]["channel"]
+                logger.info(
+                    "Adding Wishbone coreanalyzer channel (RTIO#%i): %s: %s",
+                    channel,
+                    name,
+                    desc,
+                )
+                channel_handlers[channel] = GenericWishboneHandler(
+                    vcd_manager,
+                    name,
+                    channel,
+                )
     return channel_handlers
 
 
