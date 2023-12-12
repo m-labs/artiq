@@ -4,7 +4,7 @@ from numpy import int32, int64
 import nac3artiq
 
 from artiq.language.core import *
-from artiq.language.core import _ConstGenericMarker  # nac3artiq.NAC3 needs to look up this private class
+from artiq.language.core import _ConstGenericMarker
 from artiq.language import core as core_language
 from artiq.language.units import *
 from artiq.language.embedding_map import EmbeddingMap
@@ -23,6 +23,14 @@ def rtio_get_destination_status(destination: int32) -> bool:
 @extern
 def rtio_get_counter() -> int64:
     raise NotImplementedError("syscall not simulated")
+
+
+artiq_builtins = {
+    "none": none,
+    "virtual": virtual,
+    "_ConstGenericMarker": _ConstGenericMarker,
+    "Option": Option,
+}
 
 
 @nac3
@@ -58,7 +66,7 @@ class Core:
         self.comm.core = self
         self.target = target
         self.analyzed = False
-        self.compiler = nac3artiq.NAC3(target)
+        self.compiler = nac3artiq.NAC3(target, artiq_builtins)
 
     def close(self):
         self.comm.close()
