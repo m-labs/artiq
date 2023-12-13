@@ -92,6 +92,13 @@ class DeviceManager:
         self.active_devices.append((desc, dev))
         return dev
 
+    def notify_run_end(self):
+        """Sends a "end of Experiment run stage" notification to
+        all active devices."""
+        for _desc, dev in self.active_devices:
+            if hasattr(dev, "notify_run_end"):
+                dev.notify_run_end()
+
     def close_devices(self):
         """Closes all active devices, in the opposite order as they were
         requested."""

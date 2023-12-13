@@ -343,6 +343,8 @@ def main():
                     # for end of analyze stage.
                     write_results()
                     raise
+                finally:
+                    device_mgr.notify_run_end()
                 put_completed()
             elif action == "analyze":
                 try:

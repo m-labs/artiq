@@ -804,6 +804,7 @@ def main():
         experiment = SinaraTester((device_mgr, None, None, None))
         experiment.prepare()
         experiment.run(tests)
+        device_mgr.notify_run_end()
         experiment.analyze()
     finally:
         device_mgr.close_devices()
