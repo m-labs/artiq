@@ -98,15 +98,13 @@ class Core:
             self.comm = CommKernelDummy()
         else:
             self.comm = CommKernel(host)
-        if analyzer_proxy is None:
-            self.analyzer_proxy = None
-        else:
-            self.analyzer_proxy = dmgr.get(analyzer_proxy)
+        self.analyzer_proxy_name = analyzer_proxy
 
         self.first_run = True
         self.dmgr = dmgr
         self.core = self
         self.comm.core = self
+        self.analyzer_proxy = None
 
     def close(self):
         self.comm.close()
@@ -306,6 +304,9 @@ class Core:
         analyzer proxy fails. In the latter case, more details would be
         available in the proxy log.
         """
+        if self.analyzer_proxy is None:
+            if self.analyzer_proxy_name is not None:
+                self.analyzer_proxy = self.dmgr.get(self.analyzer_proxy_name)
         if self.analyzer_proxy is None:
             raise IOError("No analyzer proxy configured")
         else:
