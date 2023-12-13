@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # simplified version of sipyco Broadcaster
 class ProxyServer(AsyncioServer):
-    def __init__(self, queue_limit=1024):
+    def __init__(self, queue_limit=8):
         AsyncioServer.__init__(self)
         self._recipients = set()
         self._queue_limit = queue_limit
@@ -38,26 +38,26 @@ class ProxyServer(AsyncioServer):
         finally:
             writer.close()
 
-    def request_dump_cb(self, dump):
+    def distribute(self, dump):
         for recipient in self._recipients:
             recipient.put_nowait(dump)
 
 
 class ProxyControl:
-    def __init__(self, request_dump_cb, core_addr, core_port=1382):
-        self.request_dump_cb = request_dump_cb
+    def __init__(self, distribute_cb, core_addr, core_port=1382):
+        self.distribute_cb = distribute_cb
         self.core_addr = core_addr
         self.core_port = core_port
 
     def ping(self):
         return True
 
-    def request_dump(self):
+    def trigger(self):
         try:
             dump = get_analyzer_dump(self.core_addr, self.core_port)
-            self.request_dump_cb(dump)
+            self.distribute_cb(dump)
         except:
-            logger.warning("Failed to get analyzer dump:", exc_info=1)
+            logger.warning("Trigger failed:", exc_info=True)
             return False
         else:
             return True
@@ -94,7 +94,7 @@ def main():
     loop.run_until_complete(proxy_server.start(bind_address, args.port_proxy))
     atexit_register_coroutine(proxy_server.stop, loop=loop)
 
-    controller = ProxyControl(proxy_server.request_dump_cb, args.core_addr)
+    controller = ProxyControl(proxy_server.distribute, args.core_addr)
     server = Server({"coreanalyzer_proxy_control": controller}, None, True)
     loop.run_until_complete(server.start(bind_address, args.port_control))
     atexit_register_coroutine(server.stop, loop=loop)
