@@ -84,7 +84,10 @@ class Core:
         "core", "ref_period", "coarse_ref_period", "ref_multiplier",
     }
 
-    def __init__(self, dmgr, host, ref_period, ref_multiplier=8, 
+    def __init__(self, dmgr,
+                 host, ref_period,
+                 analyzer_proxy=None,
+                 ref_multiplier=8,
                  target="rv32g", satellite_cpu_targets={}):
         self.ref_period = ref_period
         self.ref_multiplier = ref_multiplier
@@ -95,6 +98,10 @@ class Core:
             self.comm = CommKernelDummy()
         else:
             self.comm = CommKernel(host)
+        if analyzer_proxy is None:
+            self.analyzer_proxy = None
+        else:
+            self.analyzer_proxy = dmgr.get(analyzer_proxy)
 
         self.first_run = True
         self.dmgr = dmgr
@@ -288,3 +295,20 @@ class Core:
         min_now = rtio_get_counter() + 125000
         if now_mu() < min_now:
             at_mu(min_now)
+
+    def trigger_analyzer_proxy(self):
+        """Causes the core analyzer proxy to retrieve a dump from the device,
+        and distribute it to all connected clients (typically dashboards).
+
+        Returns only after the dump has been retrieved from the device.
+
+        Raises IOError if no analyzer proxy has been configured, or if the
+        analyzer proxy fails. In the latter case, more details would be
+        available in the proxy log.
+        """
+        if self.analyzer_proxy is None:
+            raise IOError("No analyzer proxy configured")
+        else:
+            success = self.analyzer_proxy.trigger()
+            if not success:
+                raise IOError("Analyzer proxy reported failure")

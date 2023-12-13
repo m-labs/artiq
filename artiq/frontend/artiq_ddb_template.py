@@ -55,7 +55,13 @@ def process_header(output, description):
                 "type": "local",
                 "module": "artiq.coredevice.core",
                 "class": "Core",
-                "arguments": {{"host": core_addr, "ref_period": {ref_period}, "target": "{cpu_target}", "satellite_cpu_targets": {{}} }},
+                "arguments": {{
+                    "host": core_addr,
+                    "ref_period": {ref_period},
+                    "analyzer_proxy": "core_analyzer"
+                    "target": "{cpu_target}",
+                    "satellite_cpu_targets": {{}}
+                }},
             }},
             "core_log": {{
                 "type": "controller",
