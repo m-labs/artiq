@@ -86,7 +86,7 @@ class Core:
 
     def __init__(self, dmgr,
                  host, ref_period,
-                 analyzer_proxy=None,
+                 analyzer_proxy=None, analyze_at_run_end=False,
                  ref_multiplier=8,
                  target="rv32g", satellite_cpu_targets={}):
         self.ref_period = ref_period
@@ -99,12 +99,17 @@ class Core:
         else:
             self.comm = CommKernel(host)
         self.analyzer_proxy_name = analyzer_proxy
+        self.analyze_at_run_end = analyze_at_run_end
 
         self.first_run = True
         self.dmgr = dmgr
         self.core = self
         self.comm.core = self
         self.analyzer_proxy = None
+
+    def notify_run_end(self):
+        if self.analyze_at_run_end:
+            self.trigger_analyzer_proxy()
 
     def close(self):
         self.comm.close()
