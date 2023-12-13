@@ -78,6 +78,10 @@ class Core:
     :param ref_multiplier: ratio between the RTIO fine timestamp frequency
         and the RTIO coarse timestamp frequency (e.g. SERDES multiplication
         factor).
+    :param analyzer_proxy: name of the core device analyzer proxy to trigger
+        (optional).
+    :param analyze_at_run_end: automatically trigger the core device analyzer
+        proxy after the Experiment's run stage finishes.
     """
 
     kernel_invariants = {
