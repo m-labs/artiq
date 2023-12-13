@@ -101,8 +101,9 @@ class DeviceManager:
                     dev.close_rpc()
                 elif hasattr(dev, "close"):
                     dev.close()
-            except Exception as e:
-                logger.warning("Exception %r when closing device %r", e, dev)
+            except:
+                logger.warning("Exception raised when closing device %r:",
+                               dev, exc_info=True)
         self.active_devices.clear()
 
 
