@@ -333,6 +333,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         if "repo_rev" in options:
             repo_rev = QtWidgets.QLineEdit()
             repo_rev.setPlaceholderText("current")
+            repo_rev.setClearButtonEnabled(True)
             repo_rev_label = QtWidgets.QLabel("Revision:")
             repo_rev_label.setToolTip("Experiment repository revision "
                                       "(commit ID) to use")
