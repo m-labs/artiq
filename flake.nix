@@ -368,6 +368,20 @@
           titlesec tabulary varwidth framed fancyvrb float wrapfig parskip
           upquote capt-of needspace etoolbox booktabs;
       };
+
+      artiq-frontend-dev-wrappers = pkgs.runCommandNoCC "artiq-frontend-dev-wrappers" {}
+        ''
+        mkdir -p $out/bin
+        for program in ${self}/artiq/frontend/*.py; do
+          if [ -x $program ]; then
+            progname=`basename -s .py $program`
+            outname=$out/bin/$progname
+            echo "#!${pkgs.bash}/bin/bash" >> $outname
+            echo "exec python3 -m artiq.frontend.$progname" >> $outname
+            chmod 755 $outname
+          fi
+        done
+        '';
     in rec {
       packages.x86_64-linux = {
         inherit pythonparser qasync artiq;
@@ -432,6 +446,8 @@
 
       # Main development shell with everything you need to develop ARTIQ on Linux.
       # The current copy of the ARTIQ sources is added to PYTHONPATH so changes can be tested instantly.
+      # Additionally, executable wrappers that import the current ARTIQ sources for the ARTIQ frontends
+      # are added to PATH.
       devShells.x86_64-linux.default = pkgs.mkShell {
         name = "artiq-dev-shell";
         buildInputs = [
@@ -442,6 +458,7 @@
           pkgs.llvm_14
           pkgs.lld_14
           pkgs.git
+          artiq-frontend-dev-wrappers
           # To manually run compiler tests:
           pkgs.lit
           outputcheck
