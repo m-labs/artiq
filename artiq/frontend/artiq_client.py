@@ -23,7 +23,8 @@ from sipyco.sync_struct import Subscriber
 from sipyco.broadcast import Receiver
 from sipyco import common_args, pyon
 
-from artiq.tools import scale_from_metadata, short_format, parse_arguments
+from artiq.tools import (scale_from_metadata, short_format, parse_arguments,
+                         parse_devarg_override)
 from artiq import __version__ as artiq_version
 
 
@@ -68,6 +69,8 @@ def get_argparser():
     parser_add.add_argument("-r", "--revision", default=None,
                             help="use a specific repository revision "
                                  "(defaults to head, ignored without -R)")
+    parser_add.add_argument("--devarg-override", default="",
+                            help="specify device arguments to override")
     parser_add.add_argument("--content", default=False,
                             action="store_true",
                             help="submit by content")
@@ -146,6 +149,7 @@ def _action_submit(remote, args):
         raise ValueError("Failed to parse run arguments") from err
 
     expid = {
+        "devarg_override": parse_devarg_override(args.devarg_override),
         "log_level": logging.WARNING + args.quiet*10 - args.verbose*10,
         "class_name": args.class_name,
         "arguments": arguments,

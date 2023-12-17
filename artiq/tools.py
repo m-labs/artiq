@@ -18,7 +18,9 @@ from artiq.language.environment import is_public_experiment
 from artiq.language import units
 
 
-__all__ = ["parse_arguments", "elide", "scale_from_metadata", 
+__all__ = ["parse_arguments",
+           "parse_devarg_override", "unparse_devarg_override",
+           "elide", "scale_from_metadata",
            "short_format", "file_import",
            "get_experiment",
            "exc_to_warning", "asyncio_wait_or_cancel",
@@ -34,6 +36,29 @@ def parse_arguments(arguments):
         name, eq, value = argument.partition("=")
         d[name] = pyon.decode(value)
     return d
+
+
+def parse_devarg_override(devarg_override):
+    devarg_override_dict = {}
+    for item in devarg_override.split():
+        device, _, override = item.partition(":")
+        if not override:
+            raise ValueError
+        if device not in devarg_override_dict:
+            devarg_override_dict[device] = {}
+        argument, _, value = override.partition("=")
+        if not value:
+            raise ValueError
+        devarg_override_dict[device][argument] = pyon.decode(value)
+    return devarg_override_dict
+
+
+def unparse_devarg_override(devarg_override):
+    devarg_override_strs = [
+        "{}:{}={}".format(device, argument, pyon.encode(value))
+        for device, overrides in devarg_override.items()
+        for argument, value in overrides.items()]
+    return " ".join(devarg_override_strs)
 
 
 def elide(s, maxlen):
