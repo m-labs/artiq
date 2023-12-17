@@ -377,7 +377,7 @@
             progname=`basename -s .py $program`
             outname=$out/bin/$progname
             echo "#!${pkgs.bash}/bin/bash" >> $outname
-            echo "exec python3 -m artiq.frontend.$progname" >> $outname
+            echo "exec python3 -m artiq.frontend.$progname \"\$@\"" >> $outname
             chmod 755 $outname
           fi
         done
