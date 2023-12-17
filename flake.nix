@@ -431,8 +431,7 @@
       defaultPackage.x86_64-linux = pkgs.python3.withPackages(ps: [ packages.x86_64-linux.artiq ]);
 
       # Main development shell with everything you need to develop ARTIQ on Linux.
-      # ARTIQ itself is not included in the environment, you can make Python use the current sources using e.g.
-      # export PYTHONPATH=`pwd`:$PYTHONPATH
+      # The current copy of the ARTIQ sources is added to PYTHONPATH so changes can be tested instantly.
       devShells.x86_64-linux.default = pkgs.mkShell {
         name = "artiq-dev-shell";
         buildInputs = [
@@ -442,6 +441,7 @@
           pkgs.llvmPackages_14.clang-unwrapped
           pkgs.llvm_14
           pkgs.lld_14
+          pkgs.git
           # To manually run compiler tests:
           pkgs.lit
           outputcheck
@@ -457,6 +457,7 @@
           export LIBARTIQ_SUPPORT=`libartiq-support`
           export QT_PLUGIN_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}:${pkgs.qt5.qtsvg.bin}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}
           export QML2_IMPORT_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtQmlPrefix}
+          export PYTHONPATH=`git rev-parse --show-toplevel`:$PYTHONPATH
         '';
       };
 
