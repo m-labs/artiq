@@ -58,7 +58,7 @@ def process_header(output, description):
                 "arguments": {{
                     "host": core_addr,
                     "ref_period": {ref_period},
-                    "analyzer_proxy": "core_analyzer"
+                    "analyzer_proxy": "core_analyzer",
                     "target": "{cpu_target}",
                     "satellite_cpu_targets": {{}}
                 }},
