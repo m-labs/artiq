@@ -306,6 +306,8 @@ def main():
                 start_time = time.time()
                 rid = obj["rid"]
                 expid = obj["expid"]
+                if "devarg_override" in expid:
+                    device_mgr.devarg_override = expid["devarg_override"]
                 if "file" in expid:
                     if obj["wd"] is not None:
                         # Using repository

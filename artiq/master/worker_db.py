@@ -19,12 +19,13 @@ class DummyDevice:
     pass
 
 
-def _create_device(desc, device_mgr):
+def _create_device(desc, device_mgr, argument_overrides):
     ty = desc["type"]
     if ty == "local":
         module = importlib.import_module(desc["module"])
         device_class = getattr(module, desc["class"])
-        return device_class(device_mgr, **desc.get("arguments", {}))
+        arguments = desc.get("arguments", {}) | argument_overrides
+        return device_class(device_mgr, **arguments)
     elif ty == "controller":
         if desc.get("best_effort", False):
             cls = BestEffortClient
@@ -60,6 +61,7 @@ class DeviceManager:
         self.ddb = ddb
         self.virtual_devices = virtual_devices
         self.active_devices = []
+        self.devarg_override = {}
 
     def get_device_db(self):
         """Returns the full contents of the device database."""
@@ -85,7 +87,7 @@ class DeviceManager:
                 return existing_dev
 
         try:
-            dev = _create_device(desc, self)
+            dev = _create_device(desc, self, self.devarg_override.get(name, {}))
         except Exception as e:
             raise DeviceError("Failed to create device '{}'"
                               .format(name)) from e
