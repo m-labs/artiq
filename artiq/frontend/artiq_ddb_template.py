@@ -55,7 +55,13 @@ def process_header(output, description):
                 "type": "local",
                 "module": "artiq.coredevice.core",
                 "class": "Core",
-                "arguments": {{"host": core_addr, "ref_period": {ref_period}, "target": "{cpu_target}", "satellite_cpu_targets": {{}} }},
+                "arguments": {{
+                    "host": core_addr,
+                    "ref_period": {ref_period},
+                    "analyzer_proxy": "core_analyzer",
+                    "target": "{cpu_target}",
+                    "satellite_cpu_targets": {{}}
+                }},
             }},
             "core_log": {{
                 "type": "controller",
@@ -69,6 +75,13 @@ def process_header(output, description):
                 "port_proxy": 1383,
                 "port": 1384,
                 "command": "aqctl_moninj_proxy --port-proxy {{port_proxy}} --port-control {{port}} --bind {{bind}} " + core_addr
+            }},
+            "core_analyzer": {{
+                "type": "controller",
+                "host": "::1",
+                "port_proxy": 1385,
+                "port": 1386,
+                "command": "aqctl_coreanalyzer_proxy --port-proxy {{port_proxy}} --port-control {{port}} --bind {{bind}} " + core_addr
             }},
             "core_cache": {{
                 "type": "local",

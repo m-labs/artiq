@@ -95,6 +95,7 @@ Accesses to the data argument should be replaced as below:
       txn.put(key.encode(), pyon.encode((value, {})).encode())
   new.close()
 
+* ``artiq.wavesynth`` has been removed.
 
 ARTIQ-7
 -------

@@ -78,13 +78,20 @@ class Core:
     :param ref_multiplier: ratio between the RTIO fine timestamp frequency
         and the RTIO coarse timestamp frequency (e.g. SERDES multiplication
         factor).
+    :param analyzer_proxy: name of the core device analyzer proxy to trigger
+        (optional).
+    :param analyze_at_run_end: automatically trigger the core device analyzer
+        proxy after the Experiment's run stage finishes.
     """
 
     kernel_invariants = {
         "core", "ref_period", "coarse_ref_period", "ref_multiplier",
     }
 
-    def __init__(self, dmgr, host, ref_period, ref_multiplier=8, 
+    def __init__(self, dmgr,
+                 host, ref_period,
+                 analyzer_proxy=None, analyze_at_run_end=False,
+                 ref_multiplier=8,
                  target="rv32g", satellite_cpu_targets={}):
         self.ref_period = ref_period
         self.ref_multiplier = ref_multiplier
@@ -95,11 +102,18 @@ class Core:
             self.comm = CommKernelDummy()
         else:
             self.comm = CommKernel(host)
+        self.analyzer_proxy_name = analyzer_proxy
+        self.analyze_at_run_end = analyze_at_run_end
 
         self.first_run = True
         self.dmgr = dmgr
         self.core = self
         self.comm.core = self
+        self.analyzer_proxy = None
+
+    def notify_run_end(self):
+        if self.analyze_at_run_end:
+            self.trigger_analyzer_proxy()
 
     def close(self):
         self.comm.close()
@@ -288,3 +302,23 @@ class Core:
         min_now = rtio_get_counter() + 125000
         if now_mu() < min_now:
             at_mu(min_now)
+
+    def trigger_analyzer_proxy(self):
+        """Causes the core analyzer proxy to retrieve a dump from the device,
+        and distribute it to all connected clients (typically dashboards).
+
+        Returns only after the dump has been retrieved from the device.
+
+        Raises IOError if no analyzer proxy has been configured, or if the
+        analyzer proxy fails. In the latter case, more details would be
+        available in the proxy log.
+        """
+        if self.analyzer_proxy is None:
+            if self.analyzer_proxy_name is not None:
+                self.analyzer_proxy = self.dmgr.get(self.analyzer_proxy_name)
+        if self.analyzer_proxy is None:
+            raise IOError("No analyzer proxy configured")
+        else:
+            success = self.analyzer_proxy.trigger()
+            if not success:
+                raise IOError("Analyzer proxy reported failure")

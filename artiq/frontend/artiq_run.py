@@ -222,6 +222,7 @@ def run(with_file=False):
             exp_inst = _build_experiment(device_mgr, dataset_mgr, args)
             exp_inst.prepare()
             exp_inst.run()
+            device_mgr.notify_run_end()
             exp_inst.analyze()
         except CompileError as error:
             return

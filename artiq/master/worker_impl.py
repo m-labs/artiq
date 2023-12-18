@@ -306,6 +306,8 @@ def main():
                 start_time = time.time()
                 rid = obj["rid"]
                 expid = obj["expid"]
+                if "devarg_override" in expid:
+                    device_mgr.devarg_override = expid["devarg_override"]
                 if "file" in expid:
                     if obj["wd"] is not None:
                         # Using repository
@@ -343,6 +345,8 @@ def main():
                     # for end of analyze stage.
                     write_results()
                     raise
+                finally:
+                    device_mgr.notify_run_end()
                 put_completed()
             elif action == "analyze":
                 try:

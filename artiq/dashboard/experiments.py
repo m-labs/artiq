@@ -13,6 +13,7 @@ from artiq.gui.entries import procdesc_to_entry, ScanEntry
 from artiq.gui.fuzzy_select import FuzzySelectWidget
 from artiq.gui.tools import (LayoutWidget, WheelFilter, 
                              log_level_to_name, get_open_file_name)
+from artiq.tools import parse_devarg_override, unparse_devarg_override
 
 
 logger = logging.getLogger(__name__)
@@ -305,13 +306,27 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         flush = self.flush
         flush.setToolTip("Flush the pipeline (of current- and higher-priority "
                          "experiments) before starting the experiment")
-        self.layout.addWidget(flush, 2, 2, 1, 2)
+        self.layout.addWidget(flush, 2, 2)
 
         flush.setChecked(scheduling["flush"])
 
         def update_flush(checked):
             scheduling["flush"] = bool(checked)
         flush.stateChanged.connect(update_flush)
+
+        devarg_override = QtWidgets.QComboBox()
+        devarg_override.setEditable(True)
+        devarg_override.lineEdit().setPlaceholderText("Override device arguments")
+        devarg_override.lineEdit().setClearButtonEnabled(True)
+        devarg_override.insertItem(0, "core:analyze_at_run_end=True")
+        self.layout.addWidget(devarg_override, 2, 3)
+
+        devarg_override.setCurrentText(options["devarg_override"])
+
+        def update_devarg_override(text):
+            options["devarg_override"] = text
+        devarg_override.editTextChanged.connect(update_devarg_override)
+        self.devarg_override = devarg_override
 
         log_level = QtWidgets.QComboBox()
         log_level.addItems(log_levels)
@@ -333,6 +348,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         if "repo_rev" in options:
             repo_rev = QtWidgets.QLineEdit()
             repo_rev.setPlaceholderText("current")
+            repo_rev.setClearButtonEnabled(True)
             repo_rev_label = QtWidgets.QLabel("Rev / ref:")
             repo_rev_label.setToolTip("Experiment repository revision "
                                       "(commit ID) or reference (branch "
@@ -466,6 +482,9 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
             return
 
         try:
+            if "devarg_override" in expid:
+                self.devarg_override.setCurrentText(
+                    unparse_devarg_override(expid["devarg_override"]))
             self.log_level.setCurrentIndex(log_levels.index(
                 log_level_to_name(expid["log_level"])))
             if ("repo_rev" in expid and
@@ -639,7 +658,8 @@ class ExperimentManager:
         else:
             # mutated by _ExperimentDock
             options = {
-                "log_level": logging.WARNING
+                "log_level": logging.WARNING,
+                "devarg_override": ""
             }
             if expurl[:5] == "repo:":
                 options["repo_rev"] = None
@@ -739,7 +759,14 @@ class ExperimentManager:
             entry_cls = procdesc_to_entry(argument["desc"])
             argument_values[name] = entry_cls.state_to_value(argument["state"])
 
+        try:
+            devarg_override = parse_devarg_override(options["devarg_override"])
+        except:
+            logger.error("Failed to parse device argument overrides for %s", expurl)
+            return
+
         expid = {
+            "devarg_override": devarg_override,
             "log_level": options["log_level"],
             "file": file,
             "class_name": class_name,
