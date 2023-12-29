@@ -491,8 +491,8 @@ pub mod drtio {
                 &drtioaux::Packet::DmaAddTraceRequest {
                     id: id, source: 0, destination: destination, status: status, length: len as u16, trace: *slice})?;
             match reply {
-                drtioaux::Packet::DmaAddTraceReply { destination: 0, succeeded: true } => Ok(()),
-                drtioaux::Packet::DmaAddTraceReply { destination: 0, succeeded: false } => Err(Error::DmaAddTraceFail(destination)),
+                drtioaux::Packet::DmaAddTraceReply { destination: 0, succeeded: true, .. } => Ok(()),
+                drtioaux::Packet::DmaAddTraceReply { destination: 0, succeeded: false, .. } => Err(Error::DmaAddTraceFail(destination)),
                 packet => Err(Error::UnexpectedPacket(packet)),
             }
         })

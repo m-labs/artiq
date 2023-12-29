@@ -1,6 +1,64 @@
-use alloc::collections::vec_deque::VecDeque;
+use alloc::{vec::Vec, collections::vec_deque::VecDeque};
 use board_artiq::{drtioaux, drtio_routing};
 use board_misoc::csr;
+use core::cmp::min;
+use proto_artiq::drtioaux_proto::PayloadStatus;
+use SAT_PAYLOAD_MAX_SIZE;
+use MASTER_PAYLOAD_MAX_SIZE;
+
+/* represents data that has to be sent with the aux protocol */
+#[derive(Debug)]
+pub struct Sliceable {
+    it: usize,
+    data: Vec<u8>,
+    destination: u8
+}
+
+pub struct SliceMeta {
+    pub destination: u8,
+    pub len: u16,
+    pub status: PayloadStatus
+}
+
+macro_rules! get_slice_fn {
+    ( $name:tt, $size:expr ) => {
+        pub fn $name(&mut self, data_slice: &mut [u8; $size]) -> SliceMeta {
+            let first = self.it == 0;
+            let len = min($size, self.data.len() - self.it);
+            let last = self.it + len == self.data.len();
+            let status = PayloadStatus::from_status(first, last);
+            data_slice[..len].clone_from_slice(&self.data[self.it..self.it+len]);
+            self.it += len;
+    
+            SliceMeta {
+                destination: self.destination,
+                len: len as u16,
+                status: status
+            }
+        }
+    };
+}
+
+impl Sliceable {
+    pub fn new(destination: u8, data: Vec<u8>) -> Sliceable {
+        Sliceable {
+            it: 0,
+            data: data,
+            destination: destination
+        }
+    }
+
+    pub fn at_end(&self) -> bool {
+        self.it == self.data.len()
+    }
+
+    pub fn extend(&mut self, data: &[u8]) {
+        self.data.extend(data);
+    }
+
+    get_slice_fn!(get_slice_sat, SAT_PAYLOAD_MAX_SIZE);
+    get_slice_fn!(get_slice_master, MASTER_PAYLOAD_MAX_SIZE);
+}
 
 // Packets from downstream (further satellites) are received and routed appropriately.
 // they're passed as soon as possible downstream (within the subtree), or sent upstream,
