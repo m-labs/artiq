@@ -113,7 +113,7 @@ pub enum Packet {
         id: u32, status: PayloadStatus, 
         length: u16, trace: [u8; MASTER_PAYLOAD_MAX_SIZE] 
     },
-    DmaAddTraceReply { destination: u8, succeeded: bool },
+    DmaAddTraceReply { source: u8, destination: u8, id: u32, succeeded: bool },
     DmaRemoveTraceRequest { source: u8, destination: u8, id: u32 },
     DmaRemoveTraceReply { destination: u8, succeeded: bool },
     DmaPlaybackRequest { source: u8, destination: u8, id: u32, timestamp: u64 },
@@ -303,7 +303,9 @@ impl Packet {
                 }
             },
             0xb1 => Packet::DmaAddTraceReply {
+                source: reader.read_u8()?,
                 destination: reader.read_u8()?,
+                id: reader.read_u32()?,
                 succeeded: reader.read_bool()?
             },
             0xb2 => Packet::DmaRemoveTraceRequest {
@@ -598,9 +600,11 @@ impl Packet {
                 writer.write_u16(length)?;
                 writer.write_all(&trace[0..length as usize])?;
             },
-            Packet::DmaAddTraceReply { destination, succeeded } => {
+            Packet::DmaAddTraceReply { source, destination, id, succeeded } => {
                 writer.write_u8(0xb1)?;
+                writer.write_u8(source)?;
                 writer.write_u8(destination)?;
+                writer.write_u32(id)?;
                 writer.write_bool(succeeded)?;
             },
             Packet::DmaRemoveTraceRequest { source, destination, id } => {

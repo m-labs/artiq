@@ -167,10 +167,10 @@ pub mod remote_dma {
     }
 
     pub fn playback_done(io: &Io, ddma_mutex: &Mutex, 
-            id: u32, destination: u8, error: u8, channel: u32, timestamp: u64) {
+            id: u32, source: u8, error: u8, channel: u32, timestamp: u64) {
         // called upon receiving PlaybackDone aux packet
         let _lock = ddma_mutex.lock(io).unwrap();
-        let mut trace = unsafe { TRACES.get_mut(&id).unwrap().get_mut(&destination).unwrap() };
+        let mut trace = unsafe { TRACES.get_mut(&id).unwrap().get_mut(&source).unwrap() };
         trace.state = RemoteState::PlaybackEnded {
             error: error, 
             channel: channel, 

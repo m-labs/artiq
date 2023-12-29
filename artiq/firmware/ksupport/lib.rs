@@ -453,11 +453,38 @@ extern fn dma_playback(timestamp: i64, ptr: i32, _uses_ddma: bool) {
     }
 }
 
-#[cfg(not(kernel_has_rtio_dma))]
+#[cfg(all(not(kernel_has_rtio_dma), not(has_rtio_dma)))]
 #[unwind(allowed)]
 extern fn dma_playback(_timestamp: i64, _ptr: i32, _uses_ddma: bool) {
     unimplemented!("not(kernel_has_rtio_dma)")
 }
+
+// for satellite (has_rtio_dma but not in kernel)
+#[cfg(all(not(kernel_has_rtio_dma), has_rtio_dma))]
+#[unwind(allowed)]
+extern fn dma_playback(timestamp: i64, ptr: i32, _uses_ddma: bool) {
+    // DDMA is always used on satellites, so the `uses_ddma` setting is ignored
+    // StartRemoteRequest reused as "normal" start request
+    send(&DmaStartRemoteRequest { id: ptr as i32, timestamp: timestamp });
+    // skip awaitremoterequest - it's a given
+    recv!(&DmaAwaitRemoteReply { timeout, error, channel, timestamp } => {
+        if timeout {
+            raise!("DMAError",
+                "Error running DMA on satellite device, timed out waiting for results");
+        }
+        if error & 1 != 0 {
+            raise!("RTIOUnderflow",
+                "RTIO underflow at channel {rtio_channel_info:0}, {1} mu",
+                channel as i64, timestamp as i64, 0);
+        }
+        if error & 2 != 0 {
+            raise!("RTIODestinationUnreachable",
+                "RTIO destination unreachable, output, at channel {rtio_channel_info:0}, {1} mu",
+                channel as i64, timestamp as i64, 0);
+        }
+    });
+}
+
 
 #[unwind(allowed)]
 extern fn subkernel_load_run(id: u32, destination: u8, run: bool) {
