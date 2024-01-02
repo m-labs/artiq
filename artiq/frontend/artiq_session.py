@@ -28,12 +28,10 @@ def get_argparser():
 def main():
     args = get_argparser().parse_args()
 
-    master_cmd    = [sys.executable, "-u", "-m", "artiq.frontend.artiq_master"]
-    dashboard_cmd = [sys.executable,       "-m", "artiq.frontend.artiq_dashboard"]
-    ctlmgr_cmd    = [sys.executable,       "-m", "artiq_comtools.artiq_ctlmgr"]
-    master_cmd    += args.m
-    dashboard_cmd += args.d
-    ctlmgr_cmd    += args.c
+    master_cmd = [sys.executable, "-u", "-m", "artiq.frontend.artiq_master"]
+    ctlmgr_cmd = [sys.executable,       "-m", "artiq_comtools.artiq_ctlmgr"]
+    master_cmd += args.m[0].split(" ")
+    ctlmgr_cmd += args.c
 
     with subprocess.Popen(master_cmd,
                           stdout=subprocess.PIPE, universal_newlines=True,
@@ -45,10 +43,9 @@ def main():
                 master_ready = True
                 break
         if master_ready:
-            with subprocess.Popen(dashboard_cmd):
-                with subprocess.Popen(ctlmgr_cmd):
-                    for line in iter(master.stdout.readline, ""):
-                        sys.stdout.write(line)
+            with subprocess.Popen(ctlmgr_cmd):
+                for line in iter(master.stdout.readline, ""):
+                    sys.stdout.write(line)
         else:
             print("session: master failed to start, exiting.")
 
