@@ -107,11 +107,17 @@ def decode_dump(data):
     data = data[1:]
     # only header is device endian
     # messages are big endian
-    parts = struct.unpack(endian + "IQbbb", data[:15])
-    (sent_bytes, total_byte_count,
-     error_occurred, log_channel, dds_onehot_sel) = parts
+    payload_length = struct.unpack(endian + "I", data[:4])[0]
+    data = data[4:]
+    args = decode_dump_header(endian, payload_length, data)  
+    return decode_dump_payload(*args)
 
-    expected_len = sent_bytes + 15
+
+def decode_dump_header(endian, payload_length, data):
+    parts = struct.unpack(endian + "Qbbb", data[:11])
+    (total_byte_count, error_occurred, log_channel, dds_onehot_sel) = parts
+
+    expected_len = payload_length + 11
     if expected_len != len(data):
         raise ValueError("analyzer dump has incorrect length "
                          "(got {}, expected {})".format(
@@ -119,14 +125,17 @@ def decode_dump(data):
     if error_occurred:
         logger.warning("error occurred within the analyzer, "
                        "data may be corrupted")
-    if total_byte_count > sent_bytes:
+    if total_byte_count > payload_length:
         logger.info("analyzer ring buffer has wrapped %d times",
-                    total_byte_count//sent_bytes)
+                    total_byte_count // payload_length)
+    return payload_length, data[11:], log_channel, dds_onehot_sel
 
-    position = 15
+
+def decode_dump_payload(payload_length, data, log_channel, dds_onehot_sel):
+    position = 0
     messages = []
-    for _ in range(sent_bytes//32):
-        messages.append(decode_message(data[position:position+32]))
+    for _ in range(payload_length // 32):
+        messages.append(decode_message(data[position:position + 32]))
         position += 32
     return DecodedDump(log_channel, bool(dds_onehot_sel), messages)
 
