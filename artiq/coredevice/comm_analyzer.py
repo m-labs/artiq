@@ -246,6 +246,23 @@ class WaveformChannel:
         self.data.append((self.current_time, log_message))
 
 
+class ChannelSignatureManager:
+    def __init__(self):
+        self.current_scope = ""
+        self.channels = dict()
+
+    def get_channel(self, name, width, ty):
+        self.channels[self.current_scope + name] = (width, ty)
+        return None
+
+    @contextmanager
+    def scope(self, scope, name):
+        old_scope = self.current_scope
+        self.current_scope = scope + "/"
+        yield
+        self.current_scope = old_scope
+
+
 class TTLHandler:
     def __init__(self, manager, name):
         self.name = name
@@ -572,6 +589,15 @@ def create_channel_handlers(manager, devices, ref_period,
                 channel_handlers[channel] = SPIMaster2Handler(
                         manager, name)
     return channel_handlers
+
+
+def get_channel_list(devices):
+    manager = ChannelSignatureManager()
+    create_channel_handlers(manager, devices, 1e-9, 3e9, False)
+    manager.get_channel("timestamp", 64, ty=WaveformType.VECTOR)
+    manager.get_channel("interval", 64, ty=WaveformType.ANALOG)
+    manager.get_channel("rtio_slack", 64, ty=WaveformType.ANALOG)
+    return manager.channels
 
 
 def get_message_time(message):
