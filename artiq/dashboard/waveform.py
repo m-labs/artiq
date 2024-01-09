@@ -3,6 +3,7 @@ from PyQt5.QtCore import Qt
 
 from artiq.gui.models import DictSyncTreeSepModel, LocalModelManager
 
+import numpy as np
 import bisect
 import pyqtgraph as pg
 import logging
@@ -200,3 +201,41 @@ class Waveform(pg.PlotWidget):
     def wheelEvent(self, e):
         if e.modifiers() & QtCore.Qt.ControlModifier:
             super().wheelEvent(e)
+
+
+class LogWaveform(Waveform):
+    def __init__(self, channel, state, parent=None):
+        Waveform.__init__(self, channel, state, parent)
+
+    def extract_data_from_state(self):
+        try:
+            self.x_data, self.y_data = zip(*self.state['logs'][self.name])
+        except:
+            logger.debug('Error caught when loading waveform: {}'.format(self.name), exc_info=True)
+
+    def display(self):
+        try:
+            self.plot_data_item.setData(
+                x=self.x_data, y=np.ones(len(self.x_data)))
+            self.plot_data_item.opts.update(
+                {"connect": np.zeros(2), "symbol": "x"})
+            old_msg = ""
+            old_x = 0
+            for x, msg in zip(self.x_data, self.y_data):
+                if x == old_x:
+                    old_msg += "\n" + msg
+                else:
+                    lbl = pg.TextItem(old_msg)
+                    self.addItem(lbl)
+                    lbl.setPos(old_x, DISPLAY_HIGH)
+                    old_msg = msg
+                    old_x = x
+            lbl = pg.TextItem(old_msg)
+            self.addItem(lbl)
+            lbl.setPos(old_x, DISPLAY_HIGH)
+        except:
+            logger.debug('Error caught when displaying waveform: {}'.format(self.name), exc_info=True)
+            self.plot_data_item.setData(x=[], y=[])
+
+    def format_cursor_label(self):
+        self.cursor_label.setText("")
