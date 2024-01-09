@@ -349,3 +349,32 @@ class BitVectorWaveform(Waveform):
         else:
             lbl = self._format_string.format(self.cursor_y)
         self.cursor_label.setText(lbl)
+
+
+class AnalogWaveform(Waveform):
+    def __init__(self, channel, state, parent=None):
+        Waveform.__init__(self, channel, state, parent)
+        self.plot_data_item.setDownsampling(ds=10, method="peak", auto=True)
+
+    def extract_data_from_state(self):
+        try:
+            self.x_data, self.y_data = zip(*self.state['data'][self.name])
+        except:
+            logger.debug('Error caught when loading waveform data: {}'.format(self.name), exc_info=True)
+
+    def display(self):
+        try:
+            self.plot_data_item.setData(x=self.x_data, y=self.y_data)
+            mx = max(self.y_data)
+            mn = min(self.y_data)
+            self.plot_item.setRange(yRange=(mn, mx), padding=0.1)
+        except:
+            logger.debug('Error caught when displaying waveform: {}'.format(self.name), exc_info=True)
+            self.plot_data_item.setData(x=[0], y=[0])
+
+    def format_cursor_label(self):
+        if self.cursor_y is None:
+            lbl = "nan"
+        else:
+            lbl = str(self.cursor_y)
+        self.cursor_label.setText(lbl)
