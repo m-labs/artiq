@@ -622,3 +622,34 @@ class WaveformProxyClient:
         except Exception as e:
             logger.error("Error occurred while closing proxy connections: %s",
                          e, exc_info=True)
+
+
+class _CursorTimeControl(QtWidgets.QLineEdit):
+    submit = QtCore.pyqtSignal(float)
+    PRECISION = 15
+
+    def __init__(self, parent, state):
+        QtWidgets.QLineEdit.__init__(self, parent=parent)
+        self._value = 0
+        self._state = state
+        self.display_value(0)
+        self.textChanged.connect(self._on_text_change)
+        self.returnPressed.connect(self._on_return_press)
+
+    def _on_text_change(self, text):
+        try:
+            self._value = pg.siEval(text) * (1e12 / self._state["timescale"])
+        except Exception:
+            # invalid text entry is ignored, resets to valid value on return pressed
+            pass
+
+    def display_value(self, val):
+        t = pg.siFormat(val * 1e-12 * self._state["timescale"], suffix="s",
+                        allowUnicode=False,
+                        precision=self.PRECISION)
+        self.setText(t)
+
+    def _on_return_press(self):
+        self.submit.emit(self._value)
+        self.display_value(self._value)
+        self.clearFocus()
