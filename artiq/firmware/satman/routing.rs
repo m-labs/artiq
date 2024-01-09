@@ -1,5 +1,6 @@
 use alloc::{vec::Vec, collections::vec_deque::VecDeque};
 use board_artiq::{drtioaux, drtio_routing};
+#[cfg(has_drtio_routing)]
 use board_misoc::csr;
 use core::cmp::min;
 use proto_artiq::drtioaux_proto::PayloadStatus;
@@ -72,6 +73,7 @@ impl Sliceable {
 pub struct Router {
     upstream_queue: VecDeque<drtioaux::Packet>, 
     local_queue: VecDeque<drtioaux::Packet>,
+    #[cfg(has_drtio_routing)]
     downstream_queue: VecDeque<(usize, drtioaux::Packet)>,
     upstream_notified: bool,
 }
@@ -81,6 +83,7 @@ impl Router {
         Router {
             upstream_queue: VecDeque::new(),
             local_queue: VecDeque::new(),
+            #[cfg(has_drtio_routing)]
             downstream_queue: VecDeque::new(),
             upstream_notified: false,
         }
@@ -90,14 +93,14 @@ impl Router {
     // messages are always buffered for both upstream and downstream
     pub fn route(&mut self, packet: drtioaux::Packet,
         _routing_table: &drtio_routing::RoutingTable, _rank: u8,
-        _self_destination: u8
+        self_destination: u8
     ) {
+        let destination = packet.routable_destination();
         #[cfg(has_drtio_routing)]
         {
-            let destination = packet.routable_destination();
             if let Some(destination) = destination {
                 let hop = _routing_table.0[destination as usize][_rank as usize] as usize;
-                if destination == _self_destination {
+                if destination == self_destination {
                     self.local_queue.push_back(packet);
                 } else if hop > 0 && hop < csr::DRTIOREP.len() {
                     let repno = (hop - 1) as usize;
@@ -111,7 +114,11 @@ impl Router {
         }
         #[cfg(not(has_drtio_routing))]
         {
-            self.upstream_queue.push_back(packet);
+            if destination == Some(self_destination) {
+                self.local_queue.push_back(packet);
+            } else {
+                self.upstream_queue.push_back(packet);
+            }
         }
     }
 
@@ -166,6 +173,7 @@ impl Router {
         packet
     }
 
+    #[cfg(has_drtio_routing)]
     pub fn get_downstream_packet(&mut self) -> Option<(usize, drtioaux::Packet)> {
         self.downstream_queue.pop_front()
     }

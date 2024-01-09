@@ -789,7 +789,8 @@ pub extern fn main() -> i32 {
             }
 
             kernelmgr.process_kern_requests(&mut router, &routing_table, rank, destination, &mut dma_manager);
-
+            
+            #[cfg(has_drtio_routing)]
             if let Some((repno, packet)) = router.get_downstream_packet() {
                 if let Err(e) = repeaters[repno].aux_send(&packet) {
                     warn!("[REP#{}] Error when sending packet to satellite ({:?})", repno, e)
