@@ -1,14 +1,18 @@
 from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtCore import Qt
 
+from sipyco.sync_struct import Subscriber
 from sipyco.pc_rpc import AsyncioClient
+from sipyco import pyon
 
 from artiq.tools import exc_to_warning
+from artiq.gui.tools import LayoutWidget, get_open_file_name, get_save_file_name
 from artiq.gui.models import DictSyncTreeSepModel, LocalModelManager
 from artiq.gui.dndwidgets import DragDropSplitter, VDragScrollArea
 from artiq.coredevice import comm_analyzer
 from artiq.coredevice.comm_analyzer import WaveformType
 
+import os
 import numpy as np
 import itertools
 import bisect
@@ -16,6 +20,7 @@ import pyqtgraph as pg
 import asyncio
 import logging
 import math
+import struct
 
 logger = logging.getLogger(__name__)
 
@@ -653,3 +658,240 @@ class _CursorTimeControl(QtWidgets.QLineEdit):
         self.submit.emit(self._value)
         self.display_value(self._value)
         self.clearFocus()
+
+
+class WaveformDock(QtWidgets.QDockWidget):
+    traceDataChanged = QtCore.pyqtSignal()
+
+    def __init__(self, loop=None):
+        QtWidgets.QDockWidget.__init__(self, "Waveform")
+        self.setObjectName("Waveform")
+        self.setFeatures(
+            QtWidgets.QDockWidget.DockWidgetMovable | QtWidgets.QDockWidget.DockWidgetFloatable)
+
+        self._channels_mgr = LocalModelManager(Model)
+        self._channels_mgr.init({})
+
+        self._devices = None
+        self._dump = None
+
+        self._state = {
+            "timescale": 1,
+            "stopped_x": None,
+            "logs": dict(),
+            "data": dict(),
+        }
+
+        self._current_dir = "c://"
+
+        self.proxy_client = WaveformProxyClient(self._state, loop)
+        devices_sub = Subscriber("devices", self.init_ddb, self.update_ddb)
+
+        proxy_receiver = comm_analyzer.AnalyzerProxyReceiver(
+            self.on_dump_receive)
+        self.proxy_client.devices_sub = devices_sub
+        self.proxy_client.proxy_receiver = proxy_receiver
+
+        grid = LayoutWidget()
+        self.setWidget(grid)
+
+        self._menu_btn = QtWidgets.QPushButton()
+        self._menu_btn.setIcon(
+            QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_FileDialogStart))
+        grid.addWidget(self._menu_btn, 0, 0)
+
+        self._request_dump_btn = QtWidgets.QToolButton()
+        self._request_dump_btn.setToolTip("Trigger proxy")
+        self._request_dump_btn.setIcon(
+            QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_BrowserReload))
+        grid.addWidget(self._request_dump_btn, 0, 1)
+        self._request_dump_btn.clicked.connect(
+            lambda: asyncio.ensure_future(self.proxy_client.trigger_proxy_task()))
+
+        self._waveform_area = WaveformArea(self, self._state,
+                                           self._channels_mgr)
+        self.traceDataChanged.connect(self._waveform_area.on_trace_update)
+        self.traceDataChanged.connect(self._update_log_channels)
+        grid.addWidget(self._waveform_area, 2, 0, colspan=12)
+
+        self._add_btn = QtWidgets.QToolButton()
+        self._add_btn.setToolTip("Add channels...")
+        self._add_btn.setIcon(
+            QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_FileDialogListView))
+        grid.addWidget(self._add_btn, 0, 2)
+        self._add_btn.clicked.connect(self._waveform_area.on_add_channel_click)
+
+        self._cursor_control = _CursorTimeControl(parent=self, state=self._state)
+        grid.addWidget(self._cursor_control, 0, 3, colspan=3)
+        self._cursor_control.submit.connect(
+            self._waveform_area.on_cursor_move)
+        self._waveform_area.cursorMoved.connect(self._cursor_control.display_value)
+
+        self._file_menu = QtWidgets.QMenu()
+        self._add_async_action("Open trace...", self.load_trace)
+        self._add_async_action("Save trace...", self.save_trace)
+        self._add_async_action("Save VCD...", self.save_vcd)
+        self._add_async_action("Open list of channels...", self.load_channels)
+        self._add_async_action("Save list of channels...", self.save_channels)
+        self._menu_btn.setMenu(self._file_menu)
+
+    def _add_async_action(self, label, coro):
+        action = QtWidgets.QAction(label, self)
+        action.triggered.connect(
+            lambda: asyncio.ensure_future(exc_to_warning(coro())))
+        self._file_menu.addAction(action)
+
+    def _update_log_channels(self):
+        for log in self._state['logs']:
+            self._channels_mgr.update({
+                "action": "setitem",
+                "path": "",
+                "key": log,
+                "value": (0, "log")
+            })
+
+    def on_dump_receive(self, *args):
+        header = comm_analyzer.decode_header_from_receiver(*args)
+        decoded_dump = comm_analyzer.decode_dump_loop(*header)
+        ddb = self._ddb
+        trace = comm_analyzer.decoded_dump_to_dict(ddb, decoded_dump)
+        self._state.update(trace)
+        self._dump = args
+        self.traceDataChanged.emit()
+
+    def on_dump_read(self, dump):
+        endian_byte = dump[0]
+        if endian_byte == ord("E"):
+            endian = '>'
+        elif endian_byte == ord("e"):
+            endian = '<'
+        else:
+            logger.warning("first byte is not endian")
+            raise ValueError
+        payload_length_word = dump[1:5]
+        payload_length = struct.unpack(endian + "I", payload_length_word)[0]
+        data = dump[5:]
+        self.on_dump_receive(endian, payload_length, data)
+
+    def _decode_dump(self):
+        dump = self._dump
+        header = comm_analyzer.decode_header_from_receiver(*dump)
+        return comm_analyzer.decode_dump_loop(*header)
+
+    def _dump_header(self, endian, payload_length):
+        payload_length_word = struct.pack(endian + "I", payload_length)
+        if endian == ">":
+            endian_byte = b"E"
+        else:
+            endian_byte = b"e"
+        return endian_byte + payload_length_word
+
+    async def load_trace(self):
+        try:
+            filename = await get_open_file_name(
+                self,
+                "Load Analyzer Trace",
+                self._current_dir,
+                "All files (*.*)")
+        except asyncio.CancelledError:
+            return
+        self._current_dir = os.path.dirname(filename)
+        try:
+            with open(filename, 'rb') as f:
+                dump = f.read()
+            self.on_dump_read(dump)
+        except Exception as e:
+            logger.error("Failed to open analyzer trace: %s", e)
+
+    async def save_trace(self):
+        dump = self._dump
+        try:
+            filename = await get_save_file_name(
+                self,
+                "Save Analyzer Trace",
+                self._current_dir,
+                "All files (*.*)")
+        except asyncio.CancelledError:
+            return
+        self._current_dir = os.path.dirname(filename)
+        try:
+            with open(filename, 'wb') as f:
+                f.write(self._dump_header(dump[0], dump[1]))
+                f.write(dump[2])
+
+        except Exception as e:
+            logger.error("Failed to save analyzer trace: %s", e)
+
+    async def save_vcd(self):
+        ddb = self._ddb
+        dump = self._dump
+        try:
+            filename = await get_save_file_name(
+                self,
+                "Save VCD",
+                self._current_dir,
+                "All files (*.*)")
+        except asyncio.CancelledError:
+            return
+        self._current_dir = os.path.dirname(filename)
+        try:
+            with open(filename, 'w') as f:
+                decoded_dump = comm_analyzer.decode_dump(dump)
+                comm_analyzer.decoded_dump_to_vcd(f, ddb, decoded_dump)
+        except Exception as e:
+            logger.error("Failed to save as VCD: %s", e)
+        finally:
+            logger.info("Finished writing to VCD.")
+
+    async def load_channels(self):
+        try:
+            filename = await get_open_file_name(
+                self,
+                "Open List of Channels",
+                self._current_dir,
+                "All files (*.*)")
+        except asyncio.CancelledError:
+            return
+        self._current_dir = os.path.dirname(filename)
+        try:
+            channel_list = pyon.load_file(filename)
+            self._waveform_area.clear_channels()
+            self._waveform_area.update_channels(channel_list)
+        except Exception as e:
+            logger.error("Failed to open list of channels: %s", e)
+
+    async def save_channels(self):
+        try:
+            filename = await get_save_file_name(
+                self,
+                "Load Analyzer Trace",
+                self._current_dir,
+                "All files (*.*)")
+        except asyncio.CancelledError:
+            return
+        self._current_dir = os.path.dirname(filename)
+        try:
+            obj = self._waveform_area.get_channels()
+            pyon.store_file(filename, obj)
+        except Exception as e:
+            logger.error("Failed to open analyzer trace: %s", e)
+
+    # DeviceDB subscriber callbacks
+    def init_ddb(self, ddb):
+        self._ddb = ddb
+
+    def update_ddb(self, mod):
+        devices = self._ddb
+        addr = None
+        self._channels_mgr.init(comm_analyzer.get_channel_list(devices))
+        for name, desc in devices.items():
+            if isinstance(desc, dict):
+                if desc["type"] == "controller" and name == "core_analyzer":
+                    addr = desc["host"]
+                    port = desc.get("port_proxy", 1385)
+                    port_control = desc.get("port_proxy_control", 1386)
+        if addr is not None:
+            self.proxy_client.update_address(addr, port, port_control)
