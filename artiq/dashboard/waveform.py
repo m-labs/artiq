@@ -1,12 +1,17 @@
 from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtCore import Qt
 
+from artiq.tools import exc_to_warning
 from artiq.gui.models import DictSyncTreeSepModel, LocalModelManager
+from artiq.gui.dndwidgets import DragDropSplitter, VDragScrollArea
+from artiq.coredevice import comm_analyzer
+from artiq.coredevice.comm_analyzer import WaveformType
 
 import numpy as np
 import itertools
 import bisect
 import pyqtgraph as pg
+import asyncio
 import logging
 import math
 
@@ -378,3 +383,144 @@ class AnalogWaveform(Waveform):
         else:
             lbl = str(self.cursor_y)
         self.cursor_label.setText(lbl)
+
+
+class WaveformArea(QtWidgets.QWidget):
+    cursorMoved = QtCore.pyqtSignal(float)
+
+    def __init__(self, parent, state, channels_mgr):
+        QtWidgets.QWidget.__init__(self, parent=parent)
+        self._state = state
+        self._channels_mgr = channels_mgr
+
+        self._cursor_visible = True
+        self._cursor_x_pos = 0
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        self.setLayout(layout)
+
+        self._ref_axis = pg.PlotWidget()
+        self._ref_axis.hideAxis("bottom")
+        self._ref_axis.hideAxis("left")
+        self._ref_axis.hideButtons()
+        self._ref_axis.setFixedHeight(45)
+        self._ref_axis.setMenuEnabled(False)
+        self._top = pg.AxisItem("top")
+        self._top.setScale(1e-12)
+        self._top.setLabel(units="s")
+        self._ref_axis.setAxisItems({"top": self._top})
+        layout.addWidget(self._ref_axis)
+
+        self._ref_vb = self._ref_axis.getPlotItem().getViewBox()
+        self._ref_vb.setFixedHeight(0)
+        self._ref_vb.setMouseEnabled(x=True, y=False)
+        self._ref_vb.setLimits(xMin=0)
+
+        scroll_area = VDragScrollArea(self)
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setContentsMargins(0, 0, 0, 0)
+        scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
+        layout.addWidget(scroll_area)
+
+        self._splitter = DragDropSplitter(parent=scroll_area)
+        self._splitter.setHandleWidth(1)
+        scroll_area.setWidget(self._splitter)
+
+    def _add_waveform(self, channel, waveform_type):
+        num_channels = self._splitter.count()
+        self._splitter.setFixedHeight(
+            (num_channels + 1) * Waveform.PREF_HEIGHT)
+        cw = waveform_type(channel, self._state, parent=self._splitter)
+        self._splitter.addWidget(cw)
+
+        action = QtWidgets.QAction("Toggle cursor visible", cw)
+        action.triggered.connect(self._on_toggle_cursor)
+        cw.addAction(action)
+        action = QtWidgets.QAction("Delete waveform", cw)
+        action.triggered.connect(lambda: self._remove_channel(cw))
+        cw.addAction(action)
+        action = QtWidgets.QAction("Delete all", cw)
+        action.triggered.connect(self.clear_channels)
+        cw.addAction(action)
+        action = QtWidgets.QAction("Reset waveform heights", cw)
+        action.triggered.connect(self._splitter.resetSizes)
+        cw.addAction(action)
+
+        cw.cursorMoved.connect(lambda x: self.on_cursor_move(x))
+        cw.cursorMoved.connect(self.cursorMoved.emit)
+
+        cw.setXLink(self._ref_vb)
+        cw.extract_data_from_state()
+        cw.display()
+        cw.on_cursor_move(self._cursor_x_pos)
+        cw.update_x_max()
+
+    async def _add_waveform_task(self):
+        dialog = _AddChannelDialog(self, self._channels_mgr)
+        fut = asyncio.Future()
+
+        def on_accept(s):
+            fut.set_result(s)
+        dialog.accepted.connect(on_accept)
+        dialog.open()
+        channels = await fut
+        self.update_channels(channels)
+
+    def update_channels(self, channel_list):
+        type_map = {
+            WaveformType.BIT: BitWaveform,
+            WaveformType.VECTOR: BitVectorWaveform,
+            WaveformType.ANALOG: AnalogWaveform,
+            WaveformType.LOG: LogWaveform
+        }
+        for channel in channel_list:
+            ty = channel[1][1]
+            waveform_type = type_map[ty]
+            self._add_waveform(channel, waveform_type)
+
+    def get_channels(self):
+        channels = []
+        for i in range(self._splitter.count()):
+            cw = self._splitter.widget(i)
+            channels.append(cw.channel)
+        return channels
+
+    def _remove_channel(self, cw):
+        num_channels = self._splitter.count() - 1
+        cw.deleteLater()
+        self._splitter.setFixedHeight(num_channels * Waveform.PREF_HEIGHT)
+        self._splitter.refresh()
+
+    def clear_channels(self):
+        for i in reversed(range(self._splitter.count())):
+            cw = self._splitter.widget(i)
+            self._remove_channel(cw)
+
+    def on_add_channel_click(self):
+        asyncio.ensure_future(exc_to_warning(self._add_waveform_task()))
+
+    def on_trace_update(self):
+        self._top.setScale(1e-12 * self._state["timescale"])
+        for i in range(self._splitter.count()):
+            cw = self._splitter.widget(i)
+            cw.extract_data_from_state()
+            cw.display()
+            cw.on_cursor_move(self._cursor_x_pos)
+            cw.update_x_max()
+        maximum = self._state["stopped_x"]
+        self._ref_axis.setLimits(xMax=maximum)
+        self._ref_axis.setRange(xRange=(0, maximum))
+
+    def on_cursor_move(self, x):
+        self._cursor_x_pos = x
+        for i in range(self._splitter.count()):
+            cw = self._splitter.widget(i)
+            cw.on_cursor_move(x)
+
+    def _on_toggle_cursor(self):
+        self._cursor_visible = not self._cursor_visible
+        for i in range(self._splitter.count()):
+            cw = self._splitter.widget(i)
+            cw.set_cursor_visible(self._cursor_visible)
