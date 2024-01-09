@@ -239,3 +239,50 @@ class LogWaveform(Waveform):
 
     def format_cursor_label(self):
         self.cursor_label.setText("")
+
+
+class BitWaveform(Waveform):
+    def __init__(self, channel, state, parent=None):
+        Waveform.__init__(self, channel, state, parent)
+        self._arrows = []
+
+    def extract_data_from_state(self):
+        try:
+            self.x_data, self.y_data = zip(*self.state['data'][self.name])
+        except:
+            logger.debug('Error caught when loading waveform data: {}'.format(self.name), exc_info=True)
+
+    def display(self):
+        try:
+            display_y = []
+            display_x = []
+            previous_y = None
+            for x, y in zip(self.x_data, self.y_data):
+                state_unchanged = previous_y == y
+                if y is None:
+                    dis_y = DISPLAY_MID
+                elif y == 1:
+                    dis_y = DISPLAY_HIGH
+                else:
+                    dis_y = DISPLAY_LOW
+                if state_unchanged:
+                    arw = pg.ArrowItem(pxMode=True, angle=90)
+                    self.addItem(arw)
+                    self._arrows.append(arw)
+                    arw.setPos(x, dis_y)
+                display_y.append(dis_y)
+                display_x.append(x)
+                previous_y = y
+            self.plot_data_item.setData(x=display_x, y=display_y)
+        except:
+            logger.debug('Error caught when displaying waveform: {}'.format(self.name), exc_info=True)
+            for arw in self._arrows:
+                self.removeItem(arw)
+            self.plot_data_item.setData(x=[], y=[])
+
+    def format_cursor_label(self):
+        if self.cursor_y is None:
+            lbl = "x"
+        else:
+            lbl = str(self.cursor_y)
+        self.cursor_label.setText(lbl)
