@@ -4,9 +4,11 @@ from PyQt5.QtCore import Qt
 from artiq.gui.models import DictSyncTreeSepModel, LocalModelManager
 
 import numpy as np
+import itertools
 import bisect
 import pyqtgraph as pg
 import logging
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -285,4 +287,65 @@ class BitWaveform(Waveform):
             lbl = "x"
         else:
             lbl = str(self.cursor_y)
+        self.cursor_label.setText(lbl)
+
+
+class BitVectorWaveform(Waveform):
+    def __init__(self, channel, state, parent=None):
+        Waveform.__init__(self, channel, state, parent)
+        self._labels = []
+        hx = math.ceil(self.width / 4)
+        self._format_string = "{:0=" + str(hx) + "X}"
+        self.view_box.sigTransformChanged.connect(self._update_labels)
+
+    def _update_labels(self):
+        for label in self._labels:
+            self.removeItem(label)
+        xmin, xmax = self.view_box.viewRange()[0]
+        left_label_i = bisect.bisect_left(self.x_data, xmin)
+        right_label_i = bisect.bisect_right(self.x_data, xmax) + 1
+        for i, j in itertools.pairwise(range(left_label_i, right_label_i)):
+            x1 = self.x_data[i]
+            x2 = self.x_data[j] if j < len(self.x_data) else self.state["stopped_x"]
+            lbl = self._labels[i]
+            bounds = lbl.boundingRect()
+            bounds_view = self.view_box.mapSceneToView(bounds)
+            if bounds_view.boundingRect().width() < x2 - x1:
+                self.addItem(lbl)
+
+    def extract_data_from_state(self):
+        try:
+            self.x_data, self.y_data = zip(*self.state['data'][self.name])
+        except:
+            logger.debug('Error caught when loading waveform data: {}'.format(self.name), exc_info=True)
+
+    def display(self):
+        try:
+            display_x, display_y = [], []
+            for x, y in zip(self.x_data, self.y_data):
+                display_x.append(x)
+                display_y.append(DISPLAY_LOW)
+                if y is None:
+                    display_x.append(x)
+                    display_y.append(DISPLAY_MID)
+                elif y != 0:
+                    display_x.append(x)
+                    display_y.append(DISPLAY_HIGH)
+                lbl = pg.TextItem(
+                    self._format_string.format(y), anchor=(0, DISPLAY_MID))
+                lbl.setPos(x, DISPLAY_MID)
+                lbl.setTextWidth(100)
+                self._labels.append(lbl)
+            self.plot_data_item.setData(x=display_x, y=display_y)
+        except:
+            logger.debug('Error caught when displaying waveform: {}'.format(self.name), exc_info=True)
+            for lbl in self._labels:
+                self.plot_item.removeItem(lbl)
+            self.plot_data_item.setData(x=[], y=[])
+
+    def format_cursor_label(self):
+        if self.cursor_y is None:
+            lbl = "X"
+        else:
+            lbl = self._format_string.format(self.cursor_y)
         self.cursor_label.setText(lbl)
