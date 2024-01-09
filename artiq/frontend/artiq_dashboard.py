@@ -21,7 +21,7 @@ from artiq.tools import get_user_config_dir
 from artiq.gui.models import ModelSubscriber
 from artiq.gui import state, log
 from artiq.dashboard import (experiments, shortcuts, explorer,
-                             moninj, datasets, schedule, applets_ccb)
+                             moninj, datasets, schedule, applets_ccb, waveform)
 
 
 def get_argparser():
@@ -215,6 +215,10 @@ def main():
     smgr.register(d_applets)
     broadcast_clients["ccb"].notify_cbs.append(d_applets.ccb_notify)
 
+    d_waveform = waveform.WaveformDock()
+    loop.run_until_complete(d_waveform.proxy_client.start(args.server, args.port_notify))
+    atexit_register_coroutine(d_waveform.proxy_client.stop, loop=loop)
+
     d_ttl_dds = moninj.MonInj(rpc_clients["schedule"])
     loop.run_until_complete(d_ttl_dds.start(args.server, args.port_notify))
     atexit_register_coroutine(d_ttl_dds.stop, loop=loop)
@@ -232,7 +236,7 @@ def main():
     right_docks = [
         d_explorer, d_shortcuts,
         d_ttl_dds.ttl_dock, d_ttl_dds.dds_dock, d_ttl_dds.dac_dock,
-        d_datasets, d_applets
+        d_datasets, d_applets, d_waveform
     ]
     main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, right_docks[0])
     for d1, d2 in zip(right_docks, right_docks[1:]):
