@@ -132,15 +132,23 @@ class RunPool:
             writer.writerow([rid, start_time, expid["file"]])
 
     def submit(self, expid, priority, due_date, flush, pipeline_name):
+        """
+        Submits an experiment to be run by this pool
+
+        If expid has the attribute `repo_rev`, treat it as a git revision or
+        reference and resolve into a unique git hash before submission
+        """
         # mutates expid to insert head repository revision if None and
         # replaces relative path with the absolute one.
         # called through scheduler.
         rid = self.ridc.get()
         if "repo_rev" in expid:
-            if expid["repo_rev"] is None:
-                expid["repo_rev"] = self.experiment_db.cur_rev
-            wd, repo_msg = self.experiment_db.repo_backend.request_rev(
-                expid["repo_rev"])
+            repo_rev_or_ref = expid["repo_rev"] or self.experiment_db.cur_rev
+            wd, repo_msg, repo_rev = self.experiment_db.repo_backend.request_rev(repo_rev_or_ref)
+
+            # Mutate expid's repo_rev to that returned from request_rev, in case
+            # a branch was passed instead of a hash
+            expid["repo_rev"] = repo_rev
         else:
             if "file" in expid:
                 expid["file"] = os.path.abspath(expid["file"])

@@ -111,7 +111,7 @@ class ExperimentDB:
         try:
             if new_cur_rev is None:
                 new_cur_rev = self.repo_backend.get_head_rev()
-            wd, _ = self.repo_backend.request_rev(new_cur_rev)
+            wd, _, _ = self.repo_backend.request_rev(new_cur_rev)
             self.repo_backend.release_rev(self.cur_rev)
             self.cur_rev = new_cur_rev
             self.status["cur_rev"] = new_cur_rev
@@ -132,7 +132,7 @@ class ExperimentDB:
         if use_repository:
             if revision is None:
                 revision = self.cur_rev
-            wd, _ = self.repo_backend.request_rev(revision)
+            wd, _, revision = self.repo_backend.request_rev(revision)
             filename = os.path.join(wd, filename)
         worker = Worker(self.worker_handlers)
         try:
@@ -169,7 +169,7 @@ class FilesystemBackend:
         return "N/A"
 
     def request_rev(self, rev):
-        return self.root, None
+        return self.root, None, "N/A"
 
     def release_rev(self, rev):
         pass
@@ -200,14 +200,26 @@ class GitBackend:
     def get_head_rev(self):
         return str(self.git.head.target)
 
+    def _get_pinned_rev(self, rev):
+        """
+        Resolve a git reference (e.g. "HEAD", "master", "abcdef123456...") into
+        a git hash
+        """
+        commit, _ = self.git.resolve_refish(rev)
+
+        logger.debug('Resolved git ref "%s" into "%s"', rev, commit.hex)
+
+        return commit.hex
+
     def request_rev(self, rev):
+        rev = self._get_pinned_rev(rev)
         if rev in self.checkouts:
             co = self.checkouts[rev]
             co.ref_count += 1
         else:
             co = _GitCheckout(self.git, rev)
             self.checkouts[rev] = co
-        return co.path, co.message
+        return co.path, co.message, rev
 
     def release_rev(self, rev):
         co = self.checkouts[rev]
