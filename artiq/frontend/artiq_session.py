@@ -30,7 +30,7 @@ def main():
 
     master_cmd = [sys.executable, "-u", "-m", "artiq.frontend.artiq_master"]
     ctlmgr_cmd = [sys.executable,       "-m", "artiq_comtools.artiq_ctlmgr"]
-    master_cmd += args.m[0].split(" ")
+    master_cmd += args.m[0].split(" ") if len(args.m) == 1 else args.m
     ctlmgr_cmd += args.c
 
     with subprocess.Popen(master_cmd,
