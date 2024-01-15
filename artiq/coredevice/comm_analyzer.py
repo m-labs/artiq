@@ -686,6 +686,7 @@ def decoded_dump_to_target(manager, devices, dump, uniform_interval):
     if isinstance(dump.messages[-1], StoppedMessage):
         m = dump.messages[-1]
         end_time = get_message_time(m)
+        manager.set_end_time(end_time)
         messages = dump.messages[:-1]
     else:
         logger.warning("StoppedMessage missing")
