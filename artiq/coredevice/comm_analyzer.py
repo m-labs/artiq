@@ -260,9 +260,8 @@ class WaveformManager:
 
     def get_channel(self, name, width, ty):
         if ty == WaveformType.LOG:
-            data = self.trace["logs"][self.current_scope + name] = list()
-        else:
-            data = self.trace["data"][self.current_scope + name] = list()
+            self.trace["logs"][self.current_scope + name] = (width, ty)
+        data = self.trace["data"][self.current_scope + name] = list()
         channel = WaveformChannel(data, self.current_time)
         self.channels.append(channel)
         return channel
