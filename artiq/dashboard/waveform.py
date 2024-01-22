@@ -93,8 +93,7 @@ class WaveformDock(QtWidgets.QDockWidget):
         decoded_dump = comm_analyzer.decode_dump(dump)
         waveform_data = comm_analyzer.decoded_dump_to_waveform_data(self._ddb, decoded_dump)
         self._waveform_data.update(waveform_data)
-        for log in self._waveform_data['logs']:
-            self._channel_model[log] = (0, WaveformType.LOG)
+        self._channel_model.update(self._waveform_data['logs'])
 
     async def load_trace(self):
         try:
