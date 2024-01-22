@@ -31,6 +31,51 @@ class Model(DictSyncTreeSepModel):
             self[k] = v
 
 
+class _AddChannelDialog(QtWidgets.QDialog):
+    accepted = QtCore.pyqtSignal(list)
+
+    def __init__(self, parent, model):
+        QtWidgets.QDialog.__init__(self, parent=parent)
+        self.setContextMenuPolicy(Qt.ActionsContextMenu)
+        self.setWindowTitle("Add channels")
+
+        grid = QtWidgets.QGridLayout()
+        self.setLayout(grid)
+
+        self._model = model
+        self._tree_view = QtWidgets.QTreeView()
+        self._tree_view.setHeaderHidden(True)
+        self._tree_view.setSelectionBehavior(
+            QtWidgets.QAbstractItemView.SelectItems)
+        self._tree_view.setSelectionMode(
+            QtWidgets.QAbstractItemView.ExtendedSelection)
+        self._tree_view.setModel(self._model)
+        grid.addWidget(self._tree_view, 0, 0, 1, 2)
+        cancel_btn = QtWidgets.QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.close)
+        cancel_btn.setIcon(
+            QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_DialogCancelButton))
+        grid.addWidget(cancel_btn, 1, 0)
+        confirm_btn = QtWidgets.QPushButton("Confirm")
+        confirm_btn.clicked.connect(self.add_channels)
+        confirm_btn.setIcon(
+            QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_DialogApplyButton))
+        grid.addWidget(confirm_btn, 1, 1)
+
+    def add_channels(self):
+        selection = self._tree_view.selectedIndexes()
+        channels = []
+        for select in selection:
+            key = self._model.index_to_key(select)
+            if key is not None:
+                width, ty = self._model[key].ref
+                channels.append((key, width, ty, []))
+        self.accepted.emit(channels)
+        self.close()
+
+
 class WaveformDock(QtWidgets.QDockWidget):
     def __init__(self):
         QtWidgets.QDockWidget.__init__(self, "Waveform")
@@ -77,6 +122,7 @@ class WaveformDock(QtWidgets.QDockWidget):
         self._add_btn.setIcon(
             QtWidgets.QApplication.style().standardIcon(
                 QtWidgets.QStyle.SP_FileDialogListView))
+        self._add_btn.clicked.connect(self.on_add_channel_click)
         grid.addWidget(self._add_btn, 0, 2)
 
         self._file_menu = QtWidgets.QMenu()
@@ -88,6 +134,19 @@ class WaveformDock(QtWidgets.QDockWidget):
         action.triggered.connect(
             lambda: asyncio.ensure_future(exc_to_warning(coro())))
         self._file_menu.addAction(action)
+
+    async def _add_channel_task(self):
+        dialog = _AddChannelDialog(self, self._channel_model)
+        fut = asyncio.Future()
+
+        def on_accept(s):
+            fut.set_result(s)
+        dialog.accepted.connect(on_accept)
+        dialog.open()
+        channels = await fut
+
+    def on_add_channel_click(self):
+        asyncio.ensure_future(self._add_channel_task())
 
     def on_dump_receive(self, dump):
         decoded_dump = comm_analyzer.decode_dump(dump)
