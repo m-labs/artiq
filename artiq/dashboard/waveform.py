@@ -168,6 +168,7 @@ class WaveformDock(QtWidgets.QDockWidget):
         self._channel_model = Model({})
 
         self._ddb = None
+        self._dump = None
 
         self._waveform_data = {
             "timescale": 1,
@@ -212,6 +213,7 @@ class WaveformDock(QtWidgets.QDockWidget):
 
         self._file_menu = QtWidgets.QMenu()
         self._add_async_action("Open trace...", self.load_trace)
+        self._add_async_action("Save trace...", self.save_trace)
         self._menu_btn.setMenu(self._file_menu)
 
     def _add_async_action(self, label, coro):
@@ -234,6 +236,7 @@ class WaveformDock(QtWidgets.QDockWidget):
         asyncio.ensure_future(self._add_channel_task())
 
     def on_dump_receive(self, dump):
+        self._dump = dump
         decoded_dump = comm_analyzer.decode_dump(dump)
         waveform_data = comm_analyzer.decoded_dump_to_waveform_data(self._ddb, decoded_dump)
         self._waveform_data.update(waveform_data)
@@ -255,6 +258,26 @@ class WaveformDock(QtWidgets.QDockWidget):
             self.on_dump_receive(dump)
         except:
             logger.error("Failed to open analyzer trace.", exc_info=True)
+
+    async def save_trace(self):
+        if self._dump is None:
+            logger.error("No analyzer trace stored in dashboard, "
+                         "try loading from file or fetching from device")
+            return
+        try:
+            filename = await get_save_file_name(
+                self,
+                "Save Analyzer Trace",
+                self._current_dir,
+                "All files (*.*)")
+        except asyncio.CancelledError:
+            return
+        self._current_dir = os.path.dirname(filename)
+        try:
+            with open(filename, 'wb') as f:
+                f.write(self._dump)
+        except:
+            logger.error("Failed to save analyzer trace", exc_info=True)
 
     def _process_ddb(self):
         channel_list = comm_analyzer.get_channel_list(self._ddb)
