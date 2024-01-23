@@ -205,7 +205,7 @@ class _AddChannelDialog(QtWidgets.QDialog):
             key = self._model.index_to_key(select)
             if key is not None:
                 width, ty = self._model[key].ref
-                channels.append((key, width, ty, []))
+                channels.append([key, width, ty, []])
         self.accepted.emit(channels)
         self.close()
 
