@@ -99,6 +99,58 @@ class ReceiverProxyClient(_BaseProxyClient):
         await self.receiver.close()
 
 
+class _WaveformModel(QtCore.QAbstractTableModel):
+    def __init__(self):
+        self.backing_struct = []
+        self.headers = ["name", "type", "width", "data"]
+        QtCore.QAbstractTableModel.__init__(self)
+
+    def rowCount(self, parent=QtCore.QModelIndex()):
+        return len(self.backing_struct)
+
+    def columnCount(self, parent=QtCore.QModelIndex()):
+        return len(self.headers)
+
+    def data(self, index, role=QtCore.Qt.DisplayRole):
+        if index.isValid():
+            return self.backing_struct[index.row()][index.column()]
+        return None
+
+    def extend(self, data):
+        length = len(self.backing_struct)
+        len_data = len(data)
+        self.beginInsertRows(QtCore.QModelIndex(), length, length + len_data - 1)
+        self.backing_struct.extend(data)
+        self.endInsertRows()
+
+    def pop(self, row):
+        self.beginRemoveRows(QtCore.QModelIndex(), row, row)
+        self.backing_struct.pop(row)
+        self.endRemoveRows()
+
+    def move(self, src, dest):
+        if src == dest:
+            return
+        if src < dest:
+            dest, src = src, dest
+        self.beginMoveRows(QtCore.QModelIndex(), src, src, QtCore.QModelIndex(), dest)
+        self.backing_struct.insert(dest, self.backing_struct.pop(src))
+        self.endMoveRows()
+
+    def update_data(self, waveform_data, top, bottom):
+        name_col = self.headers.index("name")
+        data_col = self.headers.index("data")
+        for i in range(top, bottom):
+            name = self.data(self.index(i, name_col))
+            if name in waveform_data:
+                self.backing_struct[i][data_col] = waveform_data[name]
+                self.dataChanged.emit(self.index(i, data_col),
+                                      self.index(i, data_col))
+
+    def update_all(self, waveform_data):
+        self.update_data(waveform_data, 0, self.rowCount())
+
+
 class Model(DictSyncTreeSepModel):
     def __init__(self, init):
         DictSyncTreeSepModel.__init__(self, "/", ["Channels"], init)
@@ -166,6 +218,7 @@ class WaveformDock(QtWidgets.QDockWidget):
             QtWidgets.QDockWidget.DockWidgetMovable | QtWidgets.QDockWidget.DockWidgetFloatable)
 
         self._channel_model = Model({})
+        self._waveform_model = _WaveformModel()
 
         self._ddb = None
 
@@ -229,6 +282,11 @@ class WaveformDock(QtWidgets.QDockWidget):
         dialog.accepted.connect(on_accept)
         dialog.open()
         channels = await fut
+        count = self._waveform_model.rowCount()
+        self._waveform_model.extend(channels)
+        self._waveform_model.update_data(self._waveform_data['data'],
+                                         count,
+                                         count + len(channels))
 
     def on_add_channel_click(self):
         asyncio.ensure_future(self._add_channel_task())
@@ -238,6 +296,7 @@ class WaveformDock(QtWidgets.QDockWidget):
         waveform_data = comm_analyzer.decoded_dump_to_waveform_data(self._ddb, decoded_dump)
         self._waveform_data.update(waveform_data)
         self._channel_model.update(self._waveform_data['logs'])
+        self._waveform_model.update_all(self._waveform_data['data'])
 
     async def load_trace(self):
         try:
