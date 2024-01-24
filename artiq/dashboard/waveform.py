@@ -105,6 +105,87 @@ class ReceiverProxyClient(_BaseProxyClient):
         await self.receiver.close()
 
 
+class _BackgroundItem(pg.GraphicsWidgetAnchor, pg.GraphicsWidget):
+    def __init__(self, parent, rect):
+        pg.GraphicsWidget.__init__(self, parent)
+        pg.GraphicsWidgetAnchor.__init__(self)
+        self.item = QtWidgets.QGraphicsRectItem(rect, self)
+        brush = QtGui.QBrush(QtGui.QColor(10, 10, 10, 140))
+        self.item.setBrush(brush)
+
+
+class _BaseWaveform(pg.PlotWidget):
+    def __init__(self, name, width, parent=None, pen="r", stepMode="right", connect="finite"):
+        pg.PlotWidget.__init__(self,
+                               parent=parent,
+                               x=None,
+                               y=None,
+                               pen=pen,
+                               stepMode=stepMode,
+                               connect=connect)
+
+        self.setMinimumHeight(WAVEFORM_MIN_HEIGHT)
+        self.setMaximumHeight(WAVEFORM_MAX_HEIGHT)
+        self.setMenuEnabled(False)
+        self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+
+        self.name = name
+        self.width = width
+
+        self.plot_item = self.getPlotItem()
+        self.plot_item.hideButtons()
+        self.plot_item.hideAxis("top")
+        self.plot_item.getAxis("bottom").setStyle(showValues=False, tickLength=0)
+        self.plot_item.getAxis("left").setStyle(showValues=False, tickLength=0)
+        self.plot_item.setRange(yRange=(0, 1), padding=0.1)
+        self.plot_item.showGrid(x=True, y=True)
+
+        self.plot_data_item = self.plot_item.listDataItems()[0]
+        self.plot_data_item.setClipToView(True)
+
+        self.view_box = self.plot_item.getViewBox()
+        self.view_box.setMouseEnabled(x=True, y=False)
+        self.view_box.disableAutoRange(axis=pg.ViewBox.YAxis)
+        self.view_box.setLimits(xMin=0, minXRange=20)
+
+        self.title_label = pg.LabelItem(self.name, parent=self.plot_item)
+        self.title_label.anchor(itemPos=(0, 0), parentPos=(0, 0), offset=(0, 0))
+        self.title_label.setAttr('justify', 'left')
+        self.title_label.setZValue(10)
+
+        rect = self.title_label.boundingRect()
+        rect.setHeight(rect.height() * 2)
+        self.label_bg = _BackgroundItem(parent=self.plot_item, rect=rect)
+        self.label_bg.anchor(itemPos=(0, 0), parentPos=(0, 0), offset=(0, 0))
+
+    def setStoppedX(self, stopped_x):
+        self.stopped_x = stopped_x
+        self.view_box.setLimits(xMax=stopped_x)
+
+    def setTimescale(self, timescale):
+        self.timescale = timescale
+
+    def onDataChange(self, data):
+        raise NotImplementedError
+
+    def mouseMoveEvent(self, e):
+        if e.buttons() == QtCore.Qt.LeftButton \
+           and e.modifiers() == QtCore.Qt.ShiftModifier:
+            drag = QtGui.QDrag(self)
+            mime = QtCore.QMimeData()
+            drag.setMimeData(mime)
+            pixmapi = QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_FileIcon)
+            drag.setPixmap(pixmapi.pixmap(32))
+            drag.exec_(QtCore.Qt.MoveAction)
+        else:
+            super().mouseMoveEvent(e)
+
+    def wheelEvent(self, e):
+        if e.modifiers() & QtCore.Qt.ControlModifier:
+            super().wheelEvent(e)
+
+
 class _WaveformView(QtWidgets.QWidget):
     def __init__(self, parent):
         QtWidgets.QWidget.__init__(self, parent=parent)
