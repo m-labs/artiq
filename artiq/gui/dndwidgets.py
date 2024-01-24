@@ -2,6 +2,8 @@ from PyQt5 import QtCore, QtWidgets
 
 
 class VDragDropSplitter(QtWidgets.QSplitter):
+    dropped = QtCore.pyqtSignal(int, int)
+
     def __init__(self, parent):
         QtWidgets.QSplitter.__init__(self, parent=parent)
         self.setAcceptDrops(True)
@@ -50,7 +52,7 @@ class VDragDropSplitter(QtWidgets.QSplitter):
         for n in range(self.count()):
             w = self.widget(n)
             if pos.y() < w.y() + w.size().height():
-                self.insertWidget(n, src)
+                self.dropped.emit(src_i, n)
                 break
         e.accept()
 
