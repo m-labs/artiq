@@ -5,6 +5,8 @@ import logging
 from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtCore import Qt
 
+import pyqtgraph as pg
+
 from sipyco.sync_struct import Subscriber
 from sipyco.pc_rpc import AsyncioClient
 
@@ -13,9 +15,13 @@ from artiq.coredevice import comm_analyzer
 from artiq.coredevice.comm_analyzer import WaveformType
 from artiq.gui.tools import LayoutWidget, get_open_file_name, get_save_file_name
 from artiq.gui.models import DictSyncTreeSepModel, LocalModelManager
+from artiq.gui.dndwidgets import VDragScrollArea, VDragDropSplitter
 
 
 logger = logging.getLogger(__name__)
+
+WAVEFORM_MIN_HEIGHT = 50
+WAVEFORM_MAX_HEIGHT = 200
 
 
 class _BaseProxyClient:
@@ -97,6 +103,93 @@ class ReceiverProxyClient(_BaseProxyClient):
 
     async def disconnect_cr(self):
         await self.receiver.close()
+
+
+class _WaveformView(QtWidgets.QWidget):
+    def __init__(self, parent):
+        QtWidgets.QWidget.__init__(self, parent=parent)
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        self.setLayout(layout)
+
+        self._ref_axis = pg.PlotWidget()
+        self._ref_axis.hideAxis("bottom")
+        self._ref_axis.hideAxis("left")
+        self._ref_axis.hideButtons()
+        self._ref_axis.setFixedHeight(45)
+        self._ref_axis.setMenuEnabled(False)
+        self._top = pg.AxisItem("top")
+        self._top.setScale(1e-12)
+        self._top.setLabel(units="s")
+        self._ref_axis.setAxisItems({"top": self._top})
+        layout.addWidget(self._ref_axis)
+
+        self._ref_vb = self._ref_axis.getPlotItem().getViewBox()
+        self._ref_vb.setFixedHeight(0)
+        self._ref_vb.setMouseEnabled(x=True, y=False)
+        self._ref_vb.setLimits(xMin=0)
+
+        scroll_area = VDragScrollArea(self)
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setContentsMargins(0, 0, 0, 0)
+        scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
+        layout.addWidget(scroll_area)
+
+        self._splitter = VDragDropSplitter(parent=scroll_area)
+        self._splitter.setHandleWidth(1)
+        scroll_area.setWidget(self._splitter)
+
+    def setModel(self, model):
+        self._model = model
+        self._model.dataChanged.connect(self.onDataChange)
+        self._model.rowsInserted.connect(self.onInsert)
+        self._model.rowsRemoved.connect(self.onRemove)
+        self._model.rowsMoved.connect(self.onMove)
+        self._splitter.dropped.connect(self._model.move)
+
+    def setTimescale(self, timescale):
+        self._timescale = timescale
+        self._top.setScale(1e-12 * timescale)
+        for i in range(self._model.rowCount()):
+            self._splitter.widget(i).setTimescale(timescale)
+
+    def setStoppedX(self, stopped_x):
+        self._stopped_x = stopped_x
+        for i in range(self._model.rowCount()):
+            self._splitter.widget(i).setStoppedX(stopped_x)
+
+    def onDataChange(self, top, bottom, roles):
+        first = top.row()
+        last = bottom.row()
+        for i in range(first, last + 1):
+            data = self._model.data(self._model.index(i, 3))
+            self._splitter.widget(i).onDataChange(data)
+
+    def onInsert(self, parent, first, last):
+        for i in range(first, last + 1):
+            w = self._create_waveform(i)
+            self._splitter.insertWidget(i, w)
+        self._resize()
+
+    def onRemove(self, parent, first, last):
+        for i in reversed(range(first, last + 1)):
+            w = self._splitter.widget(i)
+            w.deleteLater()
+        self._splitter.refresh()
+        self._resize()
+
+    def onMove(self, src_parent, src_start, src_end, dest_parent, dest_row):
+        w = self._splitter.widget(src_start)
+        self._splitter.insertWidget(dest_row, w)
+
+    def _create_waveform(self, row):
+        raise NotImplementedError
+
+    def _resize(self):
+        self._splitter.setFixedHeight(
+            int((WAVEFORM_MIN_HEIGHT + WAVEFORM_MAX_HEIGHT) * self._model.rowCount() / 2))
 
 
 class _WaveformModel(QtCore.QAbstractTableModel):
@@ -270,6 +363,10 @@ class WaveformDock(QtWidgets.QDockWidget):
         self._add_async_action("Save trace as VCD...", self.save_vcd)
         self._menu_btn.setMenu(self._file_menu)
 
+        self._waveform_view = _WaveformView(self)
+        self._waveform_view.setModel(self._waveform_model)
+        grid.addWidget(self._waveform_view, 1, 0, colspan=12)
+
     def _add_async_action(self, label, coro):
         action = QtWidgets.QAction(label, self)
         action.triggered.connect(
@@ -301,6 +398,8 @@ class WaveformDock(QtWidgets.QDockWidget):
         self._waveform_data.update(waveform_data)
         self._channel_model.update(self._waveform_data['logs'])
         self._waveform_model.update_all(self._waveform_data['data'])
+        self._waveform_view.setStoppedX(self._waveform_data['stopped_x'])
+        self._waveform_view.setTimescale(self._waveform_data['timescale'])
 
     async def load_trace(self):
         try:
