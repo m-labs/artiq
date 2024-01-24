@@ -704,8 +704,8 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 kern_send(io, &kern::SubkernelAwaitFinishReply { status: status })
             }
             #[cfg(has_drtio)]
-            &kern::SubkernelMsgSend { id, destination: _, count, tag, data } => {
-                subkernel::message_send(io, aux_mutex, _subkernel_mutex, routing_table, id, count, tag, data)?;
+            &kern::SubkernelMsgSend { id, destination, count, tag, data } => {
+                subkernel::message_send(io, aux_mutex, _subkernel_mutex, routing_table, id, destination, count, tag, data)?;
                 kern_acknowledge()
             }
             #[cfg(has_drtio)]

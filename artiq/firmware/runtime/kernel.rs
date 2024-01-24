@@ -332,8 +332,9 @@ pub mod subkernel {
             Err(_) => return,
         };
         let subkernel = unsafe { SUBKERNELS.get(&id) };
-        if subkernel.is_none() || subkernel.unwrap().state != SubkernelState::Running {
-            // do not add messages for non-existing, non-running or deleted subkernels
+        if subkernel.is_some() && subkernel.unwrap().state != SubkernelState::Running {
+            warn!("received a message for a non-running subkernel #{}", id);
+            // do not add messages for non-running or deleted subkernels
             return
         }
         if status.is_first() {
@@ -361,8 +362,10 @@ pub mod subkernel {
 
     pub fn message_await(io: &Io, subkernel_mutex: &Mutex, id: u32, timeout: u64
     ) -> Result<Message, Error> {
-        {
+        let is_subkernel = {
             let _lock = subkernel_mutex.lock(io)?;
+            let is_subkernel = unsafe { SUBKERNELS.get(&id).is_some() };
+            if is_subkernel {
             match unsafe { SUBKERNELS.get(&id).unwrap().state } {
                 SubkernelState::Finished { status: FinishStatus::Ok } |
                 SubkernelState::Running => (),
@@ -372,6 +375,8 @@ pub mod subkernel {
                 _ => return Err(Error::IncorrectState)
             }
         }
+            is_subkernel
+        };
         let max_time = clock::get_ms() + timeout as u64;
         let message = io.until_ok(|| {
             if clock::get_ms() > max_time {
@@ -387,10 +392,12 @@ pub mod subkernel {
                     return Ok(Some(unsafe { MESSAGE_QUEUE.remove(i) }));
                 }
             }
+            if is_subkernel {
             match unsafe { SUBKERNELS.get(&id).unwrap().state } {
                 SubkernelState::Finished { status: FinishStatus::CommLost } | 
                     SubkernelState::Finished { status: FinishStatus::Exception(_) }  => return Ok(None),
                 _ => ()
+                }
             }
             Err(())
         });
@@ -412,15 +419,17 @@ pub mod subkernel {
     }
 
     pub fn message_send<'a>(io: &Io, aux_mutex: &Mutex, subkernel_mutex: &Mutex,
-        routing_table: &RoutingTable, id: u32, count: u8, tag: &'a [u8], message: *const *const ()
+        routing_table: &RoutingTable, id: u32, destination: Option<u8>, count: u8, tag: &'a [u8], message: *const *const ()
     ) -> Result<(), Error> {
         let mut writer = Cursor::new(Vec::new());
-        let _lock = subkernel_mutex.lock(io)?;
-        let destination = unsafe { SUBKERNELS.get(&id).unwrap().destination };
-
         // reuse rpc code for sending arbitrary data
         rpc::send_args(&mut writer, 0, tag, message, false)?;
         // skip service tag, but overwrite first byte with tag count
+        let destination = destination.unwrap_or_else(|| {
+                let _lock = subkernel_mutex.lock(io).unwrap();
+                unsafe { SUBKERNELS.get(&id).unwrap().destination }
+            }
+        );
         let data = &mut writer.into_inner()[3..];
         data[0] = count;
         Ok(drtio::subkernel_send_message(
