@@ -46,6 +46,7 @@ Highlights:
 * MSYS2 packaging for Windows, which replaces Conda. Conda packages are still available to
   support legacy installations, but may be removed in a future release.
 * Experiments can now be submitted with revisions set to a branch / tag name instead of only git hashes.
+* Grabber image input now has an optional timeout
 
 Breaking changes:
 
