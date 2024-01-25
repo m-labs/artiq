@@ -6,6 +6,8 @@ do not.
 
 from pythonparser import algorithm, diagnostic
 from .. import types, builtins, asttyped
+from ...integer_checks import is_valid_int32, is_valid_int64
+
 
 class IntMonomorphizer(algorithm.Visitor):
     def __init__(self, engine):
@@ -14,9 +16,9 @@ class IntMonomorphizer(algorithm.Visitor):
     def visit_NumT(self, node):
         if builtins.is_int(node.type):
             if types.is_var(node.type["width"]):
-                if -2**31 < node.n < 2**31-1:
+                if is_valid_int32(node.n):
                     width = 32
-                elif -2**63 < node.n < 2**63-1:
+                elif is_valid_int64(node.n):
                     width = 64
                 else:
                     diag = diagnostic.Diagnostic("error",
