@@ -42,12 +42,12 @@ class _BaseProxyClient:
                 try:
                     await self.disconnect_cr()
                 except:
-                    logger.error("Error caught when disconnecting proxy client.", exc_info=True)
+                    logger.error("Error caught when disconnecting proxy client", exc_info=True)
                 try:
                     await self.reconnect_cr()
                 except Exception:
                     logger.error(
-                        "Error caught when reconnecting proxy client. Retrying...", exc_info=True)
+                        "Error caught when reconnecting proxy client, retrying...", exc_info=True)
                     await asyncio.sleep(5)
                     self._reconnect_event.set()
         except asyncio.CancelledError:
@@ -59,7 +59,7 @@ class _BaseProxyClient:
             await asyncio.wait_for(self._reconnect_task, None)
             await self.disconnect_cr()
         except:
-            logger.error("Error caught while closing proxy client.", exc_info=True)
+            logger.error("Error caught while closing proxy client", exc_info=True)
 
     async def reconnect_cr(self):
         raise NotImplementedError
@@ -254,7 +254,7 @@ class WaveformDock(QtWidgets.QDockWidget):
                 dump = f.read()
             self.on_dump_receive(dump)
         except:
-            logger.error("Failed to open analyzer trace.", exc_info=True)
+            logger.error("Failed to open analyzer trace", exc_info=True)
 
     def _process_ddb(self):
         channel_list = comm_analyzer.get_channel_list(self._ddb)
