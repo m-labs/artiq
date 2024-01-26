@@ -304,7 +304,7 @@ For example, a subkernel performing integer addition: ::
             result = subkernel_await(subkernel_add)
             assert result == 4
 
-Sometimes the subkernel execution may take more time - and the await has a default timeout of 10000 milliseconds (10 seconds). It can be adjusted, as ``subkernel_await()`` accepts an optional timeout argument.
+Sometimes the subkernel execution may take more time - and the await has a default timeout of 10000 milliseconds (10 seconds). It can be adjusted, as ``subkernel_await()`` accepts an optional timeout argument. If the given value is negative, timeout is disabled.
 
 Subkernels are compiled after the main kernel, and then immediately uploaded to satellites. When called, master instructs the appropriate satellite to load the subkernel into their kernel core and to run it. If the subkernel is complex, and its binary relatively big, the delay between the call and actually running the subkernel may be substantial; if that delay has to be minimized, ``subkernel_preload(function)`` should be used before the call.
 
@@ -347,3 +347,30 @@ In general, subkernels do not have to be awaited, but awaiting is required to re
 
 .. note::
     When a subkernel is running, regardless of devices used by it, RTIO devices on that satellite are not available to the master. Control is returned to master after the subkernel finishes - to be sure that you can use the device, the subkernel should be awaited before any RTIO operations on the affected satellite are performed.
+
+Message passing
+^^^^^^^^^^^^^^^
+
+Subkernels besides arguments and returns, can also pass messages between each other or the master with built-in ``subkernel_send`` and ``subkernel_recv`` functions. This can be used for communication between subkernels, passing additional data, or partially computed data. Consider the following example: ::
+
+    from artiq.experiment import *
+
+    class MessagePassing(EnvExperiment):
+        def build(self):
+            self.setattr_device("core")
+
+        @subkernel(destination=1)
+        def simple_self(self) -> TInt32:
+            data = subkernel_recv("message", TInt32)
+            return data + 20
+
+        @kernel
+        def run(self):
+            self.simple_self()
+            subkernel_send(1, "message", 150)
+            result = subkernel_await(self.simple_self)
+            assert result == 170
+
+The ``subkernel_send`` function accepts three arguments: destination, name of the message that will be linked with the ``subkernel_recv``, and the value. 
+
+The ``subkernel_recv`` function accepts two obligatory arguments: message name (matching the name provided in ``subkernel_send``) and expected type; and optionally, a third argument - timeout for the operation in milliseconds. If the value is negative, timeout is disabled. The default value is -1 (no timeout). The type between the two functions with the same name must match.
