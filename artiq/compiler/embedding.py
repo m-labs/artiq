@@ -47,8 +47,13 @@ class SpecializedFunction:
         return hash((self.instance_type, self.host_function))
 
 
+class SubkernelMessageType:
+    def __init__(self, name, value_type):
+        self.name = name
+        self.value_type = value_type
+
 class EmbeddingMap:
-    def __init__(self, subkernels={}):
+    def __init__(self, old_embedding_map=None):
         self.object_current_key = 0
         self.object_forward_map = {}
         self.object_reverse_map = {}
@@ -64,13 +69,22 @@ class EmbeddingMap:
         self.function_map = {}
         self.str_forward_map = {}
         self.str_reverse_map = {}
-        
+
+        # mapping `name` to object ID
+        self.subkernel_message_map = {}
+
         # subkernels: dict of ID: function, just like object_forward_map
         # allow the embedding map to be aware of subkernels from other kernels
-        for key, obj_ref in subkernels.items():
-            self.object_forward_map[key] = obj_ref
-            obj_id = id(obj_ref)
-            self.object_reverse_map[obj_id] = key
+        if not old_embedding_map is None:
+            for key, obj_ref in old_embedding_map.subkernels().items():
+                self.object_forward_map[key] = obj_ref
+                obj_id = id(obj_ref)
+                self.object_reverse_map[obj_id] = key
+            for msg_id, msg_type in old_embedding_map.subkernel_messages().items():
+                self.object_forward_map[msg_id] = msg_type
+                obj_id = id(msg_type)
+                self.subkernel_message_map[msg_type.name] = msg_id
+                self.object_reverse_map[obj_id] = msg_id
 
         self.preallocate_runtime_exception_names(["RuntimeError",
                                                   "RTIOUnderflow",
@@ -174,7 +188,7 @@ class EmbeddingMap:
         self.object_current_key += 1
         while self.object_forward_map.get(self.object_current_key):
             # make sure there's no collisions with previously inserted subkernels
-            # their identifiers must be consistent between kernels/subkernels
+            # their identifiers must be consistent across all kernels/subkernels
             self.object_current_key += 1
         
         self.object_forward_map[self.object_current_key] = obj_ref
@@ -189,7 +203,7 @@ class EmbeddingMap:
             obj_ref = self.object_forward_map[obj_id]
             if isinstance(obj_ref, (pytypes.FunctionType, pytypes.MethodType,
                                     pytypes.BuiltinFunctionType, pytypes.ModuleType,
-                                    SpecializedFunction)):
+                                    SpecializedFunction, SubkernelMessageType)):
                 continue
             elif isinstance(obj_ref, type):
                 _, obj_typ = self.type_map[obj_ref]
@@ -204,6 +218,20 @@ class EmbeddingMap:
                 if v.artiq_embedded.destination is not None:
                     subkernels[k] = v
         return subkernels
+
+    def store_subkernel_message(self, name, value_type):
+        if name in self.subkernel_message_map:
+            msg_id = self.subkernel_message_map[name]
+        else:
+            msg_id = self.store_object(SubkernelMessageType(name, value_type))
+            self.subkernel_message_map[name] = msg_id
+        return msg_id, self.retrieve_object(msg_id)
+
+    def subkernel_messages(self):
+        messages = {}
+        for name, msg_id in self.subkernel_message_map.items():
+            messages[msg_id] = self.retrieve_object(msg_id)
+        return messages
 
     def has_rpc(self):
         return any(filter(
@@ -802,7 +830,7 @@ class TypedtreeHasher(algorithm.Visitor):
         return hash(tuple(freeze(getattr(node, field_name)) for field_name in fields))
 
 class Stitcher:
-    def __init__(self, core, dmgr, engine=None, print_as_rpc=True, destination=0, subkernel_arg_types=[], subkernels={}):
+    def __init__(self, core, dmgr, engine=None, print_as_rpc=True, destination=0, subkernel_arg_types=[], old_embedding_map=None):
         self.core = core
         self.dmgr = dmgr
         if engine is None:
@@ -824,7 +852,7 @@ class Stitcher:
 
         self.functions = {}
 
-        self.embedding_map = EmbeddingMap(subkernels)
+        self.embedding_map = EmbeddingMap(old_embedding_map)
         self.value_map = defaultdict(lambda: [])
         self.definitely_changed = False
 

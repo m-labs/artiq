@@ -121,14 +121,14 @@ class Core:
     def compile(self, function, args, kwargs, set_result=None,
                 attribute_writeback=True, print_as_rpc=True,
                 target=None, destination=0, subkernel_arg_types=[],
-                subkernels={}):
+                old_embedding_map=None):
         try:
             engine = _DiagnosticEngine(all_errors_are_fatal=True)
 
             stitcher = Stitcher(engine=engine, core=self, dmgr=self.dmgr,
                                 print_as_rpc=print_as_rpc,
                                 destination=destination, subkernel_arg_types=subkernel_arg_types,
-                                subkernels=subkernels)
+                                old_embedding_map=old_embedding_map)
             stitcher.stitch_call(function, args, kwargs, set_result)
             stitcher.finalize()
 
@@ -182,7 +182,7 @@ class Core:
             self.compile(subkernel_fn, self_arg, {}, attribute_writeback=False,
                         print_as_rpc=False, target=target, destination=destination, 
                         subkernel_arg_types=subkernel_arg_types.get(sid, []),
-                        subkernels=subkernels)
+                        old_embedding_map=embedding_map)
         if object_map.has_rpc():
             raise ValueError("Subkernel must not use RPC")
         return destination, kernel_library, object_map
