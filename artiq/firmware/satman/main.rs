@@ -458,9 +458,9 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
                 data: data_slice,
             })
         }
-        drtioaux::Packet::SubkernelMessage { source, destination: _destination, id: _id, status, length, data } => {
+        drtioaux::Packet::SubkernelMessage { source, destination: _destination, id, status, length, data } => {
             forward!(_routing_table, _destination, *rank, _repeaters, &packet);
-            kernelmgr.message_handle_incoming(status, length as usize, &data);
+            kernelmgr.message_handle_incoming(status, length as usize, id, &data);
             router.send(drtioaux::Packet::SubkernelMessageAck {
                     destination: source
                 }, _routing_table, *rank, *self_destination)
