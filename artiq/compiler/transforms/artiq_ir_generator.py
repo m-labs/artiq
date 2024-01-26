@@ -2559,6 +2559,42 @@ class ARTIQIRGenerator(algorithm.Visitor):
             sid = ir.Constant(fn.sid, builtins.TInt32())
             dest = ir.Constant(fn.destination, builtins.TInt32())
             return self.append(ir.Builtin("subkernel_preload", [sid, dest], builtins.TNone()))
+        elif types.is_builtin(typ, "subkernel_send"):
+            if len(node.args) == 3 and len(node.keywords) == 0:
+                dest = self.visit(node.args[0])
+                name = node.args[1].s
+                value = self.visit(node.args[2])
+            else:
+                assert False
+            msg_id, msg = self.embedding_map.store_subkernel_message(name, value.type)
+            msg_id = ir.Constant(msg_id, builtins.TInt32())
+            if value.type != msg.value_type:
+                diag = diagnostic.Diagnostic("error",
+                    "type mismatch for subkernel message '{name}', receiver expects {recv} while sending {send}",
+                    {"name": name, "recv": msg.value_type, "send": value.type},
+                    node.loc)
+                self.engine.process(diag)
+            return self.append(ir.Builtin("subkernel_send", [msg_id, dest, value], builtins.TNone()))
+        elif types.is_builtin(typ, "subkernel_recv"):
+            if len(node.args) == 2 and len(node.keywords) == 0:
+                name = node.args[0].s
+                vartype = node.args[1].value
+                timeout = ir.Constant(10_000, builtins.TInt64())
+            elif len(node.args) == 3 and len(node.keywords) == 0:
+                name = node.args[0].s
+                vartype = node.args[1].value
+                timeout = self.visit(node.args[2])
+            else:
+                assert False
+            msg_id, msg = self.embedding_map.store_subkernel_message(name, vartype)
+            msg_id = ir.Constant(msg_id, builtins.TInt32())
+            if vartype != msg.value_type:
+                diag = diagnostic.Diagnostic("error",
+                    "type mismatch for subkernel message '{name}', receiver expects {recv} while sending {send}",
+                    {"name": name, "recv": vartype, "send": msg.value_type},
+                    node.loc)
+                self.engine.process(diag)
+            return self.append(ir.Builtin("subkernel_recv", [msg_id, timeout], vartype))
         elif types.is_exn_constructor(typ):
             return self.alloc_exn(node.type, *[self.visit(arg_node) for arg_node in node.args])
         elif types.is_constructor(typ):

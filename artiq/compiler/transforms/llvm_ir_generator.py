@@ -1420,6 +1420,20 @@ class LLVMIRGenerator:
             lldest = ll.Constant(lli8, insn.operands[1].value)
             return self.llbuilder.call(self.llbuiltin("subkernel_load_run"), [llsid, lldest, ll.Constant(lli1, 0)], 
                                 name="subkernel.preload")
+        elif insn.op == "subkernel_send":
+            llmsgid = self.map(insn.operands[0])
+            lldest = self.map(insn.operands[1])
+            return self._build_subkernel_message(llmsgid, lldest, [insn.operands[2]])
+        elif insn.op == "subkernel_recv":
+            llmsgid = self.map(insn.operands[0])
+            lltimeout = self.map(insn.operands[1])
+            lltagptr = self._build_subkernel_tags([insn.type])
+            self.llbuilder.call(self.llbuiltin("subkernel_await_message"), 
+                                [llmsgid, lltimeout, lltagptr, ll.Constant(lli8, 1), ll.Constant(lli8, 1)],
+                                name="subkernel.await.message")
+            llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
+                                             name="subkernel.arg.stack")
+            return self._build_rpc_recv(insn.type, llstackptr)
         else:
             assert False
 
@@ -1580,11 +1594,8 @@ class LLVMIRGenerator:
             self.llbuilder.branch(llnormalblock)
         return llret
 
-    def _build_rpc(self, fun_loc, fun_type, args, llnormalblock, llunwindblock):
-        llservice = ll.Constant(lli32, fun_type.service)
-
+    def _build_arg_tag(self, args, call_type):
         tag = b""
-
         for arg in args:
             def arg_error_handler(typ):
                 printer = types.TypePrinter()
@@ -1593,12 +1604,18 @@ class LLVMIRGenerator:
                     {"type": printer.name(typ)},
                     arg.loc)
                 diag = diagnostic.Diagnostic("error",
-                    "type {type} is not supported in remote procedure calls",
-                    {"type": printer.name(arg.type)},
+                    "type {type} is not supported in {call_type} calls",
+                    {"type": printer.name(arg.type), "call_type": call_type},
                     arg.loc, notes=[note])
                 self.engine.process(diag)
             tag += ir.rpc_tag(arg.type, arg_error_handler)
         tag += b":"
+        return tag
+
+    def _build_rpc(self, fun_loc, fun_type, args, llnormalblock, llunwindblock):
+        llservice = ll.Constant(lli32, fun_type.service)
+
+        tag = self._build_arg_tag(args, call_type="remote procedure")
 
         def ret_error_handler(typ):
             printer = types.TypePrinter()
@@ -1662,61 +1679,47 @@ class LLVMIRGenerator:
     def _build_subkernel_call(self, fun_loc, fun_type, args):
         llsid = ll.Constant(lli32, fun_type.sid)
         lldest = ll.Constant(lli8, fun_type.destination)
-        tag = b""
-
-        for arg in args:
-            def arg_error_handler(typ):
-                printer = types.TypePrinter()
-                note = diagnostic.Diagnostic("note",
-                    "value of type {type}",
-                    {"type": printer.name(typ)},
-                    arg.loc)
-                diag = diagnostic.Diagnostic("error",
-                    "type {type} is not supported in subkernel calls",
-                    {"type": printer.name(arg.type)},
-                    arg.loc, notes=[note])
-                self.engine.process(diag)
-            tag += ir.rpc_tag(arg.type, arg_error_handler)
-        tag += b":"
-
         # run the kernel first
         self.llbuilder.call(self.llbuiltin("subkernel_load_run"), [llsid, lldest, ll.Constant(lli1, 1)])
 
-        # arg sent in the same vein as RPC
-        llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
-                                         name="subkernel.stack")
+        if args:
+            # only send args if there's anything to send, 'self' is excluded
+            self._build_subkernel_message(llsid, lldest, args)
 
+        return llsid
+
+    def _build_subkernel_message(self, llid, lldest, args):
+        # args (or messages) are sent in the same vein as RPC
+        tag = self._build_arg_tag(args, call_type="subkernel")
+
+        llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
+                                            name="subkernel.stack")
         lltag = self.llconst_of_const(ir.Constant(tag, builtins.TStr()))
         lltagptr = self.llbuilder.alloca(lltag.type)
         self.llbuilder.store(lltag, lltagptr)
 
-        if args:
-            # only send args if there's anything to send, 'self' is excluded
-            llargs = self.llbuilder.alloca(llptr, ll.Constant(lli32, len(args)),
-                                        name="subkernel.args")
-            for index, arg in enumerate(args):
-                if builtins.is_none(arg.type):
-                    llargslot = self.llbuilder.alloca(llunit,
-                                                    name="subkernel.arg{}".format(index))
-                else:
-                    llarg = self.map(arg)
-                    llargslot = self.llbuilder.alloca(llarg.type,
-                                                    name="subkernel.arg{}".format(index))
-                    self.llbuilder.store(llarg, llargslot)
-                llargslot = self.llbuilder.bitcast(llargslot, llptr)
+        llargs = self.llbuilder.alloca(llptr, ll.Constant(lli32, len(args)),
+                                    name="subkernel.args")
+        for index, arg in enumerate(args):
+            if builtins.is_none(arg.type):
+                llargslot = self.llbuilder.alloca(llunit,
+                                                name="subkernel.arg{}".format(index))
+            else:
+                llarg = self.map(arg)
+                llargslot = self.llbuilder.alloca(llarg.type,
+                                                name="subkernel.arg{}".format(index))
+                self.llbuilder.store(llarg, llargslot)
+            llargslot = self.llbuilder.bitcast(llargslot, llptr)
 
-                llargptr = self.llbuilder.gep(llargs, [ll.Constant(lli32, index)])
-                self.llbuilder.store(llargslot, llargptr)
+            llargptr = self.llbuilder.gep(llargs, [ll.Constant(lli32, index)])
+            self.llbuilder.store(llargslot, llargptr)
 
-            llargcount = ll.Constant(lli8, len(args))
+        llargcount = ll.Constant(lli8, len(args))
 
-            llisreturn = ll.Constant(lli1, False)
-
-            self.llbuilder.call(self.llbuiltin("subkernel_send_message"),
-                                [llsid, llisreturn, lldest, llargcount, lltagptr, llargs])
-            self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
-
-        return llsid
+        llisreturn = ll.Constant(lli1, False)
+        self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
+        return self.llbuilder.call(self.llbuiltin("subkernel_send_message"),
+                            [llid, llisreturn, lldest, llargcount, lltagptr, llargs])
 
     def _build_subkernel_return(self, insn):
         # builds a remote return.

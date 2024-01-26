@@ -1343,6 +1343,57 @@ class Inferencer(algorithm.Visitor):
                                 node.loc, None)
             else:
                 diagnose(valid_forms())
+        elif types.is_builtin(typ, "subkernel_send"):
+            valid_forms = lambda: [
+                valid_form("subkernel_send(dest: numpy.int?, name: str, value: V) -> None"),
+            ]
+            self._unify(node.type, builtins.TNone(),
+                        node.loc, None)
+            if len(node.args) == 3:
+                arg0 = node.args[0]
+                if types.is_var(arg0.type):
+                    pass  # undetermined yet
+                else:
+                    if builtins.is_int(arg0.type):
+                        self._unify(arg0.type, builtins.TInt8(),
+                                    arg0.loc, None)
+                    else:
+                        diagnose(valid_forms())
+                arg1 = node.args[1]
+                self._unify(arg1.type, builtins.TStr(),
+                        arg1.loc, None)
+            else:
+                diagnose(valid_forms())
+        elif types.is_builtin(typ, "subkernel_recv"):
+            valid_forms = lambda: [
+                valid_form("subkernel_recv(name: str, value_type: type) -> value_type"),
+                valid_form("subkernel_recv(name: str, value_type: type, timeout: numpy.int64) -> value_type"),
+            ]
+            if 2 <= len(node.args) <= 3:
+                arg0 = node.args[0]
+                if types.is_var(arg0.type):
+                    pass
+                else:
+                    self._unify(arg0.type, builtins.TStr(),
+                            arg0.loc, None)
+                arg1 = node.args[1]
+                if types.is_var(arg1.type):
+                    pass
+                else:
+                    self._unify(node.type, arg1.value,
+                                node.loc, None)
+                if len(node.args) == 3:
+                    arg2 = node.args[2]
+                    if types.is_var(arg2.type):
+                        pass
+                    elif builtins.is_int(arg2.type):
+                        # promote to TInt64
+                        self._unify(arg2.type, builtins.TInt64(),
+                                    arg2.loc, None)
+                    else:
+                        diagnose(valid_forms())
+            else:
+                diagnose(valid_forms())
         else:
             assert False
 

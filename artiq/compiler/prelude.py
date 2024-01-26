@@ -59,4 +59,6 @@ def globals():
         # ARTIQ subkernel utility functions
         "subkernel_await":     builtins.fn_subkernel_await(),
         "subkernel_preload":   builtins.fn_subkernel_preload(),
+        "subkernel_send":      builtins.fn_subkernel_send(),
+        "subkernel_recv":      builtins.fn_subkernel_recv(), 
     }

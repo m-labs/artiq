@@ -253,6 +253,12 @@ def fn_subkernel_await():
 def fn_subkernel_preload():
     return types.TBuiltinFunction("subkernel_preload")
 
+def fn_subkernel_send():
+    return types.TBuiltinFunction("subkernel_send")
+
+def fn_subkernel_recv():
+    return types.TBuiltinFunction("subkernel_recv")
+
 # Accessors
 
 def is_none(typ):
