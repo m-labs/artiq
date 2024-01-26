@@ -186,6 +186,41 @@ class _BaseWaveform(pg.PlotWidget):
             super().wheelEvent(e)
 
 
+class BitWaveform(_BaseWaveform):
+    def __init__(self, name, width, parent=None):
+        _BaseWaveform.__init__(self, name, width, parent)
+        self._arrows = []
+
+    def onDataChange(self, data):
+        try:
+            l = len(data)
+            display_y = np.empty(l)
+            display_x = np.empty(l)
+            display_map = {
+                "X": 0.5,
+                "1": 1,
+                "0": 0
+            }
+            previous_y = None
+            for i, coord in enumerate(data):
+                x, y = coord
+                dis_y = display_map[y]
+                if previous_y == y:
+                    arw = pg.ArrowItem(pxMode=True, angle=90)
+                    self.addItem(arw)
+                    self._arrows.append(arw)
+                    arw.setPos(x, dis_y)
+                display_y[i] = dis_y
+                display_x[i] = x
+                previous_y = y
+            self.plot_data_item.setData(x=display_x, y=display_y)
+        except:
+            logger.error('Error when displaying waveform: {}'.format(self.name), exc_info=True)
+            for arw in self._arrows:
+                self.removeItem(arw)
+            self.plot_data_item.setData(x=[], y=[])
+
+
 class _WaveformView(QtWidgets.QWidget):
     def __init__(self, parent):
         QtWidgets.QWidget.__init__(self, parent=parent)
