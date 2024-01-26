@@ -221,6 +221,54 @@ class BitWaveform(_BaseWaveform):
             self.plot_data_item.setData(x=[], y=[])
 
 
+class BitVectorWaveform(_BaseWaveform):
+    def __init__(self, name, width, parent=None):
+        _BaseWaveform.__init__(self, name, width, parent)
+        self._labels = []
+        self.x_data = []
+        self.view_box.sigTransformChanged.connect(self._update_labels)
+
+    def _update_labels(self):
+        for label in self._labels:
+            self.removeItem(label)
+        xmin, xmax = self.view_box.viewRange()[0]
+        left_label_i = bisect.bisect_left(self.x_data, xmin)
+        right_label_i = bisect.bisect_right(self.x_data, xmax) + 1
+        for i, j in itertools.pairwise(range(left_label_i, right_label_i)):
+            x1 = self.x_data[i]
+            x2 = self.x_data[j] if j < len(self.x_data) else self._stopped_x
+            lbl = self._labels[i]
+            bounds = lbl.boundingRect()
+            bounds_view = self.view_box.mapSceneToView(bounds)
+            if bounds_view.boundingRect().width() < x2 - x1:
+                self.addItem(lbl)
+
+    def onDataChange(self, data):
+        try:
+            self.x_data = zip(*data)[0]
+            l = len(data)
+            display_x = np.array(l * 2)
+            display_y = np.array(l * 2)
+            for i, coord in enumerate(data):
+                x, y = coord
+                display_x[i * 2] = x
+                display_x[i * 2 + 1] = x
+                display_y[i * 2] = 0
+                display_y[i * 2 + 1] = int(int(y) != 0)
+                lbl = pg.TextItem(
+                    self._format_string.format(y), anchor=(0, 0.5))
+                lbl.setPos(x, 0.5)
+                lbl.setTextWidth(100)
+                self._labels.append(lbl)
+            self.plot_data_item.setData(x=display_x, y=display_y)
+        except:
+            logger.error(
+                "Error when displaying waveform: {}".format(self.name), exc_info=True)
+            for lbl in self._labels:
+                self.plot_item.removeItem(lbl)
+            self.plot_data_item.setData(x=[], y=[])
+
+
 class _WaveformView(QtWidgets.QWidget):
     def __init__(self, parent):
         QtWidgets.QWidget.__init__(self, parent=parent)
