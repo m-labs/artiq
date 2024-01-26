@@ -221,6 +221,23 @@ class BitWaveform(_BaseWaveform):
             self.plot_data_item.setData(x=[], y=[])
 
 
+class AnalogWaveform(_BaseWaveform):
+    def __init__(self, name, width, parent=None):
+        _BaseWaveform.__init__(self, name, width, parent)
+
+    def onDataChange(self, data):
+        try:
+            x_data, y_data = zip(*data)
+            self.plot_data_item.setData(x=x_data, y=y_data)
+            max_y = max(y_data)
+            min_y = min(y_data)
+            self.plot_item.setRange(yRange=(min_y, max_y), padding=0.1)
+        except:
+            logger.error(
+                'Error when displaying waveform: {}'.format(self.name), exc_info=True)
+            self.plot_data_item.setData(x=[], y=[])
+
+
 class BitVectorWaveform(_BaseWaveform):
     def __init__(self, name, width, parent=None):
         _BaseWaveform.__init__(self, name, width, parent)
@@ -266,6 +283,36 @@ class BitVectorWaveform(_BaseWaveform):
                 "Error when displaying waveform: {}".format(self.name), exc_info=True)
             for lbl in self._labels:
                 self.plot_item.removeItem(lbl)
+            self.plot_data_item.setData(x=[], y=[])
+
+
+class LogWaveform(_BaseWaveform):
+    def __init__(self, name, width, parent=None):
+        _BaseWaveform.__init__(self, name, width, parent)
+        self.plot_data_item.opts['pen'] = None
+        self.plot_data_item.opts['symbol'] = 'x'
+
+    def onDataChange(self, data):
+        try:
+            x_data = zip(*data)[0]
+            self.plot_data_item.setData(
+                x=x_data, y=np.ones(len(x_data)))
+            old_msg = ""
+            old_x = 0
+            for x, msg in data:
+                if x == old_x:
+                    old_msg += "\n" + msg
+                else:
+                    lbl = pg.TextItem(old_msg)
+                    self.addItem(lbl)
+                    lbl.setPos(old_x, 1)
+                    old_msg = msg
+                    old_x = x
+            lbl = pg.TextItem(old_msg)
+            self.addItem(lbl)
+            lbl.setPos(old_x, 1)
+        except:
+            logger.error('Error when displaying waveform: {}'.format(self.name), exc_info=True)
             self.plot_data_item.setData(x=[], y=[])
 
 
