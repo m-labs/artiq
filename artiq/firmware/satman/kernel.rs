@@ -63,10 +63,10 @@ enum KernelState {
     Absent,
     Loaded,
     Running,
-    MsgAwait { id: u32, max_time: u64, tags: Vec<u8> },
+    MsgAwait { id: u32, max_time: i64, tags: Vec<u8> },
     MsgSending,
     SubkernelAwaitLoad,
-    SubkernelAwaitFinish { max_time: u64, id: u32 },
+    SubkernelAwaitFinish { max_time: i64, id: u32 },
     DmaUploading { max_time: u64 },
     DmaAwait { max_time: u64 },
 }
@@ -547,7 +547,7 @@ impl Manager {
     fn process_external_messages(&mut self) -> Result<(), Error> {
         match &self.session.kernel_state {
             KernelState::MsgAwait { id, max_time, tags } => {
-                if clock::get_ms() > *max_time {
+                if *max_time > 0 && clock::get_ms() > *max_time as u64 {
                     kern_send(&kern::SubkernelMsgRecvReply { status: kern::SubkernelStatus::Timeout, count: 0 })?;
                     self.session.kernel_state = KernelState::Running;
                     return Ok(())
@@ -570,7 +570,7 @@ impl Manager {
                 }
             },
             KernelState::SubkernelAwaitFinish { max_time, id } => {
-                if clock::get_ms() > *max_time {
+                if *max_time > 0 && clock::get_ms() > *max_time as u64 {
                     kern_send(&kern::SubkernelAwaitFinishReply { status: kern::SubkernelStatus::Timeout })?;
                     self.session.kernel_state = KernelState::Running;
                 } else {
@@ -779,7 +779,8 @@ impl Manager {
                 }
 
                 &kern::SubkernelMsgRecvRequest { id, timeout, tags } => {
-                    let max_time = clock::get_ms() + timeout as u64;
+                    // negative timeout value means no timeout
+                    let max_time = if timeout > 0 { clock::get_ms() as i64 + timeout } else { timeout };
                     self.session.kernel_state = KernelState::MsgAwait { 
                         id: id, max_time: max_time, tags: tags.to_vec() };
                     Ok(())
@@ -794,7 +795,7 @@ impl Manager {
                 }
 
                 &kern::SubkernelAwaitFinishRequest{ id, timeout } => {
-                    let max_time = clock::get_ms() + timeout as u64;
+                    let max_time = if timeout > 0 { clock::get_ms() as i64 + timeout } else { timeout };
                     self.session.kernel_state = KernelState::SubkernelAwaitFinish { max_time: max_time, id: id };
                     Ok(())
                 }

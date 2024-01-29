@@ -2537,7 +2537,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 timeout = self.visit(node.args[1])
             elif len(node.args) == 1 and len(node.keywords) == 0:
                 fn = node.args[0].type
-                timeout = ir.Constant(10_000, builtins.TInt64())
+                timeout = ir.Constant(-1, builtins.TInt64())
             else:
                 assert False
             if types.is_method(fn):
@@ -2579,7 +2579,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             if len(node.args) == 2 and len(node.keywords) == 0:
                 name = node.args[0].s
                 vartype = node.args[1].value
-                timeout = ir.Constant(10_000, builtins.TInt64())
+                timeout = ir.Constant(-1, builtins.TInt64())
             elif len(node.args) == 3 and len(node.keywords) == 0:
                 name = node.args[0].s
                 vartype = node.args[1].value
