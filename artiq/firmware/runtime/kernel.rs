@@ -279,7 +279,7 @@ pub mod subkernel {
     }
 
     pub fn await_finish(io: &Io, aux_mutex: &Mutex, subkernel_mutex: &Mutex,
-        routing_table: &RoutingTable, id: u32, timeout: u64) -> Result<SubkernelFinished, Error> {
+        routing_table: &RoutingTable, id: u32, timeout: i64) -> Result<SubkernelFinished, Error> {
         {
             let _lock = subkernel_mutex.lock(io)?;
             match unsafe { SUBKERNELS.get(&id).unwrap().state } {
@@ -291,7 +291,7 @@ pub mod subkernel {
         }
         let max_time = clock::get_ms() + timeout as u64;
         let _res = io.until(|| {
-            if clock::get_ms() > max_time {
+            if timeout > 0 && clock::get_ms() > max_time {
                 return true;
             }
             if subkernel_mutex.test_lock() {
@@ -305,7 +305,7 @@ pub mod subkernel {
                 _ => false
             }
         })?;
-        if clock::get_ms() > max_time {
+        if timeout > 0 && clock::get_ms() > max_time {
             error!("Remote subkernel finish await timed out");
             return Err(Error::Timeout);
         }
@@ -360,7 +360,7 @@ pub mod subkernel {
         }
     }
 
-    pub fn message_await(io: &Io, subkernel_mutex: &Mutex, id: u32, timeout: u64
+    pub fn message_await(io: &Io, subkernel_mutex: &Mutex, id: u32, timeout: i64
     ) -> Result<Message, Error> {
         let is_subkernel = {
             let _lock = subkernel_mutex.lock(io)?;
@@ -379,7 +379,7 @@ pub mod subkernel {
         };
         let max_time = clock::get_ms() + timeout as u64;
         let message = io.until_ok(|| {
-            if clock::get_ms() > max_time {
+            if timeout > 0 && clock::get_ms() > max_time {
                 return Ok(None);
             }
             if subkernel_mutex.test_lock() {

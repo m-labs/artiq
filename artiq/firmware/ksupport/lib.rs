@@ -498,7 +498,7 @@ extern fn subkernel_load_run(id: u32, destination: u8, run: bool) {
 }
 
 #[unwind(allowed)]
-extern fn subkernel_await_finish(id: u32, timeout: u64) {
+extern fn subkernel_await_finish(id: u32, timeout: i64) {
     send(&SubkernelAwaitFinishRequest { id: id, timeout: timeout });
     recv!(SubkernelAwaitFinishReply { status } => {
         match status {
@@ -528,7 +528,7 @@ extern fn subkernel_send_message(id: u32, is_return: bool, destination: u8,
 }
 
 #[unwind(allowed)]
-extern fn subkernel_await_message(id: u32, timeout: u64, tags: &CSlice<u8>, min: u8, max: u8) -> u8 {
+extern fn subkernel_await_message(id: u32, timeout: i64, tags: &CSlice<u8>, min: u8, max: u8) -> u8 {
     send(&SubkernelMsgRecvRequest { id: id, timeout: timeout, tags: tags.as_ref() });
     recv!(SubkernelMsgRecvReply { status, count } => {
         match status {
