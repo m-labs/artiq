@@ -5,11 +5,11 @@ use board_misoc::{csr, cache::flush_l2_cache};
 use proto_artiq::drtioaux_proto::PayloadStatus;
 use routing::{Router, Sliceable};
 use kernel::Manager as KernelManager;
-use ::{cricon_select, RtioMaster, MASTER_PAYLOAD_MAX_SIZE};
+use ::{cricon_select, cricon_read, RtioMaster, MASTER_PAYLOAD_MAX_SIZE};
 
 const ALIGNMENT: usize = 64;
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 enum ManagerState {
     Idle,
     Playback
@@ -32,7 +32,6 @@ pub enum Error {
     UploadFail,
 }
 
-#[derive(Debug)]
 struct Entry {
     trace: Vec<u8>,
     padding_len: usize,
@@ -75,7 +74,6 @@ impl Entry {
     }
 }
 
-#[derive(Debug)]
 enum RemoteTraceState {
     Unsent,
     Sending(usize),
@@ -83,7 +81,6 @@ enum RemoteTraceState {
     Running(usize),
 }
 
-#[derive(Debug)]
 struct RemoteTraces {
     remote_traces: BTreeMap<u8, Sliceable>,
     state: RemoteTraceState,
@@ -177,12 +174,12 @@ impl RemoteTraces {
     }
 }
 
-#[derive(Debug)]
 pub struct Manager {
     entries: BTreeMap<(u8, u32), Entry>,
     state: ManagerState,
     current_id: u32,
     current_source: u8,
+    previous_cri_master: RtioMaster,
 
     remote_entries: BTreeMap<u32, RemoteTraces>,
     name_map: BTreeMap<String, u32>,
@@ -201,6 +198,7 @@ impl Manager {
             entries: BTreeMap::new(),
             current_id: 0,
             current_source: 0,
+            previous_cri_master: RtioMaster::Drtio,
             state: ManagerState::Idle,
             remote_entries: BTreeMap::new(),
             name_map: BTreeMap::new(),
@@ -401,6 +399,7 @@ impl Manager {
         self.state = ManagerState::Playback;
         self.current_id = id;
         self.current_source = source;
+        self.previous_cri_master = cricon_read();
 
         unsafe {
             csr::rtio_dma::base_address_write(ptr as u64);
@@ -424,7 +423,7 @@ impl Manager {
         } else {
             self.state = ManagerState::Idle;
             unsafe { 
-                cricon_select(RtioMaster::Drtio);
+                cricon_select(self.previous_cri_master);
                 let error = csr::rtio_dma::error_read();
                 let channel = csr::rtio_dma::error_channel_read();
                 let timestamp = csr::rtio_dma::error_timestamp_read();

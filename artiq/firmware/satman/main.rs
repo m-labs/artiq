@@ -72,6 +72,7 @@ fn drtiosat_async_ready() {
     }
 }
 
+#[derive(Clone, Copy)]
 pub enum RtioMaster {
     Drtio,
     Dma,
@@ -86,6 +87,16 @@ pub fn cricon_select(master: RtioMaster) {
     };
     unsafe {
         csr::cri_con::selected_write(val);
+    }
+}
+
+pub fn cricon_read() -> RtioMaster {
+    let val = unsafe { csr::cri_con::selected_read() };
+    match val {
+        0 => RtioMaster::Drtio,
+        1 => RtioMaster::Dma,
+        2 => RtioMaster::Kernel,
+        _ => unreachable!()
     }
 }
 
