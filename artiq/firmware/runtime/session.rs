@@ -710,14 +710,14 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             }
             #[cfg(has_drtio)]
             &kern::SubkernelMsgRecvRequest { id, timeout, tags } => {
-                let message_received = subkernel::message_await(io, _subkernel_mutex, id, timeout);
+                let message_received = subkernel::message_await(io, _subkernel_mutex, id as u32, timeout);
                 let (status, count) = match message_received {
                     Ok(ref message) => (kern::SubkernelStatus::NoError, message.count),
                     Err(SubkernelError::Timeout) => (kern::SubkernelStatus::Timeout, 0),
                     Err(SubkernelError::IncorrectState) => (kern::SubkernelStatus::IncorrectState, 0),
                     Err(SubkernelError::SubkernelFinished) => {
                         let res = subkernel::retrieve_finish_status(io, aux_mutex, _subkernel_mutex,
-                            routing_table, id)?;
+                            routing_table, id as u32)?;
                         if res.comm_lost {
                             (kern::SubkernelStatus::CommLost, 0)
                         } else if let Some(exception) = &res.exception {

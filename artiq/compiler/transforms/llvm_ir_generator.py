@@ -1442,7 +1442,7 @@ class LLVMIRGenerator:
         llmax = self.map(insn.operands[1])
         lltagptr = self._build_subkernel_tags(insn.arg_types)
         return self.llbuilder.call(self.llbuiltin("subkernel_await_message"), 
-                                    [ll.Constant(lli32, 0), ll.Constant(lli64, 10_000), lltagptr, llmin, llmax],
+                                    [ll.Constant(lli32, -1), ll.Constant(lli64, 10_000), lltagptr, llmin, llmax],
                                     name="subkernel.await.args")
 
     def process_Closure(self, insn):

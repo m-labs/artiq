@@ -781,6 +781,8 @@ impl Manager {
                 &kern::SubkernelMsgRecvRequest { id, timeout, tags } => {
                     // negative timeout value means no timeout
                     let max_time = if timeout > 0 { clock::get_ms() as i64 + timeout } else { timeout };
+                    // ID equal to -1 indicates wildcard for receiving arguments
+                    let id = if id == -1 { self.current_id } else { id as u32 };
                     self.session.kernel_state = KernelState::MsgAwait { 
                         id: id, max_time: max_time, tags: tags.to_vec() };
                     Ok(())
