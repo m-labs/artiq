@@ -421,7 +421,20 @@ class _WaveformView(QtWidgets.QWidget):
         self._splitter.insertWidget(dest_row, w)
 
     def _create_waveform(self, row):
-        raise NotImplementedError
+        name = self._model.data(self._model.index(row, 0))
+        ty = self._model.data(self._model.index(row, 1))
+        width = self._model.data(self._model.index(row, 2))
+        waveform_cls = {
+            WaveformType.BIT: BitWaveform,
+            WaveformType.VECTOR: BitVectorWaveform,
+            WaveformType.ANALOG: AnalogWaveform,
+            WaveformType.LOG: LogWaveform
+        }[ty]
+        w = waveform_cls(name, width, parent=self._splitter)
+        w.setXLink(self._ref_vb)
+        w.setStoppedX(self._stopped_x)
+        w.setTimescale(self._timescale)
+        return w
 
     def _resize(self):
         self._splitter.setFixedHeight(
