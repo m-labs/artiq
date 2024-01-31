@@ -1717,9 +1717,9 @@ class LLVMIRGenerator:
         llargcount = ll.Constant(lli8, len(args))
 
         llisreturn = ll.Constant(lli1, False)
-        self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
-        return self.llbuilder.call(self.llbuiltin("subkernel_send_message"),
+        self.llbuilder.call(self.llbuiltin("subkernel_send_message"),
                             [llid, llisreturn, lldest, llargcount, lltagptr, llargs])
+        return self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
 
     def _build_subkernel_return(self, insn):
         # builds a remote return.
