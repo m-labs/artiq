@@ -108,7 +108,7 @@ pub enum Message<'a> {
     SubkernelAwaitFinishRequest { id: u32, timeout: i64 },
     SubkernelAwaitFinishReply { status: SubkernelStatus },
     SubkernelMsgSend { id: u32, destination: Option<u8>, count: u8, tag: &'a [u8], data: *const *const () },
-    SubkernelMsgRecvRequest { id: u32, timeout: i64, tags: &'a [u8] },
+    SubkernelMsgRecvRequest { id: i32, timeout: i64, tags: &'a [u8] },
     SubkernelMsgRecvReply { status: SubkernelStatus, count: u8 },
 
     Log(fmt::Arguments<'a>),
