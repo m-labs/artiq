@@ -1,11 +1,15 @@
 import os
 import asyncio
 import logging
+import bisect
+import itertools
+import math
 
 from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtCore import Qt
 
 import pyqtgraph as pg
+import numpy as np
 
 from sipyco.sync_struct import Subscriber
 from sipyco.pc_rpc import AsyncioClient
@@ -193,6 +197,9 @@ class BitWaveform(_BaseWaveform):
 
     def onDataChange(self, data):
         try:
+            for arw in self._arrows:
+                self.removeItem(arw)
+            self._arrows = []
             l = len(data)
             display_y = np.empty(l)
             display_x = np.empty(l)
@@ -243,6 +250,7 @@ class BitVectorWaveform(_BaseWaveform):
         _BaseWaveform.__init__(self, name, width, parent)
         self._labels = []
         self.x_data = []
+        self._format_string = "{:0=" + str(math.ceil(width / 4)) + "X}"
         self.view_box.sigTransformChanged.connect(self._update_labels)
 
     def _update_labels(self):
@@ -253,7 +261,7 @@ class BitVectorWaveform(_BaseWaveform):
         right_label_i = bisect.bisect_right(self.x_data, xmax) + 1
         for i, j in itertools.pairwise(range(left_label_i, right_label_i)):
             x1 = self.x_data[i]
-            x2 = self.x_data[j] if j < len(self.x_data) else self._stopped_x
+            x2 = self.x_data[j] if j < len(self.x_data) else self.stopped_x
             lbl = self._labels[i]
             bounds = lbl.boundingRect()
             bounds_view = self.view_box.mapSceneToView(bounds)
@@ -262,10 +270,13 @@ class BitVectorWaveform(_BaseWaveform):
 
     def onDataChange(self, data):
         try:
-            self.x_data = zip(*data)[0]
+            for lbl in self._labels:
+                self.plot_item.removeItem(lbl)
+            self._labels = []
+            self.x_data, _ = zip(*data)
             l = len(data)
-            display_x = np.array(l * 2)
-            display_y = np.array(l * 2)
+            display_x = np.empty(l * 2)
+            display_y = np.empty(l * 2)
             for i, coord in enumerate(data):
                 x, y = coord
                 display_x[i * 2] = x
@@ -273,7 +284,7 @@ class BitVectorWaveform(_BaseWaveform):
                 display_y[i * 2] = 0
                 display_y[i * 2 + 1] = int(int(y) != 0)
                 lbl = pg.TextItem(
-                    self._format_string.format(y), anchor=(0, 0.5))
+                    self._format_string.format(int(y, 2)), anchor=(0, 0.5))
                 lbl.setPos(x, 0.5)
                 lbl.setTextWidth(100)
                 self._labels.append(lbl)
@@ -291,10 +302,14 @@ class LogWaveform(_BaseWaveform):
         _BaseWaveform.__init__(self, name, width, parent)
         self.plot_data_item.opts['pen'] = None
         self.plot_data_item.opts['symbol'] = 'x'
+        self._labels = []
 
     def onDataChange(self, data):
         try:
-            x_data = zip(*data)[0]
+            for lbl in self._labels:
+                self.plot_item.removeItem(lbl)
+            self._labels = []
+            x_data, _ = zip(*data)
             self.plot_data_item.setData(
                 x=x_data, y=np.ones(len(x_data)))
             old_msg = ""
@@ -305,20 +320,27 @@ class LogWaveform(_BaseWaveform):
                 else:
                     lbl = pg.TextItem(old_msg)
                     self.addItem(lbl)
+                    self._labels.append(lbl)
                     lbl.setPos(old_x, 1)
                     old_msg = msg
                     old_x = x
             lbl = pg.TextItem(old_msg)
             self.addItem(lbl)
+            self._labels.append(lbl)
             lbl.setPos(old_x, 1)
         except:
             logger.error('Error when displaying waveform: {}'.format(self.name), exc_info=True)
+            for lbl in self._labels:
+                self.plot_item.removeItem(lbl)
             self.plot_data_item.setData(x=[], y=[])
 
 
 class _WaveformView(QtWidgets.QWidget):
     def __init__(self, parent):
         QtWidgets.QWidget.__init__(self, parent=parent)
+
+        self._stopped_x = None
+        self._timescale = 1
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -346,6 +368,7 @@ class _WaveformView(QtWidgets.QWidget):
         scroll_area.setWidgetResizable(True)
         scroll_area.setContentsMargins(0, 0, 0, 0)
         scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
+        scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
         layout.addWidget(scroll_area)
 
         self._splitter = VDragDropSplitter(parent=scroll_area)
@@ -368,6 +391,8 @@ class _WaveformView(QtWidgets.QWidget):
 
     def setStoppedX(self, stopped_x):
         self._stopped_x = stopped_x
+        self._ref_vb.setLimits(xMax=stopped_x)
+        self._ref_vb.setRange(xRange=(0, stopped_x))
         for i in range(self._model.rowCount()):
             self._splitter.widget(i).setStoppedX(stopped_x)
 
@@ -446,10 +471,9 @@ class _WaveformModel(QtCore.QAbstractTableModel):
         data_col = self.headers.index("data")
         for i in range(top, bottom):
             name = self.data(self.index(i, name_col))
-            if name in waveform_data:
-                self.backing_struct[i][data_col] = waveform_data[name]
-                self.dataChanged.emit(self.index(i, data_col),
-                                      self.index(i, data_col))
+            self.backing_struct[i][data_col] = waveform_data.get(name, [])
+            self.dataChanged.emit(self.index(i, data_col),
+                                  self.index(i, data_col))
 
     def update_all(self, waveform_data):
         self.update_data(waveform_data, 0, self.rowCount())
@@ -509,7 +533,7 @@ class _AddChannelDialog(QtWidgets.QDialog):
             key = self._model.index_to_key(select)
             if key is not None:
                 width, ty = self._model[key].ref
-                channels.append([key, width, ty, []])
+                channels.append([key, ty, width, []])
         self.accepted.emit(channels)
         self.close()
 
