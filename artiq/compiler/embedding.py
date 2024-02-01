@@ -51,6 +51,8 @@ class SubkernelMessageType:
     def __init__(self, name, value_type):
         self.name = name
         self.value_type = value_type
+        self.send_loc = None
+        self.recv_loc = None
 
 class EmbeddingMap:
     def __init__(self, old_embedding_map=None):
@@ -219,19 +221,34 @@ class EmbeddingMap:
                     subkernels[k] = v
         return subkernels
 
-    def store_subkernel_message(self, name, value_type):
+    def store_subkernel_message(self, name, value_type, function_type, function_loc):
         if name in self.subkernel_message_map:
             msg_id = self.subkernel_message_map[name]
         else:
             msg_id = self.store_object(SubkernelMessageType(name, value_type))
             self.subkernel_message_map[name] = msg_id
-        return msg_id, self.retrieve_object(msg_id)
+        subkernel_msg = self.retrieve_object(msg_id)
+        if function_type == "send":
+            subkernel_msg.send_loc = function_loc
+        elif function_type == "recv":
+            subkernel_msg.recv_loc = function_loc
+        else:
+            assert False
+        return msg_id, subkernel_msg
 
     def subkernel_messages(self):
         messages = {}
-        for name, msg_id in self.subkernel_message_map.items():
+        for msg_id in self.subkernel_message_map.values():
             messages[msg_id] = self.retrieve_object(msg_id)
         return messages
+
+    def subkernel_messages_unpaired(self):
+        unpaired = []
+        for msg_id in self.subkernel_message_map.values():
+            msg_obj = self.retrieve_object(msg_id)
+            if msg_obj.send_loc is None or msg_obj.recv_loc is None:
+                unpaired.append(msg_obj)
+        return unpaired
 
     def has_rpc(self):
         return any(filter(
