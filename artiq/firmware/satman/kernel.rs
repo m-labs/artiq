@@ -267,6 +267,14 @@ impl MessageManager {
         }
         None
     }
+
+    pub fn pending_ids(&self) -> Vec<u32> {
+        let mut pending_ids: Vec<u32> = Vec::new();
+        for msg in self.in_queue.iter() {
+            pending_ids.push(msg.id);
+        }
+        pending_ids
+    }
 }
 
 impl Session {
@@ -487,7 +495,6 @@ impl Manager {
                 self.stop();
                 self.runtime_exception(Error::DmaError(DmaError::UploadFail));
             }
-            
         }
     }
 
@@ -501,6 +508,10 @@ impl Manager {
 
         if let Some(subkernel_finished) = self.last_finished.take() {
             info!("subkernel {} finished, with exception: {}", subkernel_finished.id, subkernel_finished.with_exception);
+            let pending = self.session.messages.pending_ids();
+            if pending.len() > 0 {
+                warn!("subkernel terminated with messages still pending: {:?}", pending);
+            }
             router.route(drtioaux::Packet::SubkernelFinished {
                 destination: subkernel_finished.source, id: subkernel_finished.id, 
                 with_exception: subkernel_finished.with_exception, exception_src: subkernel_finished.exception_source
