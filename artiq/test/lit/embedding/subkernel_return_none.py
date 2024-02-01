@@ -9,8 +9,8 @@ def entrypoint():
     # CHECK: call void @subkernel_load_run\(i32 1, i8 1, i1 true\), !dbg !.
     # CHECK-NOT: call void @subkernel_send_message\(.*\), !dbg !.
     returning_none()
-    # CHECK: call void @subkernel_await_finish\(i32 1, i64 10000\), !dbg !.
-    # CHECK-NOT: call i8 @subkernel_await_message\(i32 1, i64 10000\, .*\), !dbg !.
+    # CHECK: call void @subkernel_await_finish\(i32 1, i64 -1\), !dbg !.
+    # CHECK-NOT: call i8 @subkernel_await_message\(i32 1, i64 -1\, .*\), !dbg !.
     subkernel_await(returning_none)
 
 # CHECK-L: declare void @subkernel_load_run(i32, i8, i1) local_unnamed_addr
