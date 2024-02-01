@@ -373,4 +373,8 @@ Subkernels besides arguments and returns, can also pass messages between each ot
 
 The ``subkernel_send(destination, name, value)`` function requires three arguments: destination, name of the message that will be linked with the ``subkernel_recv()``, and the passed value. 
 
-The ``subkernel_recv(name, type, [timeout])`` function requires two arguments: message name (matching the name provided in ``subkernel_send``) and expected type. Optionally, it accepts a third argument - timeout for the operation in milliseconds. If the value is negative, timeout is disabled. The default value is no timeout. The value and declared types between the function pair with the same name must match.
+The ``subkernel_recv(name, type, [timeout])`` function requires two arguments: message name (matching the name provided in ``subkernel_send``) and expected type. Optionally, it accepts a third argument - timeout for the operation in milliseconds. If the value is negative, timeout is disabled. The default value is no timeout. 
+
+The "name" argument in both ``send`` and ``recv`` functions acts as a link, and must match exactly between the two for a successful message transaction. The type of the value sent by ``subkernel_send`` is checked against the type declared in ``subkernel_recv`` with the same name, to avoid misinterpretation of the data. The compiler also checks if all subkernel message names have both a sending and receiving functions to help with typos. However, it cannot help if wrong names are used - the receiver will wait only for a matching message for the duration of the timeout.
+
+A message can be received only when a subkernel is running, and is put into a buffer to be taken when required - thus whatever sending order will not cause a deadlock. However, a subkernel may timeout or wait forever, if destination or names do not match (e.g. message sent to wrong destination, or under different than expected name even if types match).
