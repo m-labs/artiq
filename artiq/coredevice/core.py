@@ -195,15 +195,34 @@ class Core:
             for sid, subkernel_fn in subkernels.items():
                 if sid in subkernels_compiled:
                     continue
-                destination, kernel_library, sub_embedding_map = \
+                destination, kernel_library, embedding_map = \
                     self.compile_subkernel(sid, subkernel_fn, embedding_map,
                                         args, subkernel_arg_types, subkernels)
                 self.comm.upload_subkernel(kernel_library, sid, destination)
-                new_subkernels.update(sub_embedding_map.subkernels())
+                new_subkernels.update(embedding_map.subkernels())
                 subkernels_compiled.append(sid)
             if new_subkernels == subkernels:
                 break
             subkernels.update(new_subkernels)
+        # check for messages without a send/recv pair
+        unpaired_messages = embedding_map.subkernel_messages_unpaired()
+        if unpaired_messages:
+            for unpaired_message in unpaired_messages:
+                engine = _DiagnosticEngine(all_errors_are_fatal=False)
+                # errors are non-fatal in order to display
+                # all unpaired message errors before raising an excption
+                if unpaired_message.send_loc is None:
+                    diag = diagnostic.Diagnostic("error",
+                        "subkernel message '{name}' only has a receiver but no sender",
+                        {"name": unpaired_message.name},
+                        unpaired_message.recv_loc)
+                else:
+                    diag = diagnostic.Diagnostic("error",
+                        "subkernel message '{name}' only has a sender but no receiver",
+                        {"name": unpaired_message.name},
+                        unpaired_message.send_loc)
+                engine.process(diag)
+            raise ValueError("Found subkernel message(s) without a full send/recv pair")
 
 
     def precompile(self, function, *args, **kwargs):

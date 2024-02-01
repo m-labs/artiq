@@ -2566,7 +2566,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 value = self.visit(node.args[2])
             else:
                 assert False
-            msg_id, msg = self.embedding_map.store_subkernel_message(name, value.type)
+            msg_id, msg = self.embedding_map.store_subkernel_message(name, value.type, "send", node.loc)
             msg_id = ir.Constant(msg_id, builtins.TInt32())
             if value.type != msg.value_type:
                 diag = diagnostic.Diagnostic("error",
@@ -2586,7 +2586,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 timeout = self.visit(node.args[2])
             else:
                 assert False
-            msg_id, msg = self.embedding_map.store_subkernel_message(name, vartype)
+            msg_id, msg = self.embedding_map.store_subkernel_message(name, vartype, "recv", node.loc)
             msg_id = ir.Constant(msg_id, builtins.TInt32())
             if vartype != msg.value_type:
                 diag = diagnostic.Diagnostic("error",
