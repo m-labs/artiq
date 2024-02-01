@@ -434,7 +434,17 @@ class _WaveformView(QtWidgets.QWidget):
         w.setXLink(self._ref_vb)
         w.setStoppedX(self._stopped_x)
         w.setTimescale(self._timescale)
+        action = QtWidgets.QAction("Delete waveform", w)
+        action.triggered.connect(lambda: self._delete_waveform(w))
+        w.addAction(action)
+        action = QtWidgets.QAction("Clear waveforms", w)
+        action.triggered.connect(self._model.clear)
+        w.addAction(action)
         return w
+
+    def _delete_waveform(self, waveform):
+        row = self._splitter.indexOf(waveform)
+        self._model.pop(row)
 
     def _resize(self):
         self._splitter.setFixedHeight(
@@ -478,6 +488,11 @@ class _WaveformModel(QtCore.QAbstractTableModel):
         self.beginMoveRows(QtCore.QModelIndex(), src, src, QtCore.QModelIndex(), dest)
         self.backing_struct.insert(dest, self.backing_struct.pop(src))
         self.endMoveRows()
+
+    def clear(self):
+        self.beginRemoveRows(QtCore.QModelIndex(), 0, len(self.backing_struct) - 1)
+        self.backing_struct.clear()
+        self.endRemoveRows()
 
     def update_data(self, waveform_data, top, bottom):
         name_col = self.headers.index("name")
