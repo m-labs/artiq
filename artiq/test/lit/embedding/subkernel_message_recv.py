@@ -9,7 +9,7 @@ def entrypoint():
     # CHECK: call void @subkernel_load_run\(i32 1, i8 1, i1 true\), !dbg !.
     message_pass()
     # CHECK-NOT: call void @subkernel_send_message\(i32 ., i1 false, i8 1, i8 1, .*\), !dbg !.
-    # CHECK: call i8 @subkernel_await_message\(i32 2, i64 10000, { i8\*, i32 }\* nonnull .*, i8 1, i8 1\), !dbg !.
+    # CHECK: call i8 @subkernel_await_message\(i32 2, i64 -1, { i8\*, i32 }\* nonnull .*, i8 1, i8 1\), !dbg !.
     subkernel_recv("message", TInt32)
 
 
