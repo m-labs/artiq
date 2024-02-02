@@ -13,6 +13,7 @@ import numpy as np
 
 from sipyco.sync_struct import Subscriber
 from sipyco.pc_rpc import AsyncioClient
+from sipyco import pyon
 
 from artiq.tools import exc_to_warning
 from artiq.coredevice import comm_analyzer
@@ -494,6 +495,14 @@ class _WaveformModel(QtCore.QAbstractTableModel):
         self.backing_struct.clear()
         self.endRemoveRows()
 
+    def export_list(self):
+        return [[row[0], row[1].value, row[2]] for row in self.backing_struct]
+
+    def import_list(self, channel_list):
+        self.clear()
+        data = [[row[0], WaveformType(row[1]), row[2], []] for row in channel_list]
+        self.extend(data)
+
     def update_data(self, waveform_data, top, bottom):
         name_col = self.headers.index("name")
         data_col = self.headers.index("data")
@@ -624,6 +633,8 @@ class WaveformDock(QtWidgets.QDockWidget):
         self._add_async_action("Open trace...", self.load_trace)
         self._add_async_action("Save trace...", self.save_trace)
         self._add_async_action("Save trace as VCD...", self.save_vcd)
+        self._add_async_action("Open channel list...", self.load_channels)
+        self._add_async_action("Save channel list...", self.save_channels)
         self._menu_btn.setMenu(self._file_menu)
 
         self._waveform_view = _WaveformView(self)
@@ -721,6 +732,39 @@ class WaveformDock(QtWidgets.QDockWidget):
                 comm_analyzer.decoded_dump_to_vcd(f, self._ddb, decoded_dump)
         except:
             logger.error("Failed to save trace as VCD", exc_info=True)
+
+    async def load_channels(self):
+        try:
+            filename = await get_open_file_name(
+                self,
+                "Open channel list",
+                self._current_dir,
+                "PYON files (*.pyon);;All files (*.*)")
+        except asyncio.CancelledError:
+            return
+        self._current_dir = os.path.dirname(filename)
+        try:
+            channel_list = pyon.load_file(filename)
+            self._waveform_model.import_list(channel_list)
+            self._waveform_model.update_all(self._waveform_data['data'])
+        except:
+            logger.error("Failed to open channel list", exc_info=True)
+
+    async def save_channels(self):
+        try:
+            filename = await get_save_file_name(
+                self,
+                "Save channel list",
+                self._current_dir,
+                "PYON files (*.pyon);;All files (*.*)")
+        except asyncio.CancelledError:
+            return
+        self._current_dir = os.path.dirname(filename)
+        try:
+            channel_list = self._waveform_model.export_list()
+            pyon.store_file(filename, channel_list)
+        except:
+            logger.error("Failed to save channel list", exc_info=True)
 
     def _process_ddb(self):
         channel_list = comm_analyzer.get_channel_list(self._ddb)
