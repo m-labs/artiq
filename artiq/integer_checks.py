@@ -1,7 +1,6 @@
-
-def is_valid_int32(i):
-    return -2**31 <= i < 2**31
+import numpy as np
 
 
-def is_valid_int64(i):
-    return -2**63 <= i < 2**63
+def is_valid_int(i, type):
+    info = np.iinfo(type)
+    return info.min <= i <= info.max

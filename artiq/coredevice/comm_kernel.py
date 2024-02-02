@@ -10,7 +10,7 @@ from collections import namedtuple
 from artiq.coredevice import exceptions
 from artiq import __version__ as software_version
 from sipyco.keepalive import create_connection
-from artiq.integer_checks import is_valid_int32, is_valid_int64
+from artiq.integer_checks import is_valid_int
 
 logger = logging.getLogger(__name__)
 
@@ -466,12 +466,12 @@ class CommKernel:
             self._write_bool(value)
         elif tag == "i":
             check(isinstance(value, (int, numpy.int32)) and
-                  is_valid_int32(value),
+                  is_valid_int(value, numpy.int32),
                   lambda: "32-bit int")
             self._write_int32(value)
         elif tag == "I":
             check(isinstance(value, (int, numpy.int32, numpy.int64)) and
-                  is_valid_int64(value),
+                  is_valid_int(value, numpy.int64),
                   lambda: "64-bit int")
             self._write_int64(value)
         elif tag == "f":

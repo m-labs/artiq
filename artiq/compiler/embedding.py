@@ -9,12 +9,13 @@ import typing
 import os, re, linecache, inspect, textwrap, types as pytypes, numpy
 from collections import OrderedDict, defaultdict
 
+import numpy as np
 from pythonparser import ast, algorithm, source, diagnostic, parse_buffer
 from pythonparser import lexer as source_lexer, parser as source_parser
 
 from Levenshtein import ratio as similarity, jaro_winkler
 
-from ..integer_checks import is_valid_int32, is_valid_int64
+from ..integer_checks import is_valid_int
 from ..language import core as language_core
 from . import types, builtins, asttyped, math_fns, prelude
 from .transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer, TypedtreePrinter
@@ -703,9 +704,9 @@ class StitchingInferencer(Inferencer):
                 if elt.__class__ == float:
                     state |= IS_FLOAT
                 elif elt.__class__ == int:
-                    if is_valid_int32(elt):
+                    if is_valid_int(elt, np.int32):
                         state |= IS_INT32
-                    elif is_valid_int64(elt):
+                    elif is_valid_int(elt, np.int64):
                         state |= IS_INT64
                     else:
                         state = -1
