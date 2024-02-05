@@ -120,6 +120,8 @@ class _BackgroundItem(pg.GraphicsWidgetAnchor, pg.GraphicsWidget):
 
 
 class _BaseWaveform(pg.PlotWidget):
+    cursorMove = QtCore.pyqtSignal(float)
+
     def __init__(self, name, width, parent=None, pen="r", stepMode="right", connect="finite"):
         pg.PlotWidget.__init__(self,
                                parent=parent,
@@ -136,6 +138,8 @@ class _BaseWaveform(pg.PlotWidget):
 
         self.name = name
         self.width = width
+        self.x_data = []
+        self.y_data = []
 
         self.plot_item = self.getPlotItem()
         self.plot_item.hideButtons()
@@ -160,8 +164,18 @@ class _BaseWaveform(pg.PlotWidget):
 
         rect = self.title_label.boundingRect()
         rect.setHeight(rect.height() * 2)
+        rect.setWidth(225)
         self.label_bg = _BackgroundItem(parent=self.plot_item, rect=rect)
         self.label_bg.anchor(itemPos=(0, 0), parentPos=(0, 0), offset=(0, 0))
+
+        self.cursor = pg.InfiniteLine()
+        self.cursor_y = None
+        self.addItem(self.cursor)
+
+        self.cursor_label = pg.LabelItem('', parent=self.plot_item)
+        self.cursor_label.anchor(itemPos=(0, 0), parentPos=(0, 0), offset=(0, 20))
+        self.cursor_label.setAttr('justify', 'left')
+        self.cursor_label.setZValue(10)
 
     def setStoppedX(self, stopped_x):
         self.stopped_x = stopped_x
@@ -171,7 +185,20 @@ class _BaseWaveform(pg.PlotWidget):
         self.timescale = timescale
 
     def onDataChange(self, data):
-        raise NotImplementedError
+        try:
+            self.x_data, self.y_data = zip(*data)
+        except:
+            logger.error("Error getting data for waveform: {}".format(self.name), exc_info=True)
+
+    def onCursorMove(self, x):
+        self.cursor.setValue(x)
+        if len(self.x_data) < 1:
+            return
+        ind = bisect.bisect_left(self.x_data, x) - 1
+        dr = self.plot_data_item.dataRect()
+        self.cursor_y = None
+        if dr is not None and 0 <= ind < len(self.y_data):
+            self.cursor_y = self.y_data[ind]
 
     def mouseMoveEvent(self, e):
         if e.buttons() == QtCore.Qt.LeftButton \
@@ -190,6 +217,10 @@ class _BaseWaveform(pg.PlotWidget):
         if e.modifiers() & QtCore.Qt.ControlModifier:
             super().wheelEvent(e)
 
+    def mouseDoubleClickEvent(self, e):
+        pos = self.view_box.mapSceneToView(e.pos())
+        self.cursorMove.emit(pos.x())
+
 
 class BitWaveform(_BaseWaveform):
     def __init__(self, name, width, parent=None):
@@ -197,6 +228,7 @@ class BitWaveform(_BaseWaveform):
         self._arrows = []
 
     def onDataChange(self, data):
+        _BaseWaveform.onDataChange(self, data)
         try:
             for arw in self._arrows:
                 self.removeItem(arw)
@@ -228,29 +260,36 @@ class BitWaveform(_BaseWaveform):
                 self.removeItem(arw)
             self.plot_data_item.setData(x=[], y=[])
 
+    def onCursorMove(self, x):
+        _BaseWaveform.onCursorMove(self, x)
+        self.cursor_label.setText(self.cursor_y)
+
 
 class AnalogWaveform(_BaseWaveform):
     def __init__(self, name, width, parent=None):
         _BaseWaveform.__init__(self, name, width, parent)
 
     def onDataChange(self, data):
+        _BaseWaveform.onDataChange(self, data)
         try:
-            x_data, y_data = zip(*data)
-            self.plot_data_item.setData(x=x_data, y=y_data)
-            max_y = max(y_data)
-            min_y = min(y_data)
+            self.plot_data_item.setData(x=self.x_data, y=self.y_data)
+            max_y = max(self.y_data)
+            min_y = min(self.y_data)
             self.plot_item.setRange(yRange=(min_y, max_y), padding=0.1)
         except:
             logger.error(
                 'Error when displaying waveform: {}'.format(self.name), exc_info=True)
             self.plot_data_item.setData(x=[], y=[])
 
+    def onCursorMove(self, x):
+        _BaseWaveform.onCursorMove(self, x)
+        self.cursor_label.setText(self.cursor_y)
+
 
 class BitVectorWaveform(_BaseWaveform):
     def __init__(self, name, width, parent=None):
         _BaseWaveform.__init__(self, name, width, parent)
         self._labels = []
-        self.x_data = []
         self._format_string = "{:0=" + str(math.ceil(width / 4)) + "X}"
         self.view_box.sigTransformChanged.connect(self._update_labels)
 
@@ -270,11 +309,11 @@ class BitVectorWaveform(_BaseWaveform):
                 self.addItem(lbl)
 
     def onDataChange(self, data):
+        _BaseWaveform.onDataChange(self, data)
         try:
             for lbl in self._labels:
                 self.plot_item.removeItem(lbl)
             self._labels = []
-            self.x_data, _ = zip(*data)
             l = len(data)
             display_x = np.empty(l * 2)
             display_y = np.empty(l * 2)
@@ -297,6 +336,13 @@ class BitVectorWaveform(_BaseWaveform):
                 self.plot_item.removeItem(lbl)
             self.plot_data_item.setData(x=[], y=[])
 
+    def onCursorMove(self, x):
+        _BaseWaveform.onCursorMove(self, x)
+        t = None
+        if self.cursor_y is not None:
+            t = self._format_string.format(int(self.cursor_y, 2))
+        self.cursor_label.setText(t)
+
 
 class LogWaveform(_BaseWaveform):
     def __init__(self, name, width, parent=None):
@@ -306,13 +352,13 @@ class LogWaveform(_BaseWaveform):
         self._labels = []
 
     def onDataChange(self, data):
+        _BaseWaveform.onDataChange(self, data)
         try:
             for lbl in self._labels:
                 self.plot_item.removeItem(lbl)
             self._labels = []
-            x_data, _ = zip(*data)
             self.plot_data_item.setData(
-                x=x_data, y=np.ones(len(x_data)))
+                x=self.x_data, y=np.ones(len(self.x_data)))
             old_msg = ""
             old_x = 0
             for x, msg in data:
@@ -335,13 +381,19 @@ class LogWaveform(_BaseWaveform):
                 self.plot_item.removeItem(lbl)
             self.plot_data_item.setData(x=[], y=[])
 
+    def onCursorMove(self, x):
+        _BaseWaveform.onCursorMove(self, x)
+
 
 class _WaveformView(QtWidgets.QWidget):
+    cursorMove = QtCore.pyqtSignal(float)
+
     def __init__(self, parent):
         QtWidgets.QWidget.__init__(self, parent=parent)
 
         self._stopped_x = None
         self._timescale = 1
+        self._cursor_x = 0
 
         layout = QtWidgets.QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
@@ -375,6 +427,8 @@ class _WaveformView(QtWidgets.QWidget):
         self._splitter = VDragDropSplitter(parent=scroll_area)
         self._splitter.setHandleWidth(1)
         scroll_area.setWidget(self._splitter)
+
+        self.cursorMove.connect(self.onCursorMove)
 
     def setModel(self, model):
         self._model = model
@@ -421,6 +475,11 @@ class _WaveformView(QtWidgets.QWidget):
         w = self._splitter.widget(src_start)
         self._splitter.insertWidget(dest_row, w)
 
+    def onCursorMove(self, x):
+        self._cursor_x = x
+        for i in range(self._model.rowCount()):
+            self._splitter.widget(i).onCursorMove(x)
+
     def _create_waveform(self, row):
         name = self._model.data(self._model.index(row, 0))
         ty = self._model.data(self._model.index(row, 1))
@@ -435,6 +494,8 @@ class _WaveformView(QtWidgets.QWidget):
         w.setXLink(self._ref_vb)
         w.setStoppedX(self._stopped_x)
         w.setTimescale(self._timescale)
+        w.cursorMove.connect(self.cursorMove)
+        w.onCursorMove(self._cursor_x)
         action = QtWidgets.QAction("Delete waveform", w)
         action.triggered.connect(lambda: self._delete_waveform(w))
         w.addAction(action)
@@ -514,6 +575,45 @@ class _WaveformModel(QtCore.QAbstractTableModel):
 
     def update_all(self, waveform_data):
         self.update_data(waveform_data, 0, self.rowCount())
+
+
+class _CursorTimeControl(QtWidgets.QLineEdit):
+    submit = QtCore.pyqtSignal(float)
+
+    def __init__(self, parent):
+        QtWidgets.QLineEdit.__init__(self, parent=parent)
+        self._text = ""
+        self._value = 0
+        self._timescale = 1
+        self.setDisplayValue(0)
+        self.textChanged.connect(self._onTextChange)
+        self.returnPressed.connect(self._onReturnPress)
+
+    def setTimescale(self, timescale):
+        self._timescale = timescale
+
+    def _onTextChange(self, text):
+        self._text = text
+
+    def setDisplayValue(self, value):
+        self._value = value
+        self._text = pg.siFormat(value * 1e-12 * self._timescale,
+                                 suffix="s",
+                                 allowUnicode=False,
+                                 precision=15)
+        self.setText(self._text)
+
+    def _setValueFromText(self, text):
+        try:
+            self._value = pg.siEval(text) * (1e12 / self._timescale)
+        except:
+            logger.error("Error when parsing cursor time input", exc_info=True)
+
+    def _onReturnPress(self):
+        self._setValueFromText(self._text)
+        self.setDisplayValue(self._value)
+        self.submit.emit(self._value)
+        self.clearFocus()
 
 
 class Model(DictSyncTreeSepModel):
@@ -641,6 +741,11 @@ class WaveformDock(QtWidgets.QDockWidget):
         self._waveform_view.setModel(self._waveform_model)
         grid.addWidget(self._waveform_view, 1, 0, colspan=12)
 
+        self._cursor_control = _CursorTimeControl(self)
+        self._waveform_view.cursorMove.connect(self._cursor_control.setDisplayValue)
+        self._cursor_control.submit.connect(self._waveform_view.onCursorMove)
+        grid.addWidget(self._cursor_control, 0, 3, colspan=6)
+
     def _add_async_action(self, label, coro):
         action = QtWidgets.QAction(label, self)
         action.triggered.connect(
@@ -674,6 +779,7 @@ class WaveformDock(QtWidgets.QDockWidget):
         self._waveform_model.update_all(self._waveform_data['data'])
         self._waveform_view.setStoppedX(self._waveform_data['stopped_x'])
         self._waveform_view.setTimescale(self._waveform_data['timescale'])
+        self._cursor_control.setTimescale(self._waveform_data['timescale'])
 
     async def load_trace(self):
         try:
