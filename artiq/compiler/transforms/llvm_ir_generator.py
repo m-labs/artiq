@@ -1474,7 +1474,7 @@ class LLVMIRGenerator:
 
         stack_save_needed = False
         for i, arg in enumerate(insn.arguments()):
-            llarg = self.map(arg)            
+            llarg = self.map(arg)
             if isinstance(llarg.type, (ll.LiteralStructType, ll.IdentifiedStructType)):
                 stack_save_needed = True
                 break
@@ -2130,6 +2130,10 @@ class LLVMIRGenerator:
                 self.add_pred(landingpadbb, self.llbuilder.basic_block)
                 self.llbuilder.branch(target)
             else:
-                self.llbuilder.resume(lllandingpad)
+                llinsn = self.llbuilder.call(
+                    self.llbuiltin("__artiq_resume"), [], name=insn.name
+                )
+                llinsn.attributes.add('noreturn')
+                self.llbuilder.unreachable()
 
         return llexn
