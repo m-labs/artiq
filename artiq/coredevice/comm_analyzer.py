@@ -8,9 +8,13 @@ from enum import Enum
 import struct
 import logging
 import socket
+import math
 
 
 logger = logging.getLogger(__name__)
+
+
+DEFAULT_REF_PERIOD = 1e-9
 
 
 class MessageType(Enum):
@@ -227,7 +231,7 @@ class VCDManager:
     def set_timescale_ps(self, timescale):
         self.out.write("$timescale {}ps $end\n".format(round(timescale)))
 
-    def get_channel(self, name, width, ty):
+    def get_channel(self, name, width, ty, ndecimals=0):
         code = next(self.codes)
         self.out.write("$var wire {width} {code} {name} $end\n"
                        .format(name=name, code=code, width=width))
@@ -258,9 +262,9 @@ class WaveformManager:
     def set_timescale_ps(self, timescale):
         self.trace["timescale"] = int(timescale)
 
-    def get_channel(self, name, width, ty):
+    def get_channel(self, name, width, ty, ndecimals=0):
         if ty == WaveformType.LOG:
-            self.trace["logs"][self.current_scope + name] = (width, ty)
+            self.trace["logs"][self.current_scope + name] = (width, ty, ndecimals)
         data = self.trace["data"][self.current_scope + name] = list()
         channel = WaveformChannel(data, self.current_time)
         self.channels.append(channel)
@@ -304,8 +308,8 @@ class ChannelSignatureManager:
         self.current_scope = ""
         self.channels = dict()
 
-    def get_channel(self, name, width, ty):
-        self.channels[self.current_scope + name] = (width, ty)
+    def get_channel(self, name, width, ty, ndecimals=0):
+        self.channels[self.current_scope + name] = (width, ty, ndecimals)
         return None
 
     @contextmanager
@@ -347,8 +351,9 @@ class TTLClockGenHandler:
     def __init__(self, manager, name, ref_period):
         self.name = name
         self.ref_period = ref_period
+        ndecimals = max(0, math.ceil(math.log10(2**24 * ref_period)))
         self.channel_frequency = manager.get_channel(
-            "ttl_clkgen/" + name, 64, ty=WaveformType.ANALOG)
+            "ttl_clkgen/" + name, 64, ty=WaveformType.ANALOG, ndecimals=ndecimals)
 
     def process_message(self, message):
         if isinstance(message, OutputMessage):
@@ -369,11 +374,17 @@ class DDSHandler:
 
     def add_dds_channel(self, name, dds_channel_nr):
         dds_channel = dict()
+        frequency_decimals = max(0, math.ceil(math.log10(2**32 / self.sysclk)))
+        phase_decimals = max(0, math.ceil(math.log10(2**16)))
         with self.manager.scope("dds", name):
             dds_channel["vcd_frequency"] = \
-                self.manager.get_channel(name + "/frequency", 64, ty=WaveformType.ANALOG)
+                self.manager.get_channel(name + "/frequency", 64, 
+                                         ty=WaveformType.ANALOG, 
+                                         ndecimals=frequency_decimals)
             dds_channel["vcd_phase"] = \
-                self.manager.get_channel(name + "/phase", 64, ty=WaveformType.ANALOG)
+                self.manager.get_channel(name + "/phase", 64, 
+                                         ty=WaveformType.ANALOG,
+                                         ndecimals=phase_decimals)
         dds_channel["ftw"] = [None, None]
         dds_channel["pow"] = None
         self.dds_channels[dds_channel_nr] = dds_channel
@@ -648,8 +659,12 @@ def get_channel_list(devices):
     manager = ChannelSignatureManager()
     create_channel_handlers(manager, devices, 1e-9, 3e9, False)
     manager.get_channel("timestamp", 64, ty=WaveformType.VECTOR)
-    manager.get_channel("interval", 64, ty=WaveformType.ANALOG)
-    manager.get_channel("rtio_slack", 64, ty=WaveformType.ANALOG)
+    ref_period = get_ref_period(devices)
+    if ref_period is None:
+        ref_period = DEFAULT_REF_PERIOD
+    ndecimals = max(0, math.ceil(math.log10(1 / ref_period)))
+    manager.get_channel("interval", 64, ty=WaveformType.ANALOG, ndecimals=ndecimals)
+    manager.get_channel("rtio_slack", 64, ty=WaveformType.ANALOG, ndecimals=ndecimals)
     return manager.channels
 
 
@@ -671,12 +686,11 @@ def decoded_dump_to_waveform_data(devices, dump, uniform_interval=False):
 def decoded_dump_to_target(manager, devices, dump, uniform_interval):
     ref_period = get_ref_period(devices)
 
-    if ref_period is not None:
-        if not uniform_interval:
-            manager.set_timescale_ps(ref_period*1e12)
-    else:
+    if ref_period is None:
         logger.warning("unable to determine core device ref_period")
-        ref_period = 1e-9  # guess
+        ref_period = DEFAULT_REF_PERIOD
+    if not uniform_interval:
+        manager.set_timescale_ps(ref_period*1e12)
     dds_sysclk = get_dds_sysclk(devices)
     if dds_sysclk is None:
         logger.warning("unable to determine DDS sysclk")
