@@ -223,6 +223,7 @@ class VCDManager:
         self.out = fileobj
         self.codes = vcd_codes()
         self.current_time = None
+        self.start_time = 0
 
     def set_timescale_ps(self, timescale):
         self.out.write("$timescale {}ps $end\n".format(round(timescale)))
@@ -240,9 +241,13 @@ class VCDManager:
         self.out.write("$upscope $end\n")
 
     def set_time(self, time):
+        time -= self.start_time
         if time != self.current_time:
             self.out.write("#{}\n".format(time))
             self.current_time = time
+
+    def set_start_time(self, time):
+        self.start_time = time
 
     def set_end_time(self, time):
         pass
@@ -251,6 +256,8 @@ class VCDManager:
 class WaveformManager:
     def __init__(self):
         self.current_time = 0
+        self.start_time = 0
+        self.end_time = 0
         self.channels = list()
         self.current_scope = ""
         self.trace = {"timescale": 1, "stopped_x": None, "logs": dict(), "data": dict()}
@@ -274,11 +281,18 @@ class WaveformManager:
         self.current_scope = old_scope
 
     def set_time(self, time):
+        time -= self.start_time
         for channel in self.channels:
             channel.set_time(time)
 
+    def set_start_time(self, time):
+        self.start_time = time
+        if self.trace["stopped_x"] is not None:
+            self.trace["stopped_x"] = self.end_time - self.start_time
+
     def set_end_time(self, time):
-        self.trace["stopped_x"] = time
+        self.end_time = time
+        self.trace["stopped_x"] = self.end_time - self.start_time
 
 
 class WaveformChannel:
@@ -712,11 +726,12 @@ def decoded_dump_to_target(manager, devices, dump, uniform_interval):
         start_time = get_message_time(m)
         if start_time:
             break
-
-    t0 = 0
+    if not uniform_interval:
+        manager.set_start_time(start_time)
+    t0 = start_time
     for i, message in enumerate(messages):
         if message.channel in channel_handlers:
-            t = get_message_time(message) - start_time
+            t = get_message_time(message)
             if t >= 0:
                 if uniform_interval:
                     interval.set_value_double((t - t0)*ref_period)
