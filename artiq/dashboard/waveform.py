@@ -37,8 +37,7 @@ class _BaseProxyClient:
         self._reconnect_task = None
 
     async def start(self):
-        self._reconnect_task = asyncio.ensure_future(
-            exc_to_warning(self._reconnect()))
+        self._reconnect_task = asyncio.create_task(self._reconnect())
 
     def update_address(self, addr, port):
         self.addr = addr
@@ -51,31 +50,24 @@ class _BaseProxyClient:
                 await self._reconnect_event.wait()
                 self._reconnect_event.clear()
                 try:
-                    await self.disconnect_cr()
-                except:
-                    logger.error("Error caught when disconnecting proxy client", exc_info=True)
-                try:
                     await self.reconnect_cr()
-                except Exception:
-                    logger.error(
-                        "Error caught when reconnecting proxy client, retrying...", exc_info=True)
+                except:
                     await asyncio.sleep(5)
                     self._reconnect_event.set()
         except asyncio.CancelledError:
             pass
 
     async def close(self):
-        try:
-            self._reconnect_task.cancel()
-            await asyncio.wait_for(self._reconnect_task, None)
-            await self.disconnect_cr()
-        except:
-            logger.error("Error caught while closing proxy client", exc_info=True)
+        self._reconnect_task.cancel()
+        await self.close_cr()
+
+    def reconnect(self):
+        self._reconnect_event.set()
 
     async def reconnect_cr(self):
         raise NotImplementedError
 
-    async def disconnect_cr(self):
+    async def close_cr(self):
         raise NotImplementedError
 
 
@@ -85,17 +77,26 @@ class RPCProxyClient(_BaseProxyClient):
         self.client = AsyncioClient()
 
     async def trigger_proxy_task(self):
-        if self.client.get_rpc_id()[0] is None:
-            raise AttributeError("Unable to identify RPC target. Is analyzer proxy connected?")
-        await self.client.trigger()
+        try:
+            await self.client.trigger()
+        except:
+            logger.error("analyzer proxy reported failure", exc_info=True)
 
     async def reconnect_cr(self):
-        await self.client.connect_rpc(self.addr,
-                                      self.port,
-                                      "coreanalyzer_proxy_control")
+        try:
+            await self.client.connect_rpc(self.addr,
+                                          self.port,
+                                          "coreanalyzer_proxy_control")
+            logger.info("connected to analyzer proxy control %s:%d", self.addr, self.port)
+        except:
+            logger.error("error connecting to analyzer proxy control", exc_info=True)
+            raise
 
-    async def disconnect_cr(self):
-        self.client.close_rpc()
+    async def close_cr(self):
+        try:
+            self.client.close_rpc()
+        except:
+            logger.error("error closing connection with analyzer proxy control", exc_info=True)
 
 
 class ReceiverProxyClient(_BaseProxyClient):
@@ -104,10 +105,18 @@ class ReceiverProxyClient(_BaseProxyClient):
         self.receiver = receiver
 
     async def reconnect_cr(self):
-        await self.receiver.connect(self.addr, self.port)
+        try:
+            await self.receiver.connect(self.addr, self.port)
+            logger.info("listening to analyzer proxy %s:%d", self.addr, self.port)
+        except:
+            logger.error("error connecting to analyzer proxy", exc_info=True)
+            raise
 
-    async def disconnect_cr(self):
-        await self.receiver.close()
+    async def close_cr(self):
+        try:
+            await self.receiver.close()
+        except:
+            logger.error("error closing connection to analyzer proxy", exc_info=True)
 
 
 class _BackgroundItem(pg.GraphicsWidgetAnchor, pg.GraphicsWidget):
@@ -707,7 +716,7 @@ class WaveformDock(QtWidgets.QDockWidget):
         self.devices_sub = Subscriber("devices", self.init_ddb, self.update_ddb)
         self.rpc_client = RPCProxyClient()
         receiver = comm_analyzer.AnalyzerProxyReceiver(
-            self.on_dump_receive)
+            self.on_dump_receive, self.on_proxy_disconnect)
         self.receiver_client = ReceiverProxyClient(receiver)
 
         grid = LayoutWidget()
@@ -787,6 +796,10 @@ class WaveformDock(QtWidgets.QDockWidget):
         self._waveform_view.setStoppedX(self._waveform_data['stopped_x'])
         self._waveform_view.setTimescale(self._waveform_data['timescale'])
         self._cursor_control.setTimescale(self._waveform_data['timescale'])
+
+    def on_proxy_disconnect(self):
+        self.receiver_client.reconnect()
+        self.rpc_client.reconnect()
 
     async def load_trace(self):
         try:

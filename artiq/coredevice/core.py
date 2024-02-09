@@ -353,6 +353,4 @@ class Core:
         if self.analyzer_proxy is None:
             raise IOError("No analyzer proxy configured")
         else:
-            success = self.analyzer_proxy.trigger()
-            if not success:
-                raise IOError("Analyzer proxy reported failure")
+            self.analyzer_proxy.trigger()
