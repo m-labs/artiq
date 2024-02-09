@@ -60,9 +60,7 @@ class ProxyControl:
             self.distribute_cb(dump)
         except:
             logger.warning("Trigger failed:", exc_info=True)
-            return False
-        else:
-            return True
+            raise
 
 
 def get_argparser():

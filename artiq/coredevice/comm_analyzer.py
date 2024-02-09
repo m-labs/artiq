@@ -117,6 +117,8 @@ def decode_dump(data):
     (sent_bytes, total_byte_count,
      error_occurred, log_channel, dds_onehot_sel) = parts
 
+    logger.debug("analyzer dump has length %d", sent_bytes)
+
     expected_len = sent_bytes + 15
     if expected_len != len(data):
         raise ValueError("analyzer dump has incorrect length "
@@ -128,39 +130,47 @@ def decode_dump(data):
     if total_byte_count > sent_bytes:
         logger.info("analyzer ring buffer has wrapped %d times",
                     total_byte_count//sent_bytes)
+    if sent_bytes == 0:
+        logger.warning("analyzer dump is empty")
 
     position = 15
     messages = []
     for _ in range(sent_bytes//32):
         messages.append(decode_message(data[position:position+32]))
         position += 32
+
+    if len(messages) == 1 and isinstance(messages[0], StoppedMessage):
+        logger.warning("analyzer dump is empty aside from stop message")
+
     return DecodedDump(log_channel, bool(dds_onehot_sel), messages)
 
 
 # simplified from sipyco broadcast Receiver
 class AnalyzerProxyReceiver:
-    def __init__(self, receive_cb):
+    def __init__(self, receive_cb, disconnect_cb=None):
         self.receive_cb = receive_cb
+        self.disconnect_cb = disconnect_cb
+        self.receive_task = None
+        self.writer = None
 
     async def connect(self, host, port):
         self.reader, self.writer = \
             await keepalive.async_open_connection(host, port)
+        magic = get_analyzer_magic()
         try:
-            self.receive_task = asyncio.ensure_future(self._receive_cr())
+            self.receive_task = asyncio.create_task(self._receive_cr())
         except:
-            self.writer.close()
-            del self.reader
-            del self.writer
+            if self.writer is not None:
+                self.writer.close()
+                del self.reader
+                del self.writer
             raise
 
     async def close(self):
-        try:
+        self.disconnect_cb = None
+        if self.receive_task is not None:
             self.receive_task.cancel()
-            try:
-                await asyncio.wait_for(self.receive_task, None)
-            except asyncio.CancelledError:
-                pass
-        finally:
+        if self.writer is not None:
             self.writer.close()
             del self.reader
             del self.writer
@@ -168,11 +178,14 @@ class AnalyzerProxyReceiver:
     async def _receive_cr(self):
         try:
             while True:
-                endian_byte = await self.reader.readexactly(1)
+                endian_byte = await self.reader.read(1)
                 if endian_byte == b"E":
                     endian = '>'
                 elif endian_byte == b"e":
                     endian = '<'
+                elif endian_byte == b"":
+                    # EOF reached, connection lost
+                    return
                 else:
                     raise ValueError
                 payload_length_word = await self.reader.readexactly(4)
@@ -186,7 +199,8 @@ class AnalyzerProxyReceiver:
                 data = endian_byte + payload_length_word + remaining_data
                 self.receive_cb(data)
         finally:
-            pass
+            if self.disconnect_cb is not None:
+                self.disconnect_cb()
 
 
 def vcd_codes():
