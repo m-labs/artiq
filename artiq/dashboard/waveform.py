@@ -50,7 +50,9 @@ class _BaseProxyClient:
                 await self._reconnect_event.wait()
                 self._reconnect_event.clear()
                 try:
-                    await self.reconnect_cr()
+                    await asyncio.wait_for(self.reconnect_cr(), timeout=5)
+                except asyncio.CancelledError:
+                    raise
                 except:
                     await asyncio.sleep(5)
                     self._reconnect_event.set()
