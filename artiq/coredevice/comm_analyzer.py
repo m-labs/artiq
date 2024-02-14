@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 DEFAULT_REF_PERIOD = 1e-9
+ANALYZER_MAGIC = b"ARTIQ Analyzer Proxy\n"
 
 
 class MessageType(Enum):
@@ -156,8 +157,9 @@ class AnalyzerProxyReceiver:
     async def connect(self, host, port):
         self.reader, self.writer = \
             await keepalive.async_open_connection(host, port)
-        magic = get_analyzer_magic()
         try:
+            line = await self.reader.readline()
+            assert line == ANALYZER_MAGIC
             self.receive_task = asyncio.create_task(self._receive_cr())
         except:
             if self.writer is not None:

@@ -9,7 +9,7 @@ from sipyco.asyncio_tools import AsyncioServer, SignalHandler, atexit_register_c
 from sipyco.pc_rpc import Server
 from sipyco import common_args
 
-from artiq.coredevice.comm_analyzer import get_analyzer_dump
+from artiq.coredevice.comm_analyzer import get_analyzer_dump, ANALYZER_MAGIC
 
 
 logger = logging.getLogger(__name__)
@@ -24,6 +24,7 @@ class ProxyServer(AsyncioServer):
 
     async def _handle_connection_cr(self, reader, writer):
         try:
+            writer.write(ANALYZER_MAGIC)
             queue = asyncio.Queue(self._queue_limit)
             self._recipients.add(queue)
             try:
