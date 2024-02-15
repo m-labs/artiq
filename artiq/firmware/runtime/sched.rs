@@ -315,6 +315,25 @@ impl<'a> Drop for MutexGuard<'a> {
     }
 }
 
+#[derive(Clone)]
+pub struct BinarySemaphore(Urc<Cell<bool>>);
+
+impl BinarySemaphore {
+    pub fn new(initial_state: bool) -> BinarySemaphore {
+        BinarySemaphore(Urc::new(Cell::new(initial_state)))
+    }
+
+    pub fn wait<'a>(&'a self, io: &Io) -> Result<(), Error> {
+        io.until(|| self.0.get())?;
+        self.0.set(false);
+        Ok(())
+    }
+
+    pub fn signal<'a>(&'a self) {
+        self.0.set(true);
+    }
+}
+
 macro_rules! until {
     ($socket:expr, $ty:ty, |$var:ident| $cond:expr) => ({
         let (network, handle) = ($socket.io.network.clone(), $socket.handle);
