@@ -202,7 +202,7 @@ class _BaseWaveform(pg.PlotWidget):
         try:
             self.x_data, self.y_data = zip(*data)
         except:
-            logger.error("Error getting data for waveform: {}".format(self.name), exc_info=True)
+            logger.error("Error getting data for waveform: %s", self.name, exc_info=True)
 
     def onCursorMove(self, x):
         self.cursor.setValue(x)
@@ -269,7 +269,7 @@ class BitWaveform(_BaseWaveform):
                 previous_y = y
             self.plot_data_item.setData(x=display_x, y=display_y)
         except:
-            logger.error('Error when displaying waveform: {}'.format(self.name), exc_info=True)
+            logger.error("Error when displaying waveform: %s", self.name, exc_info=True)
             for arw in self._arrows:
                 self.removeItem(arw)
             self.plot_data_item.setData(x=[], y=[])
@@ -292,8 +292,7 @@ class AnalogWaveform(_BaseWaveform):
             min_y = min(self.y_data)
             self.plot_item.setRange(yRange=(min_y, max_y), padding=0.1)
         except:
-            logger.error(
-                'Error when displaying waveform: {}'.format(self.name), exc_info=True)
+            logger.error("Error when displaying waveform: %s", self.name, exc_info=True)
             self.plot_data_item.setData(x=[], y=[])
 
     def onCursorMove(self, x):
@@ -348,8 +347,7 @@ class BitVectorWaveform(_BaseWaveform):
                 self._labels.append(lbl)
             self.plot_data_item.setData(x=display_x, y=display_y)
         except:
-            logger.error(
-                "Error when displaying waveform: {}".format(self.name), exc_info=True)
+            logger.error("Error when displaying waveform: %s", self.name, exc_info=True)
             for lbl in self._labels:
                 self.plot_item.removeItem(lbl)
             self.plot_data_item.setData(x=[], y=[])
@@ -394,7 +392,7 @@ class LogWaveform(_BaseWaveform):
             self._labels.append(lbl)
             lbl.setPos(old_x, 1)
         except:
-            logger.error('Error when displaying waveform: {}'.format(self.name), exc_info=True)
+            logger.error("Error when displaying waveform: %s", self.name, exc_info=True)
             for lbl in self._labels:
                 self.plot_item.removeItem(lbl)
             self.plot_data_item.setData(x=[], y=[])
