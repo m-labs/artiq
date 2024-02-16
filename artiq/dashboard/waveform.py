@@ -133,7 +133,7 @@ class _BackgroundItem(pg.GraphicsWidgetAnchor, pg.GraphicsWidget):
 class _BaseWaveform(pg.PlotWidget):
     cursorMove = QtCore.pyqtSignal(float)
 
-    def __init__(self, name, width, ndecimals, 
+    def __init__(self, name, width, ndecimals,
                  parent=None, pen="r", stepMode="right", connect="finite"):
         pg.PlotWidget.__init__(self,
                                parent=parent,
@@ -198,11 +198,13 @@ class _BaseWaveform(pg.PlotWidget):
     def setTimescale(self, timescale):
         self.timescale = timescale
 
+    def setData(self, data):
+        if len(data) == 0:
+            raise ValueError("no timeseries data to display for this channel")
+        self.x_data, self.y_data = zip(*data)
+
     def onDataChange(self, data):
-        try:
-            self.x_data, self.y_data = zip(*data)
-        except:
-            logger.error("Error getting data for waveform: %s", self.name, exc_info=True)
+        raise NotImplementedError
 
     def onCursorMove(self, x):
         self.cursor.setValue(x)
@@ -242,8 +244,8 @@ class BitWaveform(_BaseWaveform):
         self._arrows = []
 
     def onDataChange(self, data):
-        _BaseWaveform.onDataChange(self, data)
         try:
+            self.setData(data)
             for arw in self._arrows:
                 self.removeItem(arw)
             self._arrows = []
@@ -285,8 +287,8 @@ class AnalogWaveform(_BaseWaveform):
         self._format_string = "{:." + str(ndecimals) + "f}"
 
     def onDataChange(self, data):
-        _BaseWaveform.onDataChange(self, data)
         try:
+            self.setData(data)
             self.plot_data_item.setData(x=self.x_data, y=self.y_data)
             max_y = max(self.y_data)
             min_y = min(self.y_data)
@@ -326,8 +328,8 @@ class BitVectorWaveform(_BaseWaveform):
                 self.addItem(lbl)
 
     def onDataChange(self, data):
-        _BaseWaveform.onDataChange(self, data)
         try:
+            self.setData(data)
             for lbl in self._labels:
                 self.plot_item.removeItem(lbl)
             self._labels = []
@@ -368,8 +370,8 @@ class LogWaveform(_BaseWaveform):
         self._labels = []
 
     def onDataChange(self, data):
-        _BaseWaveform.onDataChange(self, data)
         try:
+            self.setData(data)
             for lbl in self._labels:
                 self.plot_item.removeItem(lbl)
             self._labels = []
@@ -396,9 +398,6 @@ class LogWaveform(_BaseWaveform):
             for lbl in self._labels:
                 self.plot_item.removeItem(lbl)
             self.plot_data_item.setData(x=[], y=[])
-
-    def onCursorMove(self, x):
-        _BaseWaveform.onCursorMove(self, x)
 
 
 class _WaveformView(QtWidgets.QWidget):
@@ -468,6 +467,7 @@ class _WaveformView(QtWidgets.QWidget):
             self._splitter.widget(i).setStoppedX(stopped_x)
 
     def onDataChange(self, top, bottom, roles):
+        self.cursorMove.emit(0)
         first = top.row()
         last = bottom.row()
         data_row = self._model.headers.index("data")
