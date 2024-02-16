@@ -211,6 +211,11 @@ class PeripheralManager:
         urukul_name = self.get_name("urukul")
         synchronization = peripheral["synchronization"]
         channel = count(0)
+        pll_en = peripheral["pll_en"]
+        clk_div = peripheral.get("clk_div")
+        if clk_div is None:
+            clk_div = 0 if pll_en else 1
+
         self.gen("""
             device_db["eeprom_{name}"] = {{
                 "type": "local",
@@ -277,7 +282,7 @@ class PeripheralManager:
             sync_device="\"ttl_{name}_sync\"".format(name=urukul_name) if synchronization else "None",
             refclk=peripheral.get("refclk", self.primary_description["rtio_frequency"]),
             clk_sel=peripheral["clk_sel"],
-            clk_div=peripheral["clk_div"])
+            clk_div=clk_div)
         dds = peripheral["dds"]
         pll_vco = peripheral.get("pll_vco")
         for i in range(4):
@@ -299,7 +304,7 @@ class PeripheralManager:
                     uchn=i,
                     sw=",\n        \"sw_device\": \"ttl_{name}_sw{uchn}\"".format(name=urukul_name, uchn=i) if len(peripheral["ports"]) > 1 else "",
                     pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "",
-                    pll_n=peripheral.get("pll_n", 32), pll_en=peripheral["pll_en"],
+                    pll_n=peripheral.get("pll_n", 32), pll_en=pll_en,
                     sync_delay_seed=",\n        \"sync_delay_seed\": \"eeprom_{}:{}\"".format(urukul_name, 64 + 4*i) if synchronization else "",
                     io_update_delay=",\n        \"io_update_delay\": \"eeprom_{}:{}\"".format(urukul_name, 64 + 4*i) if synchronization else "")
             elif dds == "ad9912":
@@ -320,7 +325,7 @@ class PeripheralManager:
                     uchn=i,
                     sw=",\n        \"sw_device\": \"ttl_{name}_sw{uchn}\"".format(name=urukul_name, uchn=i) if len(peripheral["ports"]) > 1 else "",
                     pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "",
-                    pll_n=peripheral.get("pll_n", 8), pll_en=peripheral["pll_en"])
+                    pll_n=peripheral.get("pll_n", 8), pll_en=pll_en)
             else:
                 raise ValueError
         return next(channel)
