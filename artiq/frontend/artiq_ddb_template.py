@@ -173,6 +173,11 @@ class PeripheralManager:
         urukul_name = self.get_name("urukul")
         synchronization = peripheral["synchronization"]
         channel = count(0)
+        pll_en = peripheral["pll_en"]
+        dds = peripheral["dds"]
+        if dds == "ad9912" and not pll_en:
+            raise ValueError("PLL bypass is not supported on AD9912")
+
         self.gen("""
             device_db["eeprom_{name}"] = {{
                 "type": "local",
@@ -231,14 +236,15 @@ class PeripheralManager:
                     "sync_device": {sync_device},
                     "io_update_device": "ttl_{name}_io_update",
                     "refclk": {refclk},
-                    "clk_sel": {clk_sel}
+                    "clk_sel": {clk_sel},
+                    "clk_div" : {clk_div}
                 }}
             }}""",
             name=urukul_name,
             sync_device="\"ttl_{name}_sync\"".format(name=urukul_name) if synchronization else "None",
             refclk=peripheral.get("refclk", self.master_description["rtio_frequency"]),
-            clk_sel=peripheral["clk_sel"])
-        dds = peripheral["dds"]
+            clk_sel=peripheral["clk_sel"],
+            clk_div= 0 if pll_en else 1)
         pll_vco = peripheral.get("pll_vco")
         for i in range(4):
             if dds == "ad9910":
@@ -248,6 +254,7 @@ class PeripheralManager:
                         "module": "artiq.coredevice.ad9910",
                         "class": "AD9910",
                         "arguments": {{
+                            "pll_en": {pll_en},
                             "pll_n": {pll_n},
                             "chip_select": {chip_select},
                             "cpld_device": "{name}_cpld"{sw}{pll_vco}{sync_delay_seed}{io_update_delay}
@@ -258,7 +265,7 @@ class PeripheralManager:
                     uchn=i,
                     sw=",\n        \"sw_device\": \"ttl_{name}_sw{uchn}\"".format(name=urukul_name, uchn=i) if len(peripheral["ports"]) > 1 else "",
                     pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "",
-                    pll_n=peripheral.get("pll_n", 32),
+                    pll_n=peripheral.get("pll_n", 32), pll_en=pll_en,
                     sync_delay_seed=",\n        \"sync_delay_seed\": \"eeprom_{}:{}\"".format(urukul_name, 64 + 4*i) if synchronization else "",
                     io_update_delay=",\n        \"io_update_delay\": \"eeprom_{}:{}\"".format(urukul_name, 64 + 4*i) if synchronization else "")
             elif dds == "ad9912":

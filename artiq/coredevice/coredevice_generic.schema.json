@@ -302,6 +302,12 @@
                         "pll_n": {
                             "type": "integer"
                         },
+                        "pll_en": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 1,
+                            "default": 1
+                        },
                         "pll_vco": {
                             "type": "integer"
                         },
@@ -404,6 +410,12 @@
                         "pll_n": {
                             "type": "integer",
                             "default": 32
+                        },
+                        "pll_en": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 1,
+                            "default": 1
                         },
                         "pll_vco": {
                             "type": "integer"
