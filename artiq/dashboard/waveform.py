@@ -278,7 +278,10 @@ class BitWaveform(_BaseWaveform):
 
     def onCursorMove(self, x):
         _BaseWaveform.onCursorMove(self, x)
-        self.cursor_label.setText(self.cursor_y)
+        if self.cursor_y is not None:
+            self.cursor_label.setText(self.cursor_y)
+        else:
+            self.cursor_label.setText("")
 
 
 class AnalogWaveform(_BaseWaveform):
@@ -299,9 +302,10 @@ class AnalogWaveform(_BaseWaveform):
 
     def onCursorMove(self, x):
         _BaseWaveform.onCursorMove(self, x)
-        t = None
         if self.cursor_y is not None:
             t = self._format_string.format(self.cursor_y)
+        else:
+            t = ""
         self.cursor_label.setText(t)
 
 
@@ -356,9 +360,10 @@ class BitVectorWaveform(_BaseWaveform):
 
     def onCursorMove(self, x):
         _BaseWaveform.onCursorMove(self, x)
-        t = None
         if self.cursor_y is not None:
             t = self._format_string.format(int(self.cursor_y, 2))
+        else:
+            t = ""
         self.cursor_label.setText(t)
 
 
