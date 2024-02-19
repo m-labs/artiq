@@ -488,6 +488,10 @@ class _WaveformView(QtWidgets.QWidget):
         for i in range(self._model.rowCount()):
             self._splitter.widget(i).setStoppedX(stopped_x)
 
+    def resetZoom(self):
+        if self._stopped_x is not None:
+            self._ref_vb.setRange(xRange=(0, self._stopped_x))
+
     def onDataChange(self, top, bottom, roles):
         self.cursorMove.emit(0)
         first = top.row()
@@ -775,10 +779,18 @@ class WaveformDock(QtWidgets.QDockWidget):
         self._waveform_view.setModel(self._waveform_model)
         grid.addWidget(self._waveform_view, 1, 0, colspan=12)
 
+        self._reset_zoom_btn = QtWidgets.QToolButton()
+        self._reset_zoom_btn.setToolTip("Reset zoom")
+        self._reset_zoom_btn.setIcon(
+            QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_TitleBarMaxButton))
+        self._reset_zoom_btn.clicked.connect(self._waveform_view.resetZoom)
+        grid.addWidget(self._reset_zoom_btn, 0, 3)
+
         self._cursor_control = _CursorTimeControl(self)
         self._waveform_view.cursorMove.connect(self._cursor_control.setDisplayValue)
         self._cursor_control.submit.connect(self._waveform_view.onCursorMove)
-        grid.addWidget(self._cursor_control, 0, 3, colspan=6)
+        grid.addWidget(self._cursor_control, 0, 4, colspan=6)
 
     def _add_async_action(self, label, coro):
         action = QtWidgets.QAction(label, self)
