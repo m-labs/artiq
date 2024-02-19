@@ -200,8 +200,9 @@ class _BaseWaveform(pg.PlotWidget):
 
     def setData(self, data):
         if len(data) == 0:
-            raise ValueError("no timeseries data to display for this channel")
-        self.x_data, self.y_data = zip(*data)
+            self.x_data, self.y_data = [], []
+        else:
+            self.x_data, self.y_data = zip(*data)
 
     def onDataChange(self, data):
         raise NotImplementedError
@@ -293,9 +294,10 @@ class AnalogWaveform(_BaseWaveform):
         try:
             self.setData(data)
             self.plot_data_item.setData(x=self.x_data, y=self.y_data)
-            max_y = max(self.y_data)
-            min_y = min(self.y_data)
-            self.plot_item.setRange(yRange=(min_y, max_y), padding=0.1)
+            if len(data) > 0:
+                max_y = max(self.y_data)
+                min_y = min(self.y_data)
+                self.plot_item.setRange(yRange=(min_y, max_y), padding=0.1)
         except:
             logger.error("Error when displaying waveform: %s", self.name, exc_info=True)
             self.plot_data_item.setData(x=[], y=[])
