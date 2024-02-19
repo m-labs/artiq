@@ -455,6 +455,18 @@ class _WaveformView(QtWidgets.QWidget):
 
         self.cursorMove.connect(self.onCursorMove)
 
+        self.confirm_delete_dialog = QtWidgets.QMessageBox(self)
+        self.confirm_delete_dialog.setIcon(
+            QtWidgets.QMessageBox.Icon.Warning
+        )
+        self.confirm_delete_dialog.setText("Delete all waveforms?")
+        self.confirm_delete_dialog.setStandardButtons(
+            QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel
+        )
+        self.confirm_delete_dialog.setDefaultButton(
+            QtWidgets.QMessageBox.Ok
+        )
+
     def setModel(self, model):
         self._model = model
         self._model.dataChanged.connect(self.onDataChange)
@@ -462,6 +474,7 @@ class _WaveformView(QtWidgets.QWidget):
         self._model.rowsRemoved.connect(self.onRemove)
         self._model.rowsMoved.connect(self.onMove)
         self._splitter.dropped.connect(self._model.move)
+        self.confirm_delete_dialog.accepted.connect(self._model.clear)
 
     def setTimescale(self, timescale):
         self._timescale = timescale
@@ -525,8 +538,8 @@ class _WaveformView(QtWidgets.QWidget):
         action = QtWidgets.QAction("Delete waveform", w)
         action.triggered.connect(lambda: self._delete_waveform(w))
         w.addAction(action)
-        action = QtWidgets.QAction("Clear waveforms", w)
-        action.triggered.connect(self._model.clear)
+        action = QtWidgets.QAction("Delete all waveforms", w)
+        action.triggered.connect(self.confirm_delete_dialog.open)
         w.addAction(action)
         return w
 
