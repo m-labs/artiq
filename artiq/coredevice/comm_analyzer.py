@@ -688,12 +688,10 @@ def create_channel_handlers(manager, devices, ref_period,
 def get_channel_list(devices):
     manager = ChannelSignatureManager()
     create_channel_handlers(manager, devices, 1e-9, 3e9, False)
-    manager.get_channel("timestamp", 64, ty=WaveformType.VECTOR)
     ref_period = get_ref_period(devices)
     if ref_period is None:
         ref_period = DEFAULT_REF_PERIOD
     ndecimals = max(0, math.ceil(math.log10(1 / ref_period)))
-    manager.get_channel("interval", 64, ty=WaveformType.ANALOG, ndecimals=ndecimals)
     manager.get_channel("rtio_slack", 64, ty=WaveformType.ANALOG, ndecimals=ndecimals)
     return manager.channels
 
