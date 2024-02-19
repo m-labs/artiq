@@ -670,15 +670,13 @@ class Model(DictSyncTreeSepModel):
 
 
 class _AddChannelDialog(QtWidgets.QDialog):
-    accepted = QtCore.pyqtSignal(list)
-
     def __init__(self, parent, model):
         QtWidgets.QDialog.__init__(self, parent=parent)
         self.setContextMenuPolicy(Qt.ActionsContextMenu)
         self.setWindowTitle("Add channels")
 
-        grid = QtWidgets.QGridLayout()
-        self.setLayout(grid)
+        layout = QtWidgets.QVBoxLayout()
+        self.setLayout(layout)
 
         self._model = model
         self._tree_view = QtWidgets.QTreeView()
@@ -688,19 +686,15 @@ class _AddChannelDialog(QtWidgets.QDialog):
         self._tree_view.setSelectionMode(
             QtWidgets.QAbstractItemView.ExtendedSelection)
         self._tree_view.setModel(self._model)
-        grid.addWidget(self._tree_view, 0, 0, 1, 2)
-        cancel_btn = QtWidgets.QPushButton("Cancel")
-        cancel_btn.clicked.connect(self.close)
-        cancel_btn.setIcon(
-            QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_DialogCancelButton))
-        grid.addWidget(cancel_btn, 1, 0)
-        confirm_btn = QtWidgets.QPushButton("Confirm")
-        confirm_btn.clicked.connect(self.add_channels)
-        confirm_btn.setIcon(
-            QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_DialogApplyButton))
-        grid.addWidget(confirm_btn, 1, 1)
+        layout.addWidget(self._tree_view)
+
+        self._button_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
+        self._button_box.setCenterButtons(True)
+        self._button_box.accepted.connect(self.add_channels)
+        self._button_box.rejected.connect(self.reject)
+        layout.addWidget(self._button_box)
 
     def add_channels(self):
         selection = self._tree_view.selectedIndexes()
@@ -709,8 +703,8 @@ class _AddChannelDialog(QtWidgets.QDialog):
             key = self._model.index_to_key(select)
             if key is not None:
                 channels.append([key, *self._model[key].ref, []])
-        self.accepted.emit(channels)
-        self.close()
+        self.channels = channels
+        self.accept()
 
 
 class WaveformDock(QtWidgets.QDockWidget):
@@ -759,12 +753,15 @@ class WaveformDock(QtWidgets.QDockWidget):
             lambda: asyncio.ensure_future(exc_to_warning(self.rpc_client.trigger_proxy_task())))
         grid.addWidget(self._request_dump_btn, 0, 1)
 
+        self._add_channel_dialog = _AddChannelDialog(self, self._channel_model)
+        self._add_channel_dialog.accepted.connect(self._add_channels)
+
         self._add_btn = QtWidgets.QToolButton()
         self._add_btn.setToolTip("Add channels...")
         self._add_btn.setIcon(
             QtWidgets.QApplication.style().standardIcon(
                 QtWidgets.QStyle.SP_FileDialogListView))
-        self._add_btn.clicked.connect(self.on_add_channel_click)
+        self._add_btn.clicked.connect(self._add_channel_dialog.open)
         grid.addWidget(self._add_btn, 0, 2)
 
         self._file_menu = QtWidgets.QMenu()
@@ -790,23 +787,13 @@ class WaveformDock(QtWidgets.QDockWidget):
             lambda: asyncio.ensure_future(exc_to_warning(coro())))
         self._file_menu.addAction(action)
 
-    async def _add_channel_task(self):
-        dialog = _AddChannelDialog(self, self._channel_model)
-        fut = asyncio.Future()
-
-        def on_accept(s):
-            fut.set_result(s)
-        dialog.accepted.connect(on_accept)
-        dialog.open()
-        channels = await fut
+    def _add_channels(self):
+        channels = self._add_channel_dialog.channels
         count = self._waveform_model.rowCount()
         self._waveform_model.extend(channels)
         self._waveform_model.update_data(self._waveform_data['data'],
                                          count,
                                          count + len(channels))
-
-    def on_add_channel_click(self):
-        asyncio.ensure_future(self._add_channel_task())
 
     def on_dump_receive(self, dump):
         self._dump = dump
