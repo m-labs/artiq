@@ -242,6 +242,7 @@ class _BaseWaveform(pg.PlotWidget):
 class BitWaveform(_BaseWaveform):
     def __init__(self, name, width, ndecimals, parent=None):
         _BaseWaveform.__init__(self, name, width, ndecimals, parent)
+        self.plot_item.showGrid(x=True, y=False)
         self._arrows = []
 
     def onDataChange(self, data):
@@ -317,6 +318,7 @@ class BitVectorWaveform(_BaseWaveform):
         self._labels = []
         self._format_string = "{:0=" + str(math.ceil(width / 4)) + "X}"
         self.view_box.sigTransformChanged.connect(self._update_labels)
+        self.plot_item.showGrid(x=True, y=False)
 
     def _update_labels(self):
         for label in self._labels:
@@ -375,6 +377,7 @@ class LogWaveform(_BaseWaveform):
         self.plot_data_item.opts['pen'] = None
         self.plot_data_item.opts['symbol'] = 'x'
         self._labels = []
+        self.plot_item.showGrid(x=True, y=False)
 
     def onDataChange(self, data):
         try:
