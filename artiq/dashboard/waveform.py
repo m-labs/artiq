@@ -15,7 +15,7 @@ from sipyco.sync_struct import Subscriber
 from sipyco.pc_rpc import AsyncioClient
 from sipyco import pyon
 
-from artiq.tools import exc_to_warning
+from artiq.tools import exc_to_warning, short_format
 from artiq.coredevice import comm_analyzer
 from artiq.coredevice.comm_analyzer import WaveformType
 from artiq.gui.tools import LayoutWidget, get_open_file_name, get_save_file_name
@@ -133,7 +133,7 @@ class _BackgroundItem(pg.GraphicsWidgetAnchor, pg.GraphicsWidget):
 class _BaseWaveform(pg.PlotWidget):
     cursorMove = QtCore.pyqtSignal(float)
 
-    def __init__(self, name, width, ndecimals,
+    def __init__(self, name, width, precision, unit,
                  parent=None, pen="r", stepMode="right", connect="finite"):
         pg.PlotWidget.__init__(self,
                                parent=parent,
@@ -150,7 +150,8 @@ class _BaseWaveform(pg.PlotWidget):
 
         self.name = name
         self.width = width
-        self.ndecimals = ndecimals
+        self.precision = precision
+        self.unit = unit
 
         self.x_data = []
         self.y_data = []
@@ -240,8 +241,8 @@ class _BaseWaveform(pg.PlotWidget):
 
 
 class BitWaveform(_BaseWaveform):
-    def __init__(self, name, width, ndecimals, parent=None):
-        _BaseWaveform.__init__(self, name, width, ndecimals, parent)
+    def __init__(self, name, width, precision, unit, parent=None):
+        _BaseWaveform.__init__(self, name, width, precision, unit, parent)
         self.plot_item.showGrid(x=True, y=False)
         self._arrows = []
 
@@ -287,9 +288,8 @@ class BitWaveform(_BaseWaveform):
 
 
 class AnalogWaveform(_BaseWaveform):
-    def __init__(self, name, width, ndecimals, parent=None):
-        _BaseWaveform.__init__(self, name, width, ndecimals, parent)
-        self._format_string = "{:." + str(ndecimals) + "f}"
+    def __init__(self, name, width, precision, unit, parent=None):
+        _BaseWaveform.__init__(self, name, width, precision, unit, parent)
 
     def onDataChange(self, data):
         try:
@@ -306,15 +306,15 @@ class AnalogWaveform(_BaseWaveform):
     def onCursorMove(self, x):
         _BaseWaveform.onCursorMove(self, x)
         if self.cursor_y is not None:
-            t = self._format_string.format(self.cursor_y)
+            t = short_format(self.cursor_y, {"precision": self.precision, "unit": self.unit})
         else:
             t = ""
         self.cursor_label.setText(t)
 
 
 class BitVectorWaveform(_BaseWaveform):
-    def __init__(self, name, width, ndecimals, parent=None):
-        _BaseWaveform.__init__(self, name, width, ndecimals, parent)
+    def __init__(self, name, width, precision, unit, parent=None):
+        _BaseWaveform.__init__(self, name, width, precision, parent)
         self._labels = []
         self._format_string = "{:0=" + str(math.ceil(width / 4)) + "X}"
         self.view_box.sigTransformChanged.connect(self._update_labels)
@@ -372,8 +372,8 @@ class BitVectorWaveform(_BaseWaveform):
 
 
 class LogWaveform(_BaseWaveform):
-    def __init__(self, name, width, ndecimals, parent=None):
-        _BaseWaveform.__init__(self, name, width, ndecimals, parent)
+    def __init__(self, name, width, precision, unit, parent=None):
+        _BaseWaveform.__init__(self, name, width, precision, parent)
         self.plot_data_item.opts['pen'] = None
         self.plot_data_item.opts['symbol'] = 'x'
         self._labels = []
@@ -521,15 +521,15 @@ class _WaveformView(QtWidgets.QWidget):
             self._splitter.widget(i).onCursorMove(x)
 
     def _create_waveform(self, row):
-        name, ty, width, ndecimals = (
-            self._model.data(self._model.index(row, i)) for i in range(4))
+        name, ty, width, precision, unit = (
+            self._model.data(self._model.index(row, i)) for i in range(5))
         waveform_cls = {
             WaveformType.BIT: BitWaveform,
             WaveformType.VECTOR: BitVectorWaveform,
             WaveformType.ANALOG: AnalogWaveform,
             WaveformType.LOG: LogWaveform
         }[ty]
-        w = waveform_cls(name, width, ndecimals, parent=self._splitter)
+        w = waveform_cls(name, width, precision, unit, parent=self._splitter)
         w.setXLink(self._ref_vb)
         w.setStoppedX(self._stopped_x)
         w.setTimescale(self._timescale)
@@ -555,7 +555,7 @@ class _WaveformView(QtWidgets.QWidget):
 class _WaveformModel(QtCore.QAbstractTableModel):
     def __init__(self):
         self.backing_struct = []
-        self.headers = ["name", "type", "width", "ndecimals", "data"]
+        self.headers = ["name", "type", "width", "precision", "unit", "data"]
         QtCore.QAbstractTableModel.__init__(self)
 
     def rowCount(self, parent=QtCore.QModelIndex()):
@@ -596,11 +596,11 @@ class _WaveformModel(QtCore.QAbstractTableModel):
         self.endRemoveRows()
 
     def export_list(self):
-        return [[row[0], row[1].value, row[2], row[3]] for row in self.backing_struct]
+        return [[row[0], row[1].value, *row[2:5]] for row in self.backing_struct]
 
     def import_list(self, channel_list):
         self.clear()
-        data = [[row[0], WaveformType(row[1]), row[2], row[3], []] for row in channel_list]
+        data = [[row[0], WaveformType(row[1]), *row[2:5], []] for row in channel_list]
         self.extend(data)
 
     def update_data(self, waveform_data, top, bottom):
@@ -708,8 +708,7 @@ class _AddChannelDialog(QtWidgets.QDialog):
         for select in selection:
             key = self._model.index_to_key(select)
             if key is not None:
-                width, ty, ndecimals = self._model[key].ref
-                channels.append([key, ty, width, ndecimals, []])
+                channels.append([key, *self._model[key].ref, []])
         self.accepted.emit(channels)
         self.close()
 

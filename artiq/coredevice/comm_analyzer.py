@@ -248,7 +248,7 @@ class VCDManager:
     def set_timescale_ps(self, timescale):
         self.out.write("$timescale {}ps $end\n".format(round(timescale)))
 
-    def get_channel(self, name, width, ty, ndecimals=0):
+    def get_channel(self, name, width, ty, precision=0, unit=""):
         code = next(self.codes)
         self.out.write("$var wire {width} {code} {name} $end\n"
                        .format(name=name, code=code, width=width))
@@ -285,9 +285,9 @@ class WaveformManager:
     def set_timescale_ps(self, timescale):
         self.trace["timescale"] = int(timescale)
 
-    def get_channel(self, name, width, ty, ndecimals=0):
+    def get_channel(self, name, width, ty, precision=0, unit=""):
         if ty == WaveformType.LOG:
-            self.trace["logs"][self.current_scope + name] = (width, ty, ndecimals)
+            self.trace["logs"][self.current_scope + name] = (ty, width, precision, unit)
         data = self.trace["data"][self.current_scope + name] = list()
         channel = WaveformChannel(data, self.current_time)
         self.channels.append(channel)
@@ -338,8 +338,8 @@ class ChannelSignatureManager:
         self.current_scope = ""
         self.channels = dict()
 
-    def get_channel(self, name, width, ty, ndecimals=0):
-        self.channels[self.current_scope + name] = (width, ty, ndecimals)
+    def get_channel(self, name, width, ty, precision=0, unit=""):
+        self.channels[self.current_scope + name] = (ty, width, precision, unit)
         return None
 
     @contextmanager
@@ -381,9 +381,9 @@ class TTLClockGenHandler:
     def __init__(self, manager, name, ref_period):
         self.name = name
         self.ref_period = ref_period
-        ndecimals = max(0, math.ceil(math.log10(2**24 * ref_period)))
+        precision = max(0, math.ceil(math.log10(2**24 * ref_period) + 6))
         self.channel_frequency = manager.get_channel(
-            "ttl_clkgen/" + name, 64, ty=WaveformType.ANALOG, ndecimals=ndecimals)
+            "ttl_clkgen/" + name, 64, ty=WaveformType.ANALOG, precision=precision, unit="MHz")
 
     def process_message(self, message):
         if isinstance(message, OutputMessage):
@@ -404,17 +404,18 @@ class DDSHandler:
 
     def add_dds_channel(self, name, dds_channel_nr):
         dds_channel = dict()
-        frequency_decimals = max(0, math.ceil(math.log10(2**32 / self.sysclk)))
-        phase_decimals = max(0, math.ceil(math.log10(2**16)))
+        frequency_precision = max(0, math.ceil(math.log10(2**32 / self.sysclk) + 6))
+        phase_precision = max(0, math.ceil(math.log10(2**16)))
         with self.manager.scope("dds", name):
             dds_channel["vcd_frequency"] = \
                 self.manager.get_channel(name + "/frequency", 64, 
                                          ty=WaveformType.ANALOG, 
-                                         ndecimals=frequency_decimals)
+                                         precision=frequency_precision,
+                                         unit="MHz")
             dds_channel["vcd_phase"] = \
                 self.manager.get_channel(name + "/phase", 64, 
                                          ty=WaveformType.ANALOG,
-                                         ndecimals=phase_decimals)
+                                         precision=phase_precision)
         dds_channel["ftw"] = [None, None]
         dds_channel["pow"] = None
         self.dds_channels[dds_channel_nr] = dds_channel
@@ -691,8 +692,8 @@ def get_channel_list(devices):
     ref_period = get_ref_period(devices)
     if ref_period is None:
         ref_period = DEFAULT_REF_PERIOD
-    ndecimals = max(0, math.ceil(math.log10(1 / ref_period)))
-    manager.get_channel("rtio_slack", 64, ty=WaveformType.ANALOG, ndecimals=ndecimals)
+    precision = max(0, math.ceil(math.log10(1 / ref_period) - 6))
+    manager.get_channel("rtio_slack", 64, ty=WaveformType.ANALOG, precision=precision, unit="us")
     return manager.channels
 
 
