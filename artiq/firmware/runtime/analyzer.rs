@@ -61,7 +61,7 @@ pub mod remote_analyzer {
             let mut remote_sent_bytes = 0;
             let mut remote_total_bytes = 0;
 
-            let data_vec = drtio::analyzer_query(
+            let data_vec = remote_query(
                 io, aux_mutex, routing_table, up_destinations
             )?;
             for data in data_vec {
@@ -78,8 +78,55 @@ pub mod remote_analyzer {
                 data: remote_data
             })
         }
-}   
 
+    fn download_data(io: &Io, aux_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable,
+        destination: u8) -> Result<RemoteBuffer, drtio::Error> {
+        let linkno = routing_table.0[destination as usize][0] - 1;
+        let reply = drtio::aux_transact(io, aux_mutex, linkno, 
+            &drtioaux::Packet::AnalyzerHeaderRequest { destination: destination })?;
+        let (sent, total, overflow) = match reply {
+            drtioaux::Packet::AnalyzerHeader { sent_bytes, total_byte_count, overflow_occurred } => 
+                (sent_bytes, total_byte_count, overflow_occurred),
+            packet => return Err(Error::UnexpectedPacket(packet)),
+        };
+
+        let mut remote_data: Vec<u8> = Vec::new();
+        if sent > 0 {
+            let mut last_packet = false;
+            while !last_packet {
+                let reply = aux_transact(io, aux_mutex, linkno, 
+                    &drtioaux::Packet::AnalyzerDataRequest { destination: destination })?;
+                match reply {
+                    drtioaux::Packet::AnalyzerData { last, length, data } => { 
+                        last_packet = last;
+                        remote_data.extend(&data[0..length as usize]);
+                    },
+                    packet => return Err(Error::UnexpectedPacket(packet)),
+                }
+            }
+        }
+
+        Ok(RemoteBuffer {
+            sent_bytes: sent,
+            total_byte_count: total,
+            overflow_occurred: overflow,
+            data: remote_data
+        })
+    }
+
+    fn remote_query(io: &Io, aux_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable,
+        up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>
+    ) -> Result<Vec<RemoteBuffer>, drtio::Error> {
+        let mut remote_buffers: Vec<RemoteBuffer> = Vec::new();
+        for i in 1..drtio_routing::DEST_COUNT {
+            if destination_up(up_destinations, i as u8) {
+                remote_buffers.push(download_data(io, aux_mutex, routing_table, i as u8)?);
+            }
+        }
+        Ok(remote_buffers)
+    }
+    
+}   
 
 
 fn worker(stream: &mut TcpStream, _io: &Io, _aux_mutex: &Mutex, 

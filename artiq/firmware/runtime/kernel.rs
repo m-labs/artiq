@@ -432,8 +432,73 @@ pub mod subkernel {
         );
         let data = &mut writer.into_inner()[3..];
         data[0] = count;
-        Ok(drtio::subkernel_send_message(
+        Ok(send_message(
             io, aux_mutex, routing_table, id, destination, data
         )?)
+    }
+
+    pub fn subkernel_upload(io: &Io, aux_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable,
+        id: u32, destination: u8, data: &Vec<u8>) -> Result<(), Error> {
+    let linkno = routing_table.0[destination as usize][0] - 1;
+        drtio::partition_data(data, |slice, status, len: usize| {
+            let reply = drtio::aux_transact(io, aux_mutex, linkno, 
+                &drtioaux::Packet::SubkernelAddDataRequest {
+                    id: id, destination: destination, status: status, length: len as u16, data: *slice})?;
+            match reply {
+                drtioaux::Packet::SubkernelAddDataReply { succeeded: true } => Ok(()),
+                drtioaux::Packet::SubkernelAddDataReply { succeeded: false } =>  
+                    Err(Error::SubkernelAddFail(destination)),
+                    packet => Err(Error::UnexpectedPacket(packet)),
+            }
+        })
+    }
+
+    pub fn subkernel_load(io: &Io, aux_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable,
+            id: u32, destination: u8, run: bool) -> Result<(), Error> {
+        let linkno = routing_table.0[destination as usize][0] - 1;
+        let reply = aux_transact(io, aux_mutex, linkno, 
+            &drtioaux::Packet::SubkernelLoadRunRequest{ id: id, source: 0, destination: destination, run: run })?;
+        match reply {
+            drtioaux::Packet::SubkernelLoadRunReply { destination: 0, succeeded: true } => Ok(()),
+            drtioaux::Packet::SubkernelLoadRunReply { destination: 0, succeeded: false } =>
+                    Err(Error::SubkernelRunFail(destination)),
+                packet => Err(Error::UnexpectedPacket(packet)),
+        }
+    }
+
+    pub fn retrieve_exception(io: &Io, aux_mutex: &Mutex,
+        routing_table: &drtio_routing::RoutingTable, destination: u8
+    ) -> Result<Vec<u8>, Error> {
+        let linkno = routing_table.0[destination as usize][0] - 1;
+        let mut remote_data: Vec<u8> = Vec::new();
+        loop {
+            let reply = aux_transact(io, aux_mutex, linkno, 
+                &drtioaux::Packet::SubkernelExceptionRequest { destination: destination })?;
+            match reply {
+                drtioaux::Packet::SubkernelException { last, length, data } => { 
+                    remote_data.extend(&data[0..length as usize]);
+                    if last {
+                        return Ok(remote_data);
+                    }
+                },
+                packet => return Err(Error::UnexpectedPacket(packet)),
+            }
+        }
+    }
+
+    pub fn drtio_send_message(io: &Io, aux_mutex: &Mutex,
+        routing_table: &drtio_routing::RoutingTable, id: u32, destination: u8, message: &[u8]
+    ) -> Result<(), Error> {
+        let linkno = routing_table.0[destination as usize][0] - 1;
+        partition_data(message, |slice, status, len: usize| {
+            let reply = aux_transact(io, aux_mutex, linkno, 
+                &drtioaux::Packet::SubkernelMessage {
+                    source: 0, destination: destination,
+                    id: id, status: status, length: len as u16, data: *slice})?;
+            match reply {
+                drtioaux::Packet::SubkernelMessageAck { .. } => Ok(()),
+                packet => Err(Error::UnexpectedPacket(packet)),
+            }
+        })
     }
 }

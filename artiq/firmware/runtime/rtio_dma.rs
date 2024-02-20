@@ -125,7 +125,7 @@ pub mod remote_dma {
         let _lock = ddma_mutex.lock(io)?;
         let destinations = unsafe { TRACES.get(&id).unwrap() };
         for destination in destinations.keys() {
-            match drtio::ddma_send_erase(io, aux_mutex, routing_table, id, *destination) {
+            match send_erase(io, aux_mutex, routing_table, id, *destination) {
                 Ok(_) => (),
                 Err(e) => error!("Error erasing trace on DMA: {}", e)
             } 
@@ -139,7 +139,7 @@ pub mod remote_dma {
         let _lock = ddma_mutex.lock(io)?;
         let traces = unsafe { TRACES.get_mut(&id).unwrap() };
         for (destination, mut trace) in traces {
-            drtio::ddma_upload_trace(io, aux_mutex, routing_table, id, *destination, trace.get_trace())?;
+            upload_trace(io, aux_mutex, routing_table, id, *destination, trace.get_trace())?;
             trace.state = RemoteState::Loaded;
         }
         Ok(())
@@ -161,7 +161,7 @@ pub mod remote_dma {
                     return Err(Error::IncorrectState);
                 }
             }
-            drtio::ddma_send_playback(io, aux_mutex, routing_table, id, *destination, timestamp)?;
+            send_playback(io, aux_mutex, routing_table, id, *destination, timestamp)?;
         }
         Ok(())
     }
@@ -186,7 +186,7 @@ pub mod remote_dma {
         for (id, dest_traces) in traces_iter {
             if let Some(trace) = dest_traces.get_mut(&destination) {
                 if up {
-                    match drtio::ddma_upload_trace(io, aux_mutex, routing_table, *id, destination, trace.get_trace())
+                    match upload_trace(io, aux_mutex, routing_table, *id, destination, trace.get_trace())
                     {
                         Ok(_) => trace.state = RemoteState::Loaded,
                         Err(e) => error!("Error adding DMA trace on destination {}: {}", destination, e)
@@ -202,6 +202,47 @@ pub mod remote_dma {
         let _lock = ddma_mutex.lock(io)?;
         let trace_list = unsafe { TRACES.get(&id).unwrap() };
         Ok(!trace_list.is_empty())
+    }
+
+    pub fn upload_trace(io: &Io, aux_mutex: &Mutex,
+        routing_table: &drtio_routing::RoutingTable,
+        id: u32, destination: u8, trace: &[u8]) -> Result<(), Error> {
+        let linkno = routing_table.0[destination as usize][0] - 1;
+        drtio::partition_data(trace, |slice, status, len: usize| {
+            let reply = drtio::aux_transact(io, aux_mutex, linkno, 
+                &drtioaux::Packet::DmaAddTraceRequest {
+                    id: id, source: 0, destination: destination, status: status, length: len as u16, trace: *slice})?;
+            match reply {
+                drtioaux::Packet::DmaAddTraceReply { destination: 0, succeeded: true, .. } => Ok(()),
+                drtioaux::Packet::DmaAddTraceReply { destination: 0, succeeded: false, .. } => Err(Error::DmaAddTraceFail(destination)),
+                packet => Err(Error::UnexpectedPacket(packet)),
+            }
+        })
+    }
+
+    pub fn send_erase(io: &Io, aux_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable, 
+            id: u32, destination: u8) -> Result<(), Error> {
+        let linkno = routing_table.0[destination as usize][0] - 1;
+        let reply = aux_transact(io, aux_mutex, linkno, 
+            &drtioaux::Packet::DmaRemoveTraceRequest { id: id, source: 0, destination: destination })?;
+        match reply {
+            drtioaux::Packet::DmaRemoveTraceReply { destination: 0, succeeded: true } => Ok(()),
+            drtioaux::Packet::DmaRemoveTraceReply { destination: 0, succeeded: false } => Err(Error::DmaEraseFail(destination)),
+            packet => Err(Error::UnexpectedPacket(packet)),
+        }
+    }
+
+    pub fn send_playback(io: &Io, aux_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable,
+            id: u32, destination: u8, timestamp: u64) -> Result<(), Error> {
+        let linkno = routing_table.0[destination as usize][0] - 1;
+        let reply = aux_transact(io, aux_mutex, linkno, 
+            &drtioaux::Packet::DmaPlaybackRequest{ id: id, source: 0, destination: destination, timestamp: timestamp })?;
+        match reply {
+            drtioaux::Packet::DmaPlaybackReply { destination: 0, succeeded: true } => Ok(()),
+            drtioaux::Packet::DmaPlaybackReply { destination: 0, succeeded: false } =>
+                    Err(Error::DmaPlaybackFail(destination)),
+            packet => Err(Error::UnexpectedPacket(packet)),
+        }
     }
 
 }
