@@ -83,11 +83,11 @@ pub mod remote_analyzer {
         destination: u8) -> Result<RemoteBuffer, drtio::Error> {
         let linkno = routing_table.0[destination as usize][0] - 1;
         let reply = drtio::aux_transact(io, aux_mutex, linkno, 
-            &drtioaux::Packet::AnalyzerHeaderRequest { destination: destination })?;
+            &drtioaux::Payload::AnalyzerHeaderRequest { destination: destination })?;
         let (sent, total, overflow) = match reply {
-            drtioaux::Packet::AnalyzerHeader { sent_bytes, total_byte_count, overflow_occurred } => 
+            drtioaux::Payload::AnalyzerHeader { sent_bytes, total_byte_count, overflow_occurred } => 
                 (sent_bytes, total_byte_count, overflow_occurred),
-            packet => return Err(Error::UnexpectedPacket(packet)),
+            packet => return Err(drtio::Error::UnexpectedPacket(packet)),
         };
 
         let mut remote_data: Vec<u8> = Vec::new();
@@ -95,13 +95,13 @@ pub mod remote_analyzer {
             let mut last_packet = false;
             while !last_packet {
                 let reply = aux_transact(io, aux_mutex, linkno, 
-                    &drtioaux::Packet::AnalyzerDataRequest { destination: destination })?;
+                    &drtioaux::Payload::AnalyzerDataRequest { destination: destination })?;
                 match reply {
-                    drtioaux::Packet::AnalyzerData { last, length, data } => { 
+                    drtioaux::Payload::AnalyzerData { last, length, data } => { 
                         last_packet = last;
                         remote_data.extend(&data[0..length as usize]);
                     },
-                    packet => return Err(Error::UnexpectedPacket(packet)),
+                    packet => return Err(drtio::Error::UnexpectedPacket(packet)),
                 }
             }
         }

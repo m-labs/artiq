@@ -49,6 +49,12 @@ pub mod remote_dma {
         SchedError(#[cause] SchedError),
         #[fail(display = "DRTIO error: {}", _0)]
         DrtioError(#[cause] drtio::Error),
+        #[fail(display = "remote erase failed in destination {}", _0)]
+        EraseFail(u8),
+        #[fail(display = "add trace failed in destination {}", _0)]
+        AddTraceFail(u8),
+        #[fail(display = "playback failed in destination {}", _0)]
+        PlaybackFail(u8),
     }
 
     impl From<drtio::Error> for Error {
@@ -210,12 +216,12 @@ pub mod remote_dma {
         let linkno = routing_table.0[destination as usize][0] - 1;
         drtio::partition_data(trace, |slice, status, len: usize| {
             let reply = drtio::aux_transact(io, aux_mutex, linkno, 
-                &drtioaux::Packet::DmaAddTraceRequest {
+                &drtioaux::Payload::DmaAddTraceRequest {
                     id: id, source: 0, destination: destination, status: status, length: len as u16, trace: *slice})?;
             match reply {
-                drtioaux::Packet::DmaAddTraceReply { destination: 0, succeeded: true, .. } => Ok(()),
-                drtioaux::Packet::DmaAddTraceReply { destination: 0, succeeded: false, .. } => Err(Error::DmaAddTraceFail(destination)),
-                packet => Err(Error::UnexpectedPacket(packet)),
+                drtioaux::Payload::DmaAddTraceReply { destination: 0, succeeded: true, .. } => Ok(()),
+                drtioaux::Payload::DmaAddTraceReply { destination: 0, succeeded: false, .. } => Err(Error::AddTraceFail(destination)),
+                packet => Err(Error::DrtioError(drtio::Error::UnexpectedPacket(packet))),
             }
         })
     }
@@ -224,11 +230,11 @@ pub mod remote_dma {
             id: u32, destination: u8) -> Result<(), Error> {
         let linkno = routing_table.0[destination as usize][0] - 1;
         let reply = aux_transact(io, aux_mutex, linkno, 
-            &drtioaux::Packet::DmaRemoveTraceRequest { id: id, source: 0, destination: destination })?;
+            &drtioaux::Payload::DmaRemoveTraceRequest { id: id, source: 0, destination: destination })?;
         match reply {
-            drtioaux::Packet::DmaRemoveTraceReply { destination: 0, succeeded: true } => Ok(()),
-            drtioaux::Packet::DmaRemoveTraceReply { destination: 0, succeeded: false } => Err(Error::DmaEraseFail(destination)),
-            packet => Err(Error::UnexpectedPacket(packet)),
+            drtioaux::Payload::DmaRemoveTraceReply { destination: 0, succeeded: true } => Ok(()),
+            drtioaux::Payload::DmaRemoveTraceReply { destination: 0, succeeded: false } => Err(Error::EraseFail(destination)),
+            packet => Err(Error::DrtioError(drtio::Error::UnexpectedPacket(packet))),
         }
     }
 
@@ -236,12 +242,12 @@ pub mod remote_dma {
             id: u32, destination: u8, timestamp: u64) -> Result<(), Error> {
         let linkno = routing_table.0[destination as usize][0] - 1;
         let reply = aux_transact(io, aux_mutex, linkno, 
-            &drtioaux::Packet::DmaPlaybackRequest{ id: id, source: 0, destination: destination, timestamp: timestamp })?;
+            &drtioaux::Payload::DmaPlaybackRequest{ id: id, source: 0, destination: destination, timestamp: timestamp })?;
         match reply {
-            drtioaux::Packet::DmaPlaybackReply { destination: 0, succeeded: true } => Ok(()),
-            drtioaux::Packet::DmaPlaybackReply { destination: 0, succeeded: false } =>
-                    Err(Error::DmaPlaybackFail(destination)),
-            packet => Err(Error::UnexpectedPacket(packet)),
+            drtioaux::Payload::DmaPlaybackReply { destination: 0, succeeded: true } => Ok(()),
+            drtioaux::Payload::DmaPlaybackReply { destination: 0, succeeded: false } =>
+                    Err(Error::PlaybackFail(destination)),
+            packet => Err(Error::DrtioError(drtio::Error::UnexpectedPacket(packet))),
         }
     }
 

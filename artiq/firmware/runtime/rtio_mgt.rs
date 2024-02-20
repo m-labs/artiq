@@ -56,6 +56,88 @@ pub mod drtio {
         }
     }
 
+    #[derive(PartialEq)]
+    enum TransactionState {
+        Unsent,
+        Sent,
+        Acknowledged,
+        Received(Payload),
+        Error(Error)
+    }
+
+    type TransactionHandle = u8;
+
+    struct Transaction {
+        packet: Packet,
+        last_send_time: u64,
+        max_time: u64,
+        state: TransactionState,
+        semaphore: BinarySemaphore
+    }
+
+    impl Transaction {
+        pub fn new(packet: Packet, last_send_time: u64, timeout: u64) -> Transaction {
+            let last_send_time = clock::get_ms();
+            Transaction {
+                packet: packet,
+                last_send_time: last_send_time
+                max_time: last_send_time + timeout
+                state: TransactionState::Sent,
+                semaphore: BinarySemaphore::new(),
+            }
+        }
+
+        pub fn wait(&mut self, io: &Io) -> Result<Payload, Error> {
+            if state == TranscationState::Sent || state == TransactionState::Acknowledged {
+                self.semaphore.wait(io);
+            }
+            match self.state {
+                TransactionState::Received(response) => Ok(response),
+                TransactionState::Error(err) => Err(err),
+                _ => Err(Error::Timeout)
+            }
+        }
+
+        pub fn received_response(&mut self, io: &Io, response: Payload) {
+            self.state = TransactionState::Received(response);
+            self.semaphore.signal();
+            io.relinquish().unwrap();
+        }
+
+        pub fn received_ack(&mut self) {
+            if state == TranscationState::Sent {
+                self.state = TransactionState::Acknowledged;
+            }
+        }
+
+        pub fn timed_out(&mut self) {
+            self.state = TransactionState::Error(Error::Timeout);
+            self.semaphore.signal();
+        }
+
+        pub fn is_resend_time(&mut self, ack_timeout: u32) -> bool {
+            if state == TransactionState::Unsent {
+                self.state = TransactionState::Sent;
+                self.last_send_time = clock::get_ms();
+                return true
+            }
+            else if state == TransactionState::Sent {
+                let current_time = clock::get_ms();
+                if self.last_send_time + ack_timeout >= current_time {
+                    self.last_send_time = current_time;
+                    return true;
+                }
+            }
+            // other states should not trigger resending
+            false
+        }
+    }
+
+    struct TransactionManager {
+        transactions: BTreeMap<u8, Transaction>,
+        next_id: TransactionHandle,
+    }
+
     pub fn startup(io: &Io, aux_mutex: &Mutex,
             routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
             up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,

@@ -128,6 +128,10 @@ pub mod subkernel {
         RpcIoError,
         #[fail(display = "subkernel finished prematurely")]
         SubkernelFinished,
+        #[fail(display = "error adding subkernel on satellite #{}", _0)]
+        RemoteAddFail(u8),
+        #[fail(display = "error on subkernel run request on satellite #{}", _0)]
+        RemoteRunFail(u8),
     }
 
     impl From<drtio::Error> for Error {
@@ -442,13 +446,13 @@ pub mod subkernel {
     let linkno = routing_table.0[destination as usize][0] - 1;
         drtio::partition_data(data, |slice, status, len: usize| {
             let reply = drtio::aux_transact(io, aux_mutex, linkno, 
-                &drtioaux::Packet::SubkernelAddDataRequest {
+                &drtioaux::Payload::SubkernelAddDataRequest {
                     id: id, destination: destination, status: status, length: len as u16, data: *slice})?;
             match reply {
-                drtioaux::Packet::SubkernelAddDataReply { succeeded: true } => Ok(()),
-                drtioaux::Packet::SubkernelAddDataReply { succeeded: false } =>  
-                    Err(Error::SubkernelAddFail(destination)),
-                    packet => Err(Error::UnexpectedPacket(packet)),
+                drtioaux::Payload::SubkernelAddDataReply { succeeded: true } => Ok(()),
+                drtioaux::Payload::SubkernelAddDataReply { succeeded: false } =>  
+                    Err(Error::AddFail(destination)),
+                    packet => Err(Error::DrtioError(drtio::Error::UnexpectedPacket(packet))),
             }
         })
     }
@@ -457,12 +461,12 @@ pub mod subkernel {
             id: u32, destination: u8, run: bool) -> Result<(), Error> {
         let linkno = routing_table.0[destination as usize][0] - 1;
         let reply = aux_transact(io, aux_mutex, linkno, 
-            &drtioaux::Packet::SubkernelLoadRunRequest{ id: id, source: 0, destination: destination, run: run })?;
+            &drtioaux::Payload::SubkernelLoadRunRequest{ id: id, source: 0, destination: destination, run: run })?;
         match reply {
-            drtioaux::Packet::SubkernelLoadRunReply { destination: 0, succeeded: true } => Ok(()),
-            drtioaux::Packet::SubkernelLoadRunReply { destination: 0, succeeded: false } =>
-                    Err(Error::SubkernelRunFail(destination)),
-                packet => Err(Error::UnexpectedPacket(packet)),
+            drtioaux::Payload::SubkernelLoadRunReply { destination: 0, succeeded: true } => Ok(()),
+            drtioaux::Payload::SubkernelLoadRunReply { destination: 0, succeeded: false } =>
+                    Err(Error::RunFail(destination)),
+                packet => Err(Error::DrtioError(drtio::Error::UnexpectedPacket(packet))),
         }
     }
 
@@ -473,15 +477,15 @@ pub mod subkernel {
         let mut remote_data: Vec<u8> = Vec::new();
         loop {
             let reply = aux_transact(io, aux_mutex, linkno, 
-                &drtioaux::Packet::SubkernelExceptionRequest { destination: destination })?;
+                &drtioaux::Payload::SubkernelExceptionRequest { destination: destination })?;
             match reply {
-                drtioaux::Packet::SubkernelException { last, length, data } => { 
+                drtioaux::Payload::SubkernelException { last, length, data } => { 
                     remote_data.extend(&data[0..length as usize]);
                     if last {
                         return Ok(remote_data);
                     }
                 },
-                packet => return Err(Error::UnexpectedPacket(packet)),
+                packet => return Err(drtio::Error::UnexpectedPacket(packet)),
             }
         }
     }
@@ -492,12 +496,12 @@ pub mod subkernel {
         let linkno = routing_table.0[destination as usize][0] - 1;
         partition_data(message, |slice, status, len: usize| {
             let reply = aux_transact(io, aux_mutex, linkno, 
-                &drtioaux::Packet::SubkernelMessage {
+                &drtioaux::Payload::SubkernelMessage {
                     source: 0, destination: destination,
                     id: id, status: status, length: len as u16, data: *slice})?;
             match reply {
-                drtioaux::Packet::SubkernelMessageAck { .. } => Ok(()),
-                packet => Err(Error::UnexpectedPacket(packet)),
+                drtioaux::Payload::SubkernelMessageAck { .. } => Ok(()),
+                packet => Err(drtio::Error::UnexpectedPacket(packet)),
             }
         })
     }
