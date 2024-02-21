@@ -48,6 +48,15 @@ def get_argparser():
     parser.add_argument(
         "-p", "--load-plugin", dest="plugin_modules", action="append",
         help="Python module to load on startup")
+    parser.add_argument(
+        "--analyzer-proxy-timeout", default=5, type=float,
+        help="connection timeout to core analyzer proxy")
+    parser.add_argument(
+        "--analyzer-proxy-timer", default=5, type=float,
+        help="retry timer to core analyzer proxy")
+    parser.add_argument(
+        "--analyzer-proxy-timer-backoff", default=1.1, type=float,
+        help="retry timer backoff multiplier to core analyzer proxy")
     common_args.verbosity_args(parser)
     return parser
 
@@ -221,12 +230,14 @@ def main():
     atexit_register_coroutine(d_ttl_dds.stop, loop=loop)
 
     d_waveform = waveform.WaveformDock()
+    loop.run_until_complete(d_waveform.proxy_client.start(
+        args.analyzer_proxy_timeout,
+        args.analyzer_proxy_timer,
+        args.analyzer_proxy_timer_backoff
+    ))
+    atexit_register_coroutine(d_waveform.proxy_client.close, loop=loop)
     loop.run_until_complete(d_waveform.devices_sub.connect(args.server, args.port_notify))
     atexit_register_coroutine(d_waveform.devices_sub.close, loop=loop)
-    for name in ["rpc_client", "receiver_client"]:
-        client = getattr(d_waveform, name)
-        loop.run_until_complete(client.start())
-        atexit_register_coroutine(client.close, loop=loop)
 
     d_schedule = schedule.ScheduleDock(
         rpc_clients["schedule"], sub_clients["schedule"])
