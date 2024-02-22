@@ -6,7 +6,6 @@ import itertools
 import math
 
 from PyQt5 import QtCore, QtWidgets, QtGui
-from PyQt5.QtCore import Qt
 
 import pyqtgraph as pg
 import numpy as np
@@ -672,7 +671,7 @@ class Model(DictSyncTreeSepModel):
 class _AddChannelDialog(QtWidgets.QDialog):
     def __init__(self, parent, model):
         QtWidgets.QDialog.__init__(self, parent=parent)
-        self.setContextMenuPolicy(Qt.ActionsContextMenu)
+        self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         self.setWindowTitle("Add channels")
 
         layout = QtWidgets.QVBoxLayout()
