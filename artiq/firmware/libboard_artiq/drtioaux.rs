@@ -5,7 +5,7 @@ use io::{ProtoRead, ProtoWrite, Cursor, Error as IoError};
 use board_misoc::{csr::DRTIOAUX, mem::DRTIOAUX_MEM, clock};
 use proto_artiq::drtioaux_proto::Error as ProtocolError;
 
-pub use proto_artiq::drtioaux_proto::Packet;
+pub use proto_artiq::drtioaux_proto::{Packet, Payload};
 
 // this is parametric over T because there's no impl Fail for !.
 #[derive(Fail, Debug)]

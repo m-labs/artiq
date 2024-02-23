@@ -252,7 +252,7 @@ impl MessageManager {
         let mut data_slice: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
         self.out_state = OutMessageState::MessageBeingSent;
         let meta = self.get_outgoing_slice(&mut data_slice).unwrap();
-        router.route(drtioaux::Packet::SubkernelMessage {
+        router.route(drtioaux::Payload::SubkernelMessage {
                 source: self_destination, destination: destination, id: id,
                 status: meta.status, length: meta.len as u16, data: data_slice
         }, routing_table, rank, self_destination);
@@ -512,7 +512,7 @@ impl Manager {
             if pending.len() > 0 {
                 warn!("subkernel terminated with messages still pending: {:?}", pending);
             }
-            router.route(drtioaux::Packet::SubkernelFinished {
+            router.route(drtioaux::Payload::SubkernelFinished {
                 destination: subkernel_finished.source, id: subkernel_finished.id, 
                 with_exception: subkernel_finished.with_exception, exception_src: subkernel_finished.exception_source
             }, &routing_table, rank, destination);
@@ -801,7 +801,7 @@ impl Manager {
 
                 &kern::SubkernelLoadRunRequest { id, destination: sk_destination, run } => {
                     self.session.kernel_state = KernelState::SubkernelAwaitLoad;
-                    router.route(drtioaux::Packet::SubkernelLoadRunRequest { 
+                    router.route(drtioaux::Payload::SubkernelLoadRunRequest { 
                         source: destination, destination: sk_destination, id: id, run: run 
                     }, routing_table, rank, destination);
                     Ok(())

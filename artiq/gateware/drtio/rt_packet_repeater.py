@@ -19,7 +19,6 @@ class RTPacketRepeater(Module):
         # in rtio_rx domain
         self.err_unknown_packet_type = Signal()
         self.err_packet_truncated = Signal()
-        self.async_messages_ready = Signal()
 
         # in rtio domain
         self.err_command_missed = Signal()
@@ -305,7 +304,6 @@ class RTPacketRepeater(Module):
                 rx_dp.packet_buffer_load.eq(1),
                 If(rx_dp.packet_last,
                     Case(rx_dp.packet_type, {
-                        rx_plm.types["async_messages_ready"]: self.async_messages_ready.eq(1),
                         rx_plm.types["buffer_space_reply"]: NextState("BUFFER_SPACE"),
                         rx_plm.types["read_reply"]: NextState("READ_REPLY"),
                         rx_plm.types["read_reply_noevent"]: NextState("READ_REPLY_NOEVENT"),

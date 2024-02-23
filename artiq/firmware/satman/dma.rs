@@ -103,7 +103,7 @@ impl RemoteTraces {
                 // queue up the first packet for all destinations, rest will be sent after first ACK
                 let mut data_slice: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
                 let meta = trace.get_slice_master(&mut data_slice);
-                router.route(drtioaux::Packet::DmaAddTraceRequest {
+                router.route(drtioaux::Payload::DmaAddTraceRequest {
                     source: self_destination, destination: *dest, id: id,
                     status: meta.status, length: meta.len, trace: data_slice
                 }, routing_table, rank, self_destination);
@@ -127,7 +127,7 @@ impl RemoteTraces {
                     // send next slice
                     let mut data_slice: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
                     let meta = trace.get_slice_master(&mut data_slice);
-                    router.route(drtioaux::Packet::DmaAddTraceRequest {
+                    router.route(drtioaux::Payload::DmaAddTraceRequest {
                         source: self_destination, destination: meta.destination, id: id,
                         status: meta.status, length: meta.len, trace: data_slice
                     }, routing_table, rank, self_destination);
@@ -143,7 +143,7 @@ impl RemoteTraces {
         // remote traces + local trace
         self.state = RemoteTraceState::Running(self.remote_traces.len() + 1);
         for (dest, _) in self.remote_traces.iter() {
-            router.route(drtioaux::Packet::DmaPlaybackRequest {
+            router.route(drtioaux::Payload::DmaPlaybackRequest {
                 source: self_destination, destination: *dest, id: id, timestamp: timestamp
             }, routing_table, rank, self_destination);
             // response will be ignored (succeeded = false handled by the main thread)
@@ -166,7 +166,7 @@ impl RemoteTraces {
 
     pub fn erase(&mut self, id: u32, router: &mut Router, rank: u8, self_destination: u8, routing_table: &RoutingTable) {
         for (dest, _) in self.remote_traces.iter() {
-            router.route(drtioaux::Packet::DmaRemoveTraceRequest { 
+            router.route(drtioaux::Payload::DmaRemoveTraceRequest { 
                 source: self_destination, destination: *dest, id: id
             }, routing_table, rank, self_destination);
             // response will be ignored as this object will stop existing too

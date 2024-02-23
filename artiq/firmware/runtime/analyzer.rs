@@ -2,7 +2,7 @@ use io::{Write, Error as IoError};
 #[cfg(has_drtio)]
 use alloc::vec::Vec;
 use board_misoc::{csr, cache};
-use sched::{Io, Mutex, TcpListener, TcpStream, Error as SchedError};
+use sched::{Io, TcpListener, TcpStream, Error as SchedError};
 use analyzer_proto::*;
 use urc::Urc;
 use board_artiq::drtio_routing;
@@ -44,6 +44,7 @@ fn disarm() {
 pub mod remote_analyzer {
     use super::*;
     use rtio_mgt::drtio;
+    use board_artiq::drtioaux;
     
     pub struct RemoteBuffer {
         pub total_byte_count: u64,
@@ -52,8 +53,7 @@ pub mod remote_analyzer {
         pub data: Vec<u8>
     }
 
-    pub fn get_data(io: &Io, aux_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable,
-        up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>
+    pub fn get_data(io: &Io, up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>
     ) -> Result<RemoteBuffer, drtio::Error> {
             // gets data from satellites and returns consolidated data
             let mut remote_data: Vec<u8> = Vec::new();
@@ -61,9 +61,7 @@ pub mod remote_analyzer {
             let mut remote_sent_bytes = 0;
             let mut remote_total_bytes = 0;
 
-            let data_vec = remote_query(
-                io, aux_mutex, routing_table, up_destinations
-            )?;
+            let data_vec = remote_query(io, up_destinations)?;
             for data in data_vec {
                 remote_total_bytes += data.total_byte_count;
                 remote_sent_bytes += data.sent_bytes;
@@ -79,11 +77,9 @@ pub mod remote_analyzer {
             })
         }
 
-    fn download_data(io: &Io, aux_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable,
-        destination: u8) -> Result<RemoteBuffer, drtio::Error> {
-        let linkno = routing_table.0[destination as usize][0] - 1;
-        let reply = drtio::aux_transact(io, aux_mutex, linkno, 
-            &drtioaux::Payload::AnalyzerHeaderRequest { destination: destination })?;
+    fn download_data(io: &Io, destination: u8) -> Result<RemoteBuffer, drtio::Error> {
+        let reply = drtio::aux_transact(io, destination, drtio::DEFAULT_TIMEOUT, true,
+            drtioaux::Payload::AnalyzerHeaderRequest)?;
         let (sent, total, overflow) = match reply {
             drtioaux::Payload::AnalyzerHeader { sent_bytes, total_byte_count, overflow_occurred } => 
                 (sent_bytes, total_byte_count, overflow_occurred),
@@ -94,8 +90,8 @@ pub mod remote_analyzer {
         if sent > 0 {
             let mut last_packet = false;
             while !last_packet {
-                let reply = aux_transact(io, aux_mutex, linkno, 
-                    &drtioaux::Payload::AnalyzerDataRequest { destination: destination })?;
+                let reply = drtio::aux_transact(io, destination, drtio::DEFAULT_TIMEOUT, true, 
+                    drtioaux::Payload::AnalyzerDataRequest)?;
                 match reply {
                     drtioaux::Payload::AnalyzerData { last, length, data } => { 
                         last_packet = last;
@@ -114,13 +110,12 @@ pub mod remote_analyzer {
         })
     }
 
-    fn remote_query(io: &Io, aux_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable,
-        up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>
+    fn remote_query(io: &Io, up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>
     ) -> Result<Vec<RemoteBuffer>, drtio::Error> {
         let mut remote_buffers: Vec<RemoteBuffer> = Vec::new();
         for i in 1..drtio_routing::DEST_COUNT {
-            if destination_up(up_destinations, i as u8) {
-                remote_buffers.push(download_data(io, aux_mutex, routing_table, i as u8)?);
+            if drtio::destination_up(up_destinations, i as u8) {
+                remote_buffers.push(download_data(io, i as u8)?);
             }
         }
         Ok(remote_buffers)
@@ -129,8 +124,7 @@ pub mod remote_analyzer {
 }   
 
 
-fn worker(stream: &mut TcpStream, _io: &Io, _aux_mutex: &Mutex, 
-    _routing_table: &drtio_routing::RoutingTable,
+fn worker(stream: &mut TcpStream, _io: &Io,
     _up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>
 ) -> Result<(), IoError<SchedError>> {
     let local_data = unsafe { &BUFFER.data[..] };
@@ -143,7 +137,7 @@ fn worker(stream: &mut TcpStream, _io: &Io, _aux_mutex: &Mutex,
 
     #[cfg(has_drtio)]
     let remote = remote_analyzer::get_data(
-        _io, _aux_mutex, _routing_table, _up_destinations);
+        _io, _up_destinations);
     #[cfg(has_drtio)]
     let (header, remote_data) = match remote {
         Ok(remote) => (Header {
@@ -190,8 +184,7 @@ fn worker(stream: &mut TcpStream, _io: &Io, _aux_mutex: &Mutex,
     Ok(())
 }
 
-pub fn thread(io: Io, aux_mutex: &Mutex,
-    routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
+pub fn thread(io: Io,
     up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
     let listener = TcpListener::new(&io, 65535);
     listener.listen(1382).expect("analyzer: cannot listen");
@@ -204,8 +197,7 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
 
         disarm();
 
-        let routing_table = routing_table.borrow();
-        match worker(&mut stream, &io, aux_mutex, &routing_table, up_destinations) {
+        match worker(&mut stream, &io, up_destinations) {
             Ok(())   => (),
             Err(err) => error!("analyzer aborted: {}", err)
         }

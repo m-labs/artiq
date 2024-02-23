@@ -61,7 +61,7 @@ impl Repeater {
             }
             RepeaterState::SendPing { ping_count } => {
                 if rep_link_rx_up(self.repno) {
-                    drtioaux::send(self.auxno, &drtioaux::Packet::EchoRequest).unwrap();
+                    drtioaux::send(self.auxno, &drtioaux::Payload::EchoRequest).unwrap();
                     self.state = RepeaterState::WaitPingReply {
                         ping_count: ping_count + 1,
                         timeout: clock::get_ms() + 100
@@ -73,7 +73,7 @@ impl Repeater {
             }
             RepeaterState::WaitPingReply { ping_count, timeout } => {
                 if rep_link_rx_up(self.repno) {
-                    if let Ok(Some(drtioaux::Packet::EchoReply)) = drtioaux::recv(self.auxno) {
+                    if let Ok(Some(drtioaux::Payload::EchoReply)) = drtioaux::recv(self.auxno) {
                         info!("[REP#{}] remote replied after {} packets", self.repno, ping_count);
                         self.state = RepeaterState::Up;
                         if let Err(e) = self.sync_tsc() {
@@ -197,10 +197,10 @@ impl Repeater {
     fn handle_async(&self, routing_table: &drtio_routing::RoutingTable, rank: u8, self_destination: u8, router: &mut Router
     ) -> Result<(), drtioaux::Error<!>> {
         loop {
-            drtioaux::send(self.auxno, &drtioaux::Packet::RoutingRetrievePackets).unwrap();
+            drtioaux::send(self.auxno, &drtioaux::Payload::RoutingRetrievePackets).unwrap();
             let reply = self.recv_aux_timeout(200)?;
             match reply {
-                drtioaux::Packet::RoutingNoPackets => break,
+                drtioaux::Payload::RoutingNoPackets => break,
                 packet => router.route(packet, routing_table, rank, self_destination)
             }
         }
@@ -234,7 +234,7 @@ impl Repeater {
         // TSCAck is the only aux packet that is sent spontaneously
         // by the satellite, in response to a TSC set on the RT link.
         let reply = self.recv_aux_timeout(10000)?;
-        if reply == drtioaux::Packet::TSCAck {
+        if reply == drtioaux::Payload::TSCAck {
             return Ok(());
         } else {
             return Err(drtioaux::Error::UnexpectedReply);
@@ -246,12 +246,12 @@ impl Repeater {
             return Ok(());
         }
 
-        drtioaux::send(self.auxno, &drtioaux::Packet::RoutingSetPath {
+        drtioaux::send(self.auxno, &drtioaux::Payload::RoutingSetPath {
             destination: destination,
             hops: *hops
         }).unwrap();
         let reply = self.recv_aux_timeout(200)?;
-        if reply != drtioaux::Packet::RoutingAck {
+        if reply != drtioaux::Payload::RoutingAck {
             return Err(drtioaux::Error::UnexpectedReply);
         }
         Ok(())
@@ -268,11 +268,11 @@ impl Repeater {
         if self.state != RepeaterState::Up {
             return Ok(());
         }
-        drtioaux::send(self.auxno, &drtioaux::Packet::RoutingSetRank {
+        drtioaux::send(self.auxno, &drtioaux::Payload::RoutingSetRank {
             rank: rank
         }).unwrap();
         let reply = self.recv_aux_timeout(200)?;
-        if reply != drtioaux::Packet::RoutingAck {
+        if reply != drtioaux::Payload::RoutingAck {
             return Err(drtioaux::Error::UnexpectedReply);
         }
         Ok(())
@@ -288,9 +288,9 @@ impl Repeater {
             return Ok(());
         }
 
-        drtioaux::send(self.auxno, &drtioaux::Packet::ResetRequest).unwrap();
+        drtioaux::send(self.auxno, &drtioaux::Payload::ResetRequest).unwrap();
         let reply = self.recv_aux_timeout(200)?;
-        if reply != drtioaux::Packet::ResetAck {
+        if reply != drtioaux::Payload::ResetAck {
             return Err(drtioaux::Error::UnexpectedReply);
         }
         Ok(())

@@ -60,12 +60,12 @@ impl PayloadStatus {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Clone, Copy, Debug)]
 pub struct Packet {
     // header
-    source: u8,
-    destination: u8,
-    transaction_id: u8,
+    pub source: u8,
+    pub destination: u8,
+    pub transaction_id: u8,
     // actual content below
     pub payload: Payload
 }
@@ -90,7 +90,7 @@ impl Packet {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Clone, Copy, Debug)]
 pub enum Payload {
     EchoRequest,
     EchoReply,
@@ -106,7 +106,7 @@ pub enum Payload {
     DestinationCollisionReply { channel: u16 },
     DestinationBusyReply { channel: u16 },
 
-    RoutingSetPath { hops: [u8; 32] },
+    RoutingSetPath { destination: u8, hops: [u8; 32] },
     RoutingSetRank { rank: u8 },
     RoutingRetrievePackets,
     RoutingNoPackets,
@@ -187,9 +187,11 @@ impl Payload {
             },
 
             0x30 => {
+                let destination = reader.read_u8()?;
                 let mut hops = [0; 32];
                 reader.read_exact(&mut hops)?;
                 Payload::RoutingSetPath {
+                    destination: destination,
                     hops: hops
                 }
             },
@@ -428,8 +430,9 @@ impl Payload {
                 writer.write_u16(channel)?;
             },
 
-            Payload::RoutingSetPath { hops } => {
+            Payload::RoutingSetPath { destination, hops } => {
                 writer.write_u8(0x30)?;
+                writer.write_u8(destination)?;
                 writer.write_all(&hops)?;
             },
             Payload::RoutingSetRank { rank } => {

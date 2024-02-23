@@ -15,39 +15,37 @@ const ASYNC_ERROR_SEQUENCE_ERROR: u8 = 1 << 2;
 #[cfg(has_drtio)]
 pub mod drtio {
     use super::*;
-    use alloc::vec::Vec;
+    use alloc::{vec::Vec, collections::BTreeMap};
     use drtioaux;
     use proto_artiq::drtioaux_proto::{MASTER_PAYLOAD_MAX_SIZE, PayloadStatus};
     use rtio_dma::remote_dma;
-    #[cfg(has_rtio_analyzer)]
-    use analyzer::remote_analyzer::RemoteBuffer;
     use kernel::subkernel;
-    use sched::Error as SchedError;
+    use sched::{Error as SchedError, BinarySemaphore};
 
     #[derive(Fail, Debug)]
     pub enum Error {
         #[fail(display = "timed out")]
         Timeout,
         #[fail(display = "unexpected packet: {:?}", _0)]
-        UnexpectedPacket(drtioaux::Packet),
-        #[fail(display = "aux packet error")]
-        AuxError,
+        UnexpectedPacket(drtioaux::Payload),
+        #[fail(display = "aux packet error: {:?}", _0)]
+        AuxError(drtioaux::Error<!>),
         #[fail(display = "link down")]
         LinkDown,
+        #[fail(display = "link not ready")]
+        LinkNotReady,
         #[fail(display = "unexpected reply")]
         UnexpectedReply,
-        #[fail(display = "error adding DMA trace on satellite #{}", _0)]
-        DmaAddTraceFail(u8),
-        #[fail(display = "error erasing DMA trace on satellite #{}", _0)]
-        DmaEraseFail(u8),
-        #[fail(display = "error playing back DMA trace on satellite #{}", _0)]
-        DmaPlaybackFail(u8),
-        #[fail(display = "error adding subkernel on satellite #{}", _0)]
-        SubkernelAddFail(u8),
-        #[fail(display = "error on subkernel run request on satellite #{}", _0)]
-        SubkernelRunFail(u8),
         #[fail(display = "sched error: {}", _0)]
         SchedError(#[cause] SchedError),
+        #[fail(display = "transaction does not exist")]
+        TransactionDoesNotExist,
+        #[fail(display = "transaction in wrong state")]
+        TransactionWrongState,
+        #[fail(display = "open transaction limit reached")]
+        TransactionLimitReached,
+        #[fail(display = "transaction failed")]
+        TransactionFailed,
     }
 
     impl From<SchedError> for Error {
@@ -56,101 +54,434 @@ pub mod drtio {
         }
     }
 
-    #[derive(PartialEq)]
+    impl From<drtioaux::Error<!>> for Error {
+        fn from(error: drtioaux::Error<!>) -> Error {
+            Error::AuxError(error)
+        }
+    }
+
+    #[derive(PartialEq, Clone, Copy, Debug)]
+    enum LinkState {
+        Down,
+        Up(u64)
+    }
+
+    impl LinkState {
+        fn is_up(&self) -> bool {
+            match self {
+                LinkState::Up(_) => true,
+                _ => false
+            }
+        }
+    }
+
+    #[derive(PartialEq, Debug)]
     enum TransactionState {
         Unsent,
         Sent,
         Acknowledged,
-        Received(Payload),
-        Error(Error)
+        Received(drtioaux::Payload),
+        TimedOut,
     }
 
     type TransactionHandle = u8;
 
+    pub const DEFAULT_TIMEOUT: u64 = 200;
+    const DEFAULT_ACK_TIMEOUT: u64 = 50;
+    const LINK_COOLDOWN: u64 = 5;
+
     struct Transaction {
-        packet: Packet,
-        last_send_time: u64,
+        packet: drtioaux::Packet,
+        last_action_time: u64,
         max_time: u64,
         state: TransactionState,
-        semaphore: BinarySemaphore
+        semaphore: BinarySemaphore,
+        requires_response: bool,  // transactions to which normal ACK is enough
+        force_linkno: Option<u8>, // linkno not determined by routing table (reset packets need that)
     }
 
     impl Transaction {
-        pub fn new(packet: Packet, last_send_time: u64, timeout: u64) -> Transaction {
-            let last_send_time = clock::get_ms();
+        pub fn new(packet: drtioaux::Packet, timeout: u64, requires_response: bool, force_linkno: Option<u8>) -> Transaction {
+            let last_action_time = clock::get_ms();
             Transaction {
                 packet: packet,
-                last_send_time: last_send_time
-                max_time: last_send_time + timeout
-                state: TransactionState::Sent,
-                semaphore: BinarySemaphore::new(),
+                last_action_time: last_action_time,
+                max_time: last_action_time + timeout,
+                state: TransactionState::Unsent,
+                semaphore: BinarySemaphore::new(false),
+                requires_response: requires_response,
+                force_linkno: force_linkno,
             }
         }
 
-        pub fn wait(&mut self, io: &Io) -> Result<Payload, Error> {
-            if state == TranscationState::Sent || state == TransactionState::Acknowledged {
-                self.semaphore.wait(io);
+        pub fn wait(&mut self, io: &Io) -> Result<drtioaux::Payload, Error> {
+            if self.state == TransactionState::Sent || self.state == TransactionState::Acknowledged {
+                    self.semaphore.wait(io)?;
             }
             match self.state {
-                TransactionState::Received(response) => Ok(response),
-                TransactionState::Error(err) => Err(err),
-                _ => Err(Error::Timeout)
-            }
-        }
-
-        pub fn received_response(&mut self, io: &Io, response: Payload) {
-            self.state = TransactionState::Received(response);
-            self.semaphore.signal();
-            io.relinquish().unwrap();
-        }
-
-        pub fn received_ack(&mut self) {
-            if state == TranscationState::Sent {
-                self.state = TransactionState::Acknowledged;
-            }
-        }
-
-        pub fn timed_out(&mut self) {
-            self.state = TransactionState::Error(Error::Timeout);
-            self.semaphore.signal();
-        }
-
-        pub fn is_resend_time(&mut self, ack_timeout: u32) -> bool {
-            if state == TransactionState::Unsent {
-                self.state = TransactionState::Sent;
-                self.last_send_time = clock::get_ms();
-                return true
-            }
-            else if state == TransactionState::Sent {
-                let current_time = clock::get_ms();
-                if self.last_send_time + ack_timeout >= current_time {
-                    self.last_send_time = current_time;
-                    return true;
+                TransactionState::Acknowledged => {
+                    if !self.requires_response { 
+                        Ok(drtioaux::Payload::PacketAck)
+                    } else {
+                        // if this occurs check if signal works properly
+                        unreachable!()
+                    }
                 }
+                TransactionState::Received(response) => Ok(response),
+                TransactionState::TimedOut => Err(Error::Timeout),
+                _ => Err(Error::TransactionWrongState)
             }
-            // other states should not trigger resending
-            false
+        }
+
+        pub fn record_response(&mut self, response: drtioaux::Payload) {
+            if response == drtioaux::Payload::PacketAck && self.state == TransactionState::Sent {
+                self.state = TransactionState::Acknowledged;
+                if !self.requires_response {
+                    self.semaphore.signal();
+                }
+            } else if self.state == TransactionState::Sent || self.state == TransactionState::Acknowledged {
+                self.state = TransactionState::Received(response);
+                self.semaphore.signal();
+            }
+        }
+
+        pub fn can_be_deleted(&self, current_time: u64) -> bool {
+            match self.state {
+                TransactionState::TimedOut |
+                    TransactionState::Received(_) => current_time + 2*self.max_time >= self.last_action_time,
+                TransactionState::Acknowledged => !self.requires_response && (current_time + 2*self.max_time >= self.last_action_time),
+                _ => false
+            }
+        }
+
+        pub fn should_send(&mut self, current_time: u64) -> bool {
+            // returns true if message needs to be sent
+            // checks for timeout first
+            if (self.state == TransactionState::Unsent ||
+                    self.state == TransactionState::Sent ||
+                    self.state == TransactionState::Acknowledged) &&
+                    current_time > self.max_time {
+                self.state = TransactionState::TimedOut;
+                false
+            } else match self.state {
+                TransactionState::Unsent => true,
+                TransactionState::Sent => current_time >= self.last_action_time + DEFAULT_ACK_TIMEOUT,
+                _ => false
+            }
+        }
+
+        pub fn update_last_action_time(&mut self, current_time: u64) {
+            // state updated only after successful send
+            if self.state == TransactionState::Unsent {
+                self.state = TransactionState::Sent;
+                self.last_action_time = current_time;
+            } else if self.state == TransactionState::Sent {
+                self.last_action_time = current_time;
+            }
         }
     }
 
     struct TransactionManager {
         transactions: BTreeMap<u8, Transaction>,
+        scheduled_acks: Vec<(TransactionHandle, u8)>,
+        incoming_transactions: BTreeMap<(TransactionHandle, u8), u64>,
+        routable_packets: Vec<drtioaux::Packet>,
         next_id: TransactionHandle,
+        recv_flush: Option<(u64, BinarySemaphore)>,
+        self_destination: u8,
     }
 
-    pub fn startup(io: &Io, aux_mutex: &Mutex,
-            routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
+    impl TransactionManager {
+        pub const fn new() -> TransactionManager {
+            TransactionManager {
+                transactions: BTreeMap::new(),
+                scheduled_acks: Vec::new(),
+                incoming_transactions: BTreeMap::new(),
+                routable_packets: Vec::new(),
+                next_id: 0,
+                recv_flush: None,
+                self_destination: 0,
+            }
+        }
+
+        pub fn set_self_destination(&mut self, dest: u8) {
+            self.self_destination = dest;
+        }
+
+        // public API
+        pub fn transact(&mut self, io: &Io, destination: u8, payload: drtioaux::Payload,
+            timeout: u64, requires_response: bool, force_linkno: Option<u8>
+        ) -> Result<drtioaux::Payload, Error> {
+            let handle = self.transact_async(destination, payload, timeout, requires_response, force_linkno)?;
+            self.transactions.get_mut(&handle).unwrap().wait(io)
+        }
+
+        // public API
+        pub fn transact_async(&mut self, destination: u8, payload: drtioaux::Payload,
+            timeout: u64, requires_response: bool, force_linkno: Option<u8>
+        ) -> Result<TransactionHandle, Error> {
+            if self.transactions.len() >= 128 {
+                return Err(Error::TransactionLimitReached)
+            }
+            self.next_id = (self.next_id + 1) % 128;
+            while self.transactions.get(&self.next_id).is_some() {
+                self.next_id = (self.next_id + 1) % 128;
+            }
+            let transaction_id = self.next_id;
+            let transaction = Transaction::new(
+                drtioaux::Packet { 
+                    source: self.self_destination,
+                    destination: destination,
+                    transaction_id: transaction_id,
+                    payload: payload
+                }, timeout, requires_response, force_linkno);
+            // will be dealt with by the send thread
+            self.transactions.insert(transaction_id, transaction);
+            Ok(transaction_id)
+        }
+
+        // public API
+        pub fn await_transaction(&mut self, io: &Io, handle: TransactionHandle) -> Result<drtioaux::Payload, Error> {
+            match self.transactions.get_mut(&handle) {
+                Some(transaction) => transaction.wait(io),
+                None => Err(Error::TransactionDoesNotExist)
+            }
+        }
+
+        // when recv gets a response
+        pub fn handle_response(&mut self, io: &Io, ddma_mutex: &Mutex, 
+            subkernel_mutex: &Mutex, packet: &drtioaux::Packet) {
+            // ACK any response
+            self.scheduled_acks.push((packet.transaction_id, packet.source));
+            let transaction = self.transactions.get_mut(&(packet.transaction_id & 0x7F));
+            let is_expected = match &transaction {
+                Some(transaction) => transaction.packet.destination == packet.source,
+                _ => false
+            };
+            if is_expected {
+                transaction.unwrap().record_response(packet.payload);
+            } else {
+                match &packet.payload {
+                    drtioaux::Payload::DmaPlaybackStatus { id, error, channel, timestamp } => {
+                        remote_dma::playback_done(io, ddma_mutex, *id, packet.source, *error, *channel, *timestamp);
+                    },
+                    drtioaux::Payload::SubkernelFinished { id, with_exception, exception_src } => {
+                        subkernel::subkernel_finished(io, subkernel_mutex, *id, *with_exception, *exception_src);
+                    },
+                    drtioaux::Payload::SubkernelMessage { id, status, length, data } => {
+                        subkernel::message_handle_incoming(io, subkernel_mutex, *id, *status, *length as usize, &data);
+                        // no subkernelmsgack, normal ack is enough
+                    },
+                    packet => warn!("received unsolicited packet: {:?}", packet)
+                };
+            }
+        }
+
+        // when recv receives packet that is not targeted for master
+        pub fn route_packet(&mut self, packet: &drtioaux::Packet) {
+            self.routable_packets.push(packet.clone());
+        }
+        
+
+        // for send loop
+        pub fn send_ack(&mut self, routing_table: &drtio_routing::RoutingTable, 
+            link_states: &Urc<RefCell<[LinkState; csr::DRTIO.len()]>>, 
+            current_time: u64) -> bool {
+            let old_len = self.scheduled_acks.len();
+            let self_destination = self.self_destination;
+            self.scheduled_acks.retain(|&(transaction_id, destination)| {
+                match send(routing_table, link_states, current_time, None, &drtioaux::Packet { 
+                    source: self_destination,
+                    destination: destination,
+                    transaction_id: transaction_id,
+                    payload: drtioaux::Payload::PacketAck 
+                }) {
+                    Ok(()) => false,
+                    Err(Error::LinkNotReady) | Err(Error::LinkDown) => true,
+                    Err(e) => { warn!("error sending packet ack: {:?}", e); true }
+                }
+            });
+            // returns true if any acks were sent
+            self.scheduled_acks.len() != old_len
+        }
+
+        // for send loop
+        pub fn send_routable_packet(&mut self, routing_table: &drtio_routing::RoutingTable, 
+            link_states: &Urc<RefCell<[LinkState; csr::DRTIO.len()]>>, 
+            current_time: u64) -> bool {
+            let old_len = self.routable_packets.len();
+            self.routable_packets.retain(|packet| {
+                match send(routing_table, link_states, current_time, None, packet) {
+                    Ok(()) => false,
+                    // routable packet is also discarded if link is down
+                    Err(Error::LinkNotReady) | Err(Error::LinkDown) => false,
+                    Err(e) => { warn!("error rerouting packet: {:?}", e); true }
+                }
+            });
+            // returns true if any packets were rerouted
+            self.routable_packets.len() != old_len
+        }
+
+        // for send loop
+        pub fn handle_transactions(&mut self, 
+            routing_table: &drtio_routing::RoutingTable,
+            link_states: &Urc<RefCell<[LinkState; csr::DRTIO.len()]>>,
+            current_time: u64
+        ) -> () {
+            self.transactions.retain(|_transaction_id, transaction| {
+                let need_send = transaction.should_send(current_time);
+                if need_send {
+                    match send(routing_table, link_states, current_time, transaction.force_linkno, &transaction.packet) {
+                        Ok(()) => transaction.update_last_action_time(current_time),
+                        Err(Error::LinkNotReady) | Err(Error::LinkDown) => (),
+                        Err(e) => warn!("error sending packet: {:?}", e)
+                    }
+                } else if transaction.can_be_deleted(current_time) {
+                    // clean up finished transactions to free up IDs
+                    return false;
+                }
+                true
+            });
+        }
+
+        pub fn recv_flush_check(&mut self) -> bool {
+            if let Some((start_time, semaphore)) = &self.recv_flush {
+                if clock::get_ms() > start_time + DEFAULT_TIMEOUT {
+                    semaphore.signal();
+                    self.recv_flush = None;
+                } else {
+                    return true;
+                }
+            }
+            false
+        }
+
+        pub fn recv_flush(&mut self, io: &Io) -> Result<(), Error>{
+            // received packets will be discarded for the next 200ms to ensure clean state
+            let semaphore = BinarySemaphore::new(false);
+            self.recv_flush = Some((clock::get_ms(), semaphore.clone()));
+            // hang on a semaphore to prevent any further actions or new transactions
+            semaphore.wait(io)?;
+            Ok(())
+        }
+    }
+
+    static mut TRANSACTION_MANAGER: TransactionManager = TransactionManager::new();
+
+    pub fn startup(io: &Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
             up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
             ddma_mutex: &Mutex, subkernel_mutex: &Mutex) {
-        let aux_mutex = aux_mutex.clone();
-        let routing_table = routing_table.clone();
-        let up_destinations = up_destinations.clone();
-        let ddma_mutex = ddma_mutex.clone();
-        let subkernel_mutex = subkernel_mutex.clone();
-        io.spawn(8192, move |io| {
-            let routing_table = routing_table.borrow();
-            link_thread(io, &aux_mutex, &routing_table, &up_destinations, &ddma_mutex, &subkernel_mutex);
-        });
+        let link_states = Urc::new(RefCell::new(
+            [LinkState::Down; csr::DRTIO.len()]));
+        {
+            let self_destination = routing_table.borrow().determine_self_destination();
+            unsafe { TRANSACTION_MANAGER.set_self_destination(self_destination) }
+            let routing_table = routing_table.clone();
+            let up_destinations = up_destinations.clone();
+            let link_states = link_states.clone();
+            let ddma_mutex = ddma_mutex.clone();
+            let subkernel_mutex = subkernel_mutex.clone();
+            io.spawn(8192, move |io| {
+                let routing_table = routing_table.borrow();
+                link_thread(io, &routing_table, &link_states, &up_destinations, &ddma_mutex, &subkernel_mutex);
+            });
+        }
+        {
+            let link_states = link_states.clone();
+            let ddma_mutex = ddma_mutex.clone();
+            let subkernel_mutex = subkernel_mutex.clone();
+            io.spawn(4096, move |io| {
+                recv_thread(io, &ddma_mutex, &subkernel_mutex, &link_states);
+            });
+        }
+        {
+            let routing_table = routing_table.clone();
+            let link_states = link_states.clone();
+            io.spawn(8192, move |io| {
+                let routing_table = routing_table.borrow();
+                send_thread(io, &routing_table, &link_states);
+            });
+        }
+    }
+
+    fn recv_thread(io: Io, ddma_mutex: &Mutex, subkernel_mutex: &Mutex, link_states: &Urc<RefCell<[LinkState; csr::DRTIO.len()]>>) {
+        loop {
+            for linkno in 0..csr::DRTIO.len() {
+                if !link_states.borrow()[linkno].is_up() {
+                    continue;
+                }
+                let res = drtioaux::recv(linkno as u8);
+                if unsafe { TRANSACTION_MANAGER.recv_flush_check() } {
+                    continue;
+                }
+                if let Err(e) = res {
+                    warn!("[LINK#{}] aux packet error: {:?}", linkno, e);
+                } else if let Ok(Some(packet)) = res {
+                    let destination = packet.destination;
+                    if destination != 0 {
+                        unsafe { TRANSACTION_MANAGER.route_packet(&packet); }
+                    } else {
+                        unsafe {
+                            TRANSACTION_MANAGER.handle_response(&io, ddma_mutex, subkernel_mutex, &packet);
+                        }
+                    }
+                }
+            }
+            io.relinquish().unwrap();
+        }
+    }
+
+    fn send(routing_table: &drtio_routing::RoutingTable, 
+            link_states: &Urc<RefCell<[LinkState; csr::DRTIO.len()]>>, 
+            current_time: u64, force_linkno: Option<u8>, packet: &drtioaux::Packet) -> Result<(), Error> {
+        let linkno = force_linkno.unwrap_or(routing_table.0[packet.destination as usize][0] - 1);
+        let mut link_states = link_states.borrow_mut();
+        if let LinkState::Up(time) = link_states[linkno as usize] {
+            if current_time > time + LINK_COOLDOWN {
+                drtioaux::send(linkno, packet)?;
+                link_states[linkno as usize] = LinkState::Up(current_time);
+                Ok(())
+            } else {
+                Err(Error::LinkNotReady)
+            }
+        } else {
+            Err(Error::LinkDown)
+        }
+    }
+
+    fn send_thread(io: Io, routing_table: &drtio_routing::RoutingTable, link_states: &Urc<RefCell<[LinkState; csr::DRTIO.len()]>>) {
+        loop {
+            io.relinquish().unwrap();
+            let current_time = clock::get_ms();
+            if unsafe { TRANSACTION_MANAGER.send_ack(routing_table, link_states, current_time) } {
+                continue;
+            } else if unsafe { TRANSACTION_MANAGER.send_routable_packet(routing_table, link_states, current_time) } {
+                continue;
+            } else {
+                unsafe { TRANSACTION_MANAGER.handle_transactions(routing_table, link_states, current_time); }
+                for ((tx_id, dest), receiving_time) in unsafe { TRANSACTION_MANAGER.incoming_transactions.iter() } {
+                    // clean up incoming (async) transactions after 4x ACK_TIMEOUT
+                    if current_time > receiving_time + 4*DEFAULT_ACK_TIMEOUT {
+                        unsafe { TRANSACTION_MANAGER.incoming_transactions.remove(&(*tx_id, *dest)); }
+                    }
+                }
+            }
+        }
+    }
+
+    // public API
+    pub fn aux_transact(io: &Io, destination: u8, timeout: u64, requires_response: bool, payload: drtioaux::Payload) -> Result<drtioaux::Payload, Error> {
+        unsafe { TRANSACTION_MANAGER.transact(io, destination, payload, timeout, requires_response, None) }
+    }
+
+    // transaction 
+    pub fn async_aux_transact(destination: u8, timeout: u64, requires_response: bool, payload: drtioaux::Payload) -> TransactionHandle {
+        unsafe { TRANSACTION_MANAGER.transact_async(destination, payload, timeout, requires_response, None).unwrap() }
+    }
+
+    // public API
+    pub fn await_transaction(io: &Io, handle: TransactionHandle) -> Result<drtioaux::Payload, Error> {
+        unsafe { TRANSACTION_MANAGER.await_transaction(io, handle) }
     }
 
     fn link_rx_up(linkno: u8) -> bool {
@@ -160,14 +491,8 @@ pub mod drtio {
         }
     }
 
-    fn link_has_async_ready(linkno: u8) -> bool {
-        let linkno = linkno as usize;
-        let async_ready;
-        unsafe {
-            async_ready = (csr::DRTIO[linkno].async_messages_ready_read)() == 1;
-            (csr::DRTIO[linkno].async_messages_ready_write)(1);
-        }
-        async_ready
+    pub fn clear_buffers(io: &Io) -> Result<(), Error> {
+        unsafe { TRANSACTION_MANAGER.recv_flush(io) }
     }
 
     fn recv_aux_timeout(io: &Io, linkno: u8, timeout: u32) -> Result<drtioaux::Packet, Error> {
@@ -179,93 +504,25 @@ pub mod drtio {
             if clock::get_ms() > max_time {
                 return Err(Error::Timeout);
             }
-            match drtioaux::recv(linkno) {
-                Ok(Some(packet)) => return Ok(packet),
-                Ok(None) => (),
-                Err(_) => return Err(Error::AuxError)
+            match drtioaux::recv(linkno)? {
+                Some(packet) => return Ok(packet),
+                None => (),
             }
             io.relinquish()?;
         }
     }
 
-    fn process_async_packets(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
-            routing_table: &drtio_routing::RoutingTable, linkno: u8)
-    {
-        if link_has_async_ready(linkno) {
-            loop {
-                let reply = aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::RoutingRetrievePackets);
-                if let Ok(packet) = reply {
-                    match packet {
-                        // packets to be consumed locally
-                        drtioaux::Packet::DmaPlaybackStatus { id, source, destination: 0, error, channel, timestamp } => {
-                            remote_dma::playback_done(io, ddma_mutex, id, source, error, channel, timestamp);
-                        },
-                        drtioaux::Packet::SubkernelFinished { id, destination: 0, with_exception, exception_src } => {
-                            subkernel::subkernel_finished(io, subkernel_mutex, id, with_exception, exception_src);
-                        },
-                        drtioaux::Packet::SubkernelMessage { id, source: from, destination: 0, status, length, data } => {
-                            subkernel::message_handle_incoming(io, subkernel_mutex, id, status, length as usize, &data);
-                            // acknowledge receiving part of the message
-                            drtioaux::send(linkno, 
-                                &drtioaux::Packet::SubkernelMessageAck { destination: from }
-                            ).unwrap();
-                            // give the satellite some time to process the message
-                            io.sleep(10).unwrap();
-                        },
-                        // routable packets
-                        drtioaux::Packet::DmaAddTraceRequest      { destination, .. } |
-                            drtioaux::Packet::DmaAddTraceReply        { destination, .. } |
-                            drtioaux::Packet::DmaRemoveTraceRequest   { destination, .. } |
-                            drtioaux::Packet::DmaRemoveTraceReply     { destination, .. } |
-                            drtioaux::Packet::DmaPlaybackRequest      { destination, .. } |
-                            drtioaux::Packet::DmaPlaybackReply        { destination, .. } |
-                            drtioaux::Packet::SubkernelLoadRunRequest { destination, .. } |
-                            drtioaux::Packet::SubkernelLoadRunReply   { destination, .. } |
-                            drtioaux::Packet::SubkernelMessage        { destination, .. } |
-                            drtioaux::Packet::SubkernelMessageAck     { destination, .. } |
-                            drtioaux::Packet::DmaPlaybackStatus       { destination, .. } |
-                            drtioaux::Packet::SubkernelFinished       { destination, .. } => {
-                            let dest_link = routing_table.0[destination as usize][0] - 1; 
-                            if dest_link == linkno {
-                                warn!("[LINK#{}] Re-routed packet would return to the same link, dropping: {:?}", linkno, packet);
-                            } else if destination == 0 {
-                                warn!("[LINK#{}] Received invalid routable packet: {:?}", linkno, packet)
-                            } else {
-                                drtioaux::send(dest_link, &packet).unwrap();
-                            }
-                        }
-
-                        drtioaux::Packet::RoutingNoPackets => break,
-
-                        other => warn!("[LINK#{}] Received an unroutable packet: {:?}", linkno, other)
-                    }
-                } else {
-                    warn!("[LINK#{}] Error handling async packets ({})", linkno, reply.unwrap_err());
-                    return;
-                }
-            }   
-        }
-    }
-
-    pub fn aux_transact(io: &Io, aux_mutex: &Mutex, linkno: u8, request: &drtioaux::Packet
-    ) -> Result<drtioaux::Packet, Error> {
-        let _lock = aux_mutex.lock(io)?;
-        drtioaux::send(linkno, request).unwrap();
+    fn setup_transact(io: &Io, linkno: u8, payload: drtioaux::Payload) -> Result<drtioaux::Payload, Error> {
+        drtioaux::send(linkno, &drtioaux::Packet {
+            source: 0,
+            destination: 0,
+            transaction_id: 0,
+            payload: payload }).unwrap();
         let reply = recv_aux_timeout(io, linkno, 200)?;
-        Ok(reply)
+        Ok(reply.payload)
     }
 
-    pub fn clear_buffers(io: &Io, aux_mutex: &Mutex) {
-        let _lock = aux_mutex.lock(io).unwrap();
-        for linkno in 0..(csr::DRTIO.len() as u8) {
-            if !link_rx_up(linkno) {
-                continue;
-            }
-            let _ = recv_aux_timeout(io, linkno, 200);
-        }
-    }
-
-    fn ping_remote(io: &Io, aux_mutex: &Mutex, linkno: u8) -> u32 {
+    fn ping_remote(io: &Io, linkno: u8) -> u32 {
         let mut count = 0;
         loop {
             if !link_rx_up(linkno) {
@@ -275,9 +532,9 @@ pub mod drtio {
             if count > 100 {
                 return 0;
             }
-            let reply = aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::EchoRequest);
+            let reply = setup_transact(io, linkno, drtioaux::Payload::EchoRequest);
             match reply {
-                Ok(drtioaux::Packet::EchoReply) => {
+                Ok(drtioaux::Payload::EchoReply) => {
                     // make sure receive buffer is drained
                     let max_time = clock::get_ms() + 200;
                     loop {
@@ -294,44 +551,41 @@ pub mod drtio {
         }
     }
 
-    fn sync_tsc(io: &Io, aux_mutex: &Mutex, linkno: u8) -> Result<(), Error> {
-        let _lock = aux_mutex.lock(io).unwrap();
-
+    fn sync_tsc(io: &Io, linkno: u8) -> Result<(), Error> {
         unsafe {
             (csr::DRTIO[linkno as usize].set_time_write)(1);
             while (csr::DRTIO[linkno as usize].set_time_read)() == 1 {}
         }
         // TSCAck is the only aux packet that is sent spontaneously
         // by the satellite, in response to a TSC set on the RT link.
-        let reply = recv_aux_timeout(io, linkno, 10000)?;
-        if reply == drtioaux::Packet::TSCAck {
+        let reply = recv_aux_timeout(io, linkno, 10000)?.payload;
+        if reply == drtioaux::Payload::TSCAck {
             return Ok(());
         } else {
             return Err(Error::UnexpectedReply);
         }
     }
 
-    fn load_routing_table(io: &Io, aux_mutex: &Mutex,
+    fn load_routing_table(io: &Io,
         linkno: u8, routing_table: &drtio_routing::RoutingTable) -> Result<(), Error> {
         for i in 0..drtio_routing::DEST_COUNT {
-            let reply = aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::RoutingSetPath {
+            let reply = setup_transact(io, linkno, drtioaux::Payload::RoutingSetPath {
                 destination: i as u8,
                 hops: routing_table.0[i]
             })?;
-            if reply != drtioaux::Packet::RoutingAck {
+            if reply != drtioaux::Payload::RoutingAck {
                 return Err(Error::UnexpectedReply);
             }
         }
         Ok(())
     }
 
-    fn set_rank(io: &Io, aux_mutex: &Mutex,
-        linkno: u8, rank: u8) -> Result<(), Error> {
-        let reply = aux_transact(io, aux_mutex, linkno,
-            &drtioaux::Packet::RoutingSetRank {
+    fn set_rank(io: &Io, linkno: u8, rank: u8) -> Result<(), Error> {
+        let reply = setup_transact(io, linkno,
+            drtioaux::Payload::RoutingSetRank {
                 rank: rank
             })?;
-        if reply != drtioaux::Packet::RoutingAck {
+        if reply != drtioaux::Payload::RoutingAck {
             return Err(Error::UnexpectedReply);
         }
         Ok(())
@@ -347,15 +601,6 @@ pub mod drtio {
             info!("[DEST#{}] buffer space is {}",
                 destination, (csr::DRTIO[linkno].o_dbg_buffer_space_read)());
             (csr::DRTIO[linkno].force_destination_write)(0);
-        }
-    }
-
-    fn process_unsolicited_aux(io: &Io, aux_mutex: &Mutex, linkno: u8) {
-        let _lock = aux_mutex.lock(io).unwrap();
-        match drtioaux::recv(linkno) {
-            Ok(Some(packet)) => warn!("[LINK#{}] unsolicited aux packet: {:?}", linkno, packet),
-            Ok(None) => (),
-            Err(_) => warn!("[LINK#{}] aux packet error", linkno)
         }
     }
 
@@ -394,13 +639,13 @@ pub mod drtio {
         }
     }
 
-    fn destination_up(up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>, destination: u8) -> bool {
+    pub fn destination_up(up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>, destination: u8) -> bool {
         let up_destinations = up_destinations.borrow();
         up_destinations[destination as usize]
     }
 
-    fn destination_survey(io: &Io, aux_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable,
-            up_links: &[bool],
+    fn destination_survey(io: &Io, routing_table: &drtio_routing::RoutingTable,
+            link_states: &Urc<RefCell<[LinkState; csr::DRTIO.len()]>>,
             up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
             ddma_mutex: &Mutex, subkernel_mutex: &Mutex) {
         for destination in 0..drtio_routing::DEST_COUNT {
@@ -415,100 +660,94 @@ pub mod drtio {
             } else if hop as usize <= csr::DRTIO.len() {
                 let linkno = hop - 1;
                 if destination_up(up_destinations, destination) {
-                    if up_links[linkno as usize] {
-                        let reply = aux_transact(io, aux_mutex, linkno, 
-                            &drtioaux::Packet::DestinationStatusRequest {
-                                destination: destination
-                            });
+                    let link_up = link_states.borrow()[linkno as usize].is_up();
+                    if link_up {
+                        // eventually todo: schedule transactions first, then get results
+                        let reply = aux_transact(io, destination, DEFAULT_TIMEOUT, true,
+                            drtioaux::Payload::DestinationStatusRequest);
                         if let Ok(reply) = reply {
                             match reply {
-                                drtioaux::Packet::DestinationDownReply => {
+                                drtioaux::Payload::DestinationDownReply => {
                                     destination_set_up(routing_table, up_destinations, destination, false);
-                                    remote_dma::destination_changed(io, aux_mutex, ddma_mutex, routing_table, destination, false);
-                                    subkernel::destination_changed(io, aux_mutex, subkernel_mutex, routing_table, destination, false);
+                                    remote_dma::destination_changed(io, ddma_mutex, destination, false);
+                                    subkernel::destination_changed(io, subkernel_mutex, destination, false);
                                 }
-                                drtioaux::Packet::DestinationOkReply => (),
-                                drtioaux::Packet::DestinationSequenceErrorReply { channel } => {
+                                drtioaux::Payload::DestinationOkReply => (),
+                                drtioaux::Payload::DestinationSequenceErrorReply { channel } => {
                                     error!("[DEST#{}] RTIO sequence error involving channel 0x{:04x}:{}", destination, channel, resolve_channel_name(channel as u32));
                                     unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_SEQUENCE_ERROR };
                                 }
-                                drtioaux::Packet::DestinationCollisionReply { channel } => {
+                                drtioaux::Payload::DestinationCollisionReply { channel } => {
                                     error!("[DEST#{}] RTIO collision involving channel 0x{:04x}:{}", destination, channel, resolve_channel_name(channel as u32));
                                     unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_COLLISION };
                                 }
-                                drtioaux::Packet::DestinationBusyReply { channel } => {
+                                drtioaux::Payload::DestinationBusyReply { channel } => {
                                     error!("[DEST#{}] RTIO busy error involving channel 0x{:04x}:{}", destination, channel, resolve_channel_name(channel as u32));
                                     unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_BUSY };
                                 }
                                 packet => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
                                 
                             }
-                        } else { 
+                        } else {
                             error!("[DEST#{}] communication failed ({:?})", destination, reply.unwrap_err()); 
                         }
                     } else {
                         destination_set_up(routing_table, up_destinations, destination, false);
-                        remote_dma::destination_changed(io, aux_mutex, ddma_mutex, routing_table, destination, false);
-                        subkernel::destination_changed(io, aux_mutex, subkernel_mutex, routing_table, destination, false);
+                        remote_dma::destination_changed(io, ddma_mutex, destination, false);
+                        subkernel::destination_changed(io, subkernel_mutex, destination, false);
                     }
-                } else {
-                    if up_links[linkno as usize] {
-                        let reply = aux_transact(io, aux_mutex, linkno, 
-                            &drtioaux::Packet::DestinationStatusRequest {
-                                destination: destination
-                            });
-                        match reply {
-                            Ok(drtioaux::Packet::DestinationDownReply) => (),
-                            Ok(drtioaux::Packet::DestinationOkReply) => {
-                                destination_set_up(routing_table, up_destinations, destination, true);
-                                init_buffer_space(destination as u8, linkno);
-                                remote_dma::destination_changed(io, aux_mutex, ddma_mutex, routing_table, destination, true);
-                                subkernel::destination_changed(io, aux_mutex, subkernel_mutex, routing_table, destination, true);
-                            },
-                            Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
-                            Err(e) => error!("[DEST#{}] communication failed ({:?})", destination, e)
-                        }
+                } else if link_states.borrow()[linkno as usize].is_up() {
+                    let reply = aux_transact(io, destination, DEFAULT_TIMEOUT, true,
+                        drtioaux::Payload::DestinationStatusRequest);
+                    match reply {
+                        Ok(drtioaux::Payload::DestinationDownReply) => (),
+                        Ok(drtioaux::Payload::DestinationOkReply) => {
+                            destination_set_up(routing_table, up_destinations, destination, true);
+                            init_buffer_space(destination as u8, linkno);
+                            remote_dma::destination_changed(io, ddma_mutex, destination, true);
+                            subkernel::destination_changed(io, subkernel_mutex, destination, true);
+                        },
+                        Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
+                        Err(e) => error!("[DEST#{}] communication failed ({:?})", destination, e)
                     }
                 }
             }
         }
     }
 
-    fn link_thread(io: Io, aux_mutex: &Mutex,
-            routing_table: &drtio_routing::RoutingTable,
+    fn link_thread(io: Io, routing_table: &drtio_routing::RoutingTable,
+            link_states: &Urc<RefCell<[LinkState; csr::DRTIO.len()]>>,
             up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
             ddma_mutex: &Mutex, subkernel_mutex: &Mutex) {
-        let mut up_links = [false; csr::DRTIO.len()];
         loop {
             for linkno in 0..csr::DRTIO.len() {
                 let linkno = linkno as u8;
-                if up_links[linkno as usize] {
+                let link_up = link_states.borrow()[linkno as usize].is_up();
+                if link_up {
                     /* link was previously up */
                     if link_rx_up(linkno) {
-                        process_async_packets(&io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno);
-                        process_unsolicited_aux(&io, aux_mutex, linkno);
                         process_local_errors(linkno);
                     } else {
                         info!("[LINK#{}] link is down", linkno);
-                        up_links[linkno as usize] = false;
+                        link_states.borrow_mut()[linkno as usize] = LinkState::Down;
                     }
                 } else {
                     /* link was previously down */
                     if link_rx_up(linkno) {
                         info!("[LINK#{}] link RX became up, pinging", linkno);
-                        let ping_count = ping_remote(&io, aux_mutex, linkno);
+                        let ping_count = ping_remote(&io, linkno);
                         if ping_count > 0 {
                             info!("[LINK#{}] remote replied after {} packets", linkno, ping_count);
-                            up_links[linkno as usize] = true;
-                            if let Err(e) = sync_tsc(&io, aux_mutex, linkno) {
+                            if let Err(e) = sync_tsc(&io, linkno) {
                                 error!("[LINK#{}] failed to sync TSC ({:?})", linkno, e);
                             }
-                            if let Err(e) = load_routing_table(&io, aux_mutex, linkno, routing_table) {
+                            if let Err(e) = load_routing_table(&io, linkno, routing_table) {
                                 error!("[LINK#{}] failed to load routing table ({:?})", linkno, e);
                             }
-                            if let Err(e) = set_rank(&io, aux_mutex, linkno, 1) {
+                            if let Err(e) = set_rank(&io, linkno, 1) {
                                 error!("[LINK#{}] failed to set rank ({:?})", linkno, e);
                             }
+                            link_states.borrow_mut()[linkno as usize] = LinkState::Up(clock::get_ms());
                             info!("[LINK#{}] link initialization completed", linkno);
                         } else {
                             error!("[LINK#{}] ping failed", linkno);
@@ -516,12 +755,12 @@ pub mod drtio {
                     }
                 }
             }
-            destination_survey(&io, aux_mutex, routing_table, &up_links, up_destinations, ddma_mutex, subkernel_mutex);
+            destination_survey(&io, routing_table, link_states, up_destinations, ddma_mutex, subkernel_mutex);
             io.sleep(200).unwrap();
         }
     }
 
-    pub fn reset(io: &Io, aux_mutex: &Mutex) {
+    pub fn reset(io: &Io) {
         for linkno in 0..csr::DRTIO.len() {
             unsafe {
                 (csr::DRTIO[linkno].reset_write)(1);
@@ -534,13 +773,25 @@ pub mod drtio {
             }
         }
 
+        let mut handles = [0; csr::DRTIO.len()];
         for linkno in 0..csr::DRTIO.len() {
             let linkno = linkno as u8;
             if link_rx_up(linkno) {
-                let reply = aux_transact(io, aux_mutex, linkno,
-                    &drtioaux::Packet::ResetRequest);
+                // schedule resets first
+                handles[linkno as usize] = unsafe { TRANSACTION_MANAGER.transact_async(
+                    0, 
+                    drtioaux::Payload::ResetRequest, 
+                    DEFAULT_TIMEOUT, 
+                    false, 
+                    Some(linkno)).unwrap() };
+            }
+        }
+        for linkno in 0..csr::DRTIO.len() {
+            if link_rx_up(linkno as u8) {
+                // check replies now
+                let reply = await_transaction(io, handles[linkno]);
                 match reply {
-                    Ok(drtioaux::Packet::ResetAck) => (),
+                    Ok(drtioaux::Payload::PacketAck) => (),
                     Ok(_) => error!("[LINK#{}] reset failed, received unexpected aux packet", linkno),
                     Err(e) => error!("[LINK#{}] reset failed, aux packet error ({:?})", linkno, e)
                 }
@@ -562,7 +813,7 @@ pub mod drtio {
                 send_f(&slice, status, len)?;
             }
             Ok(())
-    }
+        }
 
 }
 
@@ -570,11 +821,10 @@ pub mod drtio {
 pub mod drtio {
     use super::*;
 
-    pub fn startup(_io: &Io, _aux_mutex: &Mutex,
-        _routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
+    pub fn startup(_io: &Io, _routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         _up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
         _ddma_mutex: &Mutex, _subkernel_mutex: &Mutex) {}
-    pub fn reset(_io: &Io, _aux_mutex: &Mutex) {}
+    pub fn reset(_io: &Io) {}
 }
 
 static mut SEEN_ASYNC_ERRORS: u8 = 0;
@@ -634,21 +884,20 @@ fn read_device_map() -> DeviceMap {
     device_map
 }
 
-pub fn startup(io: &Io, aux_mutex: &Mutex,
-        routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
+pub fn startup(io: &Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
         ddma_mutex: &Mutex, subkernel_mutex: &Mutex) {
     set_device_map(read_device_map());
-    drtio::startup(io, aux_mutex, routing_table, up_destinations, ddma_mutex, subkernel_mutex);
+    drtio::startup(io, routing_table, up_destinations, ddma_mutex, subkernel_mutex);
     unsafe {
         csr::rtio_core::reset_phy_write(1);
     }
     io.spawn(4096, async_error_thread);
 }
 
-pub fn reset(io: &Io, aux_mutex: &Mutex) {
+pub fn reset(io: &Io) {
     unsafe {
         csr::rtio_core::reset_write(1);
     }
-    drtio::reset(io, aux_mutex)
+    drtio::reset(io)
 }
