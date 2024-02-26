@@ -41,6 +41,7 @@ Highlights:
       + CTRL+SHIFT+C cascades experiment windows
 * Datasets can now be associated with units and scale factors, and displayed accordingly in the dashboard
   including applets, like widgets such as ``NumberValue`` already did in earlier ARTIQ versions.
+* Experiments can now request arguments interactively from the user at any time.
 * Persistent datasets are now stored in a LMDB database for improved performance.
 * Python's built-in types (such as ``float``, or ``List[...]``) can now be used in type annotations on
   kernel functions.

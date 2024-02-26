@@ -1,5 +1,7 @@
 from collections import OrderedDict
 from inspect import isclass
+from contextlib import contextmanager
+from types import SimpleNamespace
 
 from sipyco import pyon
 
@@ -212,6 +214,9 @@ class TraceArgumentManager:
         self.requested_args[key] = processor, group, tooltip
         return None
 
+    def get_interactive(self, interactive_arglist):
+        raise NotImplementedError
+
 
 class ProcessArgumentManager:
     def __init__(self, unprocessed_arguments):
@@ -232,6 +237,10 @@ class ProcessArgumentManager:
         if unprocessed:
             raise AttributeError("Supplied argument(s) not queried in experiment: " +
                                  ", ".join(unprocessed))
+
+    def get_interactive(self, interactive_arglist):
+        raise NotImplementedError
+
 
 class HasEnvironment:
     """Provides methods to manage the environment of an experiment (arguments,
@@ -321,6 +330,28 @@ class HasEnvironment:
         setattr(self, key, self.get_argument(key, processor, group, tooltip))
         kernel_invariants = getattr(self, "kernel_invariants", set())
         self.kernel_invariants = kernel_invariants | {key}
+
+    @contextmanager
+    def interactive(self):
+        """Request arguments from the user interactively.
+
+        This context manager returns a namespace object on which the method
+        `setattr_argument` should be called, with the usual semantics.
+
+        When the context manager terminates, the experiment is blocked
+        and the user is presented with the requested argument widgets.
+        After the user enters values, the experiment is resumed and
+        the namespace contains the values of the arguments."""
+        interactive_arglist = []
+        namespace = SimpleNamespace()
+        def setattr_argument(key, processor=None, group=None, tooltip=None):
+            interactive_arglist.append((key, processor, group, tooltip))
+        namespace.setattr_argument = setattr_argument
+        yield namespace
+        del namespace.setattr_argument
+        argdict = self.__argument_mgr.get_interactive(interactive_arglist)
+        for key, value in argdict.items():
+            setattr(namespace, key, value)
 
     def get_device_db(self):
         """Returns the full contents of the device database."""

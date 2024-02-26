@@ -13,7 +13,7 @@ import h5py
 
 from llvmlite import binding as llvm
 
-from sipyco import common_args
+from sipyco import common_args, pyon
 
 from artiq import __version__ as artiq_version
 from artiq.language.environment import EnvExperiment, ProcessArgumentManager
@@ -166,9 +166,28 @@ def get_argparser(with_file=True):
     return parser
 
 
+class ArgumentManager(ProcessArgumentManager):
+    def get_interactive(self, interactive_arglist):
+        result = dict()
+        for key, processor, group, tooltip in interactive_arglist:
+            success = False
+            while not success:
+                user_input = input("{}:{} (group={}, tooltip={}): ".format(
+                    key, type(processor).__name__, group, tooltip))
+                try:
+                    user_input_deser = pyon.decode(user_input)
+                    value = processor.process(user_input_deser)
+                except:
+                    logger.error("failed to process user input, retrying", exc_info=True)
+                else:
+                    success = True
+            result[key] = value
+        return result
+
+
 def _build_experiment(device_mgr, dataset_mgr, args):
     arguments = parse_arguments(args.arguments)
-    argument_mgr = ProcessArgumentManager(arguments)
+    argument_mgr = ArgumentManager(arguments)
     managers = (device_mgr, dataset_mgr, argument_mgr, {})
     if hasattr(args, "file"):
         is_tar = tarfile.is_tarfile(args.file)
