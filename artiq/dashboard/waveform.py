@@ -195,9 +195,6 @@ class _BaseWaveform(pg.PlotWidget):
         self.stopped_x = stopped_x
         self.view_box.setLimits(xMax=stopped_x)
 
-    def setTimescale(self, timescale):
-        self.timescale = timescale
-
     def setData(self, data):
         if len(data) == 0:
             self.x_data, self.y_data = [], []
@@ -478,8 +475,6 @@ class _WaveformView(QtWidgets.QWidget):
     def setTimescale(self, timescale):
         self._timescale = timescale
         self._top.setScale(1e-12 * timescale)
-        for i in range(self._model.rowCount()):
-            self._splitter.widget(i).setTimescale(timescale)
 
     def setStoppedX(self, stopped_x):
         self._stopped_x = stopped_x
@@ -531,7 +526,6 @@ class _WaveformView(QtWidgets.QWidget):
         w = waveform_cls(name, width, precision, unit, parent=self._splitter)
         w.setXLink(self._ref_vb)
         w.setStoppedX(self._stopped_x)
-        w.setTimescale(self._timescale)
         w.cursorMove.connect(self.cursorMove)
         w.onCursorMove(self._cursor_x)
         action = QtWidgets.QAction("Delete waveform", w)
