@@ -371,9 +371,11 @@ class LogWaveform(_BaseWaveform):
             self._labels = []
             self.plot_data_item.setData(
                 x=self.x_data, y=np.ones(len(self.x_data)))
-            old_msg = ""
-            old_x = 0
-            for x, msg in data:
+            if len(data) == 0:
+                return
+            old_x = data[0][0]
+            old_msg = data[0][1]
+            for x, msg in data[1:]:
                 if x == old_x:
                     old_msg += "\n" + msg
                 else:
