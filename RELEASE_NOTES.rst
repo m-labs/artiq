@@ -42,7 +42,7 @@ Highlights:
 * Persistent datasets are now stored in a LMDB database for improved performance.
 * Python's built-in types (such as ``float``, or ``List[...]``) can now be used in type annotations on
   kernel functions.
-* Full Python 3.10 support.
+* Full Python 3.11 support.
 * MSYS2 packaging for Windows, which replaces Conda. Conda packages are still available to
   support legacy installations, but may be removed in a future release.
 * Experiments can now be submitted with revisions set to a branch / tag name instead of only git hashes.
