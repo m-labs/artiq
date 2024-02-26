@@ -362,7 +362,13 @@ def main():
                     write_results()
                     raise
                 finally:
-                    device_mgr.notify_run_end()
+                    try:
+                        device_mgr.notify_run_end()
+                    except:
+                        # Also write results immediately if the `notify_run_end`
+                        # callbacks produce an exception
+                        write_results()
+                        raise
                 put_completed()
             elif action == "analyze":
                 try:
