@@ -157,7 +157,7 @@ Embedded applets should use `AppletRequestIPC` while standalone applets use `App
 Applet entry area
 *****************
 
-Extensions are provided to enable the use of argument widgets in applets through the `EntryArea` class. 
+Argument widgets can be used in applets through the `EntryArea` class.
 
 Below is a simple example code snippet using the `EntryArea` class: ::
 
