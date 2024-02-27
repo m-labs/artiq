@@ -255,7 +255,7 @@ class SimpleApplet:
         if self.embed is None:
             dataset_ctl = RPCClient()
             self.loop.run_until_complete(dataset_ctl.connect_rpc(
-                self.args.server, self.args.port_control, "master_dataset_db"))
+                self.args.server, self.args.port_control, "dataset_db"))
             self.req = AppletRequestRPC(self.loop, dataset_ctl)
         else:
             self.req = AppletRequestIPC(self.ipc)

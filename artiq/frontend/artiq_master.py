@@ -133,10 +133,10 @@ def main():
 
     server_control = RPCServer({
         "master_management": master_management,
-        "master_device_db": device_db,
-        "master_dataset_db": dataset_db,
-        "master_schedule": scheduler,
-        "master_experiment_db": experiment_db,
+        "device_db": device_db,
+        "dataset_db": dataset_db,
+        "schedule": scheduler,
+        "experiment_db": experiment_db,
     }, allow_parallel=True)
     loop.run_until_complete(server_control.start(
         bind, args.port_control))

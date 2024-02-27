@@ -343,13 +343,13 @@ def main():
     else:
         port = 3251 if args.port is None else args.port
         target_name = {
-            "submit": "master_schedule",
-            "delete": "master_schedule",
-            "set_dataset": "master_dataset_db",
-            "del_dataset": "master_dataset_db",
-            "scan_devices": "master_device_db",
-            "scan_repository": "master_experiment_db",
-            "ls": "master_experiment_db",
+            "submit": "schedule",
+            "delete": "schedule",
+            "set_dataset": "dataset_db",
+            "del_dataset": "dataset_db",
+            "scan_devices": "device_db",
+            "scan_repository": "experiment_db",
+            "ls": "experiment_db",
             "terminate": "master_management",
         }[action]
         remote = Client(args.server, port, target_name)

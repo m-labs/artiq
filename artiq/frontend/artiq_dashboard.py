@@ -143,7 +143,7 @@ def main():
     for target in "schedule", "experiment_db", "dataset_db", "device_db":
         client = AsyncioClient()
         loop.run_until_complete(client.connect_rpc(
-            args.server, args.port_control, "master_" + target))
+            args.server, args.port_control, target))
         atexit.register(client.close_rpc)
         rpc_clients[target] = client
 
