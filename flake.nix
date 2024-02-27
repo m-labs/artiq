@@ -402,7 +402,7 @@
           src = self;
           buildInputs = [
             pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
-            pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom
+            pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom pkgs.python3Packages.lmdb
           ];
           buildPhase = ''
             export VERSIONEER_OVERRIDE=${artiqVersion}
