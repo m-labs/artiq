@@ -200,9 +200,7 @@ def examine(device_mgr, dataset_mgr, file):
                     name = name[:-1]
             argument_mgr = TraceArgumentManager()
             scheduler_defaults = {}
-            cls = exp_class(  # noqa: F841 (fill argument_mgr)
-                (device_mgr, dataset_mgr, argument_mgr, scheduler_defaults)
-            )
+            exp_class((device_mgr, dataset_mgr, argument_mgr, scheduler_defaults))
             arginfo = OrderedDict(
                 (k, (proc.describe(), group, tooltip))
                 for k, (proc, group, tooltip) in argument_mgr.requested_args.items()
@@ -325,8 +323,8 @@ def main():
                     rid, obj["pipeline_name"], expid, obj["priority"])
                 start_local_time = time.localtime(start_time)
                 dirname = os.path.join("results",
-                                   time.strftime("%Y-%m-%d", start_local_time),
-                                   time.strftime("%H", start_local_time))
+                                       time.strftime("%Y-%m-%d", start_local_time),
+                                       time.strftime("%H", start_local_time))
                 os.makedirs(dirname, exist_ok=True)
                 os.chdir(dirname)
                 argument_mgr = ProcessArgumentManager(expid["arguments"])
