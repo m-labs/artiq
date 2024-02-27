@@ -2,7 +2,8 @@ import asyncio
 
 import lmdb
 
-from sipyco.sync_struct import Notifier, process_mod, ModAction, update_from_dict
+from sipyco.sync_struct import (Notifier, process_mod, ModAction,
+                                update_from_dict)
 from sipyco import pyon
 from sipyco.asyncio_tools import TaskObject
 
@@ -60,12 +61,13 @@ class DatasetDB(TaskObject):
     def save(self):
         with self.lmdb.begin(write=True) as txn:
             for key in self.pending_keys:
-                if key not in self.data.raw_view or not self.data.raw_view[key][0]:
+                if (key not in self.data.raw_view
+                        or not self.data.raw_view[key][0]):
                     txn.delete(key.encode())
                 else:
                     value_and_metadata = (self.data.raw_view[key][1],
                                           self.data.raw_view[key][2])
-                    txn.put(key.encode(), 
+                    txn.put(key.encode(),
                             pyon.encode(value_and_metadata).encode())
         self.pending_keys.clear()
 
@@ -87,7 +89,8 @@ class DatasetDB(TaskObject):
         if mod["path"]:
             key = mod["path"][0]
         else:
-            assert(mod["action"] == ModAction.setitem.value or mod["action"] == ModAction.delitem.value)
+            assert (mod["action"] == ModAction.setitem.value
+                    or mod["action"] == ModAction.delitem.value)
             key = mod["key"]
         self.pending_keys.add(key)
         process_mod(self.data, mod)
