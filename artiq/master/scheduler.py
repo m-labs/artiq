@@ -156,7 +156,7 @@ class RunPool:
 
         run = Run(rid, pipeline_name, wd, expid, priority, due_date, flush,
                   self, repo_msg=repo_msg)
-        if self.log_submissions is not None:          
+        if self.log_submissions is not None:
             self.log_submission(rid, expid)
         self.runs[rid] = run
         self.state_changed.notify()

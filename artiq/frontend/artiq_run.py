@@ -178,7 +178,8 @@ class ArgumentManager(ProcessArgumentManager):
                     user_input_deser = pyon.decode(user_input)
                     value = processor.process(user_input_deser)
                 except:
-                    logger.error("failed to process user input, retrying", exc_info=True)
+                    logger.error("failed to process user input, retrying",
+                                 exc_info=True)
                 else:
                     success = True
             result[key] = value

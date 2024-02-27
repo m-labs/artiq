@@ -57,10 +57,10 @@ def get_argparser():
     log_args(parser)
 
     parser.add_argument("--name",
-        help="friendly name, displayed in dashboards "
-             "to identify master instead of server address")
-    parser.add_argument("--log-submissions", default=None, 
-        help="set the filename to create the experiment subimission")
+                        help="friendly name, displayed in dashboards "
+                             "to identify master instead of server address")
+    parser.add_argument("--log-submissions", default=None,
+                        help="log experiment submissions to specified file")
 
     return parser
 
@@ -81,8 +81,7 @@ def main():
         bind, args.port_broadcast))
     atexit_register_coroutine(server_broadcast.stop, loop=loop)
 
-    log_forwarder.callback = (lambda msg:
-        server_broadcast.broadcast("log", msg))
+    log_forwarder.callback = lambda msg: server_broadcast.broadcast("log", msg)
     def ccb_issue(service, *args, **kwargs):
         msg = {
             "service": service,
@@ -106,7 +105,8 @@ def main():
         repo_backend, worker_handlers, args.experiment_subdir)
     atexit.register(experiment_db.close)
 
-    scheduler = Scheduler(RIDCounter(), worker_handlers, experiment_db, args.log_submissions)
+    scheduler = Scheduler(RIDCounter(), worker_handlers, experiment_db,
+                          args.log_submissions)
     scheduler.start(loop=loop)
     atexit_register_coroutine(scheduler.stop, loop=loop)
 
