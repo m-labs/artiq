@@ -22,6 +22,7 @@ from sipyco.pc_rpc import Client
 from sipyco.sync_struct import Subscriber
 from sipyco.broadcast import Receiver
 from sipyco import common_args, pyon
+from sipyco.asyncio_tools import SignalHandler
 
 from artiq.tools import (scale_from_metadata, short_format, parse_arguments,
                          parse_devarg_override)
@@ -278,13 +279,20 @@ def _run_subscriber(host, port, subscriber):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        loop.run_until_complete(subscriber.connect(host, port))
+        signal_handler = SignalHandler()
+        signal_handler.setup()
         try:
-            loop.run_until_complete(asyncio.wait_for(subscriber.receive_task,
-                                                     None))
-            print("Connection to master lost")
+            loop.run_until_complete(subscriber.connect(host, port))
+            try:
+                _, pending = loop.run_until_complete(asyncio.wait(
+                    [signal_handler.wait_terminate(), subscriber.receive_task],
+                    return_when=asyncio.FIRST_COMPLETED))
+                for task in pending:
+                    task.cancel()
+            finally:
+                loop.run_until_complete(subscriber.close())
         finally:
-            loop.run_until_complete(subscriber.close())
+            signal_handler.teardown()
     finally:
         loop.close()
 
