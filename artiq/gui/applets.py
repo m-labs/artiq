@@ -67,19 +67,19 @@ class EntryArea(QtWidgets.QTreeWidget):
         self.setItemWidget(self.bottom_item, 1, buttons)
         self.bottom_item.setHidden(True)
     
-    def setattr_argument(self, name, proc, group=None, tooltip=None):
+    def setattr_argument(self, key, processor, group=None, tooltip=None):
         argument = dict()
-        desc = proc.describe()
+        desc = processor.describe()
         argument["desc"] = desc
         argument["group"] = group
         argument["tooltip"] = tooltip
-        self._arguments[name] = argument
+        self._arguments[key] = argument
         widgets = dict()
-        self._arg_to_widgets[name] = widgets
+        self._arg_to_widgets[key] = widgets
         entry_class = procdesc_to_entry(argument["desc"])
         argument["state"] = entry_class.default_state(argument["desc"])
         entry = entry_class(argument)
-        widget_item = QtWidgets.QTreeWidgetItem([name])
+        widget_item = QtWidgets.QTreeWidgetItem([key])
         if argument["tooltip"]:
             widget_item.setToolTip(0, argument["tooltip"])
         widgets["entry"] = entry
@@ -109,16 +109,16 @@ class EntryArea(QtWidgets.QTreeWidget):
         reset_value.setIcon(
             QtWidgets.QApplication.style().standardIcon(
                 QtWidgets.QStyle.SP_BrowserReload))
-        reset_value.clicked.connect(partial(self.reset_value, name))
+        reset_value.clicked.connect(partial(self.reset_value, key))
 
         tool_buttons = LayoutWidget()
         tool_buttons.addWidget(reset_value, 0)
         self.setItemWidget(widget_item, 2, tool_buttons)
 
-    def _get_group(self, name):
-        if name in self._groups:
-            return self._groups[name]
-        group = QtWidgets.QTreeWidgetItem([name])
+    def _get_group(self, key):
+        if key in self._groups:
+            return self._groups[key]
+        group = QtWidgets.QTreeWidgetItem([key])
         for col in range(3):
             group.setBackground(col, self.palette().mid())
             group.setForeground(col, self.palette().brightText())
@@ -126,40 +126,40 @@ class EntryArea(QtWidgets.QTreeWidget):
             font.setBold(True)
             group.setFont(col, font)
         self.insertTopLevelItem(self.indexFromItem(self.bottom_item).row(), group)
-        self._groups[name] = group
+        self._groups[key] = group
         return group
     
-    def __getattr__(self, name):
-        return self.get_value(name)
+    def __getattr__(self, key):
+        return self.get_value(key)
 
-    def get_value(self, name):
-        entry = self._arg_to_widgets[name]["entry"]
-        argument = self._arguments[name]
+    def get_value(self, key):
+        entry = self._arg_to_widgets[key]["entry"]
+        argument = self._arguments[key]
         return entry.state_to_value(argument["state"])
 
-    def set_value(self, name, value):
-        ty = self._arguments[name]["desc"]["ty"]
+    def set_value(self, key, value):
+        ty = self._arguments[key]["desc"]["ty"]
         if ty == "Scannable":
             desc = value.describe()
-            self._arguments[name]["state"][desc["ty"]] = desc
-            self._arguments[name]["state"]["selected"] = desc["ty"]
+            self._arguments[key]["state"][desc["ty"]] = desc
+            self._arguments[key]["state"]["selected"] = desc["ty"]
         else:
-            self._arguments[name]["state"] = value
-        self.update_value(name)
+            self._arguments[key]["state"] = value
+        self.update_value(key)
 
     def get_values(self):
         d = dict()
-        for name in self._arguments.keys():
-            d[name] = self.get_value(name)
+        for key in self._arguments.keys():
+            d[key] = self.get_value(key)
         return d
 
     def set_values(self, values):
-        for name, value in values.items():
-            self.set_value(name, value)
+        for key, value in values.items():
+            self.set_value(key, value)
 
-    def update_value(self, name):
-        widgets = self._arg_to_widgets[name]
-        argument = self._arguments[name]
+    def update_value(self, key):
+        widgets = self._arg_to_widgets[key]
+        argument = self._arguments[key]
 
         # Qt needs a setItemWidget() to handle layout correctly,
         # simply replacing the entry inside the LayoutWidget
@@ -173,14 +173,14 @@ class EntryArea(QtWidgets.QTreeWidget):
         self.setItemWidget(widgets["widget_item"], 1, widgets["fix_layout"])
         self.updateGeometries()
 
-    def reset_value(self, name):
-        procdesc = self._arguments[name]["desc"] 
-        self._arguments[name]["state"] = procdesc_to_entry(procdesc).default_state(procdesc)
-        self.update_value(name)
+    def reset_value(self, key):
+        procdesc = self._arguments[key]["desc"] 
+        self._arguments[key]["state"] = procdesc_to_entry(procdesc).default_state(procdesc)
+        self.update_value(key)
 
     def reset_all(self):
-        for name in self._arguments.keys():
-            self.reset_value(name)
+        for key in self._arguments.keys():
+            self.reset_value(key)
 
 
 class AppletIPCServer(AsyncioParentComm):
@@ -255,7 +255,7 @@ class AppletIPCServer(AsyncioParentComm):
                     elif action == "update_dataset":
                         await self.dataset_ctl.update(obj["mod"])
                     elif action == "set_argument_value":
-                        self.expmgr.set_argument_value(obj["expurl"], obj["name"], obj["value"])
+                        self.expmgr.set_argument_value(obj["expurl"], obj["key"], obj["value"])
                     else:
                         raise ValueError("unknown action in applet message")
                 except:
