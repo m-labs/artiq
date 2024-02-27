@@ -168,7 +168,7 @@ class AnalyzerProxyReceiver:
                 del self.writer
             raise
 
-    async def close(self):
+    def close(self):
         self.disconnect_cb = None
         if self.receive_task is not None:
             self.receive_task.cancel()

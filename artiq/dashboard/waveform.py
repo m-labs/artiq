@@ -29,22 +29,18 @@ WAVEFORM_MAX_HEIGHT = 200
 
 
 class ProxyClient():
-    def __init__(self, receive_cb, disconnect_cb):
+    def __init__(self, receive_cb, timeout=5, timer=5, timer_backoff=1.1):
         self.receive_cb = receive_cb
-        self.disconnect_cb = disconnect_cb
         self.receiver = None
         self.addr = None
         self.port_proxy = None
         self.port = None
         self._reconnect_event = asyncio.Event()
-        self._reconnect_task = None
-
-    async def start(self, timeout=5, timer=5, timer_backoff=1.1):
         self.timeout = timeout
         self.timer = timer
         self.timer_cur = timer
         self.timer_backoff = timer_backoff
-        self._reconnect_task = asyncio.create_task(self._reconnect())
+        self._reconnect_task = asyncio.ensure_future(self._reconnect())
 
     def update_address(self, addr, port, port_proxy):
         self.addr = addr
@@ -56,6 +52,9 @@ class ProxyClient():
         remote = AsyncioClient()
         try:
             try:
+                if self.addr is None:
+                    logger.error("missing core_analyzer host in device db")
+                    return
                 await remote.connect_rpc(self.addr, self.port, "coreanalyzer_proxy_control")
             except:
                 logger.error("error connecting to analyzer proxy control", exc_info=True)
@@ -72,14 +71,15 @@ class ProxyClient():
                 await self._reconnect_event.wait()
                 self._reconnect_event.clear()
                 if self.receiver is not None:
-                    await self.receiver.close()
+                    self.receiver.close()
                     self.receiver = None
                 self.receiver = comm_analyzer.AnalyzerProxyReceiver(
-                    self.receive_cb, self.disconnect_cb)
+                    self.receive_cb, self.reconnect)
                 try:
-                    await asyncio.wait_for(self.receiver.connect(self.addr, self.port_proxy),
-                                           self.timeout)
-                    logger.info("connected to analyzer proxy %s:%d", self.addr, self.port_proxy)
+                    if self.addr is not None:
+                        await asyncio.wait_for(self.receiver.connect(self.addr, self.port_proxy),
+                                               self.timeout)
+                        logger.info("connected to analyzer proxy %s:%d", self.addr, self.port_proxy)
                     self.timer_cur = self.timer
                     continue
                 except:
@@ -97,9 +97,11 @@ class ProxyClient():
     async def close(self):
         self._reconnect_task.cancel()
         try:
-            await self.receiver.close()
-        except:
-            logger.error("error closing connection to analyzer proxy", exc_info=True)
+            await asyncio.wait_for(self._reconnect_task, None)
+        except asyncio.CancelledError:
+            pass
+        if self.receiver is not None:
+            self.receiver.close()
 
     def reconnect(self):
         self._reconnect_event.set()
@@ -696,7 +698,7 @@ class _AddChannelDialog(QtWidgets.QDialog):
 
 
 class WaveformDock(QtWidgets.QDockWidget):
-    def __init__(self):
+    def __init__(self, timeout, timer, timer_backoff):
         QtWidgets.QDockWidget.__init__(self, "Waveform")
         self.setObjectName("Waveform")
         self.setFeatures(
@@ -718,7 +720,10 @@ class WaveformDock(QtWidgets.QDockWidget):
         self._current_dir = os.getcwd()
 
         self.devices_sub = Subscriber("devices", self.init_ddb, self.update_ddb)
-        self.proxy_client = ProxyClient(self.on_dump_receive, self.on_proxy_disconnect)
+        self.proxy_client = ProxyClient(self.on_dump_receive, 
+                                        timeout,
+                                        timer,
+                                        timer_backoff)
 
         grid = LayoutWidget()
         self.setWidget(grid)
@@ -798,9 +803,6 @@ class WaveformDock(QtWidgets.QDockWidget):
         self._waveform_view.setStoppedX(self._waveform_data['stopped_x'])
         self._waveform_view.setTimescale(self._waveform_data['timescale'])
         self._cursor_control.setTimescale(self._waveform_data['timescale'])
-
-    def on_proxy_disconnect(self):
-        self.proxy_client.reconnect()
 
     async def load_trace(self):
         try:
@@ -903,6 +905,8 @@ class WaveformDock(QtWidgets.QDockWidget):
             port_proxy = desc.get("port_proxy", 1385)
             port = desc.get("port", 1386)
             self.proxy_client.update_address(addr, port, port_proxy)
+        else:
+            self.proxy_client.update_address(None, None, None)
 
     def init_ddb(self, ddb):
         self._ddb = ddb
