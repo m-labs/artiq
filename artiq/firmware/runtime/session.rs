@@ -976,7 +976,13 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
                         drtio::clear_buffers(&io, &aux_mutex);
                     }
                 }
-                stream.close().expect("session: close socket");
+                loop {
+                    match stream.close() {
+                        Ok(_) => break,
+                        Err(SchedError::Interrupted) => (),
+                        Err(e) => panic!("session: close socket: {:?}", e)
+                    };
+                }
             });
         }
 
