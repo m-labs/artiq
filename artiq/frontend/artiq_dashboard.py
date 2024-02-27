@@ -229,12 +229,11 @@ def main():
     loop.run_until_complete(d_ttl_dds.start(args.server, args.port_notify))
     atexit_register_coroutine(d_ttl_dds.stop, loop=loop)
 
-    d_waveform = waveform.WaveformDock()
-    loop.run_until_complete(d_waveform.proxy_client.start(
+    d_waveform = waveform.WaveformDock(
         args.analyzer_proxy_timeout,
         args.analyzer_proxy_timer,
         args.analyzer_proxy_timer_backoff
-    ))
+    )
     atexit_register_coroutine(d_waveform.proxy_client.close, loop=loop)
     loop.run_until_complete(d_waveform.devices_sub.connect(args.server, args.port_notify))
     atexit_register_coroutine(d_waveform.devices_sub.close, loop=loop)
