@@ -10,7 +10,6 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 import pyqtgraph as pg
 import numpy as np
 
-from sipyco.sync_struct import Subscriber
 from sipyco.pc_rpc import AsyncioClient
 from sipyco import pyon
 
@@ -66,33 +65,31 @@ class ProxyClient():
             remote.close_rpc()
 
     async def _reconnect(self):
-        try:
-            while True:
-                await self._reconnect_event.wait()
-                self._reconnect_event.clear()
-                if self.receiver is not None:
-                    self.receiver.close()
-                    self.receiver = None
-                self.receiver = comm_analyzer.AnalyzerProxyReceiver(
-                    self.receive_cb, self.reconnect)
-                try:
-                    if self.addr is not None:
-                        await asyncio.wait_for(self.receiver.connect(self.addr, self.port_proxy),
-                                               self.timeout)
-                        logger.info("connected to analyzer proxy %s:%d", self.addr, self.port_proxy)
+        while True:
+            await self._reconnect_event.wait()
+            self._reconnect_event.clear()
+            if self.receiver is not None:
+                await self.receiver.close()
+                self.receiver = None
+            new_receiver = comm_analyzer.AnalyzerProxyReceiver(
+                self.receive_cb, self.reconnect)
+            try:
+                if self.addr is not None:
+                    await asyncio.wait_for(new_receiver.connect(self.addr, self.port_proxy),
+                                           self.timeout)
+                    logger.info("connected to analyzer proxy %s:%d", self.addr, self.port_proxy)
                     self.timer_cur = self.timer
-                    continue
-                except:
-                    logger.error("error connecting to analyzer proxy", exc_info=True)
-                try:
-                    await asyncio.wait_for(self._reconnect_event.wait(), self.timer_cur)
-                except asyncio.TimeoutError:
-                    self.timer_cur *= self.timer_backoff
-                    self._reconnect_event.set()
-                else:
-                    self.timer_cur = self.timer
-        except asyncio.CancelledError:
-            pass
+                    self.receiver = new_receiver
+                continue
+            except Exception:
+                logger.error("error connecting to analyzer proxy", exc_info=True)
+            try:
+                await asyncio.wait_for(self._reconnect_event.wait(), self.timer_cur)
+            except asyncio.TimeoutError:
+                self.timer_cur *= self.timer_backoff
+                self._reconnect_event.set()
+            else:
+                self.timer_cur = self.timer
 
     async def close(self):
         self._reconnect_task.cancel()
@@ -101,7 +98,7 @@ class ProxyClient():
         except asyncio.CancelledError:
             pass
         if self.receiver is not None:
-            self.receiver.close()
+            await self.receiver.close()
 
     def reconnect(self):
         self._reconnect_event.set()
@@ -715,8 +712,7 @@ class WaveformDock(QtWidgets.QDockWidget):
 
         self._current_dir = os.getcwd()
 
-        self.devices_sub = Subscriber("devices", self.init_ddb, self.update_ddb)
-        self.proxy_client = ProxyClient(self.on_dump_receive, 
+        self.proxy_client = ProxyClient(self.on_dump_receive,
                                         timeout,
                                         timer,
                                         timer_backoff)
@@ -909,5 +905,9 @@ class WaveformDock(QtWidgets.QDockWidget):
         self._process_ddb()
         return ddb
 
-    def update_ddb(self, mod):
+    def notify_ddb(self, mod):
         self._process_ddb()
+
+    async def stop(self):
+        if self.proxy_client is not None:
+            await self.proxy_client.close()

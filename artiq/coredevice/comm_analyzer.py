@@ -151,8 +151,6 @@ class AnalyzerProxyReceiver:
     def __init__(self, receive_cb, disconnect_cb=None):
         self.receive_cb = receive_cb
         self.disconnect_cb = disconnect_cb
-        self.receive_task = None
-        self.writer = None
 
     async def connect(self, host, port):
         self.reader, self.writer = \
@@ -162,17 +160,20 @@ class AnalyzerProxyReceiver:
             assert line == ANALYZER_MAGIC
             self.receive_task = asyncio.create_task(self._receive_cr())
         except:
-            if self.writer is not None:
-                self.writer.close()
-                del self.reader
-                del self.writer
+            self.writer.close()
+            del self.reader
+            del self.writer
             raise
 
-    def close(self):
+    async def close(self):
         self.disconnect_cb = None
-        if self.receive_task is not None:
+        try:
             self.receive_task.cancel()
-        if self.writer is not None:
+            try:
+                await self.receive_task
+            except asyncio.CancelledError:
+                pass
+        finally:
             self.writer.close()
             del self.reader
             del self.writer
@@ -200,6 +201,8 @@ class AnalyzerProxyReceiver:
                 remaining_data = await self.reader.readexactly(payload_length + 11)
                 data = endian_byte + payload_length_word + remaining_data
                 self.receive_cb(data)
+        except Exception:
+            logger.error("analyzer receiver connection terminating with exception", exc_info=True)
         finally:
             if self.disconnect_cb is not None:
                 self.disconnect_cb()

@@ -15,6 +15,7 @@ from sipyco.pc_rpc import AsyncioClient, Client
 from sipyco.broadcast import Receiver
 from sipyco import common_args
 from sipyco.asyncio_tools import atexit_register_coroutine
+from sipyco.sync_struct import Subscriber
 
 from artiq import __artiq_dir__ as artiq_dir, __version__ as artiq_version
 from artiq.tools import get_user_config_dir
@@ -226,7 +227,6 @@ def main():
     broadcast_clients["ccb"].notify_cbs.append(d_applets.ccb_notify)
 
     d_ttl_dds = moninj.MonInj(rpc_clients["schedule"])
-    loop.run_until_complete(d_ttl_dds.start(args.server, args.port_notify))
     atexit_register_coroutine(d_ttl_dds.stop, loop=loop)
 
     d_waveform = waveform.WaveformDock(
@@ -234,9 +234,15 @@ def main():
         args.analyzer_proxy_timer,
         args.analyzer_proxy_timer_backoff
     )
-    atexit_register_coroutine(d_waveform.proxy_client.close, loop=loop)
-    loop.run_until_complete(d_waveform.devices_sub.connect(args.server, args.port_notify))
-    atexit_register_coroutine(d_waveform.devices_sub.close, loop=loop)
+    atexit_register_coroutine(d_waveform.stop, loop=loop)
+
+    def init_cbs(ddb):
+        d_ttl_dds.dm.init_ddb(ddb)
+        d_waveform.init_ddb(ddb)
+        return ddb
+    devices_sub = Subscriber("devices", init_cbs, [d_ttl_dds.dm.notify_ddb, d_waveform.notify_ddb])
+    loop.run_until_complete(devices_sub.connect(args.server, args.port_notify))
+    atexit_register_coroutine(devices_sub.close, loop=loop)
 
     d_schedule = schedule.ScheduleDock(
         rpc_clients["schedule"], sub_clients["schedule"])

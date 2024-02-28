@@ -5,8 +5,6 @@ from collections import namedtuple
 
 from PyQt5 import QtCore, QtWidgets, QtGui
 
-from sipyco.sync_struct import Subscriber
-
 from artiq.coredevice.comm_moninj import *
 from artiq.coredevice.ad9910 import (
     _AD9910_REG_PROFILE0, _AD9910_REG_PROFILE7, 
@@ -458,9 +456,8 @@ class _DeviceManager:
 
     def init_ddb(self, ddb):
         self.ddb = ddb
-        return ddb
 
-    def notify(self, mod):
+    def notify_ddb(self, mod):
         mi_addr, mi_port, description = setup_from_ddb(self.ddb)
 
         if (mi_addr, mi_port) != (self.mi_addr, self.mi_port):
@@ -786,12 +783,6 @@ class MonInj:
         self.dm.dac_cb = lambda: self.dac_dock.layout_widgets(
                             self.dm.dac_widgets.values())
 
-        self.subscriber = Subscriber("devices", self.dm.init_ddb, self.dm.notify)
-
-    async def start(self, server, port):
-        await self.subscriber.connect(server, port)
-
     async def stop(self):
-        await self.subscriber.close()
         if self.dm is not None:
             await self.dm.close()
