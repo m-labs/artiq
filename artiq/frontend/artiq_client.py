@@ -113,11 +113,20 @@ def get_argparser():
         "del-dataset", help="delete a dataset")
     parser_del_dataset.add_argument("name", help="name of the dataset")
 
+    parser_supply_interactive = subparsers.add_parser(
+        "supply-interactive", help="supply interactive arguments")
+    parser_supply_interactive.add_argument(
+        "rid", metavar="RID", type=int, help="RID of target experiment")
+    parser_supply_interactive.add_argument(
+        "arguments", metavar="ARGUMENTS", nargs="*",
+        help="interactive arguments")
+
     parser_show = subparsers.add_parser(
         "show", help="show schedule, log, devices or datasets")
     parser_show.add_argument(
         "what", metavar="WHAT",
-        choices=["schedule", "log", "ccb", "devices", "datasets"],
+        choices=["schedule", "log", "ccb", "devices", "datasets",
+                 "interactive-args"],
         help="select object to show: %(choices)s")
 
     subparsers.add_parser(
@@ -136,8 +145,7 @@ def get_argparser():
         "ls", help="list a directory on the master")
     parser_ls.add_argument("directory", default="", nargs="?")
 
-    subparsers.add_parser(
-        "terminate", help="terminate the ARTIQ master")
+    subparsers.add_parser("terminate", help="terminate the ARTIQ master")
 
     common_args.verbosity_args(parser)
     return parser
@@ -209,6 +217,11 @@ def _action_scan_devices(remote, args):
     remote.scan()
 
 
+def _action_supply_interactive(remote, args):
+    arguments = parse_arguments(args.arguments)
+    remote.supply(args.rid, arguments)
+
+
 def _action_scan_repository(remote, args):
     if getattr(args, "async"):
         remote.scan_repository_async(args.revision)
@@ -272,6 +285,15 @@ def _show_datasets(datasets):
     table = PrettyTable(["Dataset", "Persistent", "Value"])
     for k, (persist, value, metadata) in sorted(datasets.items(), key=itemgetter(0)):
         table.add_row([k, "Y" if persist else "N", short_format(value, metadata)])
+    print(table)
+
+
+def _show_interactive_args(interactive_args):
+    clear_screen()
+    table = PrettyTable(["RID", "Key", "Type", "Group", "Tooltip"])
+    for rid, args in sorted(interactive_args.items(), key=itemgetter(0)):
+        for key, procdesc, group, tooltip in args:
+            table.add_row([rid, key, procdesc["ty"], group, tooltip])
     print(table)
 
 
@@ -346,6 +368,8 @@ def main():
             _show_dict(args, "devices", _show_devices)
         elif args.what == "datasets":
             _show_dict(args, "datasets", _show_datasets)
+        elif args.what == "interactive-args":
+            _show_dict(args, "interactive_args", _show_interactive_args)
         else:
             raise ValueError
     else:
@@ -356,6 +380,7 @@ def main():
             "set_dataset": "dataset_db",
             "del_dataset": "dataset_db",
             "scan_devices": "device_db",
+            "supply_interactive": "interactive_arg_db",
             "scan_repository": "experiment_db",
             "ls": "experiment_db",
             "terminate": "master_management",
