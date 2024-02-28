@@ -510,8 +510,7 @@ class Scheduler:
         """Returns ``True`` if termination is requested."""
         for pipeline in self._pipelines.values():
             if rid in pipeline.pool.runs:
-                run = pipeline.pool.runs[rid]  
+                run = pipeline.pool.runs[rid]
                 if run.termination_requested:
                     return True
         return False
-        
