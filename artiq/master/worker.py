@@ -234,7 +234,7 @@ class Worker:
                 if asyncio.iscoroutine(data):
                     data = await data
                 reply = {"status": "ok", "data": data}
-            except:
+            except Exception:
                 reply = {
                     "status": "failed",
                     "exception": current_exc_packed()
