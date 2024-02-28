@@ -215,6 +215,18 @@ def examine(device_mgr, dataset_mgr, file):
             del sys.modules[key]
 
 
+class ArgumentManager(ProcessArgumentManager):
+    _get_interactive = make_parent_action("get_interactive_arguments")
+
+    def get_interactive(self, interactive_arglist):
+        arglist_desc = [(k, p.describe(), g, t)
+                        for k, p, g, t in interactive_arglist]
+        arguments = ArgumentManager._get_interactive(arglist_desc)
+        for key, processor, _, _ in interactive_arglist:
+            arguments[key] = processor.process(arguments[key])
+        return arguments
+
+
 def setup_diagnostics(experiment_file, repository_path):
     def render_diagnostic(self, diagnostic):
         message = "While compiling {}\n".format(experiment_file) + \
@@ -327,7 +339,7 @@ def main():
                                        time.strftime("%H", start_local_time))
                 os.makedirs(dirname, exist_ok=True)
                 os.chdir(dirname)
-                argument_mgr = ProcessArgumentManager(expid["arguments"])
+                argument_mgr = ArgumentManager(expid["arguments"])
                 exp_inst = exp((device_mgr, dataset_mgr, argument_mgr, {}))
                 argument_mgr.check_unprocessed_arguments()
                 put_completed()

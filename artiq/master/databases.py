@@ -114,3 +114,34 @@ class DatasetDB(TaskObject):
         del self.data[key]
         self.pending_keys.add(key)
     #
+
+
+class InteractiveArgDB:
+    def __init__(self):
+        self.pending = Notifier(dict())
+        self.futures = dict()
+
+    async def get(self, rid, arglist_desc):
+        self.pending[rid] = arglist_desc
+        self.futures[rid] = asyncio.get_running_loop().create_future()
+        try:
+            value = await self.futures[rid]
+        finally:
+            del self.pending[rid]
+            del self.futures[rid]
+        return value
+
+    def supply(self, rid, values):
+        # quick sanity checks
+        if rid not in self.futures:
+            raise ValueError("no experiment with this RID is "
+                             "waiting for interactive arguments")
+        if {i[0] for i in self.pending.raw_view[rid]} != set(values.keys()):
+            raise ValueError("supplied and requested keys do not match")
+        self.futures[rid].set_result(values)
+
+    def cancel(self, rid):
+        if rid not in self.futures:
+            raise ValueError("no experiment with this RID is "
+                             "waiting for interactive arguments")
+        self.futures[rid].cancel()

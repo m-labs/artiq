@@ -15,7 +15,8 @@ from sipyco.asyncio_tools import atexit_register_coroutine, SignalHandler
 
 from artiq import __version__ as artiq_version
 from artiq.master.log import log_args, init_log
-from artiq.master.databases import DeviceDB, DatasetDB
+from artiq.master.databases import (DeviceDB, DatasetDB,
+                                    InteractiveArgDB)
 from artiq.master.scheduler import Scheduler
 from artiq.master.rid_counter import RIDCounter
 from artiq.master.experiments import (FilesystemBackend, GitBackend,
@@ -95,6 +96,7 @@ def main():
     atexit.register(dataset_db.close_db)
     dataset_db.start(loop=loop)
     atexit_register_coroutine(dataset_db.stop, loop=loop)
+    interactive_arg_db = InteractiveArgDB()
     worker_handlers = dict()
 
     if args.git:
@@ -110,11 +112,16 @@ def main():
     scheduler.start(loop=loop)
     atexit_register_coroutine(scheduler.stop, loop=loop)
 
+    # Python doesn't allow writing attributes to bound methods.
+    def get_interactive_arguments(*args, **kwargs):
+        return interactive_arg_db.get(*args, **kwargs)
+    get_interactive_arguments._worker_pass_rid = True
     worker_handlers.update({
         "get_device_db": device_db.get_device_db,
         "get_device": device_db.get,
         "get_dataset": dataset_db.get,
         "update_dataset": dataset_db.update,
+        "get_interactive_arguments": get_interactive_arguments,
         "scheduler_submit": scheduler.submit,
         "scheduler_delete": scheduler.delete,
         "scheduler_request_termination": scheduler.request_termination,
@@ -135,6 +142,7 @@ def main():
         "master_management": master_management,
         "device_db": device_db,
         "dataset_db": dataset_db,
+        "interactive_arg_db": interactive_arg_db,
         "schedule": scheduler,
         "experiment_db": experiment_db,
     }, allow_parallel=True)
@@ -146,8 +154,9 @@ def main():
         "schedule": scheduler.notifier,
         "devices": device_db.data,
         "datasets": dataset_db.data,
+        "interactive_args": interactive_arg_db.pending,
         "explist": experiment_db.explist,
-        "explist_status": experiment_db.status
+        "explist_status": experiment_db.status,
     })
     loop.run_until_complete(server_notify.start(
         bind, args.port_notify))
