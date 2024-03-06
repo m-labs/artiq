@@ -719,10 +719,7 @@ class _DeviceManager:
                     self.disconnect_cb)
             try:
                 await new_mi_connection.connect(self.mi_addr, self.mi_port)
-            except asyncio.CancelledError:
-                logger.info("cancelled connection to moninj")
-                break
-            except:
+            except Exception:
                 logger.error("failed to connect to moninj. Is aqctl_moninj_proxy running?", exc_info=True)
                 await asyncio.sleep(10.)
                 self.reconnect_mi.set()
