@@ -94,9 +94,7 @@ class CommMonInj:
                     self.injection_status_cb(channel, override, value)
                 else:
                     raise ValueError("Unknown packet type", ty)
-        except asyncio.CancelledError:
-            raise
-        except:
+        except Exception:
             logger.error("Moninj connection terminating with exception", exc_info=True)
         finally:
             if self.disconnect_cb is not None:
