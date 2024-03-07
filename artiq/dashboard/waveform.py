@@ -45,7 +45,7 @@ class ProxyClient():
         self.addr = addr
         self.port = port
         self.port_proxy = port_proxy
-        self.reconnect()
+        self._reconnect_event.set()
 
     async def trigger_proxy_task(self):
         remote = AsyncioClient()
@@ -72,12 +72,12 @@ class ProxyClient():
                 await self.receiver.close()
                 self.receiver = None
             new_receiver = comm_analyzer.AnalyzerProxyReceiver(
-                self.receive_cb, self.reconnect)
+                self.receive_cb, self.disconnect_cb)
             try:
                 if self.addr is not None:
                     await asyncio.wait_for(new_receiver.connect(self.addr, self.port_proxy),
                                            self.timeout)
-                    logger.info("connected to analyzer proxy %s:%d", self.addr, self.port_proxy)
+                    logger.info("ARTIQ dashboard connected to analyzer proxy (%s)", self.addr)
                     self.timer_cur = self.timer
                     self.receiver = new_receiver
                 continue
@@ -100,7 +100,8 @@ class ProxyClient():
         if self.receiver is not None:
             await self.receiver.close()
 
-    def reconnect(self):
+    def disconnect_cb(self):
+        logger.error("lost connection to analyzer proxy")
         self._reconnect_event.set()
 
 
