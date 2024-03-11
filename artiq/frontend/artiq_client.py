@@ -290,10 +290,11 @@ def _show_datasets(datasets):
 
 def _show_interactive_args(interactive_args):
     clear_screen()
-    table = PrettyTable(["RID", "Key", "Type", "Group", "Tooltip"])
-    for rid, args in sorted(interactive_args.items(), key=itemgetter(0)):
-        for key, procdesc, group, tooltip in args:
-            table.add_row([rid, key, procdesc["ty"], group, tooltip])
+    table = PrettyTable(["RID", "Title", "Key", "Type", "Group", "Tooltip"])
+    for rid, input_request in sorted(interactive_args.items(), key=itemgetter(0)):
+        title = input_request["title"]
+        for key, procdesc, group, tooltip in input_request["arglist_desc"]:
+            table.add_row([rid, title, key, procdesc["ty"], group, tooltip])
     print(table)
 
 
