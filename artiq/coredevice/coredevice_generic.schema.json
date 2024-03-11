@@ -49,6 +49,10 @@
             "default": 125e6,
             "description": "RTIO frequency"
         },
+        "enable_wrpll": {
+            "type": "boolean",
+            "default": false
+        },
         "core_addr": {
             "type": "string",
             "format": "ipv4",
