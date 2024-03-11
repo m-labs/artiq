@@ -121,8 +121,8 @@ class InteractiveArgDB:
         self.pending = Notifier(dict())
         self.futures = dict()
 
-    async def get(self, rid, arglist_desc):
-        self.pending[rid] = arglist_desc
+    async def get(self, rid, arglist_desc, title):
+        self.pending[rid] = {"title": title, "arglist_desc": arglist_desc}
         self.futures[rid] = asyncio.get_running_loop().create_future()
         try:
             value = await self.futures[rid]
@@ -136,7 +136,7 @@ class InteractiveArgDB:
         if rid not in self.futures:
             raise ValueError("no experiment with this RID is "
                              "waiting for interactive arguments")
-        if {i[0] for i in self.pending.raw_view[rid]} != set(values.keys()):
+        if {i[0] for i in self.pending.raw_view[rid]["arglist_desc"]} != set(values.keys()):
             raise ValueError("supplied and requested keys do not match")
         self.futures[rid].set_result(values)
 

@@ -218,10 +218,10 @@ def examine(device_mgr, dataset_mgr, file):
 class ArgumentManager(ProcessArgumentManager):
     _get_interactive = make_parent_action("get_interactive_arguments")
 
-    def get_interactive(self, interactive_arglist):
+    def get_interactive(self, interactive_arglist, title):
         arglist_desc = [(k, p.describe(), g, t)
                         for k, p, g, t in interactive_arglist]
-        arguments = ArgumentManager._get_interactive(arglist_desc)
+        arguments = ArgumentManager._get_interactive(arglist_desc, title)
         for key, processor, _, _ in interactive_arglist:
             arguments[key] = processor.process(arguments[key])
         return arguments

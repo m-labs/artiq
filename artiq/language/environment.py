@@ -214,7 +214,7 @@ class TraceArgumentManager:
         self.requested_args[key] = processor, group, tooltip
         return None
 
-    def get_interactive(self, interactive_arglist):
+    def get_interactive(self, interactive_arglist, title):
         raise NotImplementedError
 
 
@@ -238,7 +238,7 @@ class ProcessArgumentManager:
             raise AttributeError("Supplied argument(s) not queried in experiment: " +
                                  ", ".join(unprocessed))
 
-    def get_interactive(self, interactive_arglist):
+    def get_interactive(self, interactive_arglist, title):
         raise NotImplementedError
 
 
@@ -332,7 +332,7 @@ class HasEnvironment:
         self.kernel_invariants = kernel_invariants | {key}
 
     @contextmanager
-    def interactive(self):
+    def interactive(self, title=""):
         """Request arguments from the user interactively.
 
         This context manager returns a namespace object on which the method
@@ -349,7 +349,7 @@ class HasEnvironment:
         namespace.setattr_argument = setattr_argument
         yield namespace
         del namespace.setattr_argument
-        argdict = self.__argument_mgr.get_interactive(interactive_arglist)
+        argdict = self.__argument_mgr.get_interactive(interactive_arglist, title)
         for key, value in argdict.items():
             setattr(namespace, key, value)
 

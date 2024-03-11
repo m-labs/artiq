@@ -167,7 +167,8 @@ def get_argparser(with_file=True):
 
 
 class ArgumentManager(ProcessArgumentManager):
-    def get_interactive(self, interactive_arglist):
+    def get_interactive(self, interactive_arglist, title):
+        print(title)
         result = dict()
         for key, processor, group, tooltip in interactive_arglist:
             success = False
