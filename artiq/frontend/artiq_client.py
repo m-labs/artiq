@@ -307,7 +307,7 @@ def _run_subscriber(host, port, subscriber):
             loop.run_until_complete(subscriber.connect(host, port))
             try:
                 _, pending = loop.run_until_complete(asyncio.wait(
-                    [signal_handler.wait_terminate(), subscriber.receive_task],
+                    [loop.create_task(signal_handler.wait_terminate()), subscriber.receive_task],
                     return_when=asyncio.FIRST_COMPLETED))
                 for task in pending:
                     task.cancel()
