@@ -237,7 +237,7 @@ class PeripheralManager:
                     "io_update_device": "ttl_{name}_io_update",
                     "refclk": {refclk},
                     "clk_sel": {clk_sel},
-                    "clk_div" : {clk_div}
+                    "clk_div": {clk_div}
                 }}
             }}""",
             name=urukul_name,
