@@ -115,7 +115,7 @@ pub mod drtio {
         }
 
         pub fn wait(&mut self, io: &Io) -> Result<drtioaux::Payload, Error> {
-            if self.state == TransactionState::Sent || self.state == TransactionState::Acknowledged {
+            if self.state == TransactionState::Unsent || self.state == TransactionState::Sent || self.state == TransactionState::Acknowledged {
                     self.semaphore.wait(io)?;
             }
             match self.state {
@@ -162,11 +162,14 @@ pub mod drtio {
                     self.state == TransactionState::Acknowledged) &&
                     current_time > self.max_time {
                 self.state = TransactionState::TimedOut;
+                self.semaphore.signal();
                 false
-            } else match self.state {
-                TransactionState::Unsent => true,
-                TransactionState::Sent => current_time >= self.last_action_time + DEFAULT_ACK_TIMEOUT,
-                _ => false
+            } else {
+                match self.state {
+                    TransactionState::Unsent => true,
+                    TransactionState::Sent => current_time >= self.last_action_time + DEFAULT_ACK_TIMEOUT,
+                    _ => false
+                }    
             }
         }
 
@@ -208,7 +211,6 @@ pub mod drtio {
             self.self_destination = dest;
         }
 
-        // public API
         pub fn transact(&mut self, io: &Io, destination: u8, payload: drtioaux::Payload,
             timeout: u64, requires_response: bool, force_linkno: Option<u8>
         ) -> Result<drtioaux::Payload, Error> {
@@ -216,7 +218,6 @@ pub mod drtio {
             self.transactions.get_mut(&handle).unwrap().wait(io)
         }
 
-        // public API
         pub fn transact_async(&mut self, destination: u8, payload: drtioaux::Payload,
             timeout: u64, requires_response: bool, force_linkno: Option<u8>
         ) -> Result<TransactionHandle, Error> {
@@ -240,7 +241,6 @@ pub mod drtio {
             Ok(transaction_id)
         }
 
-        // public API
         pub fn await_transaction(&mut self, io: &Io, handle: TransactionHandle) -> Result<drtioaux::Payload, Error> {
             match self.transactions.get_mut(&handle) {
                 Some(transaction) => transaction.wait(io),
@@ -248,14 +248,17 @@ pub mod drtio {
             }
         }
 
-        // when recv gets a response
         pub fn handle_response(&mut self, io: &Io, ddma_mutex: &Mutex, 
             subkernel_mutex: &Mutex, packet: &drtioaux::Packet) {
-            // ACK any response
-            self.scheduled_acks.push((packet.transaction_id, packet.source));
+            // ACK any response (except ACKs)
+            if packet.payload != drtioaux::Payload::PacketAck {
+                self.scheduled_acks.push((packet.transaction_id, packet.source));
+            }
             let transaction = self.transactions.get_mut(&(packet.transaction_id & 0x7F));
-            let is_expected = match &transaction {
-                Some(transaction) => transaction.packet.destination == packet.source,
+            let is_expected = packet.transaction_id & 0x80 != 0 && match transaction {
+                Some(ref transaction) => {
+                    transaction.packet.destination == packet.source
+                }
                 _ => false
             };
             if is_expected {
@@ -272,22 +275,18 @@ pub mod drtio {
                         subkernel::message_handle_incoming(io, subkernel_mutex, *id, *status, *length as usize, &data);
                         // no subkernelmsgack, normal ack is enough
                     },
+                    drtioaux::Payload::PacketAck => (), // acks could be resent, ignore
                     packet => warn!("received unsolicited packet: {:?}", packet)
                 };
             }
         }
 
-        // when recv receives packet that is not targeted for master
         pub fn route_packet(&mut self, packet: &drtioaux::Packet) {
             self.routable_packets.push(packet.clone());
         }
-        
 
-        // for send loop
         pub fn send_ack(&mut self, routing_table: &drtio_routing::RoutingTable, 
-            link_states: &Urc<RefCell<[LinkState; csr::DRTIO.len()]>>, 
-            current_time: u64) -> bool {
-            let old_len = self.scheduled_acks.len();
+            link_states: &Urc<RefCell<[LinkState; csr::DRTIO.len()]>>, current_time: u64) {
             let self_destination = self.self_destination;
             self.scheduled_acks.retain(|&(transaction_id, destination)| {
                 match send(routing_table, link_states, current_time, None, &drtioaux::Packet { 
@@ -301,15 +300,10 @@ pub mod drtio {
                     Err(e) => { warn!("error sending packet ack: {:?}", e); true }
                 }
             });
-            // returns true if any acks were sent
-            self.scheduled_acks.len() != old_len
         }
 
-        // for send loop
         pub fn send_routable_packet(&mut self, routing_table: &drtio_routing::RoutingTable, 
-            link_states: &Urc<RefCell<[LinkState; csr::DRTIO.len()]>>, 
-            current_time: u64) -> bool {
-            let old_len = self.routable_packets.len();
+            link_states: &Urc<RefCell<[LinkState; csr::DRTIO.len()]>>, current_time: u64) {
             self.routable_packets.retain(|packet| {
                 match send(routing_table, link_states, current_time, None, packet) {
                     Ok(()) => false,
@@ -318,19 +312,15 @@ pub mod drtio {
                     Err(e) => { warn!("error rerouting packet: {:?}", e); true }
                 }
             });
-            // returns true if any packets were rerouted
-            self.routable_packets.len() != old_len
         }
 
-        // for send loop
         pub fn handle_transactions(&mut self, 
             routing_table: &drtio_routing::RoutingTable,
             link_states: &Urc<RefCell<[LinkState; csr::DRTIO.len()]>>,
-            current_time: u64
-        ) -> () {
+            current_time: u64) {
             self.transactions.retain(|_transaction_id, transaction| {
-                let need_send = transaction.should_send(current_time);
-                if need_send {
+                let should_send = transaction.should_send(current_time);
+                if should_send {
                     match send(routing_table, link_states, current_time, transaction.force_linkno, &transaction.packet) {
                         Ok(()) => transaction.update_last_action_time(current_time),
                         Err(Error::LinkNotReady) | Err(Error::LinkDown) => (),
@@ -381,7 +371,7 @@ pub mod drtio {
             let link_states = link_states.clone();
             let ddma_mutex = ddma_mutex.clone();
             let subkernel_mutex = subkernel_mutex.clone();
-            io.spawn(8192, move |io| {
+            io.spawn(16384*2, move |io| {
                 let routing_table = routing_table.borrow();
                 link_thread(io, &routing_table, &link_states, &up_destinations, &ddma_mutex, &subkernel_mutex);
             });
@@ -390,14 +380,14 @@ pub mod drtio {
             let link_states = link_states.clone();
             let ddma_mutex = ddma_mutex.clone();
             let subkernel_mutex = subkernel_mutex.clone();
-            io.spawn(4096, move |io| {
+            io.spawn(8192, move |io| {
                 recv_thread(io, &ddma_mutex, &subkernel_mutex, &link_states);
             });
         }
         {
             let routing_table = routing_table.clone();
             let link_states = link_states.clone();
-            io.spawn(8192, move |io| {
+            io.spawn(16384, move |io| {
                 let routing_table = routing_table.borrow();
                 send_thread(io, &routing_table, &link_states);
             });
@@ -453,33 +443,28 @@ pub mod drtio {
         loop {
             io.relinquish().unwrap();
             let current_time = clock::get_ms();
-            if unsafe { TRANSACTION_MANAGER.send_ack(routing_table, link_states, current_time) } {
-                continue;
-            } else if unsafe { TRANSACTION_MANAGER.send_routable_packet(routing_table, link_states, current_time) } {
-                continue;
-            } else {
-                unsafe { TRANSACTION_MANAGER.handle_transactions(routing_table, link_states, current_time); }
-                for ((tx_id, dest), receiving_time) in unsafe { TRANSACTION_MANAGER.incoming_transactions.iter() } {
-                    // clean up incoming (async) transactions after 4x ACK_TIMEOUT
-                    if current_time > receiving_time + 4*DEFAULT_ACK_TIMEOUT {
-                        unsafe { TRANSACTION_MANAGER.incoming_transactions.remove(&(*tx_id, *dest)); }
-                    }
-                }
+            unsafe {
+                TRANSACTION_MANAGER.send_ack(routing_table, link_states, current_time);
+                // reroute packets
+                TRANSACTION_MANAGER.send_routable_packet(routing_table, link_states, current_time);
+                // outgoing transactions
+                TRANSACTION_MANAGER.handle_transactions(routing_table, link_states, current_time);
+                // clear incoming transactions
+                TRANSACTION_MANAGER.incoming_transactions.retain(|&_, receiving_time| {
+                    current_time > *receiving_time + 4*DEFAULT_ACK_TIMEOUT
+                })
             }
         }
     }
 
-    // public API
     pub fn aux_transact(io: &Io, destination: u8, timeout: u64, requires_response: bool, payload: drtioaux::Payload) -> Result<drtioaux::Payload, Error> {
         unsafe { TRANSACTION_MANAGER.transact(io, destination, payload, timeout, requires_response, None) }
     }
 
-    // transaction 
     pub fn async_aux_transact(destination: u8, timeout: u64, requires_response: bool, payload: drtioaux::Payload) -> TransactionHandle {
         unsafe { TRANSACTION_MANAGER.transact_async(destination, payload, timeout, requires_response, None).unwrap() }
     }
 
-    // public API
     pub fn await_transaction(io: &Io, handle: TransactionHandle) -> Result<drtioaux::Payload, Error> {
         unsafe { TRANSACTION_MANAGER.await_transaction(io, handle) }
     }
@@ -505,19 +490,21 @@ pub mod drtio {
                 return Err(Error::Timeout);
             }
             match drtioaux::recv(linkno)? {
-                Some(packet) => return Ok(packet),
+                Some(packet) => {
+                    return Ok(packet)
+                },
                 None => (),
             }
             io.relinquish()?;
         }
     }
 
-    fn setup_transact(io: &Io, linkno: u8, payload: drtioaux::Payload) -> Result<drtioaux::Payload, Error> {
+    fn setup_transact(io: &Io, linkno: u8, payload: &drtioaux::Payload) -> Result<drtioaux::Payload, Error> {
         drtioaux::send(linkno, &drtioaux::Packet {
             source: 0,
             destination: 0,
             transaction_id: 0,
-            payload: payload }).unwrap();
+            payload: *payload }).unwrap();
         let reply = recv_aux_timeout(io, linkno, 200)?;
         Ok(reply.payload)
     }
@@ -532,7 +519,7 @@ pub mod drtio {
             if count > 100 {
                 return 0;
             }
-            let reply = setup_transact(io, linkno, drtioaux::Payload::EchoRequest);
+            let reply = setup_transact(io, linkno, &drtioaux::Payload::EchoRequest);
             match reply {
                 Ok(drtioaux::Payload::EchoReply) => {
                     // make sure receive buffer is drained
@@ -569,7 +556,7 @@ pub mod drtio {
     fn load_routing_table(io: &Io,
         linkno: u8, routing_table: &drtio_routing::RoutingTable) -> Result<(), Error> {
         for i in 0..drtio_routing::DEST_COUNT {
-            let reply = setup_transact(io, linkno, drtioaux::Payload::RoutingSetPath {
+            let reply = setup_transact(io, linkno, &drtioaux::Payload::RoutingSetPath {
                 destination: i as u8,
                 hops: routing_table.0[i]
             })?;
@@ -582,7 +569,7 @@ pub mod drtio {
 
     fn set_rank(io: &Io, linkno: u8, rank: u8) -> Result<(), Error> {
         let reply = setup_transact(io, linkno,
-            drtioaux::Payload::RoutingSetRank {
+            &drtioaux::Payload::RoutingSetRank {
                 rank: rank
             })?;
         if reply != drtioaux::Payload::RoutingAck {

@@ -158,7 +158,6 @@ pub enum Payload {
     SubkernelExceptionRequest,
     SubkernelException { last: bool, length: u16, data: [u8; SAT_PAYLOAD_MAX_SIZE] },
     SubkernelMessage { id: u32, status: PayloadStatus, length: u16, data: [u8; MASTER_PAYLOAD_MAX_SIZE] },
-    SubkernelMessageAck,
 }
 
 impl Payload {
@@ -388,7 +387,6 @@ impl Payload {
                     data: data,
                 }
             },
-            0xcc => Payload::SubkernelMessageAck,
 
             ty => return Err(Error::UnknownPacket(ty))
         })
@@ -638,22 +636,7 @@ impl Payload {
                 writer.write_u16(length)?;
                 writer.write_all(&data[0..length as usize])?;
             },
-            Payload::SubkernelMessageAck =>
-                writer.write_u8(0xcc)?,
         }
         Ok(())
-    }
-
-    pub fn expects_response(&self) -> bool {
-        // returns true if the routable packet should elicit a response
-        // e.g. reply, ACK packets end a conversation,
-        // and firmware should not wait for response
-        match self {
-            Payload::DmaAddTraceReply { .. } | Payload::DmaRemoveTraceReply { .. } |
-                Payload::DmaPlaybackReply { .. } | Payload::SubkernelLoadRunReply { .. } |
-                Payload::SubkernelMessageAck { .. } | Payload::DmaPlaybackStatus { .. } |
-                Payload::SubkernelFinished { .. } => false,
-            _ => true
-        }
     }
 }

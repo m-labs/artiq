@@ -1,9 +1,9 @@
 use alloc::{vec::Vec, collections::btree_map::BTreeMap, string::String};
 use core::mem;
-use board_artiq::{drtioaux, drtio_routing::RoutingTable};
+use board_artiq::drtioaux;
 use board_misoc::{csr, cache::flush_l2_cache};
 use proto_artiq::drtioaux_proto::PayloadStatus;
-use routing::{Router, Sliceable};
+use aux::{AuxManager, Sliceable};
 use kernel::Manager as KernelManager;
 use ::{cricon_select, cricon_read, RtioMaster, MASTER_PAYLOAD_MAX_SIZE};
 
@@ -30,6 +30,7 @@ pub enum Error {
     EntryNotComplete,
     MasterDmaFound,
     UploadFail,
+    PlaybackFail,
 }
 
 struct Entry {
@@ -76,9 +77,9 @@ impl Entry {
 
 enum RemoteTraceState {
     Unsent,
-    Sending(usize),
+    Sending(Vec<u8>),
     Ready,
-    Running(usize),
+    Running(Vec<u8>, u8),
 }
 
 struct RemoteTraces {
@@ -95,80 +96,160 @@ impl RemoteTraces {
     }
 
     // on subkernel request
-    pub fn upload_traces(&mut self, id: u32, router: &mut Router, rank: u8, self_destination: u8, routing_table: &RoutingTable) -> usize {
+    pub fn upload_traces(&mut self, id: u32, aux_mgr: &mut AuxManager) -> usize {
         let len = self.remote_traces.len();
         if len > 0 {
-            self.state = RemoteTraceState::Sending(self.remote_traces.len());
+            let mut ids: Vec<u8> = Vec::new();
             for (dest, trace) in self.remote_traces.iter_mut() {
                 // queue up the first packet for all destinations, rest will be sent after first ACK
                 let mut data_slice: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
                 let meta = trace.get_slice_master(&mut data_slice);
-                router.route(drtioaux::Payload::DmaAddTraceRequest {
-                    source: self_destination, destination: *dest, id: id,
-                    status: meta.status, length: meta.len, trace: data_slice
-                }, routing_table, rank, self_destination);
+                let transaction_id = aux_mgr.transact(*dest, true, drtioaux::Payload::DmaAddTraceRequest {
+                     id: id, status: meta.status, length: meta.len, trace: data_slice
+                }).unwrap();
+                ids.push(transaction_id);
             }
+            self.state = RemoteTraceState::Sending(ids);
         }
         len
     }
 
     // on incoming Packet::DmaAddTraceReply
-    pub fn ack_upload(&mut self, kernel_manager: &mut KernelManager, source: u8, id: u32, succeeded: bool, router: &mut Router, rank: u8, self_destination: u8, routing_table: &RoutingTable) {
-        if let RemoteTraceState::Sending(count) = self.state {
-            if let Some(trace) = self.remote_traces.get_mut(&source) {
-                if trace.at_end() {
-                        if count - 1 == 0 {
-                            self.state = RemoteTraceState::Ready;
-                            kernel_manager.ddma_remote_uploaded(succeeded);
-                        } else {
-                            self.state = RemoteTraceState::Sending(count - 1);
-                        }
-                } else {
-                    // send next slice
-                    let mut data_slice: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
-                    let meta = trace.get_slice_master(&mut data_slice);
-                    router.route(drtioaux::Payload::DmaAddTraceRequest {
-                        source: self_destination, destination: meta.destination, id: id,
-                        status: meta.status, length: meta.len, trace: data_slice
-                    }, routing_table, rank, self_destination);
-                }
+    fn ack_upload(remote_traces: &mut BTreeMap<u8, Sliceable>, destination: u8, id: u32, aux_mgr: &mut AuxManager) -> Option<u8> {
+        // cannot be a method as the borrow checker will complaint in 'check_uploads' about 'self' getting borrowed multiple times
+        // deploys next trace if necessary
+        if let Some(trace) = remote_traces.get_mut(&destination) {
+            if trace.at_end() {
+                None
+            } else {
+                // send next slice
+                let mut data_slice: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
+                let meta = trace.get_slice_master(&mut data_slice);
+                let transaction_id = aux_mgr.transact(meta.destination, true, drtioaux::Payload::DmaAddTraceRequest {
+                    id: id, status: meta.status, length: meta.len, trace: data_slice
+                }).unwrap();
+                Some(transaction_id)
             }
+        } else {
+            None
         }
-        
+    }
+
+    pub fn check_uploads(&mut self, aux_mgr: &mut AuxManager) -> Result<bool, Error> {
+        // Ok(true) if there are no traces that are still uploading
+        if let RemoteTraceState::Sending(ref mut id_vec) = self.state {
+            let mut error_occured = false;
+            let mut keep_vec: Vec<bool> = Vec::new();
+            for transaction_id in id_vec.iter_mut() {
+                let reply = aux_mgr.check_transaction(*transaction_id);
+                let destination = aux_mgr.get_destination(*transaction_id);
+                let keep = match reply {
+                    Ok(Some(drtioaux::Payload::DmaAddTraceReply { id, succeeded: true })) => {
+                        if let Some(new_id) = RemoteTraces::ack_upload(&mut self.remote_traces, destination, id, aux_mgr) {
+                            *transaction_id = new_id;
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                    Ok(Some(p)) => {
+                        error_occured = true;
+                        error!("dma upload received unexpected reply: {:?}", p);
+                        false
+                    }
+                    Ok(None) => true,
+                    Err(e) => {
+                        error_occured = true;
+                        error!("error occured with dma upload: {:?}", e);
+                        false
+                    }
+                };
+                keep_vec.push(keep);
+            }
+            let mut iter = keep_vec.iter();
+            id_vec.retain(|_| *iter.next().unwrap());
+            if error_occured {
+                return Err(Error::UploadFail);
+            }
+            if id_vec.len() == 0 {
+                self.state = RemoteTraceState::Ready;
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        } else {
+            Ok(true)
+        }
     }
 
     // on subkernel request
-    pub fn playback(&mut self, id: u32, timestamp: u64, router: &mut Router, rank: u8, self_destination: u8, routing_table: &RoutingTable) {
-        // route all the playback requests
-        // remote traces + local trace
-        self.state = RemoteTraceState::Running(self.remote_traces.len() + 1);
+    pub fn playback(&mut self, id: u32, timestamp: u64, aux_mgr: &mut AuxManager) {
+        let mut ids: Vec<u8> = Vec::new();
         for (dest, _) in self.remote_traces.iter() {
-            router.route(drtioaux::Payload::DmaPlaybackRequest {
-                source: self_destination, destination: *dest, id: id, timestamp: timestamp
-            }, routing_table, rank, self_destination);
-            // response will be ignored (succeeded = false handled by the main thread)
+            let transaction_id = aux_mgr.transact(*dest, true,
+                drtioaux::Payload::DmaPlaybackRequest {
+                    id: id, timestamp: timestamp 
+                }).unwrap();
+            ids.push(transaction_id);
+        }
+        let count = ids.len() as u8;
+        self.state = RemoteTraceState::Running(ids, count);
+    }
+
+    pub fn check_playbacks(&mut self, aux_mgr: &mut AuxManager) -> Result<(), Error> {
+        if let RemoteTraceState::Running(ref mut id_vec, _) = self.state {
+            let mut error_occured = false;
+            id_vec.retain(|transaction_id| {
+                let reply = aux_mgr.check_transaction(*transaction_id);
+                match reply {
+                    Ok(None) => true,
+                    Ok(Some(drtioaux::Payload::DmaPlaybackReply { succeeded: true })) => false,
+                    Ok(Some(drtioaux::Payload::DmaPlaybackReply { succeeded: false })) => {
+                        error_occured = true;
+                        error!("dma playback not succeeded");
+                        false
+                    }
+                    Ok(Some(p)) => {
+                        error_occured = true;
+                        error!("dma playback got unexpected reply: {:?}", p);
+                        false
+                    }
+                    Err(e) => {
+                        error!("error while playing back dma on remote: {:?}", e);
+                        error_occured = true;
+                        false
+                    }
+                }
+            });
+            if error_occured {
+                Err(Error::PlaybackFail)
+            } else {
+                Ok(())
+            }
+        } else {
+            Ok(())
         }
     }
 
     // on incoming Packet::DmaPlaybackDone
     pub fn remote_finished(&mut self, kernel_manager: &mut KernelManager, error: u8, channel: u32, timestamp: u64) {
-        if let RemoteTraceState::Running(count) = self.state {
+        if let RemoteTraceState::Running(ids, count) = &self.state {
             if error != 0 || count - 1 == 0 {
                 // notify the kernel about a DDMA error or finish
                 kernel_manager.ddma_finished(error, channel, timestamp);
                 self.state = RemoteTraceState::Ready;
                 // further messages will be ignored (if there was an error)
             } else { // no error and not the last one awaited
-                self.state = RemoteTraceState::Running(count - 1);
+                self.state = RemoteTraceState::Running(ids.to_vec(), count - 1);
             }
         }
     }
 
-    pub fn erase(&mut self, id: u32, router: &mut Router, rank: u8, self_destination: u8, routing_table: &RoutingTable) {
+    pub fn erase(&mut self, id: u32, aux_mgr: &mut AuxManager) {
         for (dest, _) in self.remote_traces.iter() {
-            router.route(drtioaux::Payload::DmaRemoveTraceRequest { 
-                source: self_destination, destination: *dest, id: id
-            }, routing_table, rank, self_destination);
+            let _ = aux_mgr.transact(*dest, true, drtioaux::Payload::DmaRemoveTraceRequest { 
+                id: id
+            });
             // response will be ignored as this object will stop existing too
         }
     }
@@ -300,14 +381,27 @@ impl Manager {
         Ok(id)
     }
 
-    pub fn upload_traces(&mut self, id: u32, router: &mut Router, rank: u8, self_destination: u8,
-            routing_table: &RoutingTable) -> Result<usize, Error> {
+    pub fn upload_traces(&mut self, id: u32, aux_mgr: &mut AuxManager) -> Result<usize, Error> {
         let remote_traces = self.remote_entries.get_mut(&id);
         let mut len = 0;
         if let Some(traces) = remote_traces {
-            len = traces.upload_traces(id, router, rank, self_destination, routing_table);
+            len = traces.upload_traces(id, aux_mgr);
         }
         Ok(len)
+    }
+
+    pub fn check_uploads(&mut self, id: u32, aux_mgr: &mut AuxManager) -> Result<bool, Error> {
+        match self.remote_entries.get_mut(&id) {
+            Some(traces) => traces.check_uploads(aux_mgr),
+            _ => Ok(false)
+        }
+    }
+
+    pub fn check_playbacks(&mut self, id: u32, aux_mgr: &mut AuxManager) -> Result<(), Error> {
+        match self.remote_entries.get_mut(&id) {
+            Some(traces) => traces.check_playbacks(aux_mgr),
+            _ => Ok(())
+        }
     }
 
     pub fn with_trace<F, R>(&self, self_destination: u8, name: &str, f: F) -> R
@@ -323,11 +417,10 @@ impl Manager {
     }
 
     // API for subkernel
-    pub fn playback_remote(&mut self, id: u32, timestamp: u64, 
-        router: &mut Router, rank: u8, self_destination: u8, routing_table: &RoutingTable
+    pub fn playback_remote(&mut self, id: u32, timestamp: u64, aux_mgr: &mut AuxManager
     ) -> Result<(), Error> {
         if let Some(traces) = self.remote_entries.get_mut(&id) {
-            traces.playback(id, timestamp, router, rank, self_destination, routing_table);
+            traces.playback(id, timestamp, aux_mgr);
             Ok(())
         } else {
             Err(Error::IdNotFound)
@@ -335,13 +428,13 @@ impl Manager {
     }
 
     // API for subkernel
-    pub fn erase_name(&mut self, name: &str, router: &mut Router, rank: u8, self_destination: u8, routing_table: &RoutingTable) {
+    pub fn erase_name(&mut self, name: &str, aux_mgr: &mut AuxManager) {
         if let Some(id) = self.name_map.get(name) {
             if let Some(traces) = self.remote_entries.get_mut(&id) {
-                traces.erase(*id, router, rank, self_destination, routing_table);
+                traces.erase(*id, aux_mgr);
                 self.remote_entries.remove(&id);
             }
-            self.entries.remove(&(self_destination, *id));
+            self.entries.remove(&(aux_mgr.self_destination(), *id));
             self.name_map.remove(name);
         }
     }
@@ -361,21 +454,14 @@ impl Manager {
         }
     }
 
-    pub fn ack_upload(&mut self, kernel_manager: &mut KernelManager, source: u8, id: u32, succeeded: bool, 
-        router: &mut Router, rank: u8, self_destination: u8, routing_table: &RoutingTable) {
-            if let Some(entry) = self.remote_entries.get_mut(&id) {
-                entry.ack_upload(kernel_manager, source, id, succeeded, router, rank, self_destination, routing_table);
-            }
-    }
-
-    pub fn cleanup(&mut self, router: &mut Router, rank: u8, self_destination: u8, routing_table: &RoutingTable) {
+    pub fn cleanup(&mut self, aux_mgr: &mut AuxManager) {
         // after subkernel ends, remove all self-generated traces
         for (_, id) in self.name_map.iter_mut() {
             if let Some(traces) = self.remote_entries.get_mut(&id) {
-                traces.erase(*id, router, rank, self_destination, routing_table);
+                traces.erase(*id, aux_mgr);
                 self.remote_entries.remove(&id);
             }
-            self.entries.remove(&(self_destination, *id));
+            self.entries.remove(&(aux_mgr.self_destination(), *id));
         }
         self.name_map.clear();
     }
