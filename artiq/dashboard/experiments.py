@@ -422,8 +422,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
         editor_class = self.manager.get_argument_editor_class(self.expurl)
         self.argeditor = editor_class(self.manager, self, self.expurl)
-        self.argeditor.restore_state(argeditor_state)
         self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
+        self.argeditor.restore_state(argeditor_state)
 
     def contextMenuEvent(self, event):
         menu = QtWidgets.QMenu(self)
