@@ -178,8 +178,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         state = self.argeditor.save_state()
         self.argeditor.deleteLater()
         self.argeditor = _ArgumentEditor(self)
-        self.argeditor.restore_state(state)
         self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
+        self.argeditor.restore_state(state)
 
     async def load_hdf5_task(self, filename=None):
         if filename is None:
