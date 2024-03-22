@@ -999,12 +999,11 @@ class AD9910:
         """
         if not self.cpld.sync_div:
             raise ValueError("parent cpld does not drive SYNC")
-        search_span = 31
+        search_span = 13
         # FIXME https://github.com/sinara-hw/Urukul/issues/16
         # should both be 2-4 once kasli sync_in jitter is identified
         min_window = 0
         margin = 1  # 1*75ps setup and hold
-        max_seed_jump = 8
         # maximum jump distance of the seed to the next window size
         for window in range(16):
             next_seed = -1
@@ -1025,11 +1024,7 @@ class AD9910:
                     next_seed = in_delay
                     break
             if next_seed >= 0:  # valid delay found, scan next window
-                search_seed = (  # don't jump to the other side of the edge
-                    next_seed
-                    if not abs(next_seed - search_seed) > max_seed_jump
-                    else search_seed
-                )
+                search_seed = next_seed
                 continue
             elif window > min_window:
                 # no valid delay found here, roll back and add margin
