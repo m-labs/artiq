@@ -222,8 +222,9 @@ class ArgumentManager(ProcessArgumentManager):
         arglist_desc = [(k, p.describe(), g, t)
                         for k, p, g, t in interactive_arglist]
         arguments = ArgumentManager._get_interactive(arglist_desc, title)
-        for key, processor, _, _ in interactive_arglist:
-            arguments[key] = processor.process(arguments[key])
+        if arguments is not None:
+            for key, processor, _, _ in interactive_arglist:
+                arguments[key] = processor.process(arguments[key])
         return arguments
 
 

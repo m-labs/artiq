@@ -144,4 +144,4 @@ class InteractiveArgDB:
         if rid not in self.futures:
             raise ValueError("no experiment with this RID is "
                              "waiting for interactive arguments")
-        self.futures[rid].cancel()
+        self.futures[rid].set_result(None)
