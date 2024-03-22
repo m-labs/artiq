@@ -1004,7 +1004,6 @@ class AD9910:
         # should both be 2-4 once kasli sync_in jitter is identified
         min_window = 0
         margin = 1  # 1*75ps setup and hold
-        # maximum jump distance of the seed to the next window size
         for window in range(16):
             next_seed = -1
             for in_delay in range(search_span - 2 * window):
