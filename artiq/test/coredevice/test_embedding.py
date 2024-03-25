@@ -573,3 +573,28 @@ class NumpyQuotingTest(ExperimentCase):
     def test_issue_1871(self):
         """Ensure numpy.array() does not break NumPy math functions"""
         self.create(_NumpyQuoting).run()
+
+
+class _BoundaryInt32s(EnvExperiment):
+
+    const = -0x8000_0000
+
+    def build(self):
+        self.setattr_device("core")
+
+    @kernel
+    def check2(self, val: TInt32):
+        return val == self.const
+
+    @kernel
+    def check(self):
+        return self.check2(self.const)
+
+    def run(self):
+        assert self.check()
+
+
+class BoundaryInt32Test(ExperimentCase):
+
+    def test_most_negative_int32_is_accepted(self):
+        self.create(_BoundaryInt32s).run()
