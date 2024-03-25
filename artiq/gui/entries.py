@@ -13,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 
 class EntryTreeWidget(QtWidgets.QTreeWidget):
+    quickStyleClicked = QtCore.pyqtSignal()
+
     def __init__(self):
         QtWidgets.QTreeWidget.__init__(self)
         self.setColumnCount(3)
@@ -53,6 +55,8 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
         entry_class = procdesc_to_entry(argument["desc"])
         argument["state"] = entry_class.default_state(argument["desc"])
         entry = entry_class(argument)
+        if argument["desc"].get("quickstyle"):
+            entry.quickStyleClicked.connect(self.quickStyleClicked)
         widget_item = QtWidgets.QTreeWidgetItem([key])
         if argument["tooltip"]:
             widget_item.setToolTip(0, argument["tooltip"])
@@ -193,17 +197,38 @@ class BooleanEntry(QtWidgets.QCheckBox):
         return procdesc.get("default", False)
 
 
-class EnumerationEntry(QtWidgets.QComboBox):
+class EnumerationEntry(QtWidgets.QWidget):
+    quickStyleClicked = QtCore.pyqtSignal()
+
     def __init__(self, argument):
-        QtWidgets.QComboBox.__init__(self)
+        QtWidgets.QWidget.__init__(self)
         disable_scroll_wheel(self)
-        choices = argument["desc"]["choices"]
-        self.addItems(choices)
-        idx = choices.index(argument["state"])
-        self.setCurrentIndex(idx)
-        def update(index):
-            argument["state"] = choices[index]
-        self.currentIndexChanged.connect(update)
+        layout = QtWidgets.QHBoxLayout()
+        self.setLayout(layout)
+        procdesc = argument["desc"]
+        choices = procdesc["choices"]
+        if procdesc["quickstyle"]:
+            self.btn_group = QtWidgets.QButtonGroup()
+            for i, choice in enumerate(choices):
+                button = QtWidgets.QPushButton(choice)
+                self.btn_group.addButton(button)
+                self.btn_group.setId(button, i)
+                layout.addWidget(button)
+
+            def submit(index):
+                argument["state"] = choices[index]
+                self.quickStyleClicked.emit()
+            self.btn_group.idClicked.connect(submit)
+        else:
+            self.combo_box = QtWidgets.QComboBox()
+            self.combo_box.addItems(choices)
+            idx = choices.index(argument["state"])
+            self.combo_box.setCurrentIndex(idx)
+            layout.addWidget(self.combo_box)
+
+            def update(index):
+                argument["state"] = choices[index]
+            self.combo_box.currentIndexChanged.connect(update)
 
     @staticmethod
     def state_to_value(state):

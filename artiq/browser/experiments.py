@@ -28,6 +28,8 @@ class _ArgumentEditor(EntryTreeWidget):
         for name, argument in self._dock.arguments.items():
             self.set_argument(name, argument)
 
+        self.quickStyleClicked.connect(self._dock._run_clicked)
+
         recompute_arguments = QtWidgets.QPushButton("Recompute all arguments")
         recompute_arguments.setIcon(
             QtWidgets.QApplication.style().standardIcon(
