@@ -121,6 +121,11 @@ def get_argparser():
         "arguments", metavar="ARGUMENTS", nargs="*",
         help="interactive arguments")
 
+    parser_cancel_interactive = subparsers.add_parser(
+        "cancel-interactive", help="cancel interactive arguments")
+    parser_cancel_interactive.add_argument(
+        "rid", metavar="RID", type=int, help="RID of target experiment")
+
     parser_show = subparsers.add_parser(
         "show", help="show schedule, log, devices or datasets")
     parser_show.add_argument(
@@ -220,6 +225,10 @@ def _action_scan_devices(remote, args):
 def _action_supply_interactive(remote, args):
     arguments = parse_arguments(args.arguments)
     remote.supply(args.rid, arguments)
+
+
+def _action_cancel_interactive(remote, args):
+    remote.cancel(args.rid)
 
 
 def _action_scan_repository(remote, args):
@@ -382,6 +391,7 @@ def main():
             "del_dataset": "dataset_db",
             "scan_devices": "device_db",
             "supply_interactive": "interactive_arg_db",
+            "cancel_interactive": "interactive_arg_db",
             "scan_repository": "experiment_db",
             "ls": "experiment_db",
             "terminate": "master_management",
