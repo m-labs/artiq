@@ -92,22 +92,6 @@
         disabledTestPaths = [ "tests/test_qeventloop.py" ];
       };
 
-      outputcheck = pkgs.python3Packages.buildPythonApplication rec {
-        pname = "outputcheck";
-        version = "0.4.2";
-        src = pkgs.fetchFromGitHub {
-          owner = "stp";
-          repo = "OutputCheck";
-          rev = "e0f533d3c5af2949349856c711bf4bca50022b48";
-          sha256 = "1y27vz6jq6sywas07kz3v01sqjd0sga9yv9w2cksqac3v7wmf2a0";
-        };
-        prePatch = "echo ${version} > RELEASE-VERSION";
-        postPatch = ''
-          substituteInPlace OutputCheck/Driver.py \
-            --replace "argparse.FileType('rU')" "argparse.FileType('r')"
-        '';
-      };
-
       libartiq-support = pkgs.stdenv.mkDerivation {
         name = "libartiq-support";
         src = self;
@@ -187,7 +171,7 @@
         # FIXME: automatically propagate lld_14 llvm_14 dependencies
         # cacert is required in the check stage only, as certificates are to be
         # obtained from system elsewhere
-        nativeCheckInputs = [ pkgs.lld_14 pkgs.llvm_14 libartiq-support pkgs.lit outputcheck pkgs.cacert ];
+        nativeCheckInputs = with pkgs; [ lld_14 llvm_14 lit outputcheck cacert ] ++ [ libartiq-support ];
         checkPhase = ''
           python -m unittest discover -v artiq.test
 
@@ -461,7 +445,7 @@
           artiq-frontend-dev-wrappers
           # To manually run compiler tests:
           pkgs.lit
-          outputcheck
+          pkgs.outputcheck
           libartiq-support
           # use the vivado-env command to enter a FHS shell that lets you run the Vivado installer
           packages.x86_64-linux.vivadoEnv
