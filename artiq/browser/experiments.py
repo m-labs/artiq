@@ -23,7 +23,7 @@ class _ArgumentEditor(EntryTreeWidget):
         self._dock = dock
 
         if not self._dock.arguments:
-            self.addTopLevelItem(QtWidgets.QTreeWidgetItem(["No arguments"]))
+            self.insertTopLevelItem(0, QtWidgets.QTreeWidgetItem(["No arguments"]))
 
         for name, argument in self._dock.arguments.items():
             self.set_argument(name, argument)
