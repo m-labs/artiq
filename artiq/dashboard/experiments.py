@@ -34,7 +34,7 @@ class _ArgumentEditor(EntryTreeWidget):
         arguments = self.manager.get_submission_arguments(self.expurl)
 
         if not arguments:
-            self.addTopLevelItem(QtWidgets.QTreeWidgetItem(["No arguments"]))
+            self.insertTopLevelItem(0, QtWidgets.QTreeWidgetItem(["No arguments"]))
 
         for name, argument in arguments.items():
             self.set_argument(name, argument)

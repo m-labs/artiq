@@ -45,7 +45,6 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
 
         self.bottom_item = QtWidgets.QTreeWidgetItem()
         self.addTopLevelItem(self.bottom_item)
-        self.bottom_item.setHidden(True)
 
     def set_argument(self, key, argument):
         self._arguments[key] = argument
@@ -60,9 +59,6 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
         widgets["entry"] = entry
         widgets["widget_item"] = widget_item
 
-        if len(self._arguments) > 1:
-            self.bottom_item.setHidden(False)
-
         for col in range(3):
             widget_item.setBackground(col, self.gradient)
         font = widget_item.font(0)
@@ -73,7 +69,6 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
             self.insertTopLevelItem(self.indexFromItem(self.bottom_item).row(), widget_item)
         else:
             self._get_group(argument["group"]).addChild(widget_item)
-            self.bottom_item.setHidden(False)
         fix_layout = LayoutWidget()
         widgets["fix_layout"] = fix_layout
         fix_layout.addWidget(entry)
