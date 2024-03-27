@@ -335,17 +335,6 @@
         paths = [ openocd-fixed bscan_spi_bitstreams-pkg ];
       };
 
-      sphinxcontrib-wavedrom = pkgs.python3Packages.buildPythonPackage rec {
-        pname = "sphinxcontrib-wavedrom";
-        version = "3.0.4";
-        format = "pyproject";
-        src = pkgs.python3Packages.fetchPypi {
-          inherit pname version;
-          sha256 = "sha256-0zTHVBr9kXwMEo4VRTFsxdX2HI31DxdHfLUHCQmw1Ko=";
-        };
-        nativeBuildInputs = [ pkgs.python3Packages.setuptools-scm ];
-        propagatedBuildInputs = (with pkgs.python3Packages; [ wavedrom sphinx xcffib cairosvg ]);
-      };
       latex-artiq-manual = pkgs.texlive.combine {
         inherit (pkgs.texlive)
           scheme-basic latexmk cmap collection-fontsrecommended fncychap
@@ -379,14 +368,14 @@
           target = "efc";
           variant = "shuttler";
         };
-        inherit sphinxcontrib-wavedrom latex-artiq-manual;
+        inherit latex-artiq-manual;
         artiq-manual-html = pkgs.stdenvNoCC.mkDerivation rec {
           name = "artiq-manual-html-${version}";
           version = artiqVersion;
           src = self;
-          buildInputs = [
-            pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
-            pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom
+          buildInputs = with pkgs.python3Packages; [
+            sphinx sphinx_rtd_theme
+            sphinx-argparse sphinxcontrib-wavedrom
           ];
           buildPhase = ''
             export VERSIONEER_OVERRIDE=${artiqVersion}
@@ -404,11 +393,10 @@
           name = "artiq-manual-pdf-${version}";
           version = artiqVersion;
           src = self;
-          buildInputs = [
-            pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
-            pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom
-            latex-artiq-manual
-          ];
+          buildInputs = with pkgs.python3Packages; [
+            sphinx sphinx_rtd_theme
+            sphinx-argparse sphinxcontrib-wavedrom
+          ] ++ [ latex-artiq-manual ];
           buildPhase = ''
             export VERSIONEER_OVERRIDE=${artiq.version}
             export SOURCE_DATE_EPOCH=${builtins.toString self.sourceInfo.lastModified}
@@ -452,7 +440,7 @@
           packages.x86_64-linux.vivado
           packages.x86_64-linux.openocd-bscanspi
           pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
-          pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom latex-artiq-manual
+          pkgs.python3Packages.sphinx-argparse pkgs.python3Packages.sphinxcontrib-wavedrom latex-artiq-manual
         ];
         shellHook = ''
           export LIBARTIQ_SUPPORT=`libartiq-support`
