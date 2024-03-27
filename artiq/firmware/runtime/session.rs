@@ -316,7 +316,7 @@ fn kern_run(session: &mut Session) -> Result<(), Error<SchedError>> {
 }
 
 
-fn process_flash_kernel(io: &Io, _aux_mutex: &Mutex, _subkernel_mutex: &Mutex, 
+fn process_flash_kernel(io: &Io, _subkernel_mutex: &Mutex, 
                         _routing_table: &drtio_routing::RoutingTable,
                         _up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
                         session: &mut Session, kernel: &[u8]
@@ -355,7 +355,7 @@ fn process_flash_kernel(io: &Io, _aux_mutex: &Mutex, _subkernel_mutex: &Mutex,
                     if up {
                         let subkernel_lib = entry.data().to_vec();
                         subkernel::add_subkernel(io, _subkernel_mutex, sid, dest, subkernel_lib)?;
-                        subkernel::upload(io, _aux_mutex, _subkernel_mutex, _routing_table, sid)?;
+                        subkernel::upload(io, _subkernel_mutex, sid)?;
                     } else {
                         return Err(Error::DestinationDown);
                     }
@@ -372,7 +372,7 @@ fn process_flash_kernel(io: &Io, _aux_mutex: &Mutex, _subkernel_mutex: &Mutex,
     }
 }
 
-fn process_host_message(io: &Io, _aux_mutex: &Mutex, _ddma_mutex: &Mutex, _subkernel_mutex: &Mutex,
+fn process_host_message(io: &Io, _ddma_mutex: &Mutex, _subkernel_mutex: &Mutex,
                         _routing_table: &drtio_routing::RoutingTable, stream: &mut TcpStream,
                         session: &mut Session) -> Result<(), Error<SchedError>> {
     match host_read(stream)? {
@@ -468,7 +468,7 @@ fn process_host_message(io: &Io, _aux_mutex: &Mutex, _ddma_mutex: &Mutex, _subke
             #[cfg(has_drtio)]
             {
                 subkernel::add_subkernel(io, _subkernel_mutex, _id, _dest, _kernel)?;
-                match subkernel::upload(io, _aux_mutex, _subkernel_mutex, _routing_table, _id) {
+                match subkernel::upload(io, _subkernel_mutex, _id) {
                     Ok(_) => host_write(stream, host::Reply::LoadCompleted)?,
                     Err(error) => {
                         subkernel::clear_subkernels(io, _subkernel_mutex)?;
@@ -486,8 +486,7 @@ fn process_host_message(io: &Io, _aux_mutex: &Mutex, _ddma_mutex: &Mutex, _subke
     Ok(())
 }
 
-fn process_kern_message(io: &Io, aux_mutex: &Mutex,
-                        routing_table: &drtio_routing::RoutingTable,
+fn process_kern_message(io: &Io, routing_table: &drtio_routing::RoutingTable,
                         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
                         ddma_mutex: &Mutex, _subkernel_mutex: &Mutex, mut stream: Option<&mut TcpStream>,
                         session: &mut Session) -> Result<bool, Error<SchedError>> {
@@ -507,7 +506,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
 
         kern_recv_dotrace(request);
 
-        if kern_hwreq::process_kern_hwreq(io, aux_mutex, routing_table, up_destinations, request)? {
+        if kern_hwreq::process_kern_hwreq(io, routing_table, up_destinations, request)? {
             return Ok(false)
         }
 
@@ -531,7 +530,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 if let Some(_id) = session.congress.dma_manager.record_start(name) {
                     // replace the record
                     #[cfg(has_drtio)]
-                    remote_dma::erase(io, aux_mutex, ddma_mutex, routing_table, _id)?;
+                    remote_dma::erase(io, ddma_mutex, _id)?;
                 }
                 kern_acknowledge()
             }
@@ -543,7 +542,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 let _id = session.congress.dma_manager.record_stop(duration, enable_ddma, io, ddma_mutex)?;
                 #[cfg(has_drtio)]
                 if enable_ddma {
-                    remote_dma::upload_traces(io, aux_mutex, ddma_mutex, routing_table, _id)?;
+                    remote_dma::upload_traces(io, ddma_mutex, _id)?;
                 }
                 cache::flush_l2_cache();
                 kern_acknowledge()
@@ -551,7 +550,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             &kern::DmaEraseRequest { name } => {
                 #[cfg(has_drtio)]
                 if let Some(id) = session.congress.dma_manager.get_id(name) {
-                    remote_dma::erase(io, aux_mutex, ddma_mutex, routing_table, *id)?;
+                    remote_dma::erase(io, ddma_mutex, *id)?;
                 }
                 session.congress.dma_manager.erase(name);
                 kern_acknowledge()
@@ -560,7 +559,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 session.congress.dma_manager.with_trace(name, |trace, duration| {
                     #[cfg(has_drtio)]
                     let uses_ddma = match trace {
-                        Some(trace) => remote_dma::has_remote_traces(io, aux_mutex, trace.as_ptr() as u32)?,
+                        Some(trace) => remote_dma::has_remote_traces(trace.as_ptr() as u32)?,
                         None => false
                     };
                     #[cfg(not(has_drtio))]
@@ -574,7 +573,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             }
             &kern::DmaStartRemoteRequest { id: _id, timestamp: _timestamp } => {
                 #[cfg(has_drtio)]
-                remote_dma::playback(io, aux_mutex, ddma_mutex, routing_table, _id as u32, _timestamp as u64)?;
+                remote_dma::playback(io, ddma_mutex, _id as u32, _timestamp as u64)?;
                 kern_acknowledge()
             }
             &kern::DmaAwaitRemoteRequest { id: _id } => {
@@ -675,7 +674,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             #[cfg(has_drtio)]
             &kern::SubkernelLoadRunRequest { id, destination: _, run } => {
                 let succeeded = match subkernel::load(
-                    io, aux_mutex, _subkernel_mutex, routing_table, id, run) {
+                    io, _subkernel_mutex, id, run) {
                         Ok(()) => true,
                         Err(e) => { error!("Error loading subkernel: {}", e); false }
                     };
@@ -683,8 +682,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             }
             #[cfg(has_drtio)]
             &kern::SubkernelAwaitFinishRequest{ id, timeout } => {
-                let res = subkernel::await_finish(io, aux_mutex, _subkernel_mutex, routing_table,
-                    id, timeout);
+                let res = subkernel::await_finish(io, _subkernel_mutex, id, timeout);
                 let status = match res {
                     Ok(ref res) => {
                             if res.comm_lost {
@@ -705,7 +703,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             }
             #[cfg(has_drtio)]
             &kern::SubkernelMsgSend { id, destination, count, tag, data } => {
-                subkernel::message_send(io, aux_mutex, _subkernel_mutex, routing_table, id, destination, count, tag, data)?;
+                subkernel::message_send(io, _subkernel_mutex, id, destination, count, tag, data)?;
                 kern_acknowledge()
             }
             #[cfg(has_drtio)]
@@ -716,8 +714,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                     Err(SubkernelError::Timeout) => (kern::SubkernelStatus::Timeout, 0),
                     Err(SubkernelError::IncorrectState) => (kern::SubkernelStatus::IncorrectState, 0),
                     Err(SubkernelError::SubkernelFinished) => {
-                        let res = subkernel::retrieve_finish_status(io, aux_mutex, _subkernel_mutex,
-                            routing_table, id as u32)?;
+                        let res = subkernel::retrieve_finish_status(io, _subkernel_mutex, id as u32)?;
                         if res.comm_lost {
                             (kern::SubkernelStatus::CommLost, 0)
                         } else if let Some(exception) = &res.exception {
@@ -796,8 +793,7 @@ fn process_kern_queued_rpc(stream: &mut TcpStream,
     })
 }
 
-fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
-                      routing_table: &drtio_routing::RoutingTable,
+fn host_kernel_worker(io: &Io, routing_table: &drtio_routing::RoutingTable,
                       up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
                       ddma_mutex: &Mutex, subkernel_mutex: &Mutex,
                       stream: &mut TcpStream,
@@ -808,7 +804,7 @@ fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
 
     loop {
         if stream.can_recv() {
-            process_host_message(io, aux_mutex, ddma_mutex, subkernel_mutex,
+            process_host_message(io, ddma_mutex, subkernel_mutex,
                 routing_table, stream, &mut session)?
         } else if !stream.may_recv() {
             return Ok(())
@@ -819,9 +815,8 @@ fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
         }
 
         if mailbox::receive() != 0 {
-            process_kern_message(io, aux_mutex,
-                routing_table, up_destinations,
-                ddma_mutex, subkernel_mutex,
+            process_kern_message(io, routing_table, 
+                up_destinations, ddma_mutex, subkernel_mutex,
                 Some(stream), &mut session)?;
         }
 
@@ -836,8 +831,7 @@ fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
     }
 }
 
-fn flash_kernel_worker(io: &Io, aux_mutex: &Mutex,
-                       routing_table: &drtio_routing::RoutingTable,
+fn flash_kernel_worker(io: &Io, routing_table: &drtio_routing::RoutingTable,
                        up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
                        ddma_mutex: &Mutex, subkernel_mutex: &Mutex, congress: &mut Congress,
                        config_key: &str) -> Result<(), Error<SchedError>> {
@@ -847,7 +841,7 @@ fn flash_kernel_worker(io: &Io, aux_mutex: &Mutex,
         match result {
             Ok(kernel) => {
                 // process .ELF or .TAR kernels
-                let res = process_flash_kernel(io, aux_mutex, subkernel_mutex, routing_table, up_destinations, &mut session, kernel);
+                let res = process_flash_kernel(io, subkernel_mutex, routing_table, up_destinations, &mut session, kernel);
                 #[cfg(has_drtio)]
                 match res {
                     // wait to establish the DRTIO connection
@@ -867,7 +861,7 @@ fn flash_kernel_worker(io: &Io, aux_mutex: &Mutex,
         }
 
         if mailbox::receive() != 0 {
-            if process_kern_message(io, aux_mutex, routing_table, up_destinations, ddma_mutex, subkernel_mutex, None, &mut session)? {
+            if process_kern_message(io, routing_table, up_destinations, ddma_mutex, subkernel_mutex, None, &mut session)? {
                 return Ok(())
             }
         }
@@ -895,8 +889,7 @@ fn respawn<F>(io: &Io, handle: &mut Option<ThreadHandle>, f: F)
     *handle = Some(io.spawn(24576, f))
 }
 
-pub fn thread(io: Io, aux_mutex: &Mutex,
-        routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
+pub fn thread(io: Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
         ddma_mutex: &Mutex, subkernel_mutex: &Mutex) {
     let listener = TcpListener::new(&io, 65535);
@@ -910,7 +903,7 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
         let routing_table = routing_table.borrow();
         let mut congress = congress.borrow_mut();
         info!("running startup kernel");
-        match flash_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, 
+        match flash_kernel_worker(&io, &routing_table, &up_destinations, 
                 ddma_mutex, subkernel_mutex, &mut congress, "startup_kernel") {
             Ok(()) =>
                 info!("startup kernel finished"),
@@ -947,7 +940,6 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
             }
             info!("new connection from {}", stream.remote_endpoint());
 
-            let aux_mutex = aux_mutex.clone();
             let routing_table = routing_table.clone();
             let up_destinations = up_destinations.clone();
             let congress = congress.clone();
@@ -958,7 +950,7 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
                 let routing_table = routing_table.borrow();
                 let mut congress = congress.borrow_mut();
                 let mut stream = TcpStream::from_handle(&io, stream);
-                match host_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, 
+                match host_kernel_worker(&io, &routing_table, &up_destinations, 
                         &ddma_mutex, &subkernel_mutex, &mut stream, &mut *congress) {
                     Ok(()) => (),
                     Err(Error::Protocol(host::Error::Io(IoError::UnexpectedEnd))) =>
@@ -967,13 +959,13 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
                             IoError::Other(SchedError::Interrupted)))) => {
                         info!("kernel interrupted");
                         #[cfg(has_drtio)]
-                        drtio::clear_buffers(&io, &aux_mutex);
+                        drtio::clear_buffers(&io).unwrap();
                     }
                     Err(err) => {
                         congress.finished_cleanly.set(false);
                         error!("session aborted: {}", err);
                         #[cfg(has_drtio)]
-                        drtio::clear_buffers(&io, &aux_mutex);
+                        drtio::clear_buffers(&io).unwrap();
                     }
                 }
                 loop {
@@ -989,7 +981,6 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
         if kernel_thread.as_ref().map_or(true, |h| h.terminated()) {
             info!("no connection, starting idle kernel");
 
-            let aux_mutex = aux_mutex.clone();
             let routing_table = routing_table.clone();
             let up_destinations = up_destinations.clone();
             let congress = congress.clone();
@@ -998,7 +989,7 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
             respawn(&io, &mut kernel_thread, move |io| {
                 let routing_table = routing_table.borrow();
                 let mut congress = congress.borrow_mut();
-                match flash_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, 
+                match flash_kernel_worker(&io, &routing_table, &up_destinations, 
                     &ddma_mutex, &subkernel_mutex, &mut *congress, "idle_kernel") {
                     Ok(()) =>
                         info!("idle kernel finished, standing by"),
@@ -1007,7 +998,7 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
                         info!("idle kernel interrupted");
                         // clear state for regular kernel
                         #[cfg(has_drtio)]
-                        drtio::clear_buffers(&io, &aux_mutex);
+                        drtio::clear_buffers(&io).unwrap();
                     }
                     Err(Error::KernelNotFound) => {
                         info!("no idle kernel found");
@@ -1016,7 +1007,7 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
                     Err(err) => {
                         error!("idle kernel aborted: {}", err);
                         #[cfg(has_drtio)]
-                        drtio::clear_buffers(&io, &aux_mutex);
+                        drtio::clear_buffers(&io).unwrap();
                     }
                 }
 

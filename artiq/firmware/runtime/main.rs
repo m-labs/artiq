@@ -1,4 +1,4 @@
-#![feature(lang_items, panic_info_message, const_btree_new, iter_advance_by, never_type)]
+#![feature(lang_items, panic_info_message, const_btree_new, btree_retain, iter_advance_by, never_type)]
 #![no_std]
 
 extern crate dyld;
@@ -188,7 +188,6 @@ fn startup() {
         [false; drtio_routing::DEST_COUNT]));
     #[cfg(has_drtio_routing)]
     drtio_routing::interconnect_disable_all();
-    let aux_mutex = sched::Mutex::new();
 
     let ddma_mutex = sched::Mutex::new();
     let subkernel_mutex = sched::Mutex::new();
@@ -200,29 +199,25 @@ fn startup() {
         io.spawn(4096, dhcp::dhcp_thread);
     }
 
-    rtio_mgt::startup(&io, &aux_mutex, &drtio_routing_table, &up_destinations, &ddma_mutex, &subkernel_mutex);
+    rtio_mgt::startup(&io, &drtio_routing_table, &up_destinations, &ddma_mutex, &subkernel_mutex);
 
     io.spawn(4096, mgmt::thread);
     {
-        let aux_mutex = aux_mutex.clone();
         let drtio_routing_table = drtio_routing_table.clone();
         let up_destinations = up_destinations.clone();
         let ddma_mutex = ddma_mutex.clone();
         let subkernel_mutex = subkernel_mutex.clone();
-        io.spawn(32768, move |io| { session::thread(io, &aux_mutex, &drtio_routing_table, &up_destinations, &ddma_mutex, &subkernel_mutex) });
+        io.spawn(32768, move |io| { session::thread(io, &drtio_routing_table, &up_destinations, &ddma_mutex, &subkernel_mutex) });
     }
     #[cfg(any(has_rtio_moninj, has_drtio))]
     {
-        let aux_mutex = aux_mutex.clone();
         let drtio_routing_table = drtio_routing_table.clone();
-        io.spawn(4096, move |io| { moninj::thread(io, &aux_mutex, &drtio_routing_table) });
+        io.spawn(4096, move |io| { moninj::thread(io, &drtio_routing_table) });
     }
     #[cfg(has_rtio_analyzer)]
     {
-        let aux_mutex = aux_mutex.clone();
-        let drtio_routing_table = drtio_routing_table.clone();
         let up_destinations = up_destinations.clone();
-        io.spawn(8192, move |io| { analyzer::thread(io, &aux_mutex, &drtio_routing_table, &up_destinations) });
+        io.spawn(8192, move |io| { analyzer::thread(io, &up_destinations) });
     }
 
     #[cfg(has_grabber)]

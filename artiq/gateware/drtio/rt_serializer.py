@@ -69,7 +69,6 @@ def get_s2m_layouts(alignment):
 
     plm.add_type("read_reply", ("timestamp", 64), ("data", 32))
     plm.add_type("read_reply_noevent", ("overflow", 1))  # overflow=0→timeout
-    plm.add_type("async_messages_ready")
 
     return plm
 

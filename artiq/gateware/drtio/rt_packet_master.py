@@ -61,9 +61,6 @@ class RTPacketMaster(Module):
         # a set_time request pending
         self.tsc_value = Signal(64)
 
-        # async aux messages interface, only received
-        self.async_messages_ready = Signal()
-
         # rx errors
         self.err_unknown_packet_type = Signal()
         self.err_packet_truncated = Signal()
@@ -286,16 +283,12 @@ class RTPacketMaster(Module):
         echo_received_now = Signal()
         self.sync.rtio_rx += self.echo_received_now.eq(echo_received_now)
 
-        async_messages_ready = Signal()
-        self.sync.rtio_rx += self.async_messages_ready.eq(async_messages_ready)
-
         rx_fsm.act("INPUT",
             If(rx_dp.frame_r,
                 rx_dp.packet_buffer_load.eq(1),
                 If(rx_dp.packet_last,
                     Case(rx_dp.packet_type, {
                         rx_plm.types["echo_reply"]: echo_received_now.eq(1),
-                        rx_plm.types["async_messages_ready"]: async_messages_ready.eq(1),
                         rx_plm.types["buffer_space_reply"]: NextState("BUFFER_SPACE"),
                         rx_plm.types["read_reply"]: NextState("READ_REPLY"),
                         rx_plm.types["read_reply_noevent"]: NextState("READ_REPLY_NOEVENT"),

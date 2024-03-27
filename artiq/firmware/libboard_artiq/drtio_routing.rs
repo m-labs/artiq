@@ -31,6 +31,15 @@ impl RoutingTable {
     pub fn default_empty() -> RoutingTable {
         RoutingTable([[INVALID_HOP; MAX_HOPS]; DEST_COUNT])
     }
+
+    pub fn determine_self_destination(&self) -> u8 {
+        for i in 0..DEST_COUNT {
+            if self.0[i][0] == 0 {
+                return i as u8;
+            }
+        }
+        0
+    }
 }
 
 impl fmt::Display for RoutingTable {
