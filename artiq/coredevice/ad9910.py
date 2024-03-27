@@ -999,7 +999,7 @@ class AD9910:
         """
         if not self.cpld.sync_div:
             raise ValueError("parent cpld does not drive SYNC")
-        search_span = 31
+        search_span = 13
         # FIXME https://github.com/sinara-hw/Urukul/issues/16
         # should both be 2-4 once kasli sync_in jitter is identified
         min_window = 0
