@@ -12,7 +12,8 @@ from artiq.language.core import rpc
 __all__ = ["NoDefault", "DefaultMissing",
            "PYONValue", "BooleanValue", "EnumerationValue",
            "NumberValue", "StringValue",
-           "HasEnvironment", "Experiment", "EnvExperiment"]
+           "HasEnvironment", "Experiment", "EnvExperiment",
+           "CancelledArgsError"]
 
 
 class NoDefault:
@@ -23,6 +24,12 @@ class NoDefault:
 class DefaultMissing(Exception):
     """Raised by the ``default`` method of argument processors when no default
     value is available."""
+    pass
+
+
+class CancelledArgsError(Exception):
+    """Raised by the ``interactive`` context manager when an interactive
+    arguments request is cancelled."""
     pass
 
 
@@ -341,7 +348,10 @@ class HasEnvironment:
         When the context manager terminates, the experiment is blocked
         and the user is presented with the requested argument widgets.
         After the user enters values, the experiment is resumed and
-        the namespace contains the values of the arguments."""
+        the namespace contains the values of the arguments.
+
+        If the interactive arguments request is cancelled, raises
+        ``CancelledArgsError``."""
         interactive_arglist = []
         namespace = SimpleNamespace()
         def setattr_argument(key, processor=None, group=None, tooltip=None):
@@ -350,6 +360,8 @@ class HasEnvironment:
         yield namespace
         del namespace.setattr_argument
         argdict = self.__argument_mgr.get_interactive(interactive_arglist, title)
+        if argdict is None:
+            raise CancelledArgsError
         for key, value in argdict.items():
             setattr(namespace, key, value)
 
