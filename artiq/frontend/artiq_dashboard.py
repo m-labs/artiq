@@ -23,7 +23,7 @@ from artiq.gui.models import ModelSubscriber
 from artiq.gui import state, log
 from artiq.dashboard import (experiments, shortcuts, explorer,
                              moninj, datasets, schedule, applets_ccb,
-                             waveform)
+                             waveform, interactive_args)
 
 
 def get_argparser():
@@ -141,7 +141,7 @@ def main():
 
     # create connections to master
     rpc_clients = dict()
-    for target in "schedule", "experiment_db", "dataset_db", "device_db":
+    for target in "schedule", "experiment_db", "dataset_db", "device_db", "interactive_arg_db":
         client = AsyncioClient()
         loop.run_until_complete(client.connect_rpc(
             args.server, args.port_control, target))
@@ -166,7 +166,8 @@ def main():
     for notifier_name, modelf in (("explist", explorer.Model),
                                   ("explist_status", explorer.StatusUpdater),
                                   ("datasets", datasets.Model),
-                                  ("schedule", schedule.Model)):
+                                  ("schedule", schedule.Model),
+                                  ("interactive_args", interactive_args.Model)):
         subscriber = ModelSubscriber(notifier_name, modelf,
             report_disconnect)
         loop.run_until_complete(subscriber.connect(
@@ -244,6 +245,11 @@ def main():
     loop.run_until_complete(devices_sub.connect(args.server, args.port_notify))
     atexit_register_coroutine(devices_sub.close, loop=loop)
 
+    d_interactive_args = interactive_args.InteractiveArgsDock(
+        sub_clients["interactive_args"],
+        rpc_clients["interactive_arg_db"]
+    )
+
     d_schedule = schedule.ScheduleDock(
         rpc_clients["schedule"], sub_clients["schedule"])
     smgr.register(d_schedule)
@@ -257,7 +263,7 @@ def main():
     right_docks = [
         d_explorer, d_shortcuts,
         d_ttl_dds.ttl_dock, d_ttl_dds.dds_dock, d_ttl_dds.dac_dock,
-        d_datasets, d_applets, d_waveform
+        d_datasets, d_applets, d_waveform, d_interactive_args
     ]
     main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, right_docks[0])
     for d1, d2 in zip(right_docks, right_docks[1:]):
