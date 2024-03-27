@@ -7,6 +7,7 @@ import os
 import subprocess
 from functools import partial
 from itertools import count
+from types import SimpleNamespace
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
@@ -36,10 +37,12 @@ class EntryArea(EntryTreeWidget):
         buttons.layout.setColumnStretch(2, 1)
         buttons.addWidget(reset_all_button, 0, 1)
         self.setItemWidget(self.bottom_item, 1, buttons)
+        self._processors = dict()
 
     def setattr_argument(self, key, processor, group=None, tooltip=None):
         argument = dict()
         desc = processor.describe()
+        self._processors[key] = processor
         argument["desc"] = desc
         argument["group"] = group
         argument["tooltip"] = tooltip
@@ -51,7 +54,8 @@ class EntryArea(EntryTreeWidget):
     def get_value(self, key):
         entry = self._arg_to_widgets[key]["entry"]
         argument = self._arguments[key]
-        return entry.state_to_value(argument["state"])
+        processor = self._processors[key]
+        return processor.process(entry.state_to_value(argument["state"]))
 
     def set_value(self, key, value):
         ty = self._arguments[key]["desc"]["ty"]
@@ -64,9 +68,9 @@ class EntryArea(EntryTreeWidget):
         self.update_value(key)
 
     def get_values(self):
-        d = dict()
+        d = SimpleNamespace()
         for key in self._arguments.keys():
-            d[key] = self.get_value(key)
+            setattr(d, key, self.get_value(key))
         return d
 
     def set_values(self, values):
