@@ -39,6 +39,8 @@ Highlights:
    - Hotkeys now organize experiment windows in the order they were last interacted with:
       + CTRL+SHIFT+T tiles experiment windows
       + CTRL+SHIFT+C cascades experiment windows
+   - By enabling the ``quickstyle`` option, ``EnumerationValue`` entry widgets can now alternatively display 
+     its choices as buttons that submit the experiment on click.
 * Datasets can now be associated with units and scale factors, and displayed accordingly in the dashboard
   including applets, like widgets such as ``NumberValue`` already did in earlier ARTIQ versions.
 * Experiments can now request arguments interactively from the user at any time.

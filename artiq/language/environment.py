@@ -82,9 +82,12 @@ class EnumerationValue(_SimpleArgProcessor):
 
     :param choices: A list of string representing the possible values of the
         argument.
+    :param quickstyle: Enables the choices to be displayed in the GUI as a 
+        list of buttons that submit the experiment when clicked.
     """
-    def __init__(self, choices, default=NoDefault):
+    def __init__(self, choices, default=NoDefault, quickstyle=False):
         self.choices = choices
+        self.quickstyle = quickstyle
         super().__init__(default)
 
     def process(self, x):
@@ -95,6 +98,7 @@ class EnumerationValue(_SimpleArgProcessor):
     def describe(self):
         d = _SimpleArgProcessor.describe(self)
         d["choices"] = self.choices
+        d["quickstyle"] = self.quickstyle
         return d
 
 
