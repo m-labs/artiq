@@ -133,7 +133,7 @@ class InteractiveArgDB:
 
     def supply(self, rid, values):
         # quick sanity checks
-        if rid not in self.futures:
+        if rid not in self.futures or self.futures[rid].done():
             raise ValueError("no experiment with this RID is "
                              "waiting for interactive arguments")
         if {i[0] for i in self.pending.raw_view[rid]["arglist_desc"]} != set(values.keys()):
@@ -141,7 +141,7 @@ class InteractiveArgDB:
         self.futures[rid].set_result(values)
 
     def cancel(self, rid):
-        if rid not in self.futures:
+        if rid not in self.futures or self.futures[rid].done():
             raise ValueError("no experiment with this RID is "
                              "waiting for interactive arguments")
         self.futures[rid].set_result(None)
