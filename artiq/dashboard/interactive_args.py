@@ -40,6 +40,7 @@ class _InteractiveArgsRequest(QtWidgets.QWidget):
         layout = QtWidgets.QGridLayout()
         self.setLayout(layout)
         self.entry_tree = EntryTreeWidget()
+        self.entry_tree.quickStyleClicked.connect(self.supply)
         layout.addWidget(self.entry_tree, 0, 0, 1, 2)
         for key, procdesc, group, tooltip in arglist_desc:
             self.arguments[key] = {"desc": procdesc, "group": group, "tooltip": tooltip}
