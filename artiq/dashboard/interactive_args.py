@@ -5,6 +5,7 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 
 from artiq.gui.models import DictSyncModel
 from artiq.gui.entries import EntryTreeWidget, procdesc_to_entry
+from artiq.gui.tools import LayoutWidget
 
 
 logger = logging.getLogger(__name__)
@@ -29,32 +30,34 @@ class Model(DictSyncModel):
         return k
 
 
-class _InteractiveArgsRequest(QtWidgets.QWidget):
+class _InteractiveArgsRequest(EntryTreeWidget):
     supplied = QtCore.pyqtSignal(int, dict)
     cancelled = QtCore.pyqtSignal(int)
 
     def __init__(self, rid, arglist_desc):
-        QtWidgets.QWidget.__init__(self)
+        EntryTreeWidget.__init__(self)
         self.rid = rid
         self.arguments = dict()
-        layout = QtWidgets.QGridLayout()
-        self.setLayout(layout)
-        self.entry_tree = EntryTreeWidget()
-        self.entry_tree.quickStyleClicked.connect(self.supply)
-        layout.addWidget(self.entry_tree, 0, 0, 1, 2)
         for key, procdesc, group, tooltip in arglist_desc:
             self.arguments[key] = {"desc": procdesc, "group": group, "tooltip": tooltip}
-            self.entry_tree.set_argument(key, self.arguments[key])
-        self.cancel_btn = QtWidgets.QPushButton("Cancel")
-        self.cancel_btn.setIcon(QtWidgets.QApplication.style().standardIcon(
+            self.set_argument(key, self.arguments[key])
+        self.quickStyleClicked.connect(self.supply)
+        cancel_btn = QtWidgets.QPushButton("Cancel")
+        cancel_btn.setIcon(QtWidgets.QApplication.style().standardIcon(
             QtWidgets.QStyle.SP_DialogCancelButton))
-        self.cancel_btn.clicked.connect(self.cancel)
-        layout.addWidget(self.cancel_btn, 1, 0, 1, 1)
-        self.supply_btn = QtWidgets.QPushButton("Supply")
-        self.supply_btn.setIcon(QtWidgets.QApplication.style().standardIcon(
+        cancel_btn.clicked.connect(self.cancel)
+        supply_btn = QtWidgets.QPushButton("Supply")
+        supply_btn.setIcon(QtWidgets.QApplication.style().standardIcon(
             QtWidgets.QStyle.SP_DialogOkButton))
-        self.supply_btn.clicked.connect(self.supply)
-        layout.addWidget(self.supply_btn, 1, 1, 1, 1)
+        supply_btn.clicked.connect(self.supply)
+        buttons = LayoutWidget()
+        buttons.addWidget(cancel_btn, 1, 1)
+        buttons.addWidget(supply_btn, 1, 2)
+        buttons.layout.setColumnStretch(0, 1)
+        buttons.layout.setColumnStretch(1, 0)
+        buttons.layout.setColumnStretch(2, 0)
+        buttons.layout.setColumnStretch(3, 1)
+        self.setItemWidget(self.bottom_item, 1, buttons)
 
     def supply(self):
         argument_values = dict()
