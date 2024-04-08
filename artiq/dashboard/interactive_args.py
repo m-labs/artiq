@@ -70,18 +70,27 @@ class _InteractiveArgsRequest(EntryTreeWidget):
         self.cancelled.emit(self.rid)
 
 
-class _InteractiveArgsView(QtWidgets.QTabWidget):
+class _InteractiveArgsView(QtWidgets.QStackedWidget):
     supplied = QtCore.pyqtSignal(int, dict)
     cancelled = QtCore.pyqtSignal(int)
 
     def __init__(self):
-        QtWidgets.QTabWidget.__init__(self)
+        QtWidgets.QStackedWidget.__init__(self)
+        self.tabs = QtWidgets.QTabWidget()
+        self.default_label = QtWidgets.QLabel("No pending interactive arguments requests.")
+        self.default_label.setAlignment(QtCore.Qt.AlignCenter)
+        font = QtGui.QFont(self.default_label.font())
+        font.setItalic(True)
+        self.default_label.setFont(font)
+        self.addWidget(self.tabs)
+        self.addWidget(self.default_label)
         self.model = Model({})
 
     def setModel(self, model):
-        for i in range(self.count()):
-            widget = self.widget(i)
-            self.removeTab(i)
+        self.setCurrentIndex(1)
+        for i in range(self.tabs.count()):
+            widget = self.tabs.widget(i)
+            self.tabs.removeTab(i)
             widget.deleteLater()
         self.model = model
         self.model.rowsInserted.connect(self.rowsInserted)
@@ -96,17 +105,20 @@ class _InteractiveArgsView(QtWidgets.QTabWidget):
         inter_args_request = _InteractiveArgsRequest(rid, arglist_desc)
         inter_args_request.supplied.connect(self.supplied)
         inter_args_request.cancelled.connect(self.cancelled)
-        self.insertTab(row, inter_args_request, title)
+        self.tabs.insertTab(row, inter_args_request, title)
 
     def rowsInserted(self, parent, first, last):
         assert first == last
+        self.setCurrentIndex(0)
         self._insert_widget(first)
 
     def rowsRemoved(self, parent, first, last):
         assert first == last
-        widget = self.widget(first)
-        self.removeTab(first)
+        widget = self.tabs.widget(first)
+        self.tabs.removeTab(first)
         widget.deleteLater()
+        if self.tabs.count() == 0:
+            self.setCurrentIndex(1)
 
 
 class InteractiveArgsDock(QtWidgets.QDockWidget):
