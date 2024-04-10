@@ -33,7 +33,7 @@ class ShortcutsDock(QtWidgets.QDockWidget):
         for i in range(12):
             row = i + 1
 
-            layout.addWidget(QtWidgets.QLabel("F" + str(i+1)), row, 0)
+            layout.addWidget(QtWidgets.QLabel("F" + str(i + 1)), row, 0)
 
             label = QtWidgets.QLabel()
             label.setSizePolicy(QtWidgets.QSizePolicy.Ignored,
@@ -68,7 +68,7 @@ class ShortcutsDock(QtWidgets.QDockWidget):
                 "open": open,
                 "submit": submit
             }
-            shortcut = QtWidgets.QShortcut("F" + str(i+1), main_window)
+            shortcut = QtWidgets.QShortcut("F" + str(i + 1), main_window)
             shortcut.setContext(QtCore.Qt.ApplicationShortcut)
             shortcut.activated.connect(partial(self._activated, i))
 
