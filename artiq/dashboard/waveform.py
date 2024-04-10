@@ -17,7 +17,7 @@ from artiq.tools import exc_to_warning, short_format
 from artiq.coredevice import comm_analyzer
 from artiq.coredevice.comm_analyzer import WaveformType
 from artiq.gui.tools import LayoutWidget, get_open_file_name, get_save_file_name
-from artiq.gui.models import DictSyncTreeSepModel, LocalModelManager
+from artiq.gui.models import DictSyncTreeSepModel
 from artiq.gui.dndwidgets import VDragScrollArea, VDragDropSplitter
 
 
