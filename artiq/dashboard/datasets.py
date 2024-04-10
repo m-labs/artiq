@@ -109,9 +109,11 @@ class CreateEditDialog(QtWidgets.QDialog):
             # degenerates to float type
             value = float(value * scale)
         if self.key and self.key != key:
-            asyncio.ensure_future(exc_to_warning(rename(self.key, key, value, metadata, persist, self.dataset_ctl)))
+            asyncio.ensure_future(exc_to_warning(rename(self.key, key, value, metadata, persist,
+                                                        self.dataset_ctl)))
         else:
-            asyncio.ensure_future(exc_to_warning(self.dataset_ctl.set(key, value, metadata=metadata, persist=persist)))
+            asyncio.ensure_future(exc_to_warning(self.dataset_ctl.set(key, value, metadata=metadata,
+                                                                      persist=persist)))
         self.key = key
         QtWidgets.QDialog.accept(self)
 
@@ -161,7 +163,7 @@ class CreateEditDialog(QtWidgets.QDialog):
 
 
 class Model(DictSyncTreeSepModel):
-    def __init__(self,  init):
+    def __init__(self, init):
         DictSyncTreeSepModel.__init__(self, ".",
                                       ["Dataset", "Persistent", "Value"],
                                       init)
