@@ -15,9 +15,8 @@ logger = logging.getLogger(__name__)
 class Model(DictSyncModel):
     def __init__(self, init):
         DictSyncModel.__init__(self,
-            ["RID", "Pipeline", "Status", "Prio", "Due date",
-             "Revision", "File", "Class name"],
-            init)
+                               ["RID", "Pipeline", "Status", "Prio", "Due date",
+                                "Revision", "File", "Class name"], init)
 
     def sort_key(self, k, v):
         # order by priority, and then by due date and RID
@@ -96,14 +95,14 @@ class ScheduleDock(QtWidgets.QDockWidget):
 
         cw = QtGui.QFontMetrics(self.font()).averageCharWidth()
         h = self.table.horizontalHeader()
-        h.resizeSection(0, 7*cw)
-        h.resizeSection(1, 12*cw)
-        h.resizeSection(2, 16*cw)
-        h.resizeSection(3, 6*cw)
-        h.resizeSection(4, 16*cw)
-        h.resizeSection(5, 30*cw)
-        h.resizeSection(6, 20*cw)
-        h.resizeSection(7, 20*cw)
+        h.resizeSection(0, 7 * cw)
+        h.resizeSection(1, 12 * cw)
+        h.resizeSection(2, 16 * cw)
+        h.resizeSection(3, 6 * cw)
+        h.resizeSection(4, 16 * cw)
+        h.resizeSection(5, 30 * cw)
+        h.resizeSection(6, 20 * cw)
+        h.resizeSection(7, 20 * cw)
 
     def set_model(self, model):
         self.table_model = model
@@ -143,14 +142,13 @@ class ScheduleDock(QtWidgets.QDockWidget):
             selected_rid = self.table_model.row_to_key[row]
             pipeline = self.table_model.backing_store[selected_rid]["pipeline"]
             logger.info("Requesting termination of all "
-                "experiments in pipeline '%s'", pipeline)
+                        "experiments in pipeline '%s'", pipeline)
 
             rids = set()
             for rid, info in self.table_model.backing_store.items():
                 if info["pipeline"] == pipeline:
                     rids.add(rid)
             asyncio.ensure_future(self.request_term_multiple(rids))
-
 
     def save_state(self):
         return bytes(self.table.horizontalHeader().saveState())
