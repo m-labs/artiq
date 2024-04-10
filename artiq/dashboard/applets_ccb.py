@@ -36,7 +36,7 @@ class AppletsCCBDock(applets.AppletsDock):
         ccbp_group_menu.addAction(self.ccbp_group_create)
         actiongroup.addAction(self.ccbp_group_create)
         self.ccbp_group_enable = QtWidgets.QAction("Create and enable/disable applets",
-                                                    self.table)
+                                                   self.table)
         self.ccbp_group_enable.setCheckable(True)
         self.ccbp_group_enable.triggered.connect(lambda: self.set_ccbp("enable"))
         ccbp_group_menu.addAction(self.ccbp_group_enable)
