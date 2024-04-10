@@ -70,7 +70,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("ARTIQ Dashboard - {}".format(server))
 
         qfm = QtGui.QFontMetrics(self.font())
-        self.resize(140*qfm.averageCharWidth(), 38*qfm.lineSpacing())
+        self.resize(140 * qfm.averageCharWidth(), 38 * qfm.lineSpacing())
 
         self.exit_request = asyncio.Event()
 
@@ -110,8 +110,8 @@ class MdiArea(QtWidgets.QMdiArea):
     def paintEvent(self, event):
         QtWidgets.QMdiArea.paintEvent(self, event)
         painter = QtGui.QPainter(self.viewport())
-        x = (self.width() - self.pixmap.width())//2
-        y = (self.height() - self.pixmap.height())//2
+        x = (self.width() - self.pixmap.width()) // 2
+        y = (self.height() - self.pixmap.height()) // 2
         painter.setOpacity(0.5)
         painter.drawPixmap(x, y, self.pixmap)
 
@@ -128,9 +128,9 @@ def main():
 
     if args.db_file is None:
         args.db_file = os.path.join(get_user_config_dir(),
-                           "artiq_dashboard_{server}_{port}.pyon".format(
-                            server=args.server.replace(":","."),
-                            port=args.port_notify))
+                                    "artiq_dashboard_{server}_{port}.pyon".format(
+                                    server=args.server.replace(":", "."),
+                                    port=args.port_notify))
 
     app = QtWidgets.QApplication(["ARTIQ Dashboard"])
     loop = QEventLoop(app)
@@ -154,6 +154,7 @@ def main():
         master_management.close_rpc()
 
     disconnect_reported = False
+
     def report_disconnect():
         nonlocal disconnect_reported
         if not disconnect_reported:
@@ -167,8 +168,7 @@ def main():
                                   ("datasets", datasets.Model),
                                   ("schedule", schedule.Model),
                                   ("interactive_args", interactive_args.Model)):
-        subscriber = ModelSubscriber(notifier_name, modelf,
-            report_disconnect)
+        subscriber = ModelSubscriber(notifier_name, modelf, report_disconnect)
         loop.run_until_complete(subscriber.connect(
             args.server, args.port_notify))
         atexit_register_coroutine(subscriber.close, loop=loop)
@@ -288,7 +288,6 @@ def main():
     if d_log0 is not None:
         main_window.tabifyDockWidget(d_schedule, d_log0)
 
-
     if server_name is not None:
         server_description = server_name + " ({})".format(args.server)
     else:
@@ -298,6 +297,7 @@ def main():
     # run
     main_window.show()
     loop.run_until_complete(main_window.exit_request.wait())
+
 
 if __name__ == "__main__":
     main()
