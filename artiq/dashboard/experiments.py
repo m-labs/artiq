@@ -98,7 +98,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
     def __init__(self, manager, expurl):
         QtWidgets.QMdiSubWindow.__init__(self)
         qfm = QtGui.QFontMetrics(self.font())
-        self.resize(100*qfm.averageCharWidth(), 30*qfm.lineSpacing())
+        self.resize(100 * qfm.averageCharWidth(), 30 * qfm.lineSpacing())
         self.setWindowTitle(expurl)
         self.setWindowIcon(QtWidgets.QApplication.style().standardIcon(
             QtWidgets.QStyle.SP_FileDialogContentsView))
@@ -131,17 +131,17 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
             datetime.setDate(QtCore.QDate.currentDate())
         else:
             datetime.setDateTime(QtCore.QDateTime.fromMSecsSinceEpoch(
-                int(scheduling["due_date"]*1000)))
+                int(scheduling["due_date"] * 1000)))
         datetime_en.setChecked(scheduling["due_date"] is not None)
 
         def update_datetime(dt):
-            scheduling["due_date"] = dt.toMSecsSinceEpoch()/1000
+            scheduling["due_date"] = dt.toMSecsSinceEpoch() / 1000
             datetime_en.setChecked(True)
         datetime.dateTimeChanged.connect(update_datetime)
 
         def update_datetime_en(checked):
             if checked:
-                due_date = datetime.dateTime().toMSecsSinceEpoch()/1000
+                due_date = datetime.dateTime().toMSecsSinceEpoch() / 1000
             else:
                 due_date = None
             scheduling["due_date"] = due_date
@@ -237,7 +237,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
         submit = QtWidgets.QPushButton("Submit")
         submit.setIcon(QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_DialogOkButton))
+                       QtWidgets.QStyle.SP_DialogOkButton))
         submit.setToolTip("Schedule the experiment (Ctrl+Return)")
         submit.setShortcut("CTRL+RETURN")
         submit.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
@@ -247,7 +247,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
         reqterm = QtWidgets.QPushButton("Terminate instances")
         reqterm.setIcon(QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_DialogCancelButton))
+                        QtWidgets.QStyle.SP_DialogCancelButton))
         reqterm.setToolTip("Request termination of instances (Ctrl+Backspace)")
         reqterm.setShortcut("CTRL+BACKSPACE")
         reqterm.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
@@ -289,8 +289,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         arginfo = expdesc["arginfo"]
         for k, v in overrides.items():
             # Some values (e.g. scans) may have multiple defaults in a list
-            if ("default" in arginfo[k][0]
-                    and isinstance(arginfo[k][0]["default"], list)):
+            if ("default" in arginfo[k][0] and isinstance(arginfo[k][0]["default"], list)):
                 arginfo[k][0]["default"].insert(0, v)
             else:
                 arginfo[k][0]["default"] = v
@@ -355,9 +354,9 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
                     unparse_devarg_override(expid["devarg_override"]))
             self.log_level.setCurrentIndex(log_levels.index(
                 log_level_to_name(expid["log_level"])))
-            if ("repo_rev" in expid and
-                    expid["repo_rev"] != "N/A" and
-                    hasattr(self, "repo_rev")):
+            if "repo_rev" in expid and \
+               expid["repo_rev"] != "N/A" and \
+               hasattr(self, "repo_rev"):
                 self.repo_rev.setText(expid["repo_rev"])
         except:
             logger.error("Could not set submission options from HDF5 expid",
@@ -547,7 +546,7 @@ class ExperimentManager:
         self.submission_arguments[expurl] = arguments
         self.argument_ui_names[expurl] = ui_name
         return arguments
-    
+
     def set_argument_value(self, expurl, name, value):
         try:
             argument = self.submission_arguments[expurl][name]
@@ -560,7 +559,8 @@ class ExperimentManager:
             if expurl in self.open_experiments.keys():
                 self.open_experiments[expurl].argeditor.update_argument(name, argument)
         except:
-            logger.warn("Failed to set value for argument \"{}\" in experiment: {}.".format(name, expurl), exc_info=1)
+            logger.warn("Failed to set value for argument \"{}\" in experiment: {}."
+                        .format(name, expurl), exc_info=1)
 
     def get_submission_arguments(self, expurl):
         if expurl in self.submission_arguments:
@@ -570,8 +570,8 @@ class ExperimentManager:
                 raise ValueError("Submission arguments must be preinitialized "
                                  "when not using repository")
             class_desc = self.explist[expurl[5:]]
-            return self.initialize_submission_arguments(expurl,
-                class_desc["arginfo"], class_desc.get("argument_ui", None))
+            return self.initialize_submission_arguments(expurl, class_desc["arginfo"],
+                                                        class_desc.get("argument_ui", None))
 
     def open_experiment(self, expurl):
         if expurl in self.open_experiments:
@@ -671,9 +671,9 @@ class ExperimentManager:
                 repo_match = "repo_rev" in expid
             else:
                 repo_match = "repo_rev" not in expid
-            if (repo_match and
-                    ("file" in expid and expid["file"] == file) and
-                    expid["class_name"] == class_name):
+            if repo_match and \
+               ("file" in expid and expid["file"] == file) and \
+               expid["class_name"] == class_name:
                 rids.append(rid)
         asyncio.ensure_future(self._request_term_multiple(rids))
 
@@ -693,7 +693,7 @@ class ExperimentManager:
         for class_name, class_desc in description.items():
             expurl = "file:{}@{}".format(class_name, file)
             self.initialize_submission_arguments(expurl, class_desc["arginfo"],
-                class_desc.get("argument_ui", None))
+                                                 class_desc.get("argument_ui", None))
             if expurl in self.open_experiments:
                 self.open_experiments[expurl].close()
             self.open_experiment(expurl)
@@ -727,6 +727,7 @@ class ExperimentManager:
 
         self.is_quick_open_shown = True
         dialog = _QuickOpenDialog(self)
+
         def closed():
             self.is_quick_open_shown = False
         dialog.closed.connect(closed)
