@@ -3,8 +3,6 @@ from functools import partial
 
 from PyQt5 import QtCore, QtWidgets
 
-from artiq.gui.tools import LayoutWidget
-
 
 logger = logging.getLogger(__name__)
 
