@@ -94,7 +94,7 @@ class _OpenFileDialog(QtWidgets.QDialog):
                         else:
                             break
                     self.explorer.current_directory = \
-                        self.explorer.current_directory[:idx+1]
+                        self.explorer.current_directory[:idx + 1]
                     if self.explorer.current_directory == "/":
                         self.explorer.current_directory = ""
                 asyncio.ensure_future(self.refresh_view())
@@ -103,6 +103,7 @@ class _OpenFileDialog(QtWidgets.QDialog):
                 asyncio.ensure_future(self.refresh_view())
             else:
                 file = self.explorer.current_directory + selected
+
                 async def open_task():
                     try:
                         await self.exp_manager.open_file(file)
@@ -232,7 +233,7 @@ class ExplorerDock(QtWidgets.QDockWidget):
 
         set_shortcut_menu = QtWidgets.QMenu()
         for i in range(12):
-            action = QtWidgets.QAction("F" + str(i+1), self.el)
+            action = QtWidgets.QAction("F" + str(i + 1), self.el)
             action.triggered.connect(partial(self.set_shortcut, i))
             set_shortcut_menu.addAction(action)
 
@@ -246,12 +247,14 @@ class ExplorerDock(QtWidgets.QDockWidget):
 
         scan_repository_action = QtWidgets.QAction("Scan repository HEAD",
                                                    self.el)
+
         def scan_repository():
             asyncio.ensure_future(experiment_db_ctl.scan_repository_async())
         scan_repository_action.triggered.connect(scan_repository)
         self.el.addAction(scan_repository_action)
 
         scan_ddb_action = QtWidgets.QAction("Scan device database", self.el)
+
         def scan_ddb():
             asyncio.ensure_future(device_db_ctl.scan())
         scan_ddb_action.triggered.connect(scan_ddb)
@@ -292,7 +295,7 @@ class ExplorerDock(QtWidgets.QDockWidget):
         if expname is not None:
             expurl = "repo:" + expname
             self.d_shortcuts.set_shortcut(nr, expurl)
-            logger.info("Set shortcut F%d to '%s'", nr+1, expurl)
+            logger.info("Set shortcut F%d to '%s'", nr + 1, expurl)
 
     def update_scanning(self, scanning):
         if scanning:
