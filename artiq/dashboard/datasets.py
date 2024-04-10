@@ -8,7 +8,6 @@ from sipyco import pyon
 from artiq.tools import scale_from_metadata, short_format, exc_to_warning
 from artiq.gui.tools import LayoutWidget, QRecursiveFilterProxyModel
 from artiq.gui.models import DictSyncTreeSepModel
-from artiq.gui.scientific_spinbox import ScientificSpinBox
 
 
 logger = logging.getLogger(__name__)
