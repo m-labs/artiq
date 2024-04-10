@@ -3,14 +3,10 @@ import logging
 import textwrap
 from collections import namedtuple
 
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt5 import QtCore, QtWidgets
 
-from artiq.coredevice.comm_moninj import *
-from artiq.coredevice.ad9910 import (
-    _AD9910_REG_PROFILE0, _AD9910_REG_PROFILE7, 
-    _AD9910_REG_FTW, _AD9910_REG_CFR1
-)
-from artiq.coredevice.ad9912_reg import AD9912_POW1, AD9912_SER_CONF
+from artiq.coredevice.comm_moninj import CommMonInj, TTLOverride, TTLProbe
+from artiq.coredevice.ad9912_reg import AD9912_SER_CONF
 from artiq.gui.tools import LayoutWidget
 from artiq.gui.flowlayout import FlowLayout
 
