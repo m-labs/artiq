@@ -28,10 +28,10 @@ from artiq.master.worker_db import DeviceManager, DatasetManager, DummyDevice
 from artiq.language.environment import (
     is_public_experiment, TraceArgumentManager, ProcessArgumentManager
 )
-from artiq.language.core import set_watchdog_factory, TerminationRequested
+from artiq.language.core import host_only, set_watchdog_factory, TerminationRequested
 from artiq.language.types import TBool
 from artiq.compiler import import_cache
-from artiq.coredevice.core import CompileError, host_only, _render_diagnostic
+from artiq.coredevice.core import CompileError, _render_diagnostic
 from artiq import __version__ as artiq_version
 
 
