@@ -202,7 +202,6 @@ class EnumerationEntry(QtWidgets.QWidget):
 
     def __init__(self, argument):
         QtWidgets.QWidget.__init__(self)
-        disable_scroll_wheel(self)
         layout = QtWidgets.QHBoxLayout()
         self.setLayout(layout)
         procdesc = argument["desc"]
@@ -221,6 +220,7 @@ class EnumerationEntry(QtWidgets.QWidget):
             self.btn_group.idClicked.connect(submit)
         else:
             self.combo_box = QtWidgets.QComboBox()
+            disable_scroll_wheel(self.combo_box)
             self.combo_box.addItems(choices)
             idx = choices.index(argument["state"])
             self.combo_box.setCurrentIndex(idx)
