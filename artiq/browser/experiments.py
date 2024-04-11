@@ -369,6 +369,8 @@ class ExperimentsArea(QtWidgets.QMdiArea):
     def initialize_submission_arguments(self, arginfo):
         arguments = OrderedDict()
         for name, (procdesc, group, tooltip) in arginfo.items():
+            if procdesc["ty"] == "EnumerationValue" and procdesc["quickstyle"]:
+                procdesc["quickstyle"] = False
             state = procdesc_to_entry(procdesc).default_state(procdesc)
             arguments[name] = {
                 "desc": procdesc,
