@@ -146,39 +146,6 @@ class _TTLWidget(QtWidgets.QFrame):
         return self.channel
 
 
-class _SimpleDisplayWidget(QtWidgets.QFrame):
-    def __init__(self, title):
-        QtWidgets.QFrame.__init__(self)
-
-        self.setFrameShape(QtWidgets.QFrame.Box)
-        self.setFrameShadow(QtWidgets.QFrame.Raised)
-
-        grid = QtWidgets.QGridLayout()
-        grid.setContentsMargins(0, 0, 0, 0)
-        grid.setHorizontalSpacing(0)
-        grid.setVerticalSpacing(0)
-        self.setLayout(grid)
-        label = QtWidgets.QLabel(title)
-        label.setAlignment(QtCore.Qt.AlignCenter)
-        grid.addWidget(label, 1, 1)
-
-        self.value = QtWidgets.QLabel()
-        self.value.setAlignment(QtCore.Qt.AlignCenter)
-        grid.addWidget(self.value, 2, 1, 6, 1)
-
-        grid.setRowStretch(1, 1)
-        grid.setRowStretch(2, 0)
-        grid.setRowStretch(3, 1)
-
-        self.refresh_display()
-
-    def refresh_display(self):
-        raise NotImplementedError
-
-    def sort_key(self):
-        raise NotImplementedError
-
-
 class _DDSModel:
     def __init__(self, dds_type, ref_clk, cpld=None, pll=1, clk_div=0):
         self.cpld = cpld
@@ -349,12 +316,34 @@ class _DDSWidget(QtWidgets.QFrame):
         return (self.bus_channel, self.channel)
 
 
-class _DACWidget(_SimpleDisplayWidget):
+class _DACWidget(QtWidgets.QFrame):
     def __init__(self, dm, spi_channel, channel, title):
+        QtWidgets.QFrame.__init__(self)
         self.spi_channel = spi_channel
         self.channel = channel
         self.cur_value = 0
-        _SimpleDisplayWidget.__init__(self, "{} ch{}".format(title, channel))
+
+        self.setFrameShape(QtWidgets.QFrame.Box)
+        self.setFrameShadow(QtWidgets.QFrame.Raised)
+
+        grid = QtWidgets.QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(0)
+        grid.setVerticalSpacing(0)
+        self.setLayout(grid)
+        label = QtWidgets.QLabel("{} ch{}".format(title, channel))
+        label.setAlignment(QtCore.Qt.AlignCenter)
+        grid.addWidget(label, 1, 1)
+
+        self.value = QtWidgets.QLabel()
+        self.value.setAlignment(QtCore.Qt.AlignCenter)
+        grid.addWidget(self.value, 2, 1, 6, 1)
+
+        grid.setRowStretch(1, 1)
+        grid.setRowStretch(2, 0)
+        grid.setRowStretch(3, 1)
+
+        self.refresh_display()
 
     def refresh_display(self):
         self.value.setText("<font size=\"4\">{:.3f}</font><font size=\"2\"> %</font>"
