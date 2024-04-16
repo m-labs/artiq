@@ -19,9 +19,6 @@ class RTPacketSatellite(Module):
         self.tsc_load = Signal()
         self.tsc_load_value = Signal(64)
 
-        self.async_msg_stb = Signal()
-        self.async_msg_ack = Signal()
-
         if interface is None:
             interface = cri.Interface()
         self.cri = interface
@@ -80,8 +77,6 @@ class RTPacketSatellite(Module):
                 read_request_pending.eq(1),
             )
         ]
-
-        self.sync += If(self.async_msg_ack, self.async_msg_stb.eq(0))
 
         # RX FSM
         cri_read = Signal()
@@ -202,7 +197,6 @@ class RTPacketSatellite(Module):
 
         tx_fsm.act("IDLE",
             If(echo_req, NextState("ECHO")),
-            If(self.async_msg_stb, NextState("ASYNC_MESSAGES_READY")),
             If(buffer_space_req, NextState("BUFFER_SPACE")),
             If(read_request_pending & ~self.cri.i_status[2],
                 NextState("READ"),
@@ -213,12 +207,6 @@ class RTPacketSatellite(Module):
 
         tx_fsm.act("ECHO",
             tx_dp.send("echo_reply"),
-            If(tx_dp.packet_last, NextState("IDLE"))
-        )
-
-        tx_fsm.act("ASYNC_MESSAGES_READY",
-            self.async_msg_ack.eq(1),
-            tx_dp.send("async_messages_ready"),
             If(tx_dp.packet_last, NextState("IDLE"))
         )
 

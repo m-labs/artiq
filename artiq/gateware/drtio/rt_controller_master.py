@@ -17,7 +17,6 @@ class _CSRs(AutoCSR):
 
         self.set_time = CSR()
         self.underflow_margin = CSRStorage(16, reset=300)
-        self.async_messages_ready = CSR()
 
         self.force_destination = CSRStorage()
         self.destination = CSRStorage(8)
@@ -59,11 +58,6 @@ class RTController(Module):
         self.sync += [
             If(rt_packet.set_time_ack, rt_packet.set_time_stb.eq(0)),
             If(self.csrs.set_time.re, rt_packet.set_time_stb.eq(1))
-        ]
-
-        self.sync += [
-            If(rt_packet.async_messages_ready, self.csrs.async_messages_ready.w.eq(1)),
-            If(self.csrs.async_messages_ready.re, self.csrs.async_messages_ready.w.eq(0))
         ]
 
         # chan_sel forcing
