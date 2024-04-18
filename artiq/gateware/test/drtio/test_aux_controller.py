@@ -60,28 +60,36 @@ class TestAuxController(unittest.TestCase):
             while (yield from dut[dw].aux_controller.transmitter.aux_tx.read()):
                 yield
 
-        def receive_packet(dw):
+        def receive_packet(pkt_no, len, dw):
             while not (yield from dut[dw].aux_controller.receiver.aux_rx_present.read()):
                 yield
-            length = yield from dut[dw].aux_controller.receiver.aux_rx_length.read()
+            p = yield from dut[dw].aux_controller.receiver.aux_read_pointer.read()
+            self.assertEqual(pkt_no, p)
             r = []
-            for i in range(length//(dw//8)):
+            # packet length is derived by software now, so we pass it for the test
+            for i in range(len):
+                if dw == 64:
+                    offset = 2048
+                if dw == 32:
+                    offset = 1024
+                print(dw)
+                max_packet = 1024
                 r.append((yield from dut[dw].aux_controller.bus.read(256+i)))
             yield from dut[dw].aux_controller.receiver.aux_rx_present.write(1)
             return r
 
         prng = random.Random(0)
 
-        def send_and_check_packet(dw):
+        def send_and_check_packet(i, dw):
             data = [prng.randrange(2**dw-1) for _ in range(prng.randrange(1, 16))]
             yield from send_packet(data, dw)
-            received = yield from receive_packet(dw)
+            received = yield from receive_packet(i, len(data), dw)
             self.assertEqual(data, received)
 
         def sim(dw):
             yield from link_init(dw)
             for i in range(8):
-                yield from send_and_check_packet(dw)
+                yield from send_and_check_packet(i, dw)
 
         @passive
         def rt_traffic(dw):
@@ -95,5 +103,5 @@ class TestAuxController(unittest.TestCase):
                 yield dut[dw].link_layer.tx_rt_frame.eq(0)
                 yield
 
-        run_simulation(dut[32], [sim(32), rt_traffic(32)])
-        run_simulation(dut[64], [sim(64), rt_traffic(64)])
+        run_simulation(dut[32], [sim(32), rt_traffic(32)], vcd_name="32bit.vcd")
+        run_simulation(dut[64], [sim(64), rt_traffic(64)], vcd_name="64bit.vcd")

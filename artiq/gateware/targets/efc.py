@@ -82,9 +82,10 @@ class Satellite(BaseSoC, AMPSoC):
             core.link_layer, self.cpu_dw))
         self.csr_devices.append("drtioaux0")
 
+        drtio_aux_mem_size = 1024 * 16 # max_packet * 8 buffers * 2 (tx, rx halves)
         memory_address = self.mem_map["drtioaux"]
-        self.add_wb_slave(memory_address, 0x800, self.drtioaux0.bus)
-        self.add_memory_region("drtioaux0_mem", memory_address | self.shadow_base, 0x800)
+        self.add_wb_slave(memory_address, drtio_aux_mem_size, self.drtioaux0.bus)
+        self.add_memory_region("drtioaux0_mem", memory_address | self.shadow_base, drtio_aux_mem_size)
 
         self.config["HAS_DRTIO"] = None
         self.add_csr_group("drtioaux", ["drtioaux0"])
