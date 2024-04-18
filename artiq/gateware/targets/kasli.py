@@ -236,10 +236,11 @@ class MasterBase(MiniSoC, AMPSoC):
             setattr(self.submodules, coreaux_name, coreaux)
             self.csr_devices.append(coreaux_name)
 
-            memory_address = self.mem_map["drtioaux"] + 0x800*i
-            self.add_wb_slave(memory_address, 0x800,
+            drtio_aux_mem_size = 1024 * 16 # max_packet * 8 buffers * 2 (tx, rx halves)
+            memory_address = self.mem_map["drtioaux"] + drtio_aux_mem_size*i
+            self.add_wb_slave(memory_address, drtio_aux_mem_size,
                               coreaux.bus)
-            self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
+            self.add_memory_region(memory_name, memory_address | self.shadow_base, drtio_aux_mem_size)
         self.config["HAS_DRTIO"] = None
         self.config["HAS_DRTIO_ROUTING"] = None
         self.config["DRTIO_ROLE"] = "master"
@@ -318,10 +319,11 @@ class MasterBase(MiniSoC, AMPSoC):
             setattr(self.submodules, coreaux_name, coreaux)
             self.csr_devices.append(coreaux_name)
 
-            memory_address = self.mem_map["drtioaux"] + 0x800*channel
-            self.add_wb_slave(memory_address, 0x800,
+            drtio_aux_mem_size = 1024 * 16 # max_packet * 8 buffers * 2 (tx, rx halves)
+            memory_address = self.mem_map["drtioaux"] + drtio_aux_mem_size*channel
+            self.add_wb_slave(memory_address, drtio_aux_mem_size,
                             coreaux.bus)
-            self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
+            self.add_memory_region(memory_name, memory_address | self.shadow_base, drtio_aux_mem_size)
 
     def add_drtio_cpuif_groups(self):
         self.add_csr_group("drtio", self.drtio_csr_group)
@@ -486,10 +488,11 @@ class SatelliteBase(BaseSoC, AMPSoC):
             setattr(self.submodules, coreaux_name, coreaux)
             self.csr_devices.append(coreaux_name)
 
-            memory_address = self.mem_map["drtioaux"] + 0x800*i
-            self.add_wb_slave(memory_address, 0x800,
+            drtio_aux_mem_size = 1024 * 16 # max_packet * 8 buffers * 2 (tx, rx halves)
+            memory_address = self.mem_map["drtioaux"] + drtio_aux_mem_size * i
+            self.add_wb_slave(memory_address, drtio_aux_mem_size,
                               coreaux.bus)
-            self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
+            self.add_memory_region(memory_name, memory_address | self.shadow_base, drtio_aux_mem_size)
         self.config["HAS_DRTIO"] = None
         self.config["HAS_DRTIO_ROUTING"] = None
         self.config["DRTIO_ROLE"] = "satellite"
