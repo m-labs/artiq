@@ -69,9 +69,9 @@ fn receive<F, T>(linkno: u8, f: F) -> Result<Option<T>, Error<!>>
     let linkidx = linkno as usize;
     unsafe {
         if (DRTIOAUX[linkidx].aux_rx_present_read)() == 1 {
-            let ptr = DRTIOAUX_MEM[linkidx].base + DRTIOAUX_MEM[linkidx].size / 2;
-            let len = (DRTIOAUX[linkidx].aux_rx_length_read)();
-            let result = f(slice::from_raw_parts(ptr as *mut u8, len as usize));
+            let read_ptr = (DRTIOAUX[linkidx].aux_read_pointer_read)() as usize;
+            let ptr = DRTIOAUX_MEM[linkidx].base + (DRTIOAUX_MEM[linkidx].size / 2) + (read_ptr * 0x400);
+            let result = f(slice::from_raw_parts(ptr as *mut u8, 0x400 as usize));
             (DRTIOAUX[linkidx].aux_rx_present_write)(1);
             Ok(Some(result?))
         } else {
@@ -86,21 +86,17 @@ pub fn recv(linkno: u8) -> Result<Option<Packet>, Error<!>> {
     }
 
     receive(linkno, |buffer| {
-        if buffer.len() < 8 {
-            return Err(IoError::UnexpectedEnd.into())
-        }
-
         let mut reader = Cursor::new(buffer);
 
-        let checksum_at = buffer.len() - 4;
+        let packet = Packet::read_from(&mut reader)?;
+        let padding = (12 - (reader.position() % 8)) % 8;
+        let checksum_at = reader.position() + padding;
         let checksum = crc::crc32::checksum_ieee(&reader.get_ref()[0..checksum_at]);
         reader.set_position(checksum_at);
         if reader.read_u32()? != checksum {
             return Err(Error::CorruptedPacket)
         }
-        reader.set_position(0);
-
-        Ok(Packet::read_from(&mut reader)?)
+        Ok(packet)
     })
 }
 
