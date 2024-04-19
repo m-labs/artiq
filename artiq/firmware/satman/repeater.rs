@@ -49,7 +49,7 @@ impl Repeater {
         self.state == RepeaterState::Up
     }
 
-    pub fn service(&mut self, routing_table: &drtio_routing::RoutingTable, rank: u8, destination: u8, router: &mut Router) {
+    pub fn service(&mut self, routing_table: &drtio_routing::RoutingTable, rank: u8, self_destination: u8, router: &mut Router) {
         self.process_local_errors();
 
         match self.state {
@@ -107,15 +107,10 @@ impl Repeater {
                 }
             }
             RepeaterState::Up => {
-                self.process_unsolicited_aux();
+                self.process_unsolicited_aux(routing_table, rank, self_destination, router);
                 if !rep_link_rx_up(self.repno) {
                     info!("[REP#{}] link is down", self.repno);
                     self.state = RepeaterState::Down;
-                }
-                if self.async_messages_ready() {
-                    if let Err(e) = self.handle_async(routing_table, rank, destination, router) {
-                        warn!("[REP#{}] Error handling async messages ({})", self.repno, e);
-                    }
                 }
             }
             RepeaterState::Failed => {
@@ -127,9 +122,10 @@ impl Repeater {
         }
     }
 
-    fn process_unsolicited_aux(&self) {
+    fn process_unsolicited_aux(&self, routing_table: &drtio_routing::RoutingTable, 
+        rank: u8, self_destination: u8, router: &mut Router) {
         match drtioaux::recv(self.auxno) {
-            Ok(Some(packet)) => warn!("[REP#{}] unsolicited aux packet: {:?}", self.repno, packet),
+            Ok(Some(packet)) => router.route(packet, routing_table, rank, self_destination),
             Ok(None) => (),
             Err(_) => warn!("[REP#{}] aux packet error", self.repno)
         }
@@ -183,28 +179,6 @@ impl Repeater {
                 Err(e) => return Err(e)
             }
         }
-    }
-
-    fn async_messages_ready(&self) -> bool {
-        let async_rdy;
-        unsafe { 
-            async_rdy = (csr::DRTIOREP[self.repno as usize].async_messages_ready_read)();
-            (csr::DRTIOREP[self.repno as usize].async_messages_ready_write)(0);
-        }
-        async_rdy == 1
-    }
-
-    fn handle_async(&self, routing_table: &drtio_routing::RoutingTable, rank: u8, self_destination: u8, router: &mut Router
-    ) -> Result<(), drtioaux::Error<!>> {
-        loop {
-            drtioaux::send(self.auxno, &drtioaux::Packet::RoutingRetrievePackets).unwrap();
-            let reply = self.recv_aux_timeout(200)?;
-            match reply {
-                drtioaux::Packet::RoutingNoPackets => break,
-                packet => router.route(packet, routing_table, rank, self_destination)
-            }
-        }
-        Ok(())
     }
 
     pub fn aux_forward(&self, request: &drtioaux::Packet) -> Result<(), drtioaux::Error<!>> {

@@ -75,7 +75,6 @@ pub struct Router {
     local_queue: VecDeque<drtioaux::Packet>,
     #[cfg(has_drtio_routing)]
     downstream_queue: VecDeque<(usize, drtioaux::Packet)>,
-    upstream_notified: bool,
 }
 
 impl Router {
@@ -85,7 +84,6 @@ impl Router {
             local_queue: VecDeque::new(),
             #[cfg(has_drtio_routing)]
             downstream_queue: VecDeque::new(),
-            upstream_notified: false,
         }
     }
 
@@ -155,21 +153,8 @@ impl Router {
         }
     }
 
-    pub fn any_upstream_waiting(&mut self) -> bool {
-        let empty = self.upstream_queue.is_empty();
-        if !empty && !self.upstream_notified {
-            self.upstream_notified = true; // so upstream will not get spammed with notifications
-            true
-        } else {
-            false
-        }
-    }
-
     pub fn get_upstream_packet(&mut self) -> Option<drtioaux::Packet> {
         let packet = self.upstream_queue.pop_front();
-        if packet.is_none() {
-            self.upstream_notified = false;
-        }
         packet
     }
 
