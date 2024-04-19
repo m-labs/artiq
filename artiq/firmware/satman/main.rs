@@ -66,12 +66,6 @@ fn drtiosat_tsc_loaded() -> bool {
     }
 }
 
-fn drtiosat_async_ready() {
-    unsafe {
-        csr::drtiosat::async_messages_ready_write(1);
-    }
-}
-
 #[derive(Clone, Copy)]
 pub enum RtioMaster {
     Drtio,
@@ -250,12 +244,6 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
         #[cfg(not(has_drtio_routing))]
         drtioaux::Packet::RoutingSetRank { rank: _ } => {
             drtioaux::send(0, &drtioaux::Packet::RoutingAck)
-        }
-
-        drtioaux::Packet::RoutingRetrievePackets => {
-            let packet = router.get_upstream_packet().or(
-                Some(drtioaux::Packet::RoutingNoPackets)).unwrap();
-            drtioaux::send(0, &packet)
         }
 
         drtioaux::Packet::MonitorRequest { destination: _destination, channel, probe } => {
@@ -808,8 +796,8 @@ pub extern fn main() -> i32 {
                 }
             }
 
-            if router.any_upstream_waiting() {
-                drtiosat_async_ready();
+            if let Some(packet) = router.get_upstream_packet() {
+                drtioaux::send(0, &packet).unwrap();
             }
         }
 
