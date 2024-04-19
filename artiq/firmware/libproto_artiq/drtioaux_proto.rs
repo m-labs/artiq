@@ -77,8 +77,6 @@ pub enum Packet {
 
     RoutingSetPath { destination: u8, hops: [u8; 32] },
     RoutingSetRank { rank: u8 },
-    RoutingRetrievePackets,
-    RoutingNoPackets,
     RoutingAck,
 
     MonitorRequest { destination: u8, channel: u16, probe: u8 },
@@ -170,8 +168,6 @@ impl Packet {
                 rank: reader.read_u8()?
             },
             0x32 => Packet::RoutingAck,
-            0x33 => Packet::RoutingRetrievePackets,
-            0x34 => Packet::RoutingNoPackets,
 
             0x40 => Packet::MonitorRequest {
                 destination: reader.read_u8()?,
@@ -456,10 +452,6 @@ impl Packet {
             },
             Packet::RoutingAck =>
                 writer.write_u8(0x32)?,
-            Packet::RoutingRetrievePackets =>
-                writer.write_u8(0x33)?,
-            Packet::RoutingNoPackets =>
-                writer.write_u8(0x34)?,
 
             Packet::MonitorRequest { destination, channel, probe } => {
                 writer.write_u8(0x40)?;
