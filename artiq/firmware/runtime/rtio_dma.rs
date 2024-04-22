@@ -120,12 +120,12 @@ pub mod remote_dma {
         Ok(playback_state)
     }
 
-    pub fn erase(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex,
+    pub fn erase(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex,
             routing_table: &RoutingTable, id: u32) -> Result<(), Error> {
         let _lock = ddma_mutex.lock(io)?;
         let destinations = unsafe { TRACES.get(&id).unwrap() };
         for destination in destinations.keys() {
-            match drtio::ddma_send_erase(io, aux_mutex, routing_table, id, *destination) {
+            match drtio::ddma_send_erase(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, id, *destination) {
                 Ok(_) => (),
                 Err(e) => error!("Error erasing trace on DMA: {}", e)
             } 
@@ -134,18 +134,18 @@ pub mod remote_dma {
         Ok(())
     }
 
-    pub fn upload_traces(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex,
+    pub fn upload_traces(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex,
             routing_table: &RoutingTable, id: u32) -> Result<(), Error> {
         let _lock = ddma_mutex.lock(io)?;
         let traces = unsafe { TRACES.get_mut(&id).unwrap() };
         for (destination, mut trace) in traces {
-            drtio::ddma_upload_trace(io, aux_mutex, routing_table, id, *destination, trace.get_trace())?;
+            drtio::ddma_upload_trace(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, id, *destination, trace.get_trace())?;
             trace.state = RemoteState::Loaded;
         }
         Ok(())
     }
 
-    pub fn playback(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex,
+    pub fn playback(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex,
             routing_table: &RoutingTable, id: u32, timestamp: u64) -> Result<(), Error>{
         // triggers playback on satellites
         let destinations = unsafe { 
@@ -161,7 +161,7 @@ pub mod remote_dma {
                     return Err(Error::IncorrectState);
                 }
             }
-            drtio::ddma_send_playback(io, aux_mutex, routing_table, id, *destination, timestamp)?;
+            drtio::ddma_send_playback(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, id, *destination, timestamp)?;
         }
         Ok(())
     }
@@ -178,7 +178,7 @@ pub mod remote_dma {
         };
     }
 
-    pub fn destination_changed(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex,
+    pub fn destination_changed(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
         routing_table: &RoutingTable, destination: u8, up: bool) {
         // update state of the destination, resend traces if it's up
         let _lock = ddma_mutex.lock(io).unwrap();
@@ -186,7 +186,7 @@ pub mod remote_dma {
         for (id, dest_traces) in traces_iter {
             if let Some(trace) = dest_traces.get_mut(&destination) {
                 if up {
-                    match drtio::ddma_upload_trace(io, aux_mutex, routing_table, *id, destination, trace.get_trace())
+                    match drtio::ddma_upload_trace(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, *id, destination, trace.get_trace())
                     {
                         Ok(_) => trace.state = RemoteState::Loaded,
                         Err(e) => error!("Error adding DMA trace on destination {}: {}", destination, e)
