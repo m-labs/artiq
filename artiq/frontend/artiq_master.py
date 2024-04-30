@@ -120,6 +120,7 @@ def main():
         "get_device_db": device_db.get_device_db,
         "get_device": device_db.get,
         "get_dataset": dataset_db.get,
+        "get_dataset_metadata": dataset_db.get_metadata,
         "update_dataset": dataset_db.update,
         "get_interactive_arguments": get_interactive_arguments,
         "scheduler_submit": scheduler.submit,
