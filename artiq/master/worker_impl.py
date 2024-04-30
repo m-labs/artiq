@@ -73,6 +73,7 @@ class ParentDeviceDB:
 class ParentDatasetDB:
     get = make_parent_action("get_dataset")
     update = make_parent_action("update_dataset")
+    get_metadata = make_parent_action("get_dataset_metadata")
 
 
 class Watchdog:
@@ -185,6 +186,10 @@ class ExamineDatasetMgr:
     @staticmethod
     def get(key, archive=False):
         return ParentDatasetDB.get(key)
+
+    @staticmethod
+    def get_metadata(key):
+        return ParentDatasetDB.get_metadata(key)
 
 
 def examine(device_mgr, dataset_mgr, file):
