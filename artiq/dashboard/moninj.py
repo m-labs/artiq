@@ -836,6 +836,23 @@ class _MonInjDock(QDockWidgetCloseDetect):
         self.flow = DragDropFlowLayoutWidget()
         scroll_area.setWidgetResizable(True)
         scroll_area.setWidget(self.flow)
+        self.flow.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.flow.customContextMenuRequested.connect(self.custom_context_menu)
+
+    def custom_context_menu(self, pos):
+        index = self.flow._get_index(pos)
+        if index == -1:
+            return
+        menu = QtWidgets.QMenu()
+        delete_action = QtWidgets.QAction("Delete widget", menu)
+        delete_action.triggered.connect(partial(self.delete_widget, index))
+        menu.addAction(delete_action)
+        menu.exec_(self.flow.mapToGlobal(pos))
+
+    def delete_widget(self, index, checked):
+        widget = self.flow.itemAt(index).widget()
+        widget.hide()
+        self.flow.layout.takeAt(index)
 
     def add_channels(self):
         channels = self.channel_dialog.channels
