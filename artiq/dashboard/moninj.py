@@ -32,6 +32,7 @@ class _TTLWidget(QtWidgets.QFrame):
         self.channel = channel
         self.set_mode = dm.ttl_set_mode
         self.force_out = force_out
+        self.title = title
 
         self.setFrameShape(QtWidgets.QFrame.Box)
         self.setFrameShadow(QtWidgets.QFrame.Raised)
@@ -145,6 +146,9 @@ class _TTLWidget(QtWidgets.QFrame):
     def sort_key(self):
         return self.channel
 
+    def uid(self):
+        return self.title
+
 
 class _DDSModel:
     def __init__(self, dds_type, ref_clk, cpld=None, pll=1, clk_div=0):
@@ -186,6 +190,7 @@ class _DDSWidget(QtWidgets.QFrame):
         self.dds_name = title
         self.cur_frequency = 0
         self.dds_model = _DDSModel(dds_type, ref_clk, cpld, pll, clk_div)
+        self.title = title
 
         QtWidgets.QFrame.__init__(self)
 
@@ -315,6 +320,9 @@ class _DDSWidget(QtWidgets.QFrame):
     def sort_key(self):
         return (self.bus_channel, self.channel)
 
+    def uid(self):
+        return self.title
+
 
 class _DACWidget(QtWidgets.QFrame):
     def __init__(self, dm, spi_channel, channel, title):
@@ -322,6 +330,7 @@ class _DACWidget(QtWidgets.QFrame):
         self.spi_channel = spi_channel
         self.channel = channel
         self.cur_value = 0
+        self.title = title
 
         self.setFrameShape(QtWidgets.QFrame.Box)
         self.setFrameShadow(QtWidgets.QFrame.Raised)
@@ -351,6 +360,9 @@ class _DACWidget(QtWidgets.QFrame):
 
     def sort_key(self):
         return (self.spi_channel, self.channel)
+
+    def uid(self):
+        return (self.title, self.channel)
 
 
 _WidgetDesc = namedtuple("_WidgetDesc", "uid comment cls arguments")
