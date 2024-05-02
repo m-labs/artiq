@@ -741,20 +741,20 @@ class _MonInjDock(QtWidgets.QDockWidget):
         self.setObjectName(name)
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
                          QtWidgets.QDockWidget.DockWidgetFloatable)
+        grid = LayoutWidget()
+        self.setWidget(grid)
 
-    def layout_widgets(self, widgets):
         scroll_area = QtWidgets.QScrollArea()
-        self.setWidget(scroll_area)
-
-        grid = FlowLayout()
+        grid.addWidget(scroll_area, 0, 0)
+        self.flow = FlowLayout()
         grid_widget = QtWidgets.QWidget()
-        grid_widget.setLayout(grid)
-
-        for widget in sorted(widgets, key=lambda w: w.sort_key()):
-            grid.addWidget(widget)
-
+        grid_widget.setLayout(self.flow)
         scroll_area.setWidgetResizable(True)
         scroll_area.setWidget(grid_widget)
+
+    def layout_widgets(self, widgets):
+        for widget in sorted(widgets, key=lambda w: w.sort_key()):
+            self.flow.addWidget(widget)
 
 
 class MonInj:
