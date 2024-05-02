@@ -226,7 +226,7 @@ def main():
     smgr.register(d_applets)
     broadcast_clients["ccb"].notify_cbs.append(d_applets.ccb_notify)
 
-    d_ttl_dds = moninj.MonInj(rpc_clients["schedule"])
+    d_ttl_dds = moninj.MonInj(rpc_clients["schedule"], main_window)
     atexit_register_coroutine(d_ttl_dds.stop, loop=loop)
 
     d_waveform = waveform.WaveformDock(
@@ -261,7 +261,7 @@ def main():
     # lay out docks
     right_docks = [
         d_explorer, d_shortcuts,
-        d_ttl_dds.dock, d_datasets, d_applets,
+        d_datasets, d_applets,
         d_waveform, d_interactive_args
     ]
     main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, right_docks[0])
@@ -279,13 +279,13 @@ def main():
     smgr.start(loop=loop)
     atexit_register_coroutine(smgr.stop, loop=loop)
 
-    # work around for https://github.com/m-labs/artiq/issues/1307
-    d_ttl_dds.dock.show()
-
     # create first log dock if not already in state
     d_log0 = logmgr.first_log_dock()
     if d_log0 is not None:
         main_window.tabifyDockWidget(d_schedule, d_log0)
+    d_moninj0 = d_ttl_dds.first_moninj_dock()
+    if d_moninj0 is not None:
+        main_window.tabifyDockWidget(right_docks[-1], d_moninj0)
 
     if server_name is not None:
         server_description = server_name + " ({})".format(args.server)

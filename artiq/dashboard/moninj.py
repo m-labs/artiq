@@ -2,12 +2,13 @@ import asyncio
 import logging
 import textwrap
 from collections import namedtuple
+from functools import partial
 
 from PyQt5 import QtCore, QtWidgets
 
 from artiq.coredevice.comm_moninj import CommMonInj, TTLOverride, TTLProbe
 from artiq.coredevice.ad9912_reg import AD9912_SER_CONF
-from artiq.gui.tools import LayoutWidget
+from artiq.gui.tools import LayoutWidget, QDockWidgetCloseDetect
 from artiq.gui.flowlayout import FlowLayout
 
 
@@ -735,17 +736,24 @@ class _DeviceManager:
             await self.mi_connection.close()
 
 
-class _MonInjDock(QtWidgets.QDockWidget):
-    def __init__(self, name):
-        QtWidgets.QDockWidget.__init__(self, name)
+class _MonInjDock(QDockWidgetCloseDetect):
+    def __init__(self, name, manager):
+        QtWidgets.QDockWidget.__init__(self, "MonInj")
         self.setObjectName(name)
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
                          QtWidgets.QDockWidget.DockWidgetFloatable)
         grid = LayoutWidget()
         self.setWidget(grid)
 
+        newdock = QtWidgets.QToolButton()
+        newdock.setToolTip("Create new moninj dock")
+        newdock.setIcon(QtWidgets.QApplication.style().standardIcon(
+            QtWidgets.QStyle.SP_FileDialogNewFolder))
+        newdock.clicked.connect(lambda: manager.create_new_dock())
+        grid.addWidget(newdock, 0, 0)
+
         scroll_area = QtWidgets.QScrollArea()
-        grid.addWidget(scroll_area, 0, 0)
+        grid.addWidget(scroll_area, 1, 0, 1, 10)
         self.flow = FlowLayout()
         grid_widget = QtWidgets.QWidget()
         grid_widget.setLayout(self.flow)
@@ -758,11 +766,48 @@ class _MonInjDock(QtWidgets.QDockWidget):
 
 
 class MonInj:
-    def __init__(self, schedule_ctl):
-        self.dock = _MonInjDock("MonInj")
-
+    def __init__(self, schedule_ctl, main_window):
+        self.docks = dict()
+        self.main_window = main_window
         self.dm = _DeviceManager(schedule_ctl)
-        self.dm.channels_cb = lambda: self.dock.layout_widgets(self.dm.widgets_by_uid.values())
+        self.dm.channels_cb = \
+            lambda: self.docks["moninj0"].layout_widgets(self.dm.widgets_by_uid.values())
+
+    def create_new_dock(self, add_to_area=True):
+        n = 0
+        name = "moninj0"
+        while name in self.docks:
+            n += 1
+            name = "moninj" + str(n)
+
+        dock = _MonInjDock(name, self)
+        self.docks[name] = dock
+        if add_to_area:
+            self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
+            dock.setFloating(True)
+        dock.sigClosed.connect(partial(self.on_dock_closed, name))
+        self.update_closable()
+        return dock
+
+    def on_dock_closed(self, name):
+        dock = self.docks[name]
+        dock.deleteLater()
+        del self.docks[name]
+        self.update_closable()
+
+    def update_closable(self):
+        flags = (QtWidgets.QDockWidget.DockWidgetMovable |
+                 QtWidgets.QDockWidget.DockWidgetFloatable)
+        if len(self.docks) > 1:
+            flags |= QtWidgets.QDockWidget.DockWidgetClosable
+        for dock in self.docks.values():
+            dock.setFeatures(flags)
+
+    def first_moninj_dock(self):
+        if self.docks:
+            return None
+        dock = self.create_new_dock(False)
+        return dock
 
     async def stop(self):
         if self.dm is not None:
