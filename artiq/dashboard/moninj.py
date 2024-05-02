@@ -806,15 +806,17 @@ class _MonInjDock(QDockWidgetCloseDetect):
                          QtWidgets.QDockWidget.DockWidgetFloatable)
         grid = LayoutWidget()
         self.setWidget(grid)
+        self.manager = manager
+        self.widget_uids = None
 
         newdock = QtWidgets.QToolButton()
         newdock.setToolTip("Create new moninj dock")
         newdock.setIcon(QtWidgets.QApplication.style().standardIcon(
             QtWidgets.QStyle.SP_FileDialogNewFolder))
-        newdock.clicked.connect(lambda: manager.create_new_dock())
+        newdock.clicked.connect(lambda: self.manager.create_new_dock())
         grid.addWidget(newdock, 0, 0)
 
-        self.channel_dialog = _AddChannelDialog(self, manager.channel_model)
+        self.channel_dialog = _AddChannelDialog(self, self.manager.channel_model)
         self.channel_dialog.accepted.connect(self.add_channels)
 
         dialog_btn = QtWidgets.QToolButton()
@@ -846,6 +848,43 @@ class _MonInjDock(QDockWidgetCloseDetect):
             widget.show()
             self.flow.addWidget(widget)
 
+    def restore_widgets(self):
+        if self.widget_uids is not None:
+            widgets_by_uid = self.manager.dm.widgets_by_uid
+            widgets = list()
+            for uid in self.widget_uids:
+                if uid in widgets_by_uid:
+                    widgets.append(widgets_by_uid[uid])
+                else:
+                    logger.warning("removing moninj widget {}".format(uid))
+            self.layout_widgets(widgets)
+            self.widget_uids = None
+
+    def _save_widget_uids(self):
+        uids = []
+        for i in range(self.flow.count()):
+            uids.append(self.flow.itemAt(i).widget().uid())
+        return uids
+
+    def save_state(self):
+        return {
+            "dock_label": self.label.text(),
+            "widget_uids": self._save_widget_uids()
+        }
+
+    def restore_state(self, state):
+        try:
+            label = state["dock_label"]
+        except KeyError:
+            pass
+        else:
+            self.label._text = label
+            self.label.setText(label)
+        try:
+            self.widget_uids = state["widget_uids"]
+        except KeyError:
+            pass
+
 
 class MonInj:
     def __init__(self, schedule_ctl, main_window):
@@ -858,6 +897,8 @@ class MonInj:
     def add_channels(self):
         self.channel_model.clear()
         self.channel_model.update(self.dm.widgets_by_uid)
+        for dock in self.docks.values():
+            dock.restore_widgets()
 
     def create_new_dock(self, add_to_area=True):
         n = 0
@@ -877,7 +918,7 @@ class MonInj:
 
     def on_dock_closed(self, name):
         dock = self.docks[name]
-        dock.deleteLater()
+        dock.hide()  # dock may be parent, only delete on exit
         del self.docks[name]
         self.update_closable()
 
@@ -894,6 +935,20 @@ class MonInj:
             return None
         dock = self.create_new_dock(False)
         return dock
+
+    def save_state(self):
+        return {name: dock.save_state() for name, dock in self.docks.items()}
+
+    def restore_state(self, state):
+        if self.docks:
+            raise NotImplementedError
+        for name, dock_state in state.items():
+            dock = _MonInjDock(name, self)
+            self.docks[name] = dock
+            dock.restore_state(dock_state)
+            self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
+            dock.sigClosed.connect(partial(self.on_dock_closed, name))
+        self.update_closable()
 
     async def stop(self):
         if self.dm is not None:

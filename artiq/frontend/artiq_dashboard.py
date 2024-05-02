@@ -227,6 +227,7 @@ def main():
     broadcast_clients["ccb"].notify_cbs.append(d_applets.ccb_notify)
 
     d_ttl_dds = moninj.MonInj(rpc_clients["schedule"], main_window)
+    smgr.register(d_ttl_dds)
     atexit_register_coroutine(d_ttl_dds.stop, loop=loop)
 
     d_waveform = waveform.WaveformDock(
