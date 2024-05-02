@@ -442,12 +442,10 @@ class _DeviceManager:
         self.widgets_by_uid = dict()
 
         self.dds_sysclk = 0
-        self.ttl_cb = lambda: None
         self.ttl_widgets = dict()
-        self.dds_cb = lambda: None
         self.dds_widgets = dict()
-        self.dac_cb = lambda: None
         self.dac_widgets = dict()
+        self.channels_cb = lambda: None
 
     def init_ddb(self, ddb):
         self.ddb = ddb
@@ -468,17 +466,14 @@ class _DeviceManager:
                 self.setup_ttl_monitoring(False, widget.channel)
                 widget.deleteLater()
                 del self.ttl_widgets[widget.channel]
-                self.ttl_cb()
             elif isinstance(widget, _DDSWidget):
                 self.setup_dds_monitoring(False, widget.bus_channel, widget.channel)
                 widget.deleteLater()
                 del self.dds_widgets[(widget.bus_channel, widget.channel)]
-                self.dds_cb()
             elif isinstance(widget, _DACWidget):
                 self.setup_dac_monitoring(False, widget.spi_channel, widget.channel)
                 widget.deleteLater()
                 del self.dac_widgets[(widget.spi_channel, widget.channel)]
-                self.dac_cb()
             else:
                 raise ValueError
 
@@ -490,18 +485,18 @@ class _DeviceManager:
 
             if isinstance(widget, _TTLWidget):
                 self.ttl_widgets[widget.channel] = widget
-                self.ttl_cb()
                 self.setup_ttl_monitoring(True, widget.channel)
             elif isinstance(widget, _DDSWidget):
                 self.dds_widgets[(widget.bus_channel, widget.channel)] = widget
-                self.dds_cb()
                 self.setup_dds_monitoring(True, widget.bus_channel, widget.channel)
             elif isinstance(widget, _DACWidget):
                 self.dac_widgets[(widget.spi_channel, widget.channel)] = widget
-                self.dac_cb()
                 self.setup_dac_monitoring(True, widget.spi_channel, widget.channel)
             else:
                 raise ValueError
+
+        if description != self.description:
+            self.channels_cb()
 
         self.description = description
 
@@ -764,14 +759,10 @@ class _MonInjDock(QtWidgets.QDockWidget):
 
 class MonInj:
     def __init__(self, schedule_ctl):
-        self.ttl_dock = _MonInjDock("TTL")
-        self.dds_dock = _MonInjDock("DDS")
-        self.dac_dock = _MonInjDock("DAC")
+        self.dock = _MonInjDock("MonInj")
 
         self.dm = _DeviceManager(schedule_ctl)
-        self.dm.ttl_cb = lambda: self.ttl_dock.layout_widgets(self.dm.ttl_widgets.values())
-        self.dm.dds_cb = lambda: self.dds_dock.layout_widgets(self.dm.dds_widgets.values())
-        self.dm.dac_cb = lambda: self.dac_dock.layout_widgets(self.dm.dac_widgets.values())
+        self.dm.channels_cb = lambda: self.dock.layout_widgets(self.dm.widgets_by_uid.values())
 
     async def stop(self):
         if self.dm is not None:
