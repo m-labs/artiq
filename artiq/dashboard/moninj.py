@@ -10,6 +10,7 @@ from artiq.coredevice.comm_moninj import CommMonInj, TTLOverride, TTLProbe
 from artiq.coredevice.ad9912_reg import AD9912_SER_CONF
 from artiq.gui.tools import LayoutWidget, QDockWidgetCloseDetect
 from artiq.gui.flowlayout import FlowLayout
+from artiq.gui.models import DictSyncTreeSepModel
 
 
 logger = logging.getLogger(__name__)
@@ -149,6 +150,9 @@ class _TTLWidget(QtWidgets.QFrame):
 
     def uid(self):
         return self.title
+
+    def to_model_path(self):
+        return "ttl/{}".format(self.title)
 
 
 class _DDSModel:
@@ -324,6 +328,9 @@ class _DDSWidget(QtWidgets.QFrame):
     def uid(self):
         return self.title
 
+    def to_model_path(self):
+        return "dds/{}".format(self.title)
+
 
 class _DACWidget(QtWidgets.QFrame):
     def __init__(self, dm, spi_channel, channel, title):
@@ -364,6 +371,9 @@ class _DACWidget(QtWidgets.QFrame):
 
     def uid(self):
         return (self.title, self.channel)
+
+    def to_model_path(self):
+        return "dac/{} ch{}".format(self.title, self.channel)
 
 
 _WidgetDesc = namedtuple("_WidgetDesc", "uid comment cls arguments")
@@ -736,6 +746,58 @@ class _DeviceManager:
             await self.mi_connection.close()
 
 
+class Model(DictSyncTreeSepModel):
+    def __init__(self, init):
+        DictSyncTreeSepModel.__init__(self, "/", ["Channels"], init)
+
+    def clear(self):
+        for k in self.backing_store:
+            self._del_item(self, k.split(self.separator))
+        self.backing_store.clear()
+
+    def update(self, d):
+        for k, v in d.items():
+            self[v.to_model_path()] = v
+
+
+class _AddChannelDialog(QtWidgets.QDialog):
+    def __init__(self, parent, model):
+        QtWidgets.QDialog.__init__(self, parent=parent)
+        self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        self.setWindowTitle("Add channels")
+
+        layout = QtWidgets.QVBoxLayout()
+        self.setLayout(layout)
+
+        self._model = model
+        self._tree_view = QtWidgets.QTreeView()
+        self._tree_view.setHeaderHidden(True)
+        self._tree_view.setSelectionBehavior(
+            QtWidgets.QAbstractItemView.SelectItems)
+        self._tree_view.setSelectionMode(
+            QtWidgets.QAbstractItemView.ExtendedSelection)
+        self._tree_view.setModel(self._model)
+        layout.addWidget(self._tree_view)
+
+        self._button_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
+        self._button_box.setCenterButtons(True)
+        self._button_box.accepted.connect(self.add_channels)
+        self._button_box.rejected.connect(self.reject)
+        layout.addWidget(self._button_box)
+
+    def add_channels(self):
+        selection = self._tree_view.selectedIndexes()
+        channels = []
+        for select in selection:
+            key = self._model.index_to_key(select)
+            if key is not None:
+                channels.append(self._model[key].ref)
+        self.channels = channels
+        self.accept()
+
+
 class _MonInjDock(QDockWidgetCloseDetect):
     def __init__(self, name, manager):
         QtWidgets.QDockWidget.__init__(self, "MonInj")
@@ -752,6 +814,17 @@ class _MonInjDock(QDockWidgetCloseDetect):
         newdock.clicked.connect(lambda: manager.create_new_dock())
         grid.addWidget(newdock, 0, 0)
 
+        self.channel_dialog = _AddChannelDialog(self, manager.channel_model)
+        self.channel_dialog.accepted.connect(self.add_channels)
+
+        dialog_btn = QtWidgets.QToolButton()
+        dialog_btn.setToolTip("Add channels")
+        dialog_btn.setIcon(
+            QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_FileDialogListView))
+        dialog_btn.clicked.connect(self.channel_dialog.open)
+        grid.addWidget(dialog_btn, 0, 1)
+
         scroll_area = QtWidgets.QScrollArea()
         grid.addWidget(scroll_area, 1, 0, 1, 10)
         self.flow = FlowLayout()
@@ -760,8 +833,13 @@ class _MonInjDock(QDockWidgetCloseDetect):
         scroll_area.setWidgetResizable(True)
         scroll_area.setWidget(grid_widget)
 
+    def add_channels(self):
+        channels = self.channel_dialog.channels
+        self.layout_widgets(channels)
+
     def layout_widgets(self, widgets):
         for widget in sorted(widgets, key=lambda w: w.sort_key()):
+            widget.show()
             self.flow.addWidget(widget)
 
 
@@ -770,8 +848,12 @@ class MonInj:
         self.docks = dict()
         self.main_window = main_window
         self.dm = _DeviceManager(schedule_ctl)
-        self.dm.channels_cb = \
-            lambda: self.docks["moninj0"].layout_widgets(self.dm.widgets_by_uid.values())
+        self.dm.channels_cb = self.add_channels
+        self.channel_model = Model({})
+
+    def add_channels(self):
+        self.channel_model.clear()
+        self.channel_model.update(self.dm.widgets_by_uid)
 
     def create_new_dock(self, add_to_area=True):
         n = 0
