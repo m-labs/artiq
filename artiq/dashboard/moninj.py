@@ -9,7 +9,7 @@ from PyQt5 import QtCore, QtWidgets
 from artiq.coredevice.comm_moninj import CommMonInj, TTLOverride, TTLProbe
 from artiq.coredevice.ad9912_reg import AD9912_SER_CONF
 from artiq.gui.tools import LayoutWidget, QDockWidgetCloseDetect, DoubleClickLineEdit
-from artiq.gui.flowlayout import FlowLayout
+from artiq.gui.dndwidgets import VDragScrollArea, DragDropFlowLayoutWidget
 from artiq.gui.models import DictSyncTreeSepModel
 
 
@@ -831,13 +831,11 @@ class _MonInjDock(QDockWidgetCloseDetect):
         self.label.setStyleSheet("background:transparent;")
         grid.addWidget(self.label, 0, 2)
 
-        scroll_area = QtWidgets.QScrollArea()
+        scroll_area = VDragScrollArea(self)
         grid.addWidget(scroll_area, 1, 0, 1, 10)
-        self.flow = FlowLayout()
-        grid_widget = QtWidgets.QWidget()
-        grid_widget.setLayout(self.flow)
+        self.flow = DragDropFlowLayoutWidget()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setWidget(grid_widget)
+        scroll_area.setWidget(self.flow)
 
     def add_channels(self):
         channels = self.channel_dialog.channels
