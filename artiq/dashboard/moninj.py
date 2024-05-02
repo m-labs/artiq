@@ -8,7 +8,7 @@ from PyQt5 import QtCore, QtWidgets
 
 from artiq.coredevice.comm_moninj import CommMonInj, TTLOverride, TTLProbe
 from artiq.coredevice.ad9912_reg import AD9912_SER_CONF
-from artiq.gui.tools import LayoutWidget, QDockWidgetCloseDetect
+from artiq.gui.tools import LayoutWidget, QDockWidgetCloseDetect, DoubleClickLineEdit
 from artiq.gui.flowlayout import FlowLayout
 from artiq.gui.models import DictSyncTreeSepModel
 
@@ -824,6 +824,10 @@ class _MonInjDock(QDockWidgetCloseDetect):
                 QtWidgets.QStyle.SP_FileDialogListView))
         dialog_btn.clicked.connect(self.channel_dialog.open)
         grid.addWidget(dialog_btn, 0, 1)
+
+        self.label = DoubleClickLineEdit(name)
+        self.label.setStyleSheet("background:transparent;")
+        grid.addWidget(self.label, 0, 2)
 
         scroll_area = QtWidgets.QScrollArea()
         grid.addWidget(scroll_area, 1, 0, 1, 10)
