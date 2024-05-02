@@ -144,7 +144,7 @@ class _TTLWidget(QtWidgets.QFrame):
             self.programmatic_change = False
 
     def sort_key(self):
-        return self.channel
+        return (0, self.channel, 0)
 
     def uid(self):
         return self.title
@@ -318,7 +318,7 @@ class _DDSWidget(QtWidgets.QFrame):
         self.value_edit.setText("{:.7f}".format(self.cur_frequency / 1e6))
 
     def sort_key(self):
-        return (self.bus_channel, self.channel)
+        return (1, self.bus_channel, self.channel)
 
     def uid(self):
         return self.title
@@ -359,7 +359,7 @@ class _DACWidget(QtWidgets.QFrame):
                            .format(self.cur_value * 100 / 2**16))
 
     def sort_key(self):
-        return (self.spi_channel, self.channel)
+        return (2, self.spi_channel, self.channel)
 
     def uid(self):
         return (self.title, self.channel)
