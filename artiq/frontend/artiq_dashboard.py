@@ -236,14 +236,6 @@ def main():
     )
     atexit_register_coroutine(d_waveform.stop, loop=loop)
 
-    def init_cbs(ddb):
-        d_ttl_dds.dm.init_ddb(ddb)
-        d_waveform.init_ddb(ddb)
-        return ddb
-    devices_sub = Subscriber("devices", init_cbs, [d_ttl_dds.dm.notify_ddb, d_waveform.notify_ddb])
-    loop.run_until_complete(devices_sub.connect(args.server, args.port_notify))
-    atexit_register_coroutine(devices_sub.close, loop=loop)
-
     d_interactive_args = interactive_args.InteractiveArgsDock(
         sub_clients["interactive_args"],
         rpc_clients["interactive_arg_db"]
@@ -276,6 +268,15 @@ def main():
         # QDockWidgets fail to be embedded.
         main_window.show()
     smgr.load()
+
+    def init_cbs(ddb):
+        d_ttl_dds.dm.init_ddb(ddb)
+        d_waveform.init_ddb(ddb)
+        return ddb
+    devices_sub = Subscriber("devices", init_cbs, [d_ttl_dds.dm.notify_ddb, d_waveform.notify_ddb])
+    loop.run_until_complete(devices_sub.connect(args.server, args.port_notify))
+    atexit_register_coroutine(devices_sub.close, loop=loop)
+
     smgr.start(loop=loop)
     atexit_register_coroutine(smgr.stop, loop=loop)
 
