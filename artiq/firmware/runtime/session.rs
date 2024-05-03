@@ -243,12 +243,13 @@ pub fn kern_send(io: &Io, request: &kern::Message) -> Result<(), Error<SchedErro
 
 fn kern_recv_notrace<R, F>(io: &Io, f: F) -> Result<R, Error<SchedError>>
         where F: FnOnce(&kern::Message) -> Result<R, Error<SchedError>> {
-    io.until(|| mailbox::receive() != 0)?;
-    if !kernel::validate(mailbox::receive()) {
-        return Err(Error::InvalidPointer(mailbox::receive()))
+    let mut msg_ptr = 0;
+    io.until(|| { msg_ptr = mailbox::receive(); msg_ptr != 0 })?;
+    if !kernel::validate(msg_ptr) {
+        return Err(Error::InvalidPointer(msg_ptr))
     }
 
-    f(unsafe { &*(mailbox::receive() as *const kern::Message) })
+    f(unsafe { &*(msg_ptr as *const kern::Message) })
 }
 
 fn kern_recv_dotrace(reply: &kern::Message) {

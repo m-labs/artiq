@@ -97,25 +97,25 @@ pub mod drtio {
     }
 
     fn process_async_packets(io: &Io, ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
-            routing_table: &drtio_routing::RoutingTable, linkno: u8, packet: drtioaux::Packet
-    ) -> Option<drtioaux::Packet> {
+            routing_table: &drtio_routing::RoutingTable, linkno: u8, packet: &drtioaux::Packet
+    ) -> bool {
         match packet {
             // packets to be consumed locally
             drtioaux::Packet::DmaPlaybackStatus { id, source, destination: 0, error, channel, timestamp } => {
-                remote_dma::playback_done(io, ddma_mutex, id, source, error, channel, timestamp);
-                None
+                remote_dma::playback_done(io, ddma_mutex, *id, *source, *error, *channel, *timestamp);
+                true
             },
             drtioaux::Packet::SubkernelFinished { id, destination: 0, with_exception, exception_src } => {
-                subkernel::subkernel_finished(io, subkernel_mutex, id, with_exception, exception_src);
-                None
+                subkernel::subkernel_finished(io, subkernel_mutex, *id, *with_exception, *exception_src);
+                true
             },
             drtioaux::Packet::SubkernelMessage { id, source: from, destination: 0, status, length, data } => {
-                subkernel::message_handle_incoming(io, subkernel_mutex, id, status, length as usize, &data);
+                subkernel::message_handle_incoming(io, subkernel_mutex, *id, *status, *length as usize, data);
                 // acknowledge receiving part of the message
                 drtioaux::send(linkno, 
-                    &drtioaux::Packet::SubkernelMessageAck { destination: from }
+                    &drtioaux::Packet::SubkernelMessageAck { destination: *from }
                 ).unwrap();
-                None
+                true
             },
             // (potentially) routable packets
             drtioaux::Packet::DmaAddTraceRequest      { destination, .. } |
@@ -130,19 +130,19 @@ pub mod drtio {
                 drtioaux::Packet::SubkernelMessageAck     { destination, .. } |
                 drtioaux::Packet::DmaPlaybackStatus       { destination, .. } |
                 drtioaux::Packet::SubkernelFinished       { destination, .. } => {
-                if destination == 0 {
-                    Some(packet)
+                if *destination == 0 {
+                    false
                 } else {
-                    let dest_link = routing_table.0[destination as usize][0] - 1;
+                    let dest_link = routing_table.0[*destination as usize][0] - 1;
                     if dest_link == linkno {
                         warn!("[LINK#{}] Re-routed packet would return to the same link, dropping: {:?}", linkno, packet);
                     } else {
                         drtioaux::send(dest_link, &packet).unwrap();
                     }
-                    None
+                    true
                 }
             }
-            other => Some(other)
+            _ => false
         }
     }
 
@@ -153,7 +153,7 @@ pub mod drtio {
         drtioaux::send(linkno, request).unwrap();
         loop {
             let reply = recv_aux_timeout(io, linkno, 200)?;
-            if let Some(reply) = process_async_packets(io, ddma_mutex, subkernel_mutex, routing_table, linkno, reply) {
+            if !process_async_packets(io, ddma_mutex, subkernel_mutex, routing_table, linkno, &reply) {
                 // returns none if it was an async packet
                 return Ok(reply);
             }
@@ -269,7 +269,7 @@ pub mod drtio {
         loop {
             match drtioaux::recv(linkno) {
                 Ok(Some(packet)) => {
-                    if let Some(packet) = process_async_packets(&io, ddma_mutex, subkernel_mutex, routing_table, linkno, packet) {
+                    if !process_async_packets(&io, ddma_mutex, subkernel_mutex, routing_table, linkno, &packet) {
                         warn!("[LINK#{}] unsolicited aux packet: {:?}", linkno, packet);
                     }
                 },

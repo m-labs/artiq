@@ -1,4 +1,4 @@
-#![feature(lang_items, never_type)]
+#![feature(asm, lang_items, never_type)]
 #![no_std]
 
 extern crate failure;

@@ -1,4 +1,4 @@
-#![feature(never_type, panic_info_message, llvm_asm, default_alloc_error_handler, try_trait)]
+#![feature(never_type, panic_info_message, asm, default_alloc_error_handler)]
 #![no_std]
 
 #[macro_use]

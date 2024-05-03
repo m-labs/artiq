@@ -6,7 +6,11 @@ static mut LAST: usize = 0;
 
 pub unsafe fn send(data: usize) {
     LAST = data;
-    write_volatile(MAILBOX, data)
+    // after Rust toolchain update to LLVM12, this empty asm! block is required
+    // to ensure that the compiler doesn't take any shortcuts
+    // otherwise, the comm CPU will read garbage data and crash
+    asm!("", options(preserves_flags, readonly, nostack));
+    write_volatile(MAILBOX, data);
 }
 
 pub fn acknowledged() -> bool {
