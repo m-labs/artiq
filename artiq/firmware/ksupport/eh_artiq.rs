@@ -55,12 +55,14 @@ struct ExceptionBuffer {
     exception_count: usize,
 }
 
+const EXCEPTION: uw::_Unwind_Exception = uw::_Unwind_Exception {
+    exception_class:   EXCEPTION_CLASS,
+    exception_cleanup: cleanup,
+    private:           [0; uw::unwinder_private_data_size],
+};
+
 static mut EXCEPTION_BUFFER: ExceptionBuffer = ExceptionBuffer {
-    uw_exceptions: [uw::_Unwind_Exception {
-        exception_class:   EXCEPTION_CLASS,
-        exception_cleanup: cleanup,
-        private:           [0; uw::unwinder_private_data_size],
-    }; MAX_INFLIGHT_EXCEPTIONS],
+    uw_exceptions: [EXCEPTION; MAX_INFLIGHT_EXCEPTIONS],
     exceptions: [None; MAX_INFLIGHT_EXCEPTIONS + 1],
     exception_stack: [-1; MAX_INFLIGHT_EXCEPTIONS + 1],
     backtrace: [(0, 0); MAX_BACKTRACE_SIZE],
@@ -74,11 +76,7 @@ static mut EXCEPTION_BUFFER: ExceptionBuffer = ExceptionBuffer {
 };
 
 pub unsafe extern fn reset_exception_buffer(payload_addr: usize) {
-    EXCEPTION_BUFFER.uw_exceptions = [uw::_Unwind_Exception {
-        exception_class:   EXCEPTION_CLASS,
-        exception_cleanup: cleanup,
-        private:           [0; uw::unwinder_private_data_size],
-    }; MAX_INFLIGHT_EXCEPTIONS];
+    EXCEPTION_BUFFER.uw_exceptions = [EXCEPTION; MAX_INFLIGHT_EXCEPTIONS];
     EXCEPTION_BUFFER.exceptions = [None; MAX_INFLIGHT_EXCEPTIONS + 1];
     EXCEPTION_BUFFER.exception_stack = [-1; MAX_INFLIGHT_EXCEPTIONS + 1];
     EXCEPTION_BUFFER.backtrace_size = 0;
@@ -151,8 +149,7 @@ pub extern fn personality(version: c_int,
 }
 
 #[export_name="__artiq_raise"]
-#[unwind(allowed)]
-pub unsafe extern fn raise(exception: *const Exception) -> ! {
+pub unsafe extern "C-unwind" fn raise(exception: *const Exception) -> ! {
     let count = EXCEPTION_BUFFER.exception_count;
     let stack = &mut EXCEPTION_BUFFER.exception_stack;
     let diff = exception as isize - EXCEPTION_BUFFER.exceptions.as_ptr() as isize;
@@ -222,8 +219,7 @@ pub unsafe extern fn raise(exception: *const Exception) -> ! {
 
 
 #[export_name="__artiq_resume"]
-#[unwind(allowed)]
-pub unsafe extern fn resume() -> ! {
+pub unsafe extern "C-unwind" fn resume() -> ! {
     assert!(EXCEPTION_BUFFER.exception_count != 0);
     let i = EXCEPTION_BUFFER.exception_stack[EXCEPTION_BUFFER.exception_count - 1];
     assert!(i != -1);
@@ -233,8 +229,7 @@ pub unsafe extern fn resume() -> ! {
 }
 
 #[export_name="__artiq_end_catch"]
-#[unwind(allowed)]
-pub unsafe extern fn end_catch() {
+pub unsafe extern "C-unwind" fn end_catch() {
     let mut count = EXCEPTION_BUFFER.exception_count;
     assert!(count != 0);
     // we remove all exceptions with SP <= current exception SP

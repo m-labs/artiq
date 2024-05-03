@@ -7,20 +7,24 @@ use mem;
 
 pub fn flush_cpu_icache() {
     unsafe {
-        llvm_asm!(r#"
-            fence.i
-            nop
-            nop
-            nop
-            nop
-            nop
-        "# : : : : "volatile");
+        asm!(
+            "fence.i",
+            "nop",
+            "nop",
+            "nop",
+            "nop",
+            "nop",
+            options(preserves_flags, nostack)
+        );
     }
 }
 
 pub fn flush_cpu_dcache() {
     unsafe {
-        llvm_asm!(".word(0x500F)" : : : : "volatile");
+        asm!(
+            ".word(0x500F)",
+            options(preserves_flags)
+        );
     }
 }
 

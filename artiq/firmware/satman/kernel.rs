@@ -1,4 +1,4 @@
-use core::{mem, option::NoneError};
+use core::mem;
 use alloc::{string::String, format, vec::Vec, collections::btree_map::BTreeMap};
 use cslice::AsCSlice;
 
@@ -83,12 +83,6 @@ pub enum Error {
     DrtioError,
     KernelException(Sliceable),
     DmaError(DmaError),
-}
-
-impl From<NoneError> for Error {
-    fn from(_: NoneError) -> Error {
-        Error::KernelNotFound
-    }
 }
 
 impl From<io::Error<!>> for Error {
@@ -330,7 +324,7 @@ impl Manager {
                     self.kernels.insert(id, KernelLibrary {
                         library: Vec::new(),
                         complete: false });
-                    self.kernels.get_mut(&id)?
+                    self.kernels.get_mut(&id).unwrap()
                 } else {
                     kernel
                 }
@@ -339,7 +333,7 @@ impl Manager {
                 self.kernels.insert(id, KernelLibrary {
                     library: Vec::new(),
                     complete: false });
-                self.kernels.get_mut(&id)?
+                self.kernels.get_mut(&id).unwrap()
             },
         };
         kernel.library.extend(&data[0..data_len]);
@@ -404,7 +398,7 @@ impl Manager {
         if self.current_id == id && self.session.kernel_state == KernelState::Loaded {
             return Ok(())
         }
-        if !self.kernels.get(&id)?.complete {
+        if !self.kernels.get(&id).ok_or(Error::KernelNotFound)?.complete {
             return Err(Error::KernelNotFound)
         }
         self.current_id = id;
@@ -414,7 +408,7 @@ impl Manager {
         unsafe { 
             kernel_cpu::start();
 
-            kern_send(&kern::LoadRequest(&self.kernels.get(&id)?.library)).unwrap();
+            kern_send(&kern::LoadRequest(&self.kernels.get(&id).unwrap().library)).unwrap();
             kern_recv(|reply| {
                 match reply {
                     kern::LoadReply(Ok(())) => {

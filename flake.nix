@@ -25,8 +25,8 @@
       artiqRev = self.sourceInfo.rev or "unknown";
 
       rustManifest = pkgs.fetchurl {
-        url = "https://static.rust-lang.org/dist/2021-01-29/channel-rust-nightly.toml";
-        sha256 = "sha256-EZKgw89AH4vxaJpUHmIMzMW/80wAFQlfcxRoBD9nz0c=";
+        url = "https://static.rust-lang.org/dist/2021-09-01/channel-rust-nightly.toml";
+        sha256 = "sha256-KYLZHfOkotnM6BZd7CU+vBA3w/VtiWxth3ngJlmA41U=";
       };
 
       targets = [];

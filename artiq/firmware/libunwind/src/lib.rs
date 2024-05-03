@@ -3,8 +3,8 @@
 #![feature(link_cfg)]
 #![feature(nll)]
 #![feature(staged_api)]
-#![feature(unwind_attributes)]
 #![feature(static_nobundle)]
+#![feature(c_unwind)]
 #![cfg_attr(not(target_env = "msvc"), feature(libc))]
 
 mod libunwind;
