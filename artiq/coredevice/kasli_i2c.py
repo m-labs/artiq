@@ -25,14 +25,14 @@ port_mapping = {
 
 
 class KasliEEPROM:
-    def __init__(self, dmgr, port, busno=0,
+    def __init__(self, dmgr, port, address=0xa0, busno=0,
             core_device="core", sw0_device="i2c_switch0", sw1_device="i2c_switch1"):
         self.core = dmgr.get(core_device)
         self.sw0 = dmgr.get(sw0_device)
         self.sw1 = dmgr.get(sw1_device)
         self.busno = busno
         self.port = port_mapping[port]
-        self.address = 0xa0  # i2c 8 bit
+        self.address = address  # i2c 8 bit
 
     @kernel
     def select(self):
