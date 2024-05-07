@@ -211,13 +211,14 @@ class _DDSModel:
 
 
 class _DDSWidget(QtWidgets.QFrame):
-    def __init__(self, dm, title, bus_channel=0, channel=0, dds_model=None):
+    def __init__(self, dm, title, bus_channel, channel,
+                 dds_type, ref_clk, cpld=None, pll=1, clk_div=0):
         self.dm = dm
         self.bus_channel = bus_channel
         self.channel = channel
         self.dds_name = title
         self.cur_frequency = 0
-        self.dds_model = dds_model
+        self.dds_model = _DDSModel(dds_type, ref_clk, cpld, pll, clk_div)
 
         QtWidgets.QFrame.__init__(self)
 
@@ -388,9 +389,8 @@ def setup_from_ddb(ddb):
                         bus_channel = v["arguments"]["bus_channel"]
                         channel = v["arguments"]["channel"]
                         dds_sysclk = v["arguments"]["sysclk"]
-                        model = _DDSModel(v["class"], dds_sysclk)
                         widget = _WidgetDesc(k, comment, _DDSWidget,
-                                             (k, bus_channel, channel, model))
+                                             (k, bus_channel, channel, v["class"], dds_sysclk))
                         description.add(widget)
                     elif (v["module"] == "artiq.coredevice.ad9910" and v["class"] == "AD9910") or \
                          (v["module"] == "artiq.coredevice.ad9912" and v["class"] == "AD9912"):
@@ -403,9 +403,9 @@ def setup_from_ddb(ddb):
                         pll = v["arguments"]["pll_n"]
                         refclk = ddb[dds_cpld]["arguments"]["refclk"]
                         clk_div = v["arguments"].get("clk_div", 0)
-                        model = _DDSModel(v["class"], refclk, dds_cpld, pll, clk_div)
                         widget = _WidgetDesc(k, comment, _DDSWidget,
-                                             (k, bus_channel, channel, model))
+                                             (k, bus_channel, channel, v["class"],
+                                              refclk, dds_cpld, pll, clk_div))
                         description.add(widget)
                     elif (v["module"] == "artiq.coredevice.ad53xx" and v["class"] == "AD53xx") or \
                          (v["module"] == "artiq.coredevice.zotino" and v["class"] == "Zotino"):
