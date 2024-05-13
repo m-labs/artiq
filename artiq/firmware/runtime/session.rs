@@ -893,7 +893,7 @@ fn respawn<F>(io: &Io, handle: &mut Option<ThreadHandle>, f: F)
         }
     }
 
-    *handle = Some(io.spawn(24576, f))
+    *handle = Some(io.spawn(32768, f))
 }
 
 pub fn thread(io: Io, aux_mutex: &Mutex,
