@@ -261,12 +261,19 @@ def main():
             "storage":      ("spi0", 0x440000),
             "firmware":     ("spi0", 0x450000),
         },
-        "efc": {
+        "efc1v0": {
             "programmer":   partial(ProgrammerXC7, board="efc", proxy="bscan_spi_xc7a100t.bit"),
             "gateware":     ("spi0", 0x000000),
-            "bootloader":   ("spi0", 0x400000),
-            "storage":      ("spi0", 0x440000),
-            "firmware":     ("spi0", 0x450000),
+            "bootloader":   ("spi0", 0x600000),
+            "storage":      ("spi0", 0x640000),
+            "firmware":     ("spi0", 0x650000),
+        },
+        "efc1v1": {
+            "programmer":   partial(ProgrammerXC7, board="efc", proxy="bscan_spi_xc7a200t.bit"),
+            "gateware":     ("spi0", 0x000000),
+            "bootloader":   ("spi0", 0x600000),
+            "storage":      ("spi0", 0x640000),
+            "firmware":     ("spi0", 0x650000),
         },
         "kc705": {
             "programmer":   partial(ProgrammerXC7, board="kc705", proxy="bscan_spi_xc7k325t.bit"),

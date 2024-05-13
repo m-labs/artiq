@@ -669,6 +669,20 @@ pub extern fn main() -> i32 {
     let mut io_expander;
     #[cfg(soc_platform = "efc")]
     {
+        let p3v3_fmc_en_pin;
+        let vadj_fmc_en_pin;
+
+        #[cfg(hw_rev = "v1.0")]
+        {
+            p3v3_fmc_en_pin = 0;
+            vadj_fmc_en_pin = 1;
+        }
+        #[cfg(hw_rev = "v1.1")]
+        {
+            p3v3_fmc_en_pin = 1;
+            vadj_fmc_en_pin = 7;
+        }
+
         io_expander = board_misoc::io_expander::IoExpander::new().unwrap();
         io_expander.init().expect("I2C I/O expander initialization failed");
 
@@ -676,10 +690,10 @@ pub extern fn main() -> i32 {
         io_expander.set_oe(0, 1 << 5 | 1 << 6 | 1 << 7).unwrap();
         
         // Enable VADJ and P3V3_FMC
-        io_expander.set_oe(1, 1 << 0 | 1 << 1).unwrap();
+        io_expander.set_oe(1, 1 << p3v3_fmc_en_pin | 1 << vadj_fmc_en_pin).unwrap();
 
-        io_expander.set(1, 0, true);
-        io_expander.set(1, 1, true);
+        io_expander.set(1, p3v3_fmc_en_pin, true);
+        io_expander.set(1, vadj_fmc_en_pin, true);
 
         io_expander.service().unwrap();
     }
@@ -812,6 +826,20 @@ pub extern fn main() -> i32 {
 
 #[cfg(soc_platform = "efc")]
 fn enable_error_led() {
+    let p3v3_fmc_en_pin;
+    let vadj_fmc_en_pin;
+
+    #[cfg(hw_rev = "v1.0")]
+    {
+        p3v3_fmc_en_pin = 0;
+        vadj_fmc_en_pin = 1;
+    }
+    #[cfg(hw_rev = "v1.1")]
+    {
+        p3v3_fmc_en_pin = 1;
+        vadj_fmc_en_pin = 7;
+    }
+
     let mut io_expander = board_misoc::io_expander::IoExpander::new().unwrap();
 
     // Keep LEDs enabled
@@ -820,10 +848,10 @@ fn enable_error_led() {
     io_expander.set(0, 7, true);
 
     // Keep VADJ and P3V3_FMC enabled
-    io_expander.set_oe(1, 1 << 0 | 1 << 1).unwrap();
+    io_expander.set_oe(1, 1 << p3v3_fmc_en_pin | 1 << vadj_fmc_en_pin).unwrap();
 
-    io_expander.set(1, 0, true);
-    io_expander.set(1, 1, true);
+    io_expander.set(1, p3v3_fmc_en_pin, true);
+    io_expander.set(1, vadj_fmc_en_pin, true);
 
     io_expander.service().unwrap();
 }
