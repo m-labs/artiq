@@ -10,8 +10,6 @@ LDFLAGS += \
 
 RUSTFLAGS += -Cpanic=unwind
 
-export XBUILD_SYSROOT_PATH=$(BUILDINC_DIRECTORY)/../sysroot
-
 all:: runtime.bin runtime.fbi
 
 .PHONY: $(RUSTOUT)/libruntime.a
