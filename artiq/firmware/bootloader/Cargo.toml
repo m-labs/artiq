@@ -13,8 +13,25 @@ path = "main.rs"
 build_misoc = { path = "../libbuild_misoc" }
 
 [dependencies]
-byteorder = { version = "1.0", default-features = false }
+byteorder = { version = "=1.4.3", default-features = false }
 crc = { version = "1.7", default-features = false }
 board_misoc = { path = "../libboard_misoc", features = ["uart_console", "smoltcp"] }
 smoltcp = { version = "0.6.0", default-features = false, features = ["ethernet", "proto-ipv4", "proto-ipv6", "socket-tcp"] }
 riscv = { version = "0.6.0", features = ["inline-asm"] }
+
+# insanity required by using cargo build-std over xbuild with nix
+[dev-dependencies]
+getopts = "=0.2.21"
+libc = "=0.2.79"
+unicode-width = "=0.1.8"
+addr2line = "=0.14.0"
+memchr = "=2.3.4"
+hashbrown = "=0.9.0"
+miniz_oxide = "=0.4.0"
+rustc-demangle = "=0.1.18"
+hermit-abi = "=0.1.17"
+dlmalloc = "=0.2.1"
+wasi = "=0.9.0"
+fortanix-sgx-abi = "=0.3.3"
+cc = "=1.0.60"
+compiler_builtins = "=0.1.39"
