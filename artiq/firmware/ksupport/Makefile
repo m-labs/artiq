@@ -14,8 +14,6 @@ LDFLAGS += --eh-frame-hdr \
 
 RUSTFLAGS += -Cpanic=unwind
 
-export XBUILD_SYSROOT_PATH=$(BUILDINC_DIRECTORY)/../sysroot
-
 all:: ksupport.elf
 
 .PHONY: $(RUSTOUT)/libksupport.a

@@ -10,8 +10,6 @@ LDFLAGS += \
 
 RUSTFLAGS += -Cpanic=unwind
 
-export XBUILD_SYSROOT_PATH=$(BUILDINC_DIRECTORY)/../sysroot
-
 all:: satman.bin satman.fbi
 
 .PHONY: $(RUSTOUT)/libsatman.a
