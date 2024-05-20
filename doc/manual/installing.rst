@@ -154,16 +154,19 @@ This will set your user as a trusted user, allowing the use of any untrusted sub
 Installing via MSYS2 (Windows)
 ------------------------------
 
-Install `MSYS2 <https://msys2.org>`_, then edit ``C:\MINGW64\etc\pacman.conf`` and add at the end: ::
+We recommend using our `offline installer <https://nixbld.m-labs.hk/job/artiq/extra-beta/msys2-offline-installer/latest>`_, which contains all the necessary packages and no additional configuration is needed.
+After installation, launch ``MSYS2 with ARTIQ`` from the Windows Start menu.
+
+Alternatively, you may install `MSYS2 <https://msys2.org>`_, then edit ``C:\MINGW64\etc\pacman.conf`` and add at the end: ::
 
     [artiq]
     SigLevel = Optional TrustAll
     Server = https://msys2.m-labs.hk/artiq-beta
 
-Launch ``MSYS2 MINGW64`` from the Windows Start menu to open the MSYS2 shell, and enter the following commands: ::
+Launch ``MSYS2 CLANG64`` from the Windows Start menu to open the MSYS2 shell, and enter the following commands: ::
 
     pacman -Syy
-    pacman -S mingw-w64-x86_64-artiq
+    pacman -S mingw-w64-clang-x86_64-artiq
 
 If your favorite package is not available with MSYS2, contact us using the helpdesk@ email.
 
@@ -259,9 +262,7 @@ OpenOCD can be used to write the binary images into the core device FPGA board's
 
 With Nix, add ``aqmain.openocd-bscanspi`` to the shell packages. Be careful not to add ``pkgs.openocd`` instead - this would install OpenOCD from the NixOS package collection, which does not support ARTIQ boards.
 
-With MSYS2, install ``openocd`` and ``bscan-spi-bitstreams`` as follows::
-
-    pacman -S mingw-w64-x86_64-openocd mingw-w64-x86_64-bscan-spi-bitstreams
+With MSYS2, ``openocd`` and ``bscan-spi-bitstreams`` are included with ``artiq`` by default.
 
 With Conda, install ``openocd`` as follows::
 
