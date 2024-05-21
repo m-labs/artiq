@@ -455,15 +455,15 @@ class SatelliteBase(BaseSoC, AMPSoC):
 
         self.submodules.rtio_tsc = rtio.TSC(glbl_fine_ts_width=3)
 
-        drtioaux_csr_group = []
-        drtioaux_memory_group = []
-        drtiorep_csr_group = []
+        self.drtioaux_csr_group = []
+        self.drtioaux_memory_group = []
+        self.drtiorep_csr_group = []
         self.drtio_cri = []
         for i in range(len(self.gt_drtio.channels)):
             coreaux_name = "drtioaux" + str(i)
             memory_name = "drtioaux" + str(i) + "_mem"
-            drtioaux_csr_group.append(coreaux_name)
-            drtioaux_memory_group.append(memory_name)
+            self.drtioaux_csr_group.append(coreaux_name)
+            self.drtioaux_memory_group.append(memory_name)
 
             cdr = ClockDomainsRenamer({"rtio_rx": "rtio_rx" + str(i)})
 
@@ -476,7 +476,7 @@ class SatelliteBase(BaseSoC, AMPSoC):
                 self.csr_devices.append("drtiosat")
             else:
                 corerep_name = "drtiorep" + str(i-1)
-                drtiorep_csr_group.append(corerep_name)
+                self.drtiorep_csr_group.append(corerep_name)
 
                 core = cdr(DRTIORepeater(
                     self.rtio_tsc, self.gt_drtio.channels[i]))
@@ -496,9 +496,6 @@ class SatelliteBase(BaseSoC, AMPSoC):
         self.config["HAS_DRTIO"] = None
         self.config["HAS_DRTIO_ROUTING"] = None
         self.config["DRTIO_ROLE"] = "satellite"
-        self.add_csr_group("drtioaux", drtioaux_csr_group)
-        self.add_memory_group("drtioaux_mem", drtioaux_memory_group)
-        self.add_csr_group("drtiorep", drtiorep_csr_group)
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
@@ -565,6 +562,45 @@ class SatelliteBase(BaseSoC, AMPSoC):
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.local_io.cri,
                                                 self.get_native_sdram_if(), cpu_dw=self.cpu_dw)
         self.csr_devices.append("rtio_analyzer")
+
+    def add_eem_drtio(self, eem_drtio_channels):
+        # Must be called before invoking add_rtio() to construct the CRI
+        # interconnect properly
+        self.submodules.eem_transceiver = eem_serdes.EEMSerdes(self.platform, eem_drtio_channels)
+        self.csr_devices.append("eem_transceiver")
+        self.config["HAS_DRTIO_EEM"] = None
+        self.config["EEM_DRTIO_COUNT"] = len(eem_drtio_channels)
+
+        cdr = ClockDomainsRenamer({"rtio_rx": "sys"})
+        for i in range(len(self.eem_transceiver.channels)):
+            channel = i + len(self.gt_drtio.channels)
+            corerep_name = "drtiorep" + str(channel-1)
+            coreaux_name = "drtioaux" + str(channel)
+            memory_name = "drtioaux" + str(channel) + "_mem"
+            self.drtiorep_csr_group.append(corerep_name)
+            self.drtioaux_csr_group.append(coreaux_name)
+            self.drtioaux_memory_group.append(memory_name)
+
+            core = cdr(DRTIORepeater(
+                self.rtio_tsc, self.eem_transceiver.channels[i]))
+            setattr(self.submodules, corerep_name, core)
+            self.drtio_cri.append(core.cri)
+            self.csr_devices.append(corerep_name)
+
+            coreaux = cdr(DRTIOAuxController(core.link_layer, self.cpu_dw))
+            setattr(self.submodules, coreaux_name, coreaux)
+            self.csr_devices.append(coreaux_name)
+
+            drtio_aux_mem_size = 1024 * 16 # max_packet * 8 buffers * 2 (tx, rx halves)
+            memory_address = self.mem_map["drtioaux"] + drtio_aux_mem_size*channel
+            self.add_wb_slave(memory_address, drtio_aux_mem_size,
+                            coreaux.bus)
+            self.add_memory_region(memory_name, memory_address | self.shadow_base, drtio_aux_mem_size)
+
+    def add_drtio_cpuif_groups(self):
+        self.add_csr_group("drtiorep", self.drtiorep_csr_group)
+        self.add_csr_group("drtioaux", self.drtioaux_csr_group)
+        self.add_memory_group("drtioaux_mem", self.drtioaux_memory_group)
 
 class GenericStandalone(StandaloneBase):
     def __init__(self, description, hw_rev=None,**kwargs):
@@ -673,15 +709,18 @@ class GenericSatellite(SatelliteBase):
         if hw_rev is None:
             hw_rev = description["hw_rev"]
         self.class_name_override = description["variant"]
+        has_drtio_over_eem = any(peripheral["type"] == "shuttler" for peripheral in description["peripherals"])
         SatelliteBase.__init__(self,
                                hw_rev=hw_rev,
                                rtio_clk_freq=description["rtio_frequency"],
                                enable_sata=description["enable_sata_drtio"],
+                               enable_sys5x=has_drtio_over_eem,
                                **kwargs)
         if hw_rev == "v1.0":
             # EEM clock fan-out from Si5324, not MMCX
             self.comb += self.platform.request("clk_sel").eq(1)
-
+        if has_drtio_over_eem:
+            self.eem_drtio_channels = []
         has_grabber = any(peripheral["type"] == "grabber" for peripheral in description["peripherals"])
         if has_grabber:
             self.grabber_csr_group = []
@@ -698,6 +737,10 @@ class GenericSatellite(SatelliteBase):
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
         self.rtio_channels.append(rtio.LogChannel())
+
+        if has_drtio_over_eem:
+            self.add_eem_drtio(self.eem_drtio_channels)
+        self.add_drtio_cpuif_groups()
 
         self.add_rtio(self.rtio_channels, sed_lanes=description["sed_lanes"])
         if has_grabber:
