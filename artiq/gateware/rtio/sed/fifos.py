@@ -11,7 +11,7 @@ __all__ = ["FIFOs"]
 
 
 class FIFOs(Module):
-    def __init__(self, lane_count, fifo_depth, layout_payload, report_buffer_space=False):
+    def __init__(self, lane_count, fifo_depth, high_watermark, layout_payload, report_buffer_space=False):
         seqn_width = layouts.seqn_width(lane_count, fifo_depth)
         self.input = [Record(layouts.fifo_ingress(seqn_width, layout_payload))
                       for _ in range(lane_count)]
@@ -33,6 +33,7 @@ class FIFOs(Module):
                 fifo.din.eq(Cat(input.seqn, input.payload.raw_bits())),
                 fifo.we.eq(input.we),
                 input.writable.eq(fifo.writable),
+                input.high_watermark.eq(fifo.level >= high_watermark),
 
                 Cat(output.seqn, output.payload.raw_bits()).eq(fifo.dout),
                 output.readable.eq(fifo.readable),

@@ -12,9 +12,12 @@ __all__ = ["SED"]
 
 class SED(Module):
     def __init__(self, channels, glbl_fine_ts_width,
-                 lane_count=8, fifo_depth=128, enable_spread=True,
+                 lane_count=8, fifo_depth=128, fifo_high_watermark=1.0, enable_spread=True,
                  quash_channels=[], report_buffer_space=False, interface=None):
         seqn_width = layouts.seqn_width(lane_count, fifo_depth)
+
+        fifo_high_watermark = int(fifo_high_watermark * fifo_depth)
+        assert fifo_depth >= fifo_high_watermark
 
         self.submodules.lane_dist = LaneDistributor(lane_count, seqn_width,
             layouts.fifo_payload(channels),
@@ -23,7 +26,7 @@ class SED(Module):
             enable_spread=enable_spread,
             quash_channels=quash_channels,
             interface=interface)
-        self.submodules.fifos = FIFOs(lane_count, fifo_depth,
+        self.submodules.fifos = FIFOs(lane_count, fifo_depth, fifo_high_watermark,
             layouts.fifo_payload(channels), report_buffer_space)
         self.submodules.gates = Gates(lane_count, seqn_width,
             layouts.fifo_payload(channels),

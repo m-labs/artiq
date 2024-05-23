@@ -154,8 +154,10 @@ class LaneDistributor(Module):
             self.comb += lio.payload.timestamp.eq(compensated_timestamp)
 
         # cycle #3, read status
+        current_lane_high_watermark = Signal()
         current_lane_writable = Signal()
         self.comb += [
+            current_lane_high_watermark.eq(Array(lio.high_watermark for lio in self.output)[current_lane]),
             current_lane_writable.eq(Array(lio.writable for lio in self.output)[current_lane]),
             o_status_wait.eq(~current_lane_writable)
         ]
@@ -170,12 +172,10 @@ class LaneDistributor(Module):
             self.sequence_error_channel.eq(self.cri.chan_sel[:16])
         ]
 
-        # current lane has been full, spread events by switching to the next.
+        # current lane has reached high watermark, spread events by switching to the next.
         if enable_spread:
-            current_lane_writable_r = Signal(reset=1)
             self.sync += [
-                current_lane_writable_r.eq(current_lane_writable),
-                If(~current_lane_writable_r & current_lane_writable,
+                If(current_lane_high_watermark | ~current_lane_writable,
                     force_laneB.eq(1)
                 ),
                 If(do_write,
