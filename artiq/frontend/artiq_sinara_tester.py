@@ -9,6 +9,7 @@ import sys
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import AD9910, SyncDataEeprom
 from artiq.coredevice.phaser import PHASER_GW_BASE, PHASER_GW_MIQRO
+from artiq.coredevice.shuttler import shuttler_volt_to_mu
 from artiq.master.databases import DeviceDB
 from artiq.master.worker_db import DeviceManager
 
@@ -61,6 +62,7 @@ class SinaraTester(EnvExperiment):
         self.suservos = dict()
         self.suschannels = dict()
         self.almaznys = dict()
+        self.shuttler = dict()
 
         ddb = self.get_device_db()
         for name, desc in ddb.items():
@@ -100,6 +102,17 @@ class SinaraTester(EnvExperiment):
                     self.suschannels[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.almazny", "AlmaznyLegacy"):
                     self.almaznys[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.shuttler", "Config"):
+                    shuttler_name  = name.replace("_config", "")
+                    self.shuttler[shuttler_name] = ({
+                        "config": self.get_device(name),
+                        "trigger": self.get_device("{}_trigger".format(shuttler_name)),
+                        "leds": [self.get_device("{}_led{}".format(shuttler_name, i)) for i in range(2)],
+                        "dcbias": [self.get_device("{}_dcbias{}".format(shuttler_name, i)) for i in range(16)],
+                        "dds": [self.get_device("{}_dds{}".format(shuttler_name, i)) for i in range(16)],
+                        "relay": self.get_device("{}_relay".format(shuttler_name)),
+                        "adc": self.get_device("{}_adc".format(shuttler_name)),
+                    })
 
         # Remove Urukul, Sampler, Zotino and Mirny control signals
         # from TTL outs (tested separately) and remove Urukuls covered by
@@ -148,6 +161,7 @@ class SinaraTester(EnvExperiment):
         self.mirnies = sorted(self.mirnies.items(), key=lambda x: (x[1].cpld.bus.channel, x[1].channel))
         self.suservos = sorted(self.suservos.items(), key=lambda x: x[1].channel)
         self.suschannels = sorted(self.suschannels.items(), key=lambda x: x[1].channel)
+        self.shuttler = sorted(self.shuttler.items(), key=lambda x: x[1]["leds"][0].channel)
 
     @kernel
     def test_led(self, led):
@@ -747,6 +761,125 @@ class SinaraTester(EnvExperiment):
         print("Press ENTER when done.")
         input()
 
+    @kernel
+    def setup_shuttler_init(self, relay, adc, dcbias, dds, trigger, config):
+        self.core.break_realtime()
+        # Reset Shuttler Output Relay
+        relay.init()
+        delay_mu(int64(self.core.ref_multiplier))
+
+        relay.enable(0x0000)
+        delay_mu(int64(self.core.ref_multiplier))
+
+        # Setup ADC and and Calibration
+        delay_mu(int64(self.core.ref_multiplier))
+        adc.power_up()
+
+        delay_mu(int64(self.core.ref_multiplier))
+        if adc.read_id() >> 4 != 0x038d:
+            print("Remote AFE Board's ADC is not found. Check Remote AFE Board's Cables Connections")
+            assert adc.read_id() >> 4 == 0x038d
+
+        delay_mu(int64(self.core.ref_multiplier))
+        adc.calibrate(dcbias, trigger, config)
+
+        #Reset Shuttler DAC Output
+        for ch in range(16):
+            self.setup_shuttler_set_output(dcbias, dds, trigger, ch, 0.0)
+
+    @kernel 
+    def set_shuttler_relay(self, relay, val):
+        self.core.break_realtime()
+        relay.enable(val)
+
+    @kernel
+    def get_shuttler_output_voltage(self, adc, ch, cb):
+        self.core.break_realtime()
+        cb(adc.read_ch(ch))
+
+    @kernel
+    def setup_shuttler_set_output(self, dcbias, dds, trigger, ch, volt):
+        self.core.break_realtime()
+        dcbias[ch].set_waveform(
+            a0=shuttler_volt_to_mu(volt),
+            a1=0,
+            a2=0,
+            a3=0,
+        )
+        delay_mu(int64(self.core.ref_multiplier))
+
+        dds[ch].set_waveform(
+            b0=0,
+            b1=0,
+            b2=0,
+            b3=0,
+            c0=0,
+            c1=0,
+            c2=0,
+        )
+        delay_mu(int64(self.core.ref_multiplier))
+
+        trigger.trigger(1 << ch)
+        delay_mu(int64(self.core.ref_multiplier))
+
+    @kernel
+    def shuttler_relay_led_wave(self, relay):
+        while not is_enter_pressed():
+            self.core.break_realtime()
+            # do not fill the FIFOs too much to avoid long response times
+            t = now_mu() - self.core.seconds_to_mu(.2)
+            while self.core.get_rtio_counter_mu() < t:
+                pass
+            for ch in range(16):
+                relay.enable(1 << ch)
+                delay(100*ms)
+            relay.enable(0x0000)
+            delay(100*ms)
+
+    def test_shuttler(self):
+        print("*** Testing Shuttler.")
+
+        for card_n, (card_name, card_dev) in enumerate(self.shuttler):
+            print("Testing: ", card_name)
+
+            output_voltage = 0.0
+            def setv(x):
+                nonlocal output_voltage
+                output_voltage = x
+
+            self.setup_shuttler_init(card_dev["relay"], card_dev["adc"], card_dev["dcbias"], card_dev["dds"], card_dev["trigger"], card_dev["config"])
+            
+            print("Check Remote AFE Board Relay LED Indicators.")
+            print("Press Enter to Continue.")
+            self.shuttler_relay_led_wave(card_dev["relay"])
+
+            self.set_shuttler_relay(card_dev["relay"], 0xFFFF)
+            
+            passed = True
+            adc_readings = []
+            volt_set = [(-1)**i*(2.*card_n + .1*(i//2 + 1)) for i in range(16)]
+
+            print("Testing Shuttler DAC")
+            print("Voltages:", " ".join(["{:.1f}".format(x) for x in volt_set]))
+
+            for ch, volt in enumerate(volt_set):
+                self.setup_shuttler_set_output(card_dev["dcbias"], card_dev["dds"], card_dev["trigger"], ch, volt)
+                self.get_shuttler_output_voltage(card_dev["adc"], ch, setv)
+                if (abs(volt) - abs(output_voltage)) > 0.1:
+                    passed = False
+                adc_readings.append(output_voltage)
+
+            print("Press Enter to Continue.")
+            input()
+            self.set_shuttler_relay(card_dev["relay"], 0x0000)
+
+            if passed:
+                print("PASSED")
+            else:
+                print("FAILED")
+                print("Shuttler Remote AFE Board ADC has abnormal readings.")
+                print(f"ADC Readings:", " ".join(["{:.2f}".format(x) for x in adc_readings]))
+               
     def run(self, tests):
         print("****** Sinara system tester ******")
         print("")
