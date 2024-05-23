@@ -28,6 +28,7 @@ Highlights:
   clock, to facilitate implementation of local processing on DRTIO satellites, and to slightly
   reduce RTIO latency.
 * Support for DRTIO-over-EEM, used with Shuttler.
+* Enabled event spreading on DRTIO satellites, using high watermark for lane switching.
 * Added channel names to RTIO error messages.
 * GUI:
    - Implemented Applet Request Interfaces which allow applets to modify datasets and set the

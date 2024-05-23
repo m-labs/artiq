@@ -61,8 +61,8 @@ class SyncRTIO(Module):
         self.submodules.outputs = ClockDomainsRenamer("rio")(
             SED(channels, tsc.glbl_fine_ts_width,
                 lane_count=lane_count, fifo_depth=fifo_depth,
-                enable_spread=False, report_buffer_space=True,
-                interface=self.cri))
+                enable_spread=True, fifo_high_watermark=0.75,
+                report_buffer_space=True, interface=self.cri))
         self.comb += self.outputs.coarse_timestamp.eq(tsc.coarse_ts)
         self.sync += self.outputs.minimum_coarse_timestamp.eq(tsc.coarse_ts + 16)
 
