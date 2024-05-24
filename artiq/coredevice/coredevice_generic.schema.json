@@ -137,6 +137,18 @@
                     "enum": ["v1.0", "v1.1"]
                 }
             }
+        },
+        {
+            "properties": {
+                "target": {
+                    "type": "string",
+                    "const": "efc"
+                },
+                "hw_rev": {
+                    "type": "string",
+                    "enum": ["v1.0", "v1.1"]
+                }
+            }
         }
     ],
 

@@ -19,6 +19,7 @@ from artiq.gateware.drtio.rx_synchronizer import NoRXSynchronizer
 from artiq.gateware.drtio import *
 from artiq.gateware.shuttler import Shuttler
 from artiq.build_soc import *
+from artiq.coredevice import jsondesc
 
 
 class Satellite(BaseSoC, AMPSoC):
@@ -243,16 +244,17 @@ def main():
         description="ARTIQ device binary builder for EEM FMC Carrier systems")
     builder_args(parser)
     parser.set_defaults(output_dir="artiq_efc")
-    parser.add_argument("-V", "--variant", default="shuttler")
-    parser.add_argument("--hw-rev", choices=["v1.0", "v1.1"], default="v1.1", 
-                        help="Hardware revision")
+    parser.add_argument("description", metavar="DESCRIPTION",
+                        help="JSON system description file")
     parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
     args = parser.parse_args()
+    description = jsondesc.load(args.description)
 
     argdict = dict()
     argdict["gateware_identifier_str"] = args.gateware_identifier_str
-    argdict["hw_rev"] = args.hw_rev
+    argdict["hw_rev"] = description["hw_rev"]
+    args.variant = description["variant"]
 
     soc = Satellite(**argdict)
     build_artiq_soc(soc, builder_argdict(args))
