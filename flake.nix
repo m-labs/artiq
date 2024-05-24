@@ -359,10 +359,6 @@
           target = "kc705";
           variant = "nist_clock";
         };
-        artiq-board-efc-shuttler = makeArtiqBoardPackage {
-          target = "efc";
-          variant = "shuttler";
-        };
         inherit latex-artiq-manual;
         artiq-manual-html = pkgs.stdenvNoCC.mkDerivation rec {
           name = "artiq-manual-html-${version}";
