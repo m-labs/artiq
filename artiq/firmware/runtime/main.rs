@@ -36,6 +36,8 @@ use smoltcp::wire::HardwareAddress;
 use board_misoc::{csr, ident, clock, spiflash, config, net_settings, pmp, boot};
 #[cfg(has_ethmac)]
 use board_misoc::ethmac;
+#[cfg(soc_platform = "kasli")]
+use board_misoc::irq;
 use board_misoc::net_settings::{Ipv4AddrConfig};
 #[cfg(has_drtio)]
 use board_artiq::drtioaux;
@@ -264,6 +266,9 @@ pub extern fn main() -> i32 {
         ALLOC.add_range(&mut _fheap, &mut _eheap);
 
         pmp::init_stack_guard(&_sstack_guard as *const u8 as usize);
+
+        #[cfg(soc_platform = "kasli")]
+        irq::enable_interrupts();
 
         logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(||
             boot::start_user(startup as usize)
