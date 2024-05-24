@@ -10,6 +10,25 @@ struct Registers {
     gpiob: u8,  // Output Port 1
 }
 
+#[cfg(has_si549)]
+const IODIR_CLK_SEL: u8 = 0x80; // out
+#[cfg(has_si5324)]
+const IODIR_CLK_SEL: u8 = 0x00; // in
+
+#[cfg(has_si549)]
+const CLK_SEL_OUT: u8 = 1 << 7;
+#[cfg(has_si5324)]
+const CLK_SEL_OUT: u8 = 0;
+
+const IODIR0 : [u8; 2] = [
+    0xFF,
+    0xFF & !IODIR_CLK_SEL
+];
+
+const OUT_TAR0 : [u8; 2] = [
+    0,
+    CLK_SEL_OUT
+];
 pub struct IoExpander {
     busno: u8,
     port: u8,
@@ -34,9 +53,9 @@ impl IoExpander {
                 port: 11,
                 address: 0x40,
                 virtual_led_mapping: &VIRTUAL_LED_MAPPING0,
-                iodir: [0xff; 2],
+                iodir: IODIR0,
                 out_current: [0; 2],
-                out_target: [0; 2],
+                out_target: OUT_TAR0,
                 registers: Registers {
                     iodira: 0x00,
                     iodirb: 0x01,
@@ -153,10 +172,10 @@ impl IoExpander {
         }
         self.update_iodir()?;
 
-        self.out_current[0] = 0x00;
-        self.write(self.registers.gpioa, 0x00)?;
-        self.out_current[1] = 0x00;
-        self.write(self.registers.gpiob, 0x00)?;
+        self.write(self.registers.gpioa, self.out_target[0])?;
+        self.out_current[0] = self.out_target[0];
+        self.write(self.registers.gpiob, self.out_target[1])?;
+        self.out_current[1] = self.out_target[1];
         Ok(())
     }
 
