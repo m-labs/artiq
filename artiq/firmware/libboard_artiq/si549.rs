@@ -720,3 +720,143 @@ pub mod wrpll {
     }
 }
 
+#[cfg(has_wrpll_refclk)]
+pub mod wrpll_refclk {
+    use super::*;
+
+    pub struct MmcmSetting {
+        pub clkout0_reg1: u16,  //0x08
+        pub clkout0_reg2: u16,  //0x09
+        pub clkfbout_reg1: u16, //0x14
+        pub clkfbout_reg2: u16, //0x15
+        pub div_reg: u16,       //0x16
+        pub lock_reg1: u16,     //0x18
+        pub lock_reg2: u16,     //0x19
+        pub lock_reg3: u16,     //0x1A
+        pub power_reg: u16,     //0x28
+        pub filt_reg1: u16,     //0x4E
+        pub filt_reg2: u16,     //0x4F
+    }
+
+    fn one_clock_cycle() {
+        unsafe {
+            csr::wrpll_refclk::mmcm_dclk_write(1);
+            csr::wrpll_refclk::mmcm_dclk_write(0);
+        }
+    }
+
+    fn set_addr(address: u8) {
+        unsafe {
+            csr::wrpll_refclk::mmcm_daddr_write(address);
+        }
+    }
+
+    fn set_data(value: u16) {
+        unsafe {
+            csr::wrpll_refclk::mmcm_din_write(value);
+        }
+    }
+
+    fn set_enable(en: bool) {
+        let val = if en { 1 } else { 0 };
+        unsafe {
+            csr::wrpll_refclk::mmcm_den_write(val);
+        }
+    }
+
+    fn set_write_enable(en: bool) {
+        let val = if en { 1 } else { 0 };
+        unsafe {
+            csr::wrpll_refclk::mmcm_dwen_write(val);
+        }
+    }
+
+    fn get_data() -> u16 {
+        unsafe { csr::wrpll_refclk::mmcm_dout_read() }
+    }
+
+    fn drp_ready() -> bool {
+        unsafe { csr::wrpll_refclk::mmcm_dready_read() == 1 }
+    }
+
+    #[allow(dead_code)]
+    fn read(address: u8) -> u16 {
+        set_addr(address);
+        set_enable(true);
+        // Set DADDR on the mmcm and assert DEN for one clock cycle
+        one_clock_cycle();
+
+        set_enable(false);
+        while !drp_ready() {
+            // keep the clock signal until data is ready
+            one_clock_cycle();
+        }
+        get_data()
+    }
+
+    fn write(address: u8, value: u16) {
+        set_addr(address);
+        set_data(value);
+        set_write_enable(true);
+        set_enable(true);
+        // Set DADDR, DI on the mmcm and assert DWE, DEN for one clock cycle
+        one_clock_cycle();
+
+        set_write_enable(false);
+        set_enable(false);
+        while !drp_ready() {
+            // keep the clock signal until write is finished
+            one_clock_cycle();
+        }
+    }
+
+    fn reset(rst: bool) {
+        let val = if rst { 1 } else { 0 };
+        unsafe {
+            csr::wrpll_refclk::mmcm_reset_write(val)
+        }
+    }
+
+    pub fn setup(settings: MmcmSetting, mmcm_bypass: bool) -> Result<(), &'static str> {
+        unsafe {
+            csr::wrpll_refclk::refclk_reset_write(1);
+        }
+
+        if mmcm_bypass {
+            info!("Bypassing mmcm");
+            unsafe {
+                csr::wrpll_refclk::mmcm_bypass_write(1);
+            }
+        } else {
+            // Based on "DRP State Machine" from XAPP888
+            // hold reset HIGH during mmcm config
+            reset(true);
+            write(0x08, settings.clkout0_reg1);
+            write(0x09, settings.clkout0_reg2);
+            write(0x14, settings.clkfbout_reg1);
+            write(0x15, settings.clkfbout_reg2);
+            write(0x16, settings.div_reg);
+            write(0x18, settings.lock_reg1);
+            write(0x19, settings.lock_reg2);
+            write(0x1A, settings.lock_reg3);
+            write(0x28, settings.power_reg);
+            write(0x4E, settings.filt_reg1);
+            write(0x4F, settings.filt_reg2);
+            reset(false);
+
+            // wait for the mmcm to lock
+            clock::spin_us(100);
+
+            let locked = unsafe { csr::wrpll_refclk::mmcm_locked_read() == 1 };
+            if !locked {
+                return Err("mmcm failed to generate 125MHz ref clock from SMA CLKIN");
+            }
+        }
+
+        unsafe {
+            csr::wrpll_refclk::refclk_reset_write(0);
+        }
+
+        Ok(())
+    }
+}
