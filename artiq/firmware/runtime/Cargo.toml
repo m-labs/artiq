@@ -37,7 +37,7 @@ features = ["alloc", "medium-ethernet", "proto-ipv4", "proto-ipv6", "socket-tcp"
 
 [dependencies.fringe]
 git = "https://git.m-labs.hk/M-Labs/libfringe.git"
-rev = "3ecbe5"
+rev = "53a964"
 default-features = false
 features = ["alloc"]
 
