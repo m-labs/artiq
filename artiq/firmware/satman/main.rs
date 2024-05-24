@@ -17,6 +17,8 @@ use core::convert::TryFrom;
 use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
 #[cfg(has_si5324)]
 use board_artiq::si5324;
+#[cfg(has_si549)]
+use board_artiq::si549;
 #[cfg(soc_platform = "kasli")]
 use board_misoc::irq;
 use board_artiq::{spi, drtioaux, drtio_routing};
@@ -597,6 +599,36 @@ const SI5324_SETTINGS: si5324::FrequencySettings
     crystal_as_ckin2: true
 };
 
+#[cfg(all(has_si549, rtio_frequency = "125.0"))]
+const SI549_SETTINGS: si549::FrequencySetting = si549::FrequencySetting {
+    main: si549::DividerConfig {
+        hsdiv: 0x058,
+        lsdiv: 0,
+        fbdiv: 0x04815791F25,
+    },
+    helper: si549::DividerConfig {
+        // 125MHz*32767/32768
+        hsdiv: 0x058,
+        lsdiv: 0,
+        fbdiv: 0x04814E8F442,
+    },
+};
+
+#[cfg(all(has_si549, rtio_frequency = "100.0"))]
+const SI549_SETTINGS: si549::FrequencySetting = si549::FrequencySetting {
+    main: si549::DividerConfig {
+        hsdiv: 0x06C,
+        lsdiv: 0,
+        fbdiv: 0x046C5F49797,
+    },
+    helper: si549::DividerConfig {
+        // 100MHz*32767/32768
+        hsdiv: 0x06C,
+        lsdiv: 0,
+        fbdiv: 0x046C5670BBD,
+    },
+};
+
 #[cfg(not(soc_platform = "efc"))]
 fn sysclk_setup() {
     let switched = unsafe {
@@ -609,6 +641,9 @@ fn sysclk_setup() {
     else {
         #[cfg(has_si5324)]
         si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
+        #[cfg(has_si549)]
+        si549::main_setup(&SI549_SETTINGS).expect("cannot initialize main Si549");
+
         info!("Switching sys clock, rebooting...");
         // delay for clean UART log, wait until UART FIFO is empty
         clock::spin_us(3000);
@@ -634,6 +669,8 @@ pub extern fn main() -> i32 {
     }
     #[cfg(soc_platform = "kasli")]
     irq::enable_interrupts();
+    #[cfg(has_wrpll)]
+    irq::enable(csr::WRPLL_INTERRUPT);
 
     clock::init();
     uart_logger::ConsoleLogger::register();
@@ -668,6 +705,9 @@ pub extern fn main() -> i32 {
 
     #[cfg(not(soc_platform = "efc"))]
     sysclk_setup();
+
+    #[cfg(has_si549)]
+    si549::helper_setup(&SI549_SETTINGS).expect("cannot initialize helper Si549");    
 
     #[cfg(soc_platform = "efc")]
     let mut io_expander;
@@ -758,6 +798,9 @@ pub extern fn main() -> i32 {
             si5324::siphaser::calibrate_skew().expect("failed to calibrate skew");
         }
 
+        #[cfg(has_wrpll)]
+        si549::wrpll::select_recovered_clock(true);
+
         // various managers created here, so when link is dropped, DMA traces,
         // analyzer logs, kernels are cleared and/or stopped for a clean slate
         // on subsequent connections, without a manual intervention.
@@ -825,6 +868,8 @@ pub extern fn main() -> i32 {
         info!("uplink is down, switching to local oscillator clock");
         #[cfg(has_si5324)]
         si5324::siphaser::select_recovered_clock(false).expect("failed to switch clocks");
+        #[cfg(has_wrpll)]
+        si549::wrpll::select_recovered_clock(false);
     }
 }
 
@@ -864,23 +909,33 @@ fn enable_error_led() {
 pub extern fn exception(_regs: *const u32) {
     let pc = mepc::read();
     let cause = mcause::read().cause();
-    
-    fn hexdump(addr: u32) {
-        let addr = (addr - addr % 4) as *const u32;
-        let mut ptr  = addr;
-        println!("@ {:08p}", ptr);
-        for _ in 0..4 {
-            print!("+{:04x}: ", ptr as usize - addr as usize);
-            print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
-            print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
-            print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
-            print!("{:08x}\n",  unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+    match cause {
+        mcause::Trap::Interrupt(_source) => {
+            #[cfg(has_wrpll)]
+            if irq::is_pending(csr::WRPLL_INTERRUPT) {
+                si549::wrpll::interrupt_handler();
+            }
+        },
+
+        mcause::Trap::Exception(e) => {
+            fn hexdump(addr: u32) {
+                let addr = (addr - addr % 4) as *const u32;
+                let mut ptr  = addr;
+                println!("@ {:08p}", ptr);
+                for _ in 0..4 {
+                    print!("+{:04x}: ", ptr as usize - addr as usize);
+                    print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+                    print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+                    print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+                    print!("{:08x}\n",  unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+                }
+            }
+
+            hexdump(u32::try_from(pc).unwrap());
+            let mtval = mtval::read();
+            panic!("exception {:?} at PC 0x{:x}, trap value 0x{:x}", e, u32::try_from(pc).unwrap(), mtval)
         }
     }
-
-    hexdump(u32::try_from(pc).unwrap());
-    let mtval = mtval::read();
-    panic!("exception {:?} at PC 0x{:x}, trap value 0x{:x}", cause, u32::try_from(pc).unwrap(), mtval)
 }
 
 #[no_mangle]
