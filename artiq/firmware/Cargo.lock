@@ -275,7 +275,7 @@ checksum = "c56c422ef86062869b2d57ae87270608dc5929969dd130a6e248979cf4fb6ca6"
 [[package]]
 name = "fringe"
 version = "1.2.1"
-source = "git+https://git.m-labs.hk/M-Labs/libfringe.git?rev=3ecbe5#3ecbe53f7644b18ee46ebd5b2ca12c9cbceec43a"
+source = "git+https://git.m-labs.hk/M-Labs/libfringe.git?rev=53a964#53a964a63d2d384b22ae1949a471a732003a30b9"
 dependencies = [
  "libc 0.2.99",
 ]
