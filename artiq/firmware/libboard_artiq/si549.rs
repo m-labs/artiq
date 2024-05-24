@@ -321,3 +321,402 @@ fn set_adpll(dcxo: i2c::DCXO, adpll: i32) -> Result<(), &'static str> {
     Ok(())
 }
 
+#[cfg(has_wrpll)]
+pub mod wrpll {
+
+    use super::*;
+
+    const BEATING_PERIOD: i32 = 0x8000;
+    const BEATING_HALFPERIOD: i32 = 0x4000;
+    const COUNTER_WIDTH: u32 = 24;
+    const DIV_WIDTH: u32 = 2;
+
+    // y[n] = b0*x[n] + b1*x[n-1] + b2*x[n-2] - a1*y[n-1] - a2*y[n-2]
+    struct FilterParameters {
+        pub b0: i64,
+        pub b1: i64,
+        pub b2: i64,
+        pub a1: i64,
+        pub a2: i64,
+    }
+
+    #[cfg(rtio_frequency = "100.0")]
+    const LPF: FilterParameters = FilterParameters {
+        b0: 10905723400,   // 0.03967479060647884 * 1 << 38
+        b1: 21811446800,   // 0.07934958121295768 * 1 << 38
+        b2: 10905723400,   // 0.03967479060647884 * 1 << 38
+        a1: -381134538612, // -1.3865593741228928 * 1 << 38
+        a2: 149879525269,  // 0.5452585365488082  * 1 << 38
+    };
+
+    #[cfg(rtio_frequency = "125.0")]
+    const LPF: FilterParameters = FilterParameters {
+        b0: 19816511911,   // 0.07209205036273991  * 1 << 38
+        b1: 39633023822,   // 0.14418410072547982  * 1 << 38
+        b2: 19816511911,   // 0.07209205036273991  * 1 << 38
+        a1: -168062510414, // -0.6114078511562919  * 1 << 38
+        a2: -27549348884,  // -0.10022394739274834 * 1 << 38
+    };
+
+    static mut H_ADPLL1: i32 = 0;
+    static mut H_ADPLL2: i32 = 0;
+    static mut PERIOD_ERR1: i32 = 0;
+    static mut PERIOD_ERR2: i32 = 0;
+
+    static mut M_ADPLL1: i32 = 0;
+    static mut M_ADPLL2: i32 = 0;
+    static mut PHASE_ERR1: i32 = 0;
+    static mut PHASE_ERR2: i32 = 0;
+
+    static mut BASE_ADPLL: i32 = 0;
+
+    #[derive(Clone, Copy)]
+    pub enum ISR {
+        RefTag,
+        MainTag,
+    }
+
+    mod tag_collector {
+        use super::*;
+
+        #[cfg(wrpll_ref_clk = "GT_CDR")]
+        static mut TAG_OFFSET: u32 = 23890;
+        #[cfg(wrpll_ref_clk = "SMA_CLKIN")]
+        static mut TAG_OFFSET: u32 = 0;
+        static mut REF_TAG: u32 = 0;
+        static mut REF_TAG_READY: bool = false;
+        static mut MAIN_TAG: u32 = 0;
+        static mut MAIN_TAG_READY: bool = false;
+
+        pub fn reset() {
+            clear_phase_diff_ready();
+            unsafe {
+                REF_TAG = 0;
+                MAIN_TAG = 0;
+            }
+        }
+
+        pub fn clear_phase_diff_ready() {
+            unsafe {
+                REF_TAG_READY = false;
+                MAIN_TAG_READY = false;
+            }
+        }
+
+        pub fn collect_tags(interrupt: ISR) {
+            match interrupt {
+                ISR::RefTag => unsafe {
+                    REF_TAG = csr::wrpll::ref_tag_read();
+                    REF_TAG_READY = true;
+                },
+                ISR::MainTag => unsafe {
+                    MAIN_TAG = csr::wrpll::main_tag_read();
+                    MAIN_TAG_READY = true;
+                },
+            }
+        }
+
+        pub fn phase_diff_ready() -> bool {
+            unsafe { REF_TAG_READY && MAIN_TAG_READY }
+        }
+
+        #[cfg(feature = "calibrate_wrpll_skew")]
+        pub fn set_tag_offset(offset: u32) {
+            unsafe {
+                TAG_OFFSET = offset;
+            }
+        }
+
+        #[cfg(feature = "calibrate_wrpll_skew")]
+        pub fn get_tag_offset() -> u32 {
+            unsafe { TAG_OFFSET }
+        }
+
+        pub fn get_period_error() -> i32 {
+            // n * BEATING_PERIOD - REF_TAG(n) mod BEATING_PERIOD
+            let mut period_error = unsafe {
+                REF_TAG
+                    .overflowing_neg()
+                    .0
+                    .rem_euclid(BEATING_PERIOD as u32) as i32
+            };
+            // mapping tags from [0, 2π] -> [-π, π]
+            if period_error > BEATING_HALFPERIOD {
+                period_error -= BEATING_PERIOD
+            }
+            period_error
+        }
+
+        pub fn get_phase_error() -> i32 {
+            // MAIN_TAG(n) - REF_TAG(n) - TAG_OFFSET mod BEATING_PERIOD
+            let mut phase_error = unsafe {
+                MAIN_TAG
+                    .overflowing_sub(REF_TAG + TAG_OFFSET)
+                    .0
+                    .rem_euclid(BEATING_PERIOD as u32) as i32
+            };
+
+            // mapping tags from [0, 2π] -> [-π, π]
+            if phase_error > BEATING_HALFPERIOD {
+                phase_error -= BEATING_PERIOD
+            }
+            phase_error
+        }
+    }
+
+    fn set_isr(en: bool) {
+        let val = if en { 1 } else { 0 };
+        unsafe {
+            csr::wrpll::ref_tag_ev_enable_write(val);
+            csr::wrpll::main_tag_ev_enable_write(val);
+        }
+    }
+
+    fn set_base_adpll() -> Result<(), &'static str> {
+        let count2adpll = |error: i32| {
+            ((error as f64 * 1e6) / (0.0001164 * (1 << (COUNTER_WIDTH - DIV_WIDTH)) as f64)) as i32
+        };
+
+        let (ref_count, main_count) = get_freq_counts();
+        unsafe {
+            BASE_ADPLL = count2adpll(ref_count as i32 - main_count as i32);
+            set_adpll(i2c::DCXO::Main, BASE_ADPLL)?;
+            set_adpll(i2c::DCXO::Helper, BASE_ADPLL)?;
+        }
+        Ok(())
+    }
+
+    fn get_freq_counts() -> (u32, u32) {
+        unsafe {
+            csr::wrpll::frequency_counter_update_write(1);
+            while csr::wrpll::frequency_counter_busy_read() == 1 {}
+            #[cfg(wrpll_ref_clk = "GT_CDR")]
+            let ref_count = csr::wrpll::frequency_counter_counter_rtio_rx0_read();
+            #[cfg(wrpll_ref_clk = "SMA_CLKIN")]
+            let ref_count = csr::wrpll::frequency_counter_counter_ref_read();
+            let main_count = csr::wrpll::frequency_counter_counter_sys_read();
+
+            (ref_count, main_count)
+        }
+    }
+
+    fn reset_plls() -> Result<(), &'static str> {
+        unsafe {
+            H_ADPLL1 = 0;
+            H_ADPLL2 = 0;
+            PERIOD_ERR1 = 0;
+            PERIOD_ERR2 = 0;
+            M_ADPLL1 = 0;
+            M_ADPLL2 = 0;
+            PHASE_ERR1 = 0;
+            PHASE_ERR2 = 0;
+        }
+        set_adpll(i2c::DCXO::Main, 0)?;
+        set_adpll(i2c::DCXO::Helper, 0)?;
+        // wait for adpll to transfer and DCXO to settle
+        clock::spin_us(200);
+        Ok(())
+    }
+
+    fn clear_pending(interrupt: ISR) {
+        match interrupt {
+            ISR::RefTag => unsafe { csr::wrpll::ref_tag_ev_pending_write(1) },
+            ISR::MainTag => unsafe { csr::wrpll::main_tag_ev_pending_write(1) },
+        };
+    }
+
+    fn is_pending(interrupt: ISR) -> bool {
+        match interrupt {
+            ISR::RefTag => unsafe { csr::wrpll::ref_tag_ev_pending_read() == 1 },
+            ISR::MainTag => unsafe { csr::wrpll::main_tag_ev_pending_read() == 1 },
+        }
+    }
+
+    pub fn interrupt_handler() {
+        if is_pending(ISR::RefTag) {
+            tag_collector::collect_tags(ISR::RefTag);
+            clear_pending(ISR::RefTag);
+            helper_pll().expect("failed to run helper DCXO PLL");
+        }
+
+        if is_pending(ISR::MainTag) {
+            tag_collector::collect_tags(ISR::MainTag);
+            clear_pending(ISR::MainTag);
+        }
+
+        if tag_collector::phase_diff_ready() {
+            main_pll().expect("failed to run main DCXO PLL");
+            tag_collector::clear_phase_diff_ready();
+        }
+    }
+
+    fn helper_pll() -> Result<(), &'static str> {
+        let period_err = tag_collector::get_period_error();
+        unsafe {
+            let adpll = (((LPF.b0 * period_err as i64)
+                + (LPF.b1 * PERIOD_ERR1 as i64)
+                + (LPF.b2 * PERIOD_ERR2 as i64)
+                - (LPF.a1 * H_ADPLL1 as i64)
+                - (LPF.a2 * H_ADPLL2 as i64))
+                >> 38) as i32;
+            set_adpll(i2c::DCXO::Helper, BASE_ADPLL + adpll)?;
+            H_ADPLL2 = H_ADPLL1;
+            PERIOD_ERR2 = PERIOD_ERR1;
+            H_ADPLL1 = adpll;
+            PERIOD_ERR1 = period_err;
+        };
+        Ok(())
+    }
+
+    fn main_pll() -> Result<(), &'static str> {
+        let phase_err = tag_collector::get_phase_error();
+        unsafe {
+            let adpll = (((LPF.b0 * phase_err as i64)
+                + (LPF.b1 * PHASE_ERR1 as i64)
+                + (LPF.b2 * PHASE_ERR2 as i64)
+                - (LPF.a1 * M_ADPLL1 as i64)
+                - (LPF.a2 * M_ADPLL2 as i64))
+                >> 38) as i32;
+            set_adpll(i2c::DCXO::Main, BASE_ADPLL + adpll)?;
+            M_ADPLL2 = M_ADPLL1;
+            PHASE_ERR2 = PHASE_ERR1;
+            M_ADPLL1 = adpll;
+            PHASE_ERR1 = phase_err;
+        };
+        Ok(())
+    }
+
+    #[cfg(wrpll_ref_clk = "GT_CDR")]
+    fn test_skew() -> Result<(), &'static str> {
+        // wait for PLL to stabilize
+        clock::spin_us(20_000);
+
+        info!("testing the skew of SYS CLK...");
+        if has_timing_error() {
+            return Err("the skew cannot satisfy setup/hold time constraint of RX synchronizer");
+        }
+        info!("the skew of SYS CLK met the timing constraint");
+        Ok(())
+    }
+
+    #[cfg(wrpll_ref_clk = "GT_CDR")]
+    fn has_timing_error() -> bool {
+        unsafe {
+            csr::wrpll_skewtester::error_write(1);
+        }
+        clock::spin_us(5_000);
+        unsafe { csr::wrpll_skewtester::error_read() == 1 }
+    }
+
+    #[cfg(feature = "calibrate_wrpll_skew")]
+    fn find_edge(target: bool) -> Result<u32, &'static str> {
+        const STEP: u32 = 8;
+        const STABLE_THRESHOLD: u32 = 10;
+
+        enum FSM {
+            Init,
+            WaitEdge,
+            GotEdge,
+        }
+
+        let mut state: FSM = FSM::Init;
+        let mut offset: u32 = tag_collector::get_tag_offset();
+        let mut median_edge: u32 = 0;
+        let mut stable_counter: u32 = 0;
+
+        for _ in 0..(BEATING_PERIOD as u32 / STEP) as usize {
+            tag_collector::set_tag_offset(offset);
+            offset += STEP;
+            // wait for PLL to stabilize
+            clock::spin_us(20_000);
+
+            let error = has_timing_error();
+            // A median edge deglitcher
+            match state {
+                FSM::Init => {
+                    if error != target {
+                        stable_counter += 1;
+                    } else {
+                        stable_counter = 0;
+                    }
+
+                    if stable_counter >= STABLE_THRESHOLD {
+                        state = FSM::WaitEdge;
+                        stable_counter = 0;
+                    }
+                }
+                FSM::WaitEdge => {
+                    if error == target {
+                        state = FSM::GotEdge;
+                        median_edge = offset;
+                    }
+                }
+                FSM::GotEdge => {
+                    if error != target {
+                        median_edge += STEP;
+                        stable_counter = 0;
+                    } else {
+                        stable_counter += 1;
+                    }
+
+                    if stable_counter >= STABLE_THRESHOLD {
+                        return Ok(median_edge);
+                    }
+                }
+            }
+        }
+        return Err("failed to find timing error edge");
+    }
+
+    #[cfg(feature = "calibrate_wrpll_skew")]
+    fn calibrate_skew() -> Result<(), &'static str> {
+        info!("calibrating skew to meet timing constraint...");
+
+        // clear calibrated value
+        tag_collector::set_tag_offset(0);
+        let rising = find_edge(true)? as i32;
+        let falling = find_edge(false)? as i32;
+
+        let width = BEATING_PERIOD - (falling - rising);
+        let result = falling + width / 2;
+        tag_collector::set_tag_offset(result as u32);
+
+        info!(
+            "calibration successful, error zone: {} -> {}, width: {} ({}deg), middle of working region: {}",
+            rising,
+            falling,
+            width,
+            360 * width / BEATING_PERIOD,
+            result,
+        );
+
+        Ok(())
+    }
+
+    pub fn select_recovered_clock(rc: bool) {
+        set_isr(false);
+
+        if rc {
+            tag_collector::reset();
+            reset_plls().expect("failed to reset main and helper PLL");
+
+            // get within capture range
+            set_base_adpll().expect("failed to set base adpll");
+
+            // clear gateware pending flag
+            clear_pending(ISR::RefTag);
+            clear_pending(ISR::MainTag);
+
+            // use nFIQ to avoid IRQ being disabled by mutex lock and mess up PLL
+            set_isr(true);
+            info!("WRPLL interrupt enabled");
+
+            #[cfg(feature = "calibrate_wrpll_skew")]
+            calibrate_skew().expect("failed to set the correct skew");
+
+            #[cfg(wrpll_ref_clk = "GT_CDR")]
+            test_skew().expect("skew test failed");
+        }
+    }
+}
+

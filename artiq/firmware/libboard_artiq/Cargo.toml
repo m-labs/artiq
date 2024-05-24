@@ -25,3 +25,4 @@ proto_artiq = { path = "../libproto_artiq" }
 [features]
 uart_console = []
 alloc = []
+calibrate_wrpll_skew = []
