@@ -26,6 +26,7 @@ from artiq.gateware.drtio.transceiver import gtp_7series, eem_serdes
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import *
+from artiq.gateware.wrpll import wrpll
 from artiq.build_soc import *
 from artiq.coredevice import jsondesc
 
@@ -377,7 +378,7 @@ class SatelliteBase(BaseSoC, AMPSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, *, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, with_wrpll=False, *, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
         if hw_rev in ("v1.0", "v1.1"):
             cpu_bus_width = 32
         else:
@@ -505,17 +506,33 @@ class SatelliteBase(BaseSoC, AMPSoC):
         rtio_clk_period = 1e9/rtio_clk_freq
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
 
-        self.submodules.siphaser = SiPhaser7Series(
-            si5324_clkin=platform.request("cdr_clk") if platform.hw_rev == "v2.0"
-                else platform.request("si5324_clkin"),
-            rx_synchronizer=self.rx_synchronizer,
-            ref_clk=self.crg.clk125_div2, ref_div2=True,
-            rtio_clk_freq=rtio_clk_freq)
-        platform.add_false_path_constraints(
-            self.crg.cd_sys.clk, self.siphaser.mmcm_freerun_output)
-        self.csr_devices.append("siphaser")
-        self.config["HAS_SI5324"] = None
-        self.config["SI5324_SOFT_RESET"] = None
+        if with_wrpll:
+            clk_synth = platform.request("cdr_clk_clean_fabric")
+            clk_synth_se = Signal()
+            platform.add_period_constraint(clk_synth.p, 8.0)
+            self.specials += Instance("IBUFGDS", p_DIFF_TERM="TRUE", p_IBUF_LOW_PWR="FALSE", i_I=clk_synth.p, i_IB=clk_synth.n, o_O=clk_synth_se)
+            self.submodules.wrpll = wrpll.WRPLL(
+                platform=self.platform,
+                cd_ref=self.gt_drtio.cd_rtio_rx0,
+                main_clk_se=clk_synth_se)
+            self.submodules.wrpll_skewtester = wrpll.SkewTester(self.rx_synchronizer)
+            self.csr_devices.append("wrpll_skewtester")
+            self.csr_devices.append("wrpll")
+            self.interrupt_devices.append("wrpll")
+            self.config["HAS_SI549"] = None
+            self.config["WRPLL_REF_CLK"] = "GT_CDR"
+        else:
+            self.submodules.siphaser = SiPhaser7Series(
+                si5324_clkin=platform.request("cdr_clk") if platform.hw_rev == "v2.0"
+                    else platform.request("si5324_clkin"),
+                rx_synchronizer=self.rx_synchronizer,
+                ref_clk=self.crg.clk125_div2, ref_div2=True,
+                rtio_clk_freq=rtio_clk_freq)
+            platform.add_false_path_constraints(
+                self.crg.cd_sys.clk, self.siphaser.mmcm_freerun_output)
+            self.csr_devices.append("siphaser")
+            self.config["HAS_SI5324"] = None
+            self.config["SI5324_SOFT_RESET"] = None
 
         gtp = self.gt_drtio.gtps[0]
         txout_buf = Signal()
@@ -715,6 +732,7 @@ class GenericSatellite(SatelliteBase):
                                rtio_clk_freq=description["rtio_frequency"],
                                enable_sata=description["enable_sata_drtio"],
                                enable_sys5x=has_drtio_over_eem,
+                               with_wrpll=description["enable_wrpll"],
                                **kwargs)
         if hw_rev == "v1.0":
             # EEM clock fan-out from Si5324, not MMCX
