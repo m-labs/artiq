@@ -24,6 +24,8 @@ pub mod rpc_queue;
 
 #[cfg(has_si5324)]
 pub mod si5324;
+#[cfg(has_si549)]
+pub mod si549;
 
 #[cfg(has_grabber)]
 pub mod grabber;
