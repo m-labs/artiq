@@ -17,6 +17,8 @@ use core::convert::TryFrom;
 use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
 #[cfg(has_si5324)]
 use board_artiq::si5324;
+#[cfg(soc_platform = "kasli")]
+use board_misoc::irq;
 use board_artiq::{spi, drtioaux, drtio_routing};
 #[cfg(soc_platform = "efc")]
 use board_artiq::ad9117;
@@ -630,6 +632,8 @@ pub extern fn main() -> i32 {
         ALLOC.add_range(&mut _fheap, &mut _eheap);
         pmp::init_stack_guard(&_sstack_guard as *const u8 as usize);
     }
+    #[cfg(soc_platform = "kasli")]
+    irq::enable_interrupts();
 
     clock::init();
     uart_logger::ConsoleLogger::register();
