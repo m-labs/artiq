@@ -57,7 +57,7 @@ class StandaloneBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
+    def __init__(self, gateware_identifier_str=None, with_wrpll=False, hw_rev="v2.0", **kwargs):
         if hw_rev in ("v1.0", "v1.1"):
             cpu_bus_width = 32
         else:
@@ -83,7 +83,6 @@ class StandaloneBase(MiniSoC, AMPSoC):
             self.submodules.error_led = gpio.GPIOOut(Cat(
                 self.platform.request("error_led")))
             self.csr_devices.append("error_led")
-            self.submodules += SMAClkinForward(self.platform)
             cdr_clk_out = self.platform.request("cdr_clk_clean")
         else:
             cdr_clk_out = self.platform.request("si5324_clkout")
@@ -105,12 +104,30 @@ class StandaloneBase(MiniSoC, AMPSoC):
 
         self.crg.configure(cdr_clk_buf)
 
+        if with_wrpll:
+            clk_synth = self.platform.request("cdr_clk_clean_fabric")
+            clk_synth_se = Signal()
+            self.platform.add_period_constraint(clk_synth.p, 8.0)
+            self.specials += Instance("IBUFGDS", p_DIFF_TERM="TRUE", p_IBUF_LOW_PWR="FALSE", i_I=clk_synth.p, i_IB=clk_synth.n, o_O=clk_synth_se)
+            self.submodules.wrpll_refclk = wrpll.FrequencyMultiplier(self.platform.request("sma_clkin"))
+            self.submodules.wrpll = wrpll.WRPLL(
+                platform=self.platform,
+                cd_ref=self.wrpll_refclk.cd_ref,
+                main_clk_se=clk_synth_se)
+            self.csr_devices.append("wrpll_refclk")
+            self.csr_devices.append("wrpll")
+            self.interrupt_devices.append("wrpll")
+            self.config["HAS_SI549"] = None
+            self.config["WRPLL_REF_CLK"] = "SMA_CLKIN"
+        else:
+            self.submodules += SMAClkinForward(self.platform)
+            self.config["HAS_SI5324"] = None
+            self.config["SI5324_SOFT_RESET"] = None
+
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
         self.csr_devices.append("i2c")
         self.config["I2C_BUS_COUNT"] = 1
-        self.config["HAS_SI5324"] = None
-        self.config["SI5324_SOFT_RESET"] = None
 
     def add_rtio(self, rtio_channels, sed_lanes=8):
         fix_serdes_timing_path(self.platform)
@@ -147,7 +164,7 @@ class MasterBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, with_wrpll=False, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
         if hw_rev in ("v1.0", "v1.1"):
             cpu_bus_width = 32
         else:
@@ -173,14 +190,33 @@ class MasterBase(MiniSoC, AMPSoC):
             self.submodules.error_led = gpio.GPIOOut(Cat(
                 self.platform.request("error_led")))
             self.csr_devices.append("error_led")
-            self.submodules += SMAClkinForward(platform)
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
         self.csr_devices.append("i2c")
         self.config["I2C_BUS_COUNT"] = 1
-        self.config["HAS_SI5324"] = None
-        self.config["SI5324_SOFT_RESET"] = None
+
+        if with_wrpll:
+            clk_synth = platform.request("cdr_clk_clean_fabric")
+            clk_synth_se = Signal()
+            platform.add_period_constraint(clk_synth.p, 8.0)
+            self.specials += Instance("IBUFGDS", p_DIFF_TERM="TRUE", p_IBUF_LOW_PWR="FALSE", i_I=clk_synth.p, i_IB=clk_synth.n, o_O=clk_synth_se)
+            self.submodules.wrpll_refclk = wrpll.FrequencyMultiplier(platform.request("sma_clkin"))
+            self.submodules.wrpll = wrpll.WRPLL(
+                platform=self.platform,
+                cd_ref=self.wrpll_refclk.cd_ref,
+                main_clk_se=clk_synth_se)
+            self.csr_devices.append("wrpll_refclk")
+            self.csr_devices.append("wrpll")
+            self.interrupt_devices.append("wrpll")
+            self.config["HAS_SI549"] = None
+            self.config["WRPLL_REF_CLK"] = "SMA_CLKIN"
+        else:
+            if platform.hw_rev == "v2.0":
+                self.submodules += SMAClkinForward(self.platform)
+            self.config["HAS_SI5324"] = None
+            self.config["SI5324_SOFT_RESET"] = None
+
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
 
         drtio_data_pads = []
@@ -624,7 +660,10 @@ class GenericStandalone(StandaloneBase):
         if hw_rev is None:
             hw_rev = description["hw_rev"]
         self.class_name_override = description["variant"]
-        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        StandaloneBase.__init__(self,
+            hw_rev=hw_rev,
+            with_wrpll=description["enable_wrpll"],
+            **kwargs)
         self.config["RTIO_FREQUENCY"] = "{:.1f}".format(description["rtio_frequency"]/1e6)
         if "ext_ref_frequency" in description:
             self.config["SI5324_EXT_REF"] = None
@@ -679,6 +718,7 @@ class GenericMaster(MasterBase):
             rtio_clk_freq=description["rtio_frequency"],
             enable_sata=description["enable_sata_drtio"],
             enable_sys5x=has_drtio_over_eem,
+            with_wrpll=description["enable_wrpll"],
             **kwargs)
         if "ext_ref_frequency" in description:
             self.config["SI5324_EXT_REF"] = None
