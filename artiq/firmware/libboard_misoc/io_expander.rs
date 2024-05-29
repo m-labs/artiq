@@ -10,25 +10,6 @@ struct Registers {
     gpiob: u8,  // Output Port 1
 }
 
-#[cfg(has_si549)]
-const IODIR_CLK_SEL: u8 = 0x80; // out
-#[cfg(has_si5324)]
-const IODIR_CLK_SEL: u8 = 0x00; // in
-
-#[cfg(has_si549)]
-const CLK_SEL_OUT: u8 = 1 << 7;
-#[cfg(has_si5324)]
-const CLK_SEL_OUT: u8 = 0;
-
-const IODIR0 : [u8; 2] = [
-    0xFF,
-    0xFF & !IODIR_CLK_SEL
-];
-
-const OUT_TAR0 : [u8; 2] = [
-    0,
-    CLK_SEL_OUT
-];
 pub struct IoExpander {
     busno: u8,
     port: u8,
@@ -45,6 +26,26 @@ impl IoExpander {
     pub fn new(index: u8) -> Result<Self, &'static str> {
         const VIRTUAL_LED_MAPPING0: [(u8, u8, u8); 2] = [(0, 0, 6), (1, 1, 6)];
         const VIRTUAL_LED_MAPPING1: [(u8, u8, u8); 2] = [(2, 0, 6), (3, 1, 6)];
+
+        #[cfg(has_si549)]
+        const IODIR_CLK_SEL: u8 = 0x80; // out
+        #[cfg(has_si5324)]
+        const IODIR_CLK_SEL: u8 = 0x00; // in
+        
+        #[cfg(has_si549)]
+        const CLK_SEL_OUT: u8 = 1 << 7;
+        #[cfg(has_si5324)]
+        const CLK_SEL_OUT: u8 = 0;
+        
+        const IODIR0 : [u8; 2] = [
+            0xFF,
+            0xFF & !IODIR_CLK_SEL
+        ];
+        
+        const OUT_TAR0 : [u8; 2] = [
+            0,
+            CLK_SEL_OUT
+        ];        
 
         // Both expanders on SHARED I2C bus
         let mut io_expander = match index {
