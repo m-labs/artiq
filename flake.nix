@@ -239,7 +239,7 @@
           cargoDeps = rustPlatform.importCargoLock {
             lockFile = ./artiq/firmware/Cargo.lock;
             outputHashes = {
-              "fringe-1.2.1" = "sha256-m4rzttWXRlwx53LWYpaKuU5AZe4GSkbjHS6oINt5d3Y=";
+              "fringe-1.2.1" = "sha256-u7NyZBzGrMii79V+Xs4Dx9tCpiby6p8IumkUl7oGBm0=";
               "tar-no-std-0.1.8" = "sha256-xm17108v4smXOqxdLvHl9CxTCJslmeogjm4Y87IXFuM=";
             };
           };
