@@ -1,4 +1,5 @@
 from artiq.language.core import kernel, portable
+from artiq.language.units import us
 
 from numpy import int32
 
@@ -116,11 +117,6 @@ class AlmaznyLegacy:
             ALMAZNY_LEGACY_SPIT_WR
         )
         delay(100 * us)
-
-    @kernel
-    def _update_all_registers(self):
-        for i in range(4):
-            self._update_register(i)
 
 
 class AlmaznyChannel:
