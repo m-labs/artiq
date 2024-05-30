@@ -61,6 +61,7 @@ class SinaraTester(EnvExperiment):
         self.mirnies = dict()
         self.suservos = dict()
         self.suschannels = dict()
+        self.legacy_almaznys = dict()
         self.almaznys = dict()
         self.shuttler = dict()
 
@@ -101,6 +102,8 @@ class SinaraTester(EnvExperiment):
                 elif (module, cls) == ("artiq.coredevice.suservo", "Channel"):
                     self.suschannels[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.almazny", "AlmaznyLegacy"):
+                    self.legacy_almaznys[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.almazny", "AlmaznyChannel"):
                     self.almaznys[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.shuttler", "Config"):
                     shuttler_name  = name.replace("_config", "")
@@ -370,36 +373,35 @@ class SinaraTester(EnvExperiment):
                 channel.pulse(100*ms)
                 delay(100*ms)
     @kernel
-    def init_almazny(self, almazny):
+    def init_legacy_almazny(self, almazny):
         self.core.break_realtime()
         almazny.init()
         almazny.output_toggle(True)
 
     @kernel
-    def almazny_set_attenuators_mu(self, almazny, ch, atts):
+    def legacy_almazny_set_attenuators_mu(self, almazny, ch, atts):
         self.core.break_realtime()
         almazny.set_att_mu(ch, atts)
 
     @kernel
-    def almazny_set_attenuators(self, almazny, ch, atts):
+    def legacy_almazny_set_attenuators(self, almazny, ch, atts):
         self.core.break_realtime()
         almazny.set_att(ch, atts)
     
     @kernel
-    def almazny_toggle_output(self, almazny, rf_on):
+    def legacy_almazny_toggle_output(self, almazny, rf_on):
         self.core.break_realtime()
         almazny.output_toggle(rf_on)
 
-    def test_almaznys(self):
-        print("*** Testing Almaznys.")
-        for name, almazny in sorted(self.almaznys.items(), key=lambda x: x[0]):
+    def test_legacy_almaznys(self):
+        print("*** Testing legacy Almaznys (v1.1 or older).")
+        for name, almazny in sorted(self.legacy_almaznys.items(), key=lambda x: x[0]):
             print(name + "...")
             print("Initializing Mirny CPLDs...")
             for name, cpld in sorted(self.mirny_cplds.items(), key=lambda x: x[0]):
                 print(name + "...")
                 self.init_mirny(cpld)
             print("...done")
-
             print("Testing attenuators. Frequencies:")
             for card_n, channels in enumerate(chunker(self.mirnies, 4)):
                 for channel_n, (channel_name, channel_dev) in enumerate(channels):
@@ -407,30 +409,67 @@ class SinaraTester(EnvExperiment):
                     print("{}\t{}MHz".format(channel_name, frequency*2))
                     self.setup_mirny(channel_dev, frequency)
                     print("{} info: {}".format(channel_name, channel_dev.info()))
-            self.init_almazny(almazny)
+            self.init_legacy_almazny(almazny)
             print("RF ON, all attenuators ON. Press ENTER when done.")
             for i in range(4):
-                self.almazny_set_attenuators_mu(almazny, i, 63)
+                self.legacy_almazny_set_attenuators_mu(almazny, i, 63)
             input()
             print("RF ON, half power attenuators ON. Press ENTER when done.")
             for i in range(4):
-                self.almazny_set_attenuators(almazny, i, 15.5)
+                self.legacy_almazny_set_attenuators(almazny, i, 15.5)
             input()
             print("RF ON, all attenuators OFF. Press ENTER when done.")
             for i in range(4):
-                self.almazny_set_attenuators(almazny, i, 0)
+                self.legacy_almazny_set_attenuators(almazny, i, 0)
             input()
             print("SR outputs are OFF. Press ENTER when done.")
-            self.almazny_toggle_output(almazny, False)
+            self.legacy_almazny_toggle_output(almazny, False)
             input()
             print("RF ON, all attenuators are ON. Press ENTER when done.")
             for i in range(4):
-                self.almazny_set_attenuators(almazny, i, 31.5)
-            self.almazny_toggle_output(almazny, True)
+                self.legacy_almazny_set_attenuators(almazny, i, 31.5)
+            self.legacy_almazny_toggle_output(almazny, True)
             input()
             print("RF OFF. Press ENTER when done.")
-            self.almazny_toggle_output(almazny, False)
+            self.legacy_almazny_toggle_output(almazny, False)
             input()
+
+    def almazny_led_wave(self, almaznys):
+        while not is_enter_pressed():
+            self.core.break_realtime()
+            # do not fill the FIFOs too much to avoid long response times
+            t = now_mu() - self.core.seconds_to_mu(0.2)
+            while self.core.get_rtio_counter_mu() < t:
+                pass
+            for almazny in almaznys:
+                almazny.set(31.5, False, True)
+                delay(100*ms)
+                almazny.set(31.5, False, False)
+    
+    def almazny_set_att_all(self, almaznys, att):
+        for almazny in almaznys:
+            almazny.set(att, False, True)
+
+    def test_almaznys(self):
+        print("*** Testing Almaznys (v1.2+).")
+        print("Initializing Mirny CPLDs...")
+        for name, cpld in sorted(self.mirny_cplds.items(), key=lambda x: x[0]):
+            print(name + "...")
+            self.init_mirny(cpld)
+        print("...done")
+        print("Frequencies:")
+        for card_n, channels in enumerate(chunker(self.mirnies, 4)):
+            for channel_n, (channel_name, channel_dev) in enumerate(channels):
+                frequency = 2000 + card_n * 250 + channel_n * 50
+                print("{}\t{}MHz".format(channel_name, frequency*2))
+                self.setup_mirny(channel_dev, frequency)
+        print("RF On, half power attenuators ON. Press ENTER when done.")
+        self.almazny_set_att_all(self.almaznys, 15.5)
+        input()
+        print("RF On, all attenuators ON. Press ENTER when done.")
+        self.almazny_set_att_all(self.almaznys, 31.5)
+        print("RF Off, testing LEDs. Press ENTER when done.")
+        self.almazny_led_wave(self.almaznys)
 
     def test_mirnies(self):
         print("*** Testing Mirny PLLs.")
