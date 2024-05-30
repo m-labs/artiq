@@ -384,9 +384,21 @@ class SinaraTester(EnvExperiment):
         almazny.set_att_mu(ch, atts)
 
     @kernel
-    def legacy_almazny_set_attenuators(self, almazny, ch, atts):
-        self.core.break_realtime()
-        almazny.set_att(ch, atts)
+    def legacy_almazny_att_test(self, almazny):
+        # change attenuation bit by bit over time for all channels
+        att_mu = 0
+        while not is_enter_pressed():
+            self.core.break_realtime()
+            t = now_mu() - self.core.seconds_to_mu(0.5)
+            while self.core.get_rtio_counter_mu() < t:
+                pass
+            for ch in range(4):
+                almazny.set_att_mu(ch, att_mu)
+            delay(250*ms)
+            if att_mu == 0:
+                att_mu = 1
+            else:
+                att_mu = (att_mu << 1) & 0x3F
     
     @kernel
     def legacy_almazny_toggle_output(self, almazny, rf_on):
@@ -408,32 +420,16 @@ class SinaraTester(EnvExperiment):
                     frequency = 2000 + card_n * 250 + channel_n * 50
                     print("{}\t{}MHz".format(channel_name, frequency*2))
                     self.setup_mirny(channel_dev, frequency)
-                    print("{} info: {}".format(channel_name, channel_dev.info()))
             self.init_legacy_almazny(almazny)
-            print("RF ON, all attenuators ON. Press ENTER when done.")
-            for i in range(4):
-                self.legacy_almazny_set_attenuators_mu(almazny, i, 63)
-            input()
-            print("RF ON, half power attenuators ON. Press ENTER when done.")
-            for i in range(4):
-                self.legacy_almazny_set_attenuators(almazny, i, 15.5)
-            input()
-            print("RF ON, all attenuators OFF. Press ENTER when done.")
-            for i in range(4):
-                self.legacy_almazny_set_attenuators(almazny, i, 0)
-            input()
             print("SR outputs are OFF. Press ENTER when done.")
             self.legacy_almazny_toggle_output(almazny, False)
             input()
-            print("RF ON, all attenuators are ON. Press ENTER when done.")
-            for i in range(4):
-                self.legacy_almazny_set_attenuators(almazny, i, 31.5)
+            print("RF ON, attenuators are tested. Press ENTER when done.")
             self.legacy_almazny_toggle_output(almazny, True)
-            input()
-            print("RF OFF. Press ENTER when done.")
+            self.legacy_almazny_att_test(almazny)
             self.legacy_almazny_toggle_output(almazny, False)
-            input()
 
+    @kernel
     def almazny_led_wave(self, almaznys):
         while not is_enter_pressed():
             self.core.break_realtime()
@@ -441,14 +437,29 @@ class SinaraTester(EnvExperiment):
             t = now_mu() - self.core.seconds_to_mu(0.2)
             while self.core.get_rtio_counter_mu() < t:
                 pass
-            for almazny in almaznys:
-                almazny.set(31.5, False, True)
+            for ch in almaznys:
+                ch.set(31.5, False, True)
                 delay(100*ms)
-                almazny.set(31.5, False, False)
+                ch.set(31.5, False, False)
     
-    def almazny_set_att_all(self, almaznys, att):
-        for almazny in almaznys:
-            almazny.set(att, False, True)
+    @kernel
+    def almazny_att_test(self, almaznys):
+        rf_en = 1
+        led = 1
+        att_mu = 0
+        while not is_enter_pressed():
+            self.core.break_realtime()
+            t = now_mu() - self.core.seconds_to_mu(0.2)
+            while self.core.get_rtio_counter_mu() < t:
+                pass
+            setting = led << 7 | rf_en << 6 | (att_mu & 0x3F)
+            for ch in almaznys:
+                ch.set_mu(setting)
+            delay(250*ms)
+            if att_mu == 0:
+                att_mu = 1
+            else:
+                att_mu = (att_mu << 1) & 0x3F
 
     def test_almaznys(self):
         print("*** Testing Almaznys (v1.2+).")
@@ -463,13 +474,10 @@ class SinaraTester(EnvExperiment):
                 frequency = 2000 + card_n * 250 + channel_n * 50
                 print("{}\t{}MHz".format(channel_name, frequency*2))
                 self.setup_mirny(channel_dev, frequency)
-        print("RF On, half power attenuators ON. Press ENTER when done.")
-        self.almazny_set_att_all(self.almaznys, 15.5)
-        input()
-        print("RF On, all attenuators ON. Press ENTER when done.")
-        self.almazny_set_att_all(self.almaznys, 31.5)
-        print("RF Off, testing LEDs. Press ENTER when done.")
-        self.almazny_led_wave(self.almaznys)
+        print("RF ON, attenuators are tested. Press ENTER when done.")
+        self.almazny_att_test([ch for _, ch in self.almaznys.items()])
+        print("RF OFF, testing LEDs. Press ENTER when done.")
+        self.almazny_led_wave([ch for _, ch in self.almaznys.items()])
 
     def test_mirnies(self):
         print("*** Testing Mirny PLLs.")
