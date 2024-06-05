@@ -472,39 +472,14 @@ class _DeviceManager:
         for to_remove in self.description - description:
             widget = self.widgets_by_uid[to_remove.uid]
             del self.widgets_by_uid[to_remove.uid]
-
-            if isinstance(widget, _TTLWidget):
-                self.setup_ttl_monitoring(False, widget.channel)
-                widget.deleteLater()
-                del self.ttl_widgets[widget.channel]
-            elif isinstance(widget, _DDSWidget):
-                self.setup_dds_monitoring(False, widget.bus_channel, widget.channel)
-                widget.deleteLater()
-                del self.dds_widgets[(widget.bus_channel, widget.channel)]
-            elif isinstance(widget, _DACWidget):
-                self.setup_dac_monitoring(False, widget.spi_channel, widget.channel)
-                widget.deleteLater()
-                del self.dac_widgets[(widget.spi_channel, widget.channel)]
-            else:
-                raise ValueError
+            self.setup_monitoring(False, widget)
+            widget.deleteLater()
 
         for to_add in description - self.description:
             widget = to_add.cls(self, *to_add.arguments)
             if to_add.comment is not None:
                 widget.setToolTip(to_add.comment)
             self.widgets_by_uid[to_add.uid] = widget
-
-            if isinstance(widget, _TTLWidget):
-                self.ttl_widgets[widget.channel] = widget
-                self.setup_ttl_monitoring(True, widget.channel)
-            elif isinstance(widget, _DDSWidget):
-                self.dds_widgets[(widget.bus_channel, widget.channel)] = widget
-                self.setup_dds_monitoring(True, widget.bus_channel, widget.channel)
-            elif isinstance(widget, _DACWidget):
-                self.dac_widgets[(widget.spi_channel, widget.channel)] = widget
-                self.setup_dac_monitoring(True, widget.spi_channel, widget.channel)
-            else:
-                raise ValueError
 
         if description != self.description:
             self.channels_cb()
@@ -513,7 +488,8 @@ class _DeviceManager:
 
     def ttl_set_mode(self, channel, mode):
         if self.mi_connection is not None:
-            widget = self.ttl_widgets[channel]
+            widget_uid = self.ttl_widgets[channel]
+            widget = self.widgets_by_uid[widget_uid]
             if mode == "0":
                 widget.cur_override = True
                 widget.cur_level = False
@@ -662,6 +638,31 @@ class _DeviceManager:
             "ToggleDDS",
             "Toggle DDS {} {}".format(dds_channel, "on" if sw else "off"))
 
+    def setup_monitoring(self, enable, widget):
+        if isinstance(widget, _TTLWidget):
+            key = widget.channel
+            args = (key,)
+            subscribers = self.ttl_widgets
+            subscribe_func = self.setup_ttl_monitoring
+        elif isinstance(widget, _DDSWidget):
+            key = (widget.bus_channel, widget.channel)
+            args = key
+            subscribers = self.dds_widgets
+            subscribe_func = self.setup_dds_monitoring
+        elif isinstance(widget, _DACWidget):
+            key = (widget.spi_channel, widget.channel)
+            args = key
+            subscribers = self.dac_widgets
+            subscribe_func = self.setup_dac_monitoring
+        else:
+            raise ValueError
+        if enable and key not in subscribers:
+            subscribers[key] = widget.uid()
+            subscribe_func(enable, *args)
+        elif not enable and key in subscribers:
+            subscribe_func(enable, *args)
+            del subscribers[key]
+
     def setup_ttl_monitoring(self, enable, channel):
         if self.mi_connection is not None:
             self.mi_connection.monitor_probe(enable, channel, TTLProbe.level.value)
@@ -681,24 +682,28 @@ class _DeviceManager:
 
     def monitor_cb(self, channel, probe, value):
         if channel in self.ttl_widgets:
-            widget = self.ttl_widgets[channel]
+            widget_uid = self.ttl_widgets[channel]
+            widget = self.widgets_by_uid[widget_uid]
             if probe == TTLProbe.level.value:
                 widget.cur_level = bool(value)
             elif probe == TTLProbe.oe.value:
                 widget.cur_oe = bool(value)
             widget.refresh_display()
         elif (channel, probe) in self.dds_widgets:
-            widget = self.dds_widgets[(channel, probe)]
+            widget_uid = self.dds_widgets[(channel, probe)]
+            widget = self.widgets_by_uid[widget_uid]
             widget.dds_model.monitor_update(probe, value)
             widget.refresh_display()
         elif (channel, probe) in self.dac_widgets:
-            widget = self.dac_widgets[(channel, probe)]
+            widget_uid = self.dac_widgets[(channel, probe)]
+            widget = self.widgets_by_uid[widget_uid]
             widget.cur_value = value
             widget.refresh_display()
 
     def injection_status_cb(self, channel, override, value):
         if channel in self.ttl_widgets:
-            widget = self.ttl_widgets[channel]
+            widget_uid = self.ttl_widgets[channel]
+            widget = self.widgets_by_uid[widget_uid]
             if override == TTLOverride.en.value:
                 widget.cur_override = bool(value)
             if override == TTLOverride.level.value:
@@ -732,9 +737,9 @@ class _DeviceManager:
                 for ttl_channel in self.ttl_widgets.keys():
                     self.setup_ttl_monitoring(True, ttl_channel)
                 for bus_channel, channel in self.dds_widgets.keys():
-                    self.setup_dds_monitoring(True, bus_channel, channel)
+                     self.setup_dds_monitoring(True, bus_channel, channel)
                 for spi_channel, channel in self.dac_widgets.keys():
-                    self.setup_dac_monitoring(True, spi_channel, channel)
+                     self.setup_dac_monitoring(True, spi_channel, channel)
 
     async def close(self):
         self.mi_connector_task.cancel()
@@ -849,9 +854,15 @@ class _MonInjDock(QDockWidgetCloseDetect):
         menu.addAction(delete_action)
         menu.exec_(self.flow.mapToGlobal(pos))
 
+    def delete_all_widgets(self):
+        for index in reversed(range(self.flow.count())):
+            self.delete_widget(index, True)
+
+
     def delete_widget(self, index, checked):
         widget = self.flow.itemAt(index).widget()
         widget.hide()
+        self.manager.dm.setup_monitoring(False, widget)
         self.flow.layout.takeAt(index)
 
     def add_channels(self):
@@ -861,6 +872,7 @@ class _MonInjDock(QDockWidgetCloseDetect):
     def layout_widgets(self, widgets):
         for widget in sorted(widgets, key=lambda w: w.sort_key()):
             widget.show()
+            self.manager.dm.setup_monitoring(True, widget)
             self.flow.addWidget(widget)
 
     def restore_widgets(self):
@@ -933,9 +945,10 @@ class MonInj:
 
     def on_dock_closed(self, name):
         dock = self.docks[name]
-        dock.hide()  # dock may be parent, only delete on exit
         del self.docks[name]
         self.update_closable()
+        dock.delete_all_widgets()
+        dock.hide()  # dock may be parent, only delete on exit
 
     def update_closable(self):
         flags = (QtWidgets.QDockWidget.DockWidgetMovable |
