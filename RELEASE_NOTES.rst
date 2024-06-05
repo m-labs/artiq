@@ -28,12 +28,16 @@ Highlights:
   clock, to facilitate implementation of local processing on DRTIO satellites, and to slightly
   reduce RTIO latency.
 * Support for DRTIO-over-EEM, used with Shuttler.
+* Support for WRPLL low-noise clock recovery.
 * Enabled event spreading on DRTIO satellites, using high watermark for lane switching.
 * Added channel names to RTIO error messages.
+* The RTIO analyzer is now proxied by ``aqctl_coreanalyzer_proxy`` typically running on the master
+  machine, similarly to ``aqctl_moninj_proxy``.
 * GUI:
+   - Integrated waveform analyzer, removing the need for external VCD viewers such as GtkWave.
    - Implemented Applet Request Interfaces which allow applets to modify datasets and set the
      current values of widgets in the dashboard's experiment windows.
-   - Implemented a new EntryArea widget which allows argument entry widgets to be used in applets.
+   - Implemented a new ``EntryArea`` widget which allows argument entry widgets to be used in applets.
    - The "Close all applets" command (shortcut: Ctrl-Alt-W) now ignores docked applets,
      making it a convenient way to clean up after exploratory work without destroying a
      carefully arranged default workspace.
@@ -48,11 +52,14 @@ Highlights:
 * Persistent datasets are now stored in a LMDB database for improved performance.
 * Python's built-in types (such as ``float``, or ``List[...]``) can now be used in type annotations on
   kernel functions.
-* Full Python 3.11 support.
 * MSYS2 packaging for Windows, which replaces Conda. Conda packages are still available to
   support legacy installations, but may be removed in a future release.
 * Experiments can now be submitted with revisions set to a branch / tag name instead of only git hashes.
 * Grabber image input now has an optional timeout.
+* On NAR3-supported devices (Kasli-SoC, ZC706), when a Rust panic occurs, a minimal environment is started
+  where the network and ``artiq_coremgmt`` can be used. This allows the user to inspect logs, change
+  configuration options, update the firmware, and reboot the device.
+* Full Python 3.11 support.
 
 Breaking changes:
 
