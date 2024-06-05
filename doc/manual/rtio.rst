@@ -1,3 +1,5 @@
+.. _artiq-real-time-i-o-concepts:
+
 ARTIQ Real-Time I/O Concepts
 ============================
 

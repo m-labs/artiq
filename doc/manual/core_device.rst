@@ -5,7 +5,6 @@ The core device is a FPGA-based hardware component that contains a softcore or h
 
 While it is possible to use all the other parts of ARTIQ (controllers, master, GUI, dataset management, etc.) without a core device, many experiments require it.
 
-
 .. _core-device-flash-storage:
 
 Flash storage
@@ -13,7 +12,7 @@ Flash storage
 
 The core device contains some flash storage space which is largely used to store configuration data. It is one sector (typically 64 kB) large and organized as a list of key-value records, accessible by using ``artiq_coremgmt`` (see: :ref:`core-device-management-tool`). 
 
-This area is used to store a variety of configurations, in particular the core device IP address and, if present, the startup and/or idle kernels (see also: :ref:`miscellaneous-configuration-of-the-core-device`).   
+This area is used to store a variety of configurations, in particular the core device IP address and, if present, the startup and/or idle kernels (see also: :ref:`miscellaneous_config_core_device`).   
 
 .. _board-ports:
 
@@ -158,6 +157,7 @@ To avoid I/O contention, the startup kernel should first program the TCA6424A ex
 See :mod:`artiq.coredevice.i2c` for more details.
 
 .. _core-device-clocking:
+
 Clocking
 ++++++++
 
