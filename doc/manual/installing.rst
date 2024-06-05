@@ -193,10 +193,10 @@ Set up the Conda channel and install ARTIQ into a new Conda environment: ::
     $ conda create -n artiq artiq
 
 .. note::
-  If you do not need to flash boards, the ``artiq`` package is sufficient. The packages named ``artiq-board-*`` contain only firmware for the FPGA board, and you should not install them unless you are reflashing an FPGA board. Controllers for third-party devices (e.g. Thorlabs TCube, Lab Brick Digital Attenuator, etc.) that are not shipped with ARTIQ can also be installed with Conda. Browse `Hydra <https://nixbld.m-labs.hk/project/artiq>`_ or see the list of NDSPs in this manual to find the names of the corresponding packages.
+  If you do not need to flash boards, the ``artiq`` package is sufficient. The packages named ``artiq-board-*`` contain only firmware for the FPGA board, and you should not install them unless you are reflashing an FPGA board.
 
 .. note::
-  On Windows, if the last command that creates and installs the ARTIQ environment fails with an error similar to "seeking backwards is not allowed", try to re-run the command with admin rights.
+  On Windows, if the last command that creates and installs the ARTIQ environment fails with an error similar to "seeking backwards is not allowed", try re-running the command with admin rights.
 
 .. note::
   For commercial use you might need a license for Anaconda/Miniconda or for using the Anaconda package channel. `Miniforge <https://github.com/conda-forge/miniforge>`_ might be an alternative in a commercial environment as it does not include the Anaconda package channel by default. If you want to use Anaconda/Miniconda/Miniforge in a commercial environment, please check the license and the latest terms of service.
@@ -210,75 +210,80 @@ This activation has to be performed in every new shell you open to make the ARTI
 .. note::
     Some ARTIQ examples also require matplotlib and numba, and they must be installed manually for running those examples. They are available in Conda.
 
-Upgrading ARTIQ (with Nix)
---------------------------
+Upgrading ARTIQ
+---------------
 
-Run ``$ nix profile upgrade`` if you installed ARTIQ into your user profile. If you used a ``flake.nix`` shell environment, make a back-up copy of the ``flake.lock`` file to enable rollback, then run ``$ nix flake update`` and re-enter ``$ nix shell``.
+.. note:: 
+    When you upgrade ARTIQ, as well as updating the software on your host machine, it may also be necessary to reflash the gateware and firmware of your core device to keep them compatible. New numbered release versions in particular incorporate breaking changes and are not generally compatible. See :ref:`reflashing-core-device` below for instructions on reflashing.
+
+Upgrading with Nix 
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Run ``$ nix profile upgrade`` if you installed ARTIQ into your user profile. If you used a ``flake.nix`` shell environment, make a back-up copy of the ``flake.lock`` file to enable rollback, then run ``$ nix flake update`` and re-enter the environment with ``$ nix shell``.
 
 To rollback to the previous version, respectively use ``$ nix profile rollback`` or restore the backed-up version of the ``flake.lock`` file.
 
-You may need to reflash the gateware and firmware of the core device to keep it synchronized with the software.
-
-Upgrading ARTIQ (with MSYS2)
-----------------------------
+Upgrading with MSYS2
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Run ``pacman -Syu`` to update all MSYS2 packages including ARTIQ. If you get a message telling you that the shell session must be restarted after a partial update, open the shell again after the partial update and repeat the command. See the MSYS2 and Pacman manual for information on how to update individual packages if required.
 
-Upgrading ARTIQ (with Conda)
-----------------------------
+Upgrading with Conda 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When upgrading ARTIQ or when testing different versions it is recommended that new Conda environments are created instead of upgrading the packages in existing environments.
-Keep previous environments around until you are certain that they are not needed anymore and a new environment is known to work correctly.
+As a rule, keep previous environments around unless you are certain that they are no longer needed and the new environment is working correctly.
 
-To install the latest version, just select a different environment name and run the installation command again.
+To install the latest version, simply select a different environment name and run the installation commands again.
 
-Switching between Conda environments using commands such as ``$ conda deactivate artiq-6`` and ``$ conda activate artiq-5`` is the recommended way to roll back to previous versions of ARTIQ.
-
-You may need to reflash the gateware and firmware of the core device to keep it synchronized with the software.
+Switching between Conda environments using commands such as ``$ conda deactivate artiq-7`` and ``$ conda activate artiq-8`` is the recommended way to roll back to previous versions of ARTIQ.
 
 You can list the environments you have created using::
 
     $ conda env list
 
-Flashing gateware and firmware into the core device
----------------------------------------------------
+.. _reflashing-core-device:
+Reflashing core device gateware and firmware
+-------------------------------------------
 
 .. note::
-  If you have purchased a pre-assembled system from M-Labs or QUARTIQ, the gateware and firmware are already flashed and you can skip those steps, unless you want to replace them with a different version of ARTIQ.
+  If you have purchased a pre-assembled system from M-Labs or QUARTIQ, the gateware and firmware of your device will already be flashed to the newest version of ARTIQ. These steps are only necessary if you obtained your hardware in a different way, or if you want to change or upgrade your ARTIQ version after purchase.  
 
-You need to write three binary images onto the FPGA board:
 
-1. The FPGA gateware bitstream
-2. The bootloader
-3. The ARTIQ runtime or satellite manager
+Obtaining the board binaries
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Installing OpenOCD
-^^^^^^^^^^^^^^^^^^
+If you have an active firmware subscription with M-Labs or QUARTIQ, you can obtain firmware that corresponds to your currently installed version of ARTIQ using AFWS (ARTIQ firmware service). One year of subscription is included with most hardware purchases. You may purchase or extend firmware subscriptions by writing to the sales@ email.
+
+Run the command::
+
+  $ afws_client [username] build [afws_directory] [variant]
+
+Replace ``[username]`` with the login name that was given to you with the subscription, ``[variant]`` with the name of your system variant, and ``[afws_directory]`` with the name of an empty directory, which will be created by the command if it does not exist. Enter your password when prompted and wait for the build (if applicable) and download to finish. If you experience issues with the AFWS client, write to the helpdesk@ email.
+
+Without a subscription, you may build the firmware yourself from the open source code. See the section :ref:`Developing ARTIQ <developing-artiq>`.
+
+.. _installing-configuring-openocd:
+
+Installing and configuring OpenOCD
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. note::
-  This version of OpenOCD is not applicable to Kasli-SoC.
+  These instructions are not applicable to Kasli-SoC, which does not use the utility ``artiq_flash`` to reflash. If your core device is a Kasli SoC, skip straight to :ref:`writing-flash`. 
 
-OpenOCD can be used to write the binary images into the core device FPGA board's flash memory.
+ARTIQ supplies the utility ``artiq_flash``, which uses OpenOCD to write the binary images into an FPGA board's flash memory. 
 
-With Nix, add ``aqmain.openocd-bscanspi`` to the shell packages. Be careful not to add ``pkgs.openocd`` instead - this would install OpenOCD from the NixOS package collection, which does not support ARTIQ boards.
+* With Nix, add ``aqmain.openocd-bscanspi`` to the shell packages. Be careful not to add ``pkgs.openocd`` instead - this would install OpenOCD from the NixOS package collection, which does not support ARTIQ boards.
 
-With MSYS2, ``openocd`` and ``bscan-spi-bitstreams`` are included with ``artiq`` by default.
+* With MSYS2, ``openocd`` and ``bscan-spi-bitstreams`` are included with ``artiq`` by default.
 
-With Conda, install ``openocd`` as follows::
+* With Conda, install ``openocd`` as follows::
 
     $ conda install -c m-labs openocd
 
-.. _configuring-openocd:
+Some additional steps are necessary to ensure that OpenOCD can communicate with the FPGA board:
 
-Configuring OpenOCD
-^^^^^^^^^^^^^^^^^^^
-
-.. note::
-  These instructions are not applicable to Kasli-SoC.
-
-Some additional steps are necessary to ensure that OpenOCD can communicate with the FPGA board.
-
-On Linux, first ensure that the current user belongs to the ``plugdev`` group (i.e. ``plugdev`` shown when you run ``$ groups``). If it does not, run ``$ sudo adduser $USER plugdev`` and re-login.
+*  On Linux, first ensure that the current user belongs to the ``plugdev`` group (i.e. ``plugdev`` shown when you run ``$ groups``). If it does not, run ``$ sudo adduser $USER plugdev`` and re-login.
 
 If you installed OpenOCD on Linux using Nix, use the ``which`` command to determine the path to OpenOCD, and then copy the udev rules: ::
 
@@ -294,7 +299,7 @@ If you installed OpenOCD on Linux using Conda and are using the Conda environmen
   $ sudo cp ~/.conda/envs/artiq/share/openocd/contrib/60-openocd.rules /etc/udev/rules.d
   $ sudo udevadm trigger
 
-On Windows, a third-party tool, `Zadig <http://zadig.akeo.ie/>`_, is necessary. Use it as follows:
+* On Windows, a third-party tool, `Zadig <http://zadig.akeo.ie/>`_, is necessary. Use it as follows:
 
 1. Make sure the FPGA board's JTAG USB port is connected to your computer.
 2. Activate Options → List All Devices.
@@ -305,35 +310,22 @@ On Windows, a third-party tool, `Zadig <http://zadig.akeo.ie/>`_, is necessary. 
 
 You may need to repeat these steps every time you plug the FPGA board into a port where it has not been plugged into previously on the same system.
 
-Obtaining the board binaries
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-If you have an active firmware subscription with M-Labs or QUARTIQ, you can obtain firmware that corresponds to the currently installed version of ARTIQ using AFWS (ARTIQ firmware service). One year of subscription is included with most hardware purchases. You may purchase or extend firmware subscriptions by writing to the sales@ email.
-
-Run the command::
-
-  $ afws_client [username] build [afws_directory] [variant]
-
-Replace ``[username]`` with the login name that was given to you with the subscription, ``[variant]`` with the name of your system variant, and ``[afws_directory]`` with the name of an empty directory, which will be created by the command if it does not exist. Enter your password when prompted and wait for the build (if applicable) and download to finish. If you experience issues with the AFWS client, write to the helpdesk@ email.
-
-Without a subscription, you may build the firmware yourself from the open source code. See the section :ref:`Developing ARTIQ <developing-artiq>`.
+.. _writing-flash:
 
 Writing the flash
 ^^^^^^^^^^^^^^^^^
 
-Then, you can write the flash:
-
-* For Kasli::
-
-      $ artiq_flash -d [afws_directory]
-
-The JTAG adapter is integrated into the Kasli board; for flashing (and debugging) you simply need to connect your computer to the micro-USB connector on the Kasli front panel.
+First ensure the board is connected to your computer. In the case of Kasli, the JTAG adapter is integrated into the Kasli board; for flashing (and debugging) you simply need to connect your computer to the micro-USB connector on the Kasli front panel. For Kasli-SoC, which uses ``artiq_coremgmt``, an IP address supplied either with the ``-D`` option or in a correctly specified ``device_db.py`` suffices. 
 
 * For Kasli-SoC::
 
       $ artiq_coremgmt [-D 192.168.1.75] config write -f boot [afws_directory]/boot.bin
 
-If the Kasli-SoC won't boot due to corrupted firmware and ``artiq_coremgmt`` cannot access it, extract the SD card and replace ``boot.bin`` manually.
+If the Kasli-SoC won't boot due to nonexistent or corrupted firmware, extract the SD card and copy ``boot.bin`` onto it manually.
+
+* For Kasli::
+
+      $ artiq_flash -d [afws_directory]
 
 * For the KC705 board::
 
@@ -341,75 +333,82 @@ If the Kasli-SoC won't boot due to corrupted firmware and ``artiq_coremgmt`` can
 
   The SW13 switches need to be set to 00001.
 
+Flashing over network is also possible for Kasli and KC705, assuming IP networking has been set up. In this case, the ``-H HOSTNAME`` option is used; see the entry for ``artiq_flash`` in the :ref:`Utilities <flashing-loading-tool>` reference.  
+
 Setting up the core device IP networking
 ----------------------------------------
 
-For Kasli, insert a SFP/RJ45 transceiver (normally included with purchases from M-Labs and QUARTIQ) into the SFP0 port and connect it to an Ethernet port in your network. If the port is 10Mbps or 100Mbps and not 1000Mbps, make sure that the SFP/RJ45 transceiver supports the lower rate. Many SFP/RJ45 transceivers only support the 1000Mbps rate. If you do not have a SFP/RJ45 transceiver that supports 10Mbps and 100Mbps rates, you may instead use a gigabit Ethernet switch in the middle to perform rate conversion.
+For Kasli, insert a SFP/RJ45 transceiver (normally included with purchases from M-Labs and QUARTIQ) into the SFP0 port and connect it to an Ethernet port in your network. If the port is 10Mbps or 100Mbps and not 1000Mbps, make sure that the SFP/RJ45 transceiver supports the lower rate. Many SFP/RJ45 transceivers only support the 1000Mbps rate. If you do not have a SFP/RJ45 transceiver that supports 10Mbps and 100Mbps rates, you may instead use a gigabit Ethernet switch in the middle to perform rate conversion. 
 
-You can also insert other types of SFP transceivers into Kasli if you wish to use it directly in e.g. an optical fiber Ethernet network.
+You can also insert other types of SFP transceivers into Kasli if you wish to use it directly in e.g. an optical fiber Ethernet network. 
 
-If you purchased a Kasli device from M-Labs, it usually comes with the IP address ``192.168.1.75``. Once you can reach this IP, it can be changed with: ::
+Kasli-SoC already directly features RJ45 10/100/1000T Ethernet, but the same is still true of its SFP ports.
+
+If you purchased a Kasli or Kasli-SoC device from M-Labs, it usually comes with the IP address ``192.168.1.75``. Once you can reach this IP, it can be changed by running: ::
 
   $ artiq_coremgmt -D 192.168.1.75 config write -s ip [new IP]
 
-and then reboot the device (with ``artiq_flash start`` or a power cycle).
+and then rebooting the device (with ``artiq_flash start`` or a power cycle).
 
-If the ``ip`` config field is not set, or set to ``use_dhcp`` then the device will
-attempt to obtain an IP address and default gateway using DHCP. If a static IP
-address is wanted, install OpenOCD as before, and flash the IP, default gateway
-(and, if necessary, MAC and IPv6) addresses directly: ::
+.. note::
+  Kasli-SoC is not a valid target for ``artiq_flash``; it is easiest to reboot by power cycle. For a KC705, it is necessary to specify ``artiq_flash -t kc705 start``. 
 
-  $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx/xx -s ipv4_default_route xx.xx.xx.xx -s ip6 xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx/xx -s ipv6_default_route xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx
+* For Kasli-SoC: 
+  
+If the ``ip`` config is not set, Kasli-SoC firmware defaults to using the IP address ``192.168.1.56``. It can then be changed with the procedure above. 
+
+* For Kasli or KC705: 
+
+If the ``ip`` config field is not set or set to ``use_dhcp``, the device will attempt to obtain an IP address and default gateway using DHCP. If a static IP address is nonetheless wanted, it can be flashed directly (OpenOCD must be installed and configured, as above), along with, as necessary, default gateway, IPv6, and/or MAC address: 
+
+  $ artiq_mkfs flash_storage.img [-s mac xx:xx:xx:xx:xx:xx] [-s ip xx.xx.xx.xx/xx] [-s ipv4_default_route xx.xx.xx.xx] [-s ip6 xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx/xx] [-s ipv6_default_route xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx]
   $ artiq_flash -t [board] -V [variant] -f flash_storage.img storage start
 
-For Kasli devices, flashing a MAC address is not necessary as they can obtain it from their EEPROM.
-If you only want to access the core device from the same subnet you may
-omit the default gateway and IPv4 prefix length: ::
-
-  $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
+On Kasli or Kasli SoC devices, specifying the MAC address is unnecessary, as they can obtain it from their EEPROM. If you only want to access the core device from the same subnet, default gateway and IPv4 prefix length may also be ommitted. Regardless of board, once a device is reachable by ``artiq_coremgmt``, any of these fields can be accessed using ``artiq_coremgmt config write`` and ``artiq_coremgt config read``; see also :ref:`Utilities <core-device-management-tool>`.     
 
 If DHCP has been used the address can be found in the console output, which can be viewed using: ::
 
   $ python -m misoc.tools.flterm /dev/ttyUSB2
 
-
 Check that you can ping the device. If ping fails, check that the Ethernet link LED is ON - on Kasli, it is the LED next to the SFP0 connector. As a next step, look at the messages emitted on the UART during boot. Use a program such as flterm or PuTTY to connect to the device's serial port at 115200bps 8-N-1 and reboot the device. On Kasli, the serial port is on FTDI channel 2 with v1.1 hardware (with channel 0 being JTAG) and on FTDI channel 1 with v1.0 hardware. Note that on Windows you might need to install the `FTDI drivers <https://ftdichip.com/drivers/>`_ first.
 
-If you want to use IPv6, the device also has a link-local address that corresponds to its EUI-64, and an additional arbitrary IPv6 address can be defined by using the ``ip6`` configuration key. All IPv4 and IPv6 addresses can be used at the same time.
+Regarding use of IPv6, note that the device also has a link-local address that corresponds to its EUI-64, which can be used simultaneously to the IPv6 address defined by using the ``ip6`` configuration key, which may be of arbitrary nature. 
 
 Miscellaneous configuration of the core device
 ----------------------------------------------
 
-Those steps are optional. The core device usually needs to be restarted for changes to take effect.
+These steps are optional, and only need to be executed if necessary for your specific purposes. In all cases, the core device generally needs to be restarted for changes to take effect.
 
-* Load the idle kernel
+Flash idle or startup kernel
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The idle kernel is the kernel (some piece of code running on the core device) which the core device runs whenever it is not connected to a PC via Ethernet.
-This kernel is therefore stored in the :ref:`core device configuration flash storage <core-device-flash-storage>`.
+The idle kernel is the kernel (that is, a piece of code running on the core device; see :ref:`next topic <connecting-to-the-core-device>` for more information about kernels) which the core device runs whenever it is not connected to the host via Ethernet. This kernel is therefore stored immediately in the :ref:`core device configuration flash storage <core-device-flash-storage>`.
 
-To flash the idle kernel, first compile the idle experiment. The idle experiment's ``run()`` method must be a kernel: it must be decorated with the ``@kernel`` decorator (see :ref:`next topic <connecting-to-the-core-device>` for more information about kernels). Since the core device is not connected to the PC, RPCs (calling Python code running on the PC from the kernel) are forbidden in the idle experiment. Then write it into the core device configuration flash storage: ::
+To flash the idle kernel, first compile an idle experiment. Since the core device is not connected to the host, RPCs (calling Python code running on the host from the kernel) are forbidden, and its ``run()`` method must be a kernel, marked correctly with the ``@kernel`` decorator. Write the compiled experiment to the core device configuration flash storage, under the key ``idle_kernel``: 
 
   $ artiq_compile idle.py
   $ artiq_coremgmt config write -f idle_kernel idle.elf
 
-.. note:: You can find more information about how to use the ``artiq_coremgmt`` utility on the :ref:`Utilities <core-device-management-tool>` page.
-
-* Load the startup kernel
-
-The startup kernel is executed once when the core device powers up. It should initialize DDSes, set up TTL directions, etc. Proceed as with the idle kernel, but using the ``startup_kernel`` key in the ``artiq_coremgmt`` command.
+The startup kernel is the kernel executed once immediately whenever the core device powers on. Uses include initializing DDSes, setting TTL directions etc. Proceed as with the idle kernel, but using the ``startup_kernel`` key in the ``artiq_coremgmt`` command. 
 
 For DRTIO systems, the startup kernel should wait until the desired destinations (including local RTIO) are up, using :meth:`artiq.coredevice.Core.get_rtio_destination_status`.
 
-* Load the DRTIO routing table
+Load the DRTIO routing table
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you are using DRTIO and the default routing table (for a star topology) is not suitable to your needs, prepare and load a different routing table. See :ref:`Using DRTIO <using-drtio>`.
 
-* Select the RTIO clock source (KC705 and Kasli)
+Select the RTIO clock source
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The KC705 may use either an external clock signal, or its internal clock with external frequency or internal crystal reference. The clock is selected at power-up. Setting the RTIO clock source to "ext0_bypass" would bypass the Si5324 synthesiser, requiring that an input clock be present. To select the source, use one of these commands: ::
+The core device may use any of: an external clock signal, its internal clock with external frequency reference, or its internal clock with internal crystal reference. Clock source and timing are set at power-up. To find out what clock signal you are using, check startup logs with ``artiq_coremgmt log``. 
+
+By default, an internal clock is used; to select another source, use a command of the form: 
 
   $ artiq_coremgmt config write -s rtio_clock int_125  # internal 125MHz clock (default)
   $ artiq_coremgmt config write -s rtio_clock ext0_bypass  # external clock (bypass)
+
+If set to ``ext0_bypass``, the Si5324 synthesizer is bypassed entirely in favor of an input clock, requiring that an input clock be present. 
 
 Other options include:
   - ``ext0_synth0_10to125`` - external 10MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
@@ -420,14 +419,15 @@ Other options include:
   - ``int_150`` - internal crystal reference is used by Si5324 to synthesize a 150MHz RTIO clock.
   - ``ext0_bypass_125`` and ``ext0_bypass_100`` - explicit aliases for ``ext0_bypass``.
 
-Availability of these options depends on the board and their configuration - specific setting may or may not be supported.
+Availability of these options depends on specific board and configuration - specific settings may or may not be supported. See also :ref:`core-device-clocking`. 
 
-* Setup resolving RTIO channels to their names
+Set up resolving RTIO channels to their names
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This feature allows you to print the channels' respective names alongside with their numbers in RTIO error messages. To enable it, run the ``artiq_rtiomap`` tool and write its result into the device config at the ``device_map`` key: ::
 
   $ artiq_rtiomap dev_map.bin
   $ artiq_coremgmt config write -f device_map dev_map.bin
 
-.. note:: You can find more information about how to use the ``artiq_rtiomap`` utility on the :ref:`Utilities <rtiomap-tool>` page.
+.. note:: More information on the ``artiq_rtiomap`` utility can be found on the :ref:`Utilities <rtiomap-tool>` page.
 

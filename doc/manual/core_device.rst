@@ -1,7 +1,7 @@
 Core device
 ===========
 
-The core device is a FPGA-based hardware component that contains a softcore CPU tightly coupled with the so-called RTIO core that provides precision timing. The CPU executes Python code that is statically compiled by the ARTIQ compiler, and communicates with the core device peripherals (TTL, DDS, etc.) over the RTIO core. This architecture provides high timing resolution, low latency, low jitter, high level programming capabilities, and good integration with the rest of the Python experiment code.
+The core device is a FPGA-based hardware component that contains a softcore or hardcore CPU tightly coupled with the so-called RTIO core, which runs in gateware and provides precision timing. The CPU executes Python code that is statically compiled by the ARTIQ compiler and communicates with peripherals (TTL, DDS, etc.) through the RTIO core, as described in :ref:`artiq-real-time-i-o-concepts`. This architecture provides high timing resolution, low latency, low jitter, high-level programming capabilities, and good integration with the rest of the Python experiment code. 
 
 While it is possible to use all the other parts of ARTIQ (controllers, master, GUI, dataset management, etc.) without a core device, many experiments require it.
 
@@ -11,13 +11,9 @@ While it is possible to use all the other parts of ARTIQ (controllers, master, G
 Flash storage
 *************
 
-The core device contains some flash space that can be used to store configuration data.
+The core device contains some flash storage space which is largely used to store configuration data. It is one sector (typically 64 kB) large and organized as a list of key-value records, accessible by using ``artiq_coremgmt`` (see: :ref:`core-device-management-tool`). 
 
-This storage area is used to store the core device MAC address, IP address and even the idle kernel.
-
-The flash storage area is one sector (typically 64 kB) large and is organized as a list of key-value records.
-
-This flash storage space can be accessed by using ``artiq_coremgmt`` (see: :ref:`core-device-management-tool`).
+This area is used to store a variety of configurations, in particular the core device IP address and, if present, the startup and/or idle kernels (see also: :ref:`miscellaneous-configuration-of-the-core-device`).   
 
 .. _board-ports:
 
@@ -29,7 +25,7 @@ All boards have a serial interface running at 115200bps 8-N-1 that can be used f
 Kasli
 -----
 
-`Kasli <https://github.com/m-labs/sinara/wiki/Kasli>`_ is a versatile core device designed for ARTIQ as part of the `Sinara <https://github.com/m-labs/sinara/wiki>`_ family of boards. All variants support interfacing to various EEM daughterboards (TTL, DDS, ADC, DAC...) connected directly to it.
+`Kasli <https://github.com/m-labs/sinara/wiki/Kasli>`_ is a versatile core device designed for ARTIQ as part of the `Sinara <https://github.com/sinara-hw/meta/wiki>`_ family of boards. All variants support interfacing to various EEM daughterboards (TTL, DDS, ADC, DAC...) connected directly to it.
 
 Standalone variants
 +++++++++++++++++++
@@ -161,6 +157,7 @@ To avoid I/O contention, the startup kernel should first program the TCA6424A ex
 
 See :mod:`artiq.coredevice.i2c` for more details.
 
+.. _core-device-clocking:
 Clocking
 ++++++++
 
@@ -169,7 +166,7 @@ The KC705 in standalone variants supports an internal 125 MHz RTIO clock (based 
     * ``int_125`` - internal crystal oscillator, 125 MHz output (default),
     * ``ext0_bypass`` - external clock.
 
-KC705 in DRTIO variants and Kasli generates the RTIO clock using a PLL locked either to an internal crystal or to an external frequency reference. Valid values are:
+KC705 in DRTIO variants and Kasli generate the RTIO clock using a PLL locked either to an internal crystal or to an external frequency reference. Valid values are:
 
     * ``int_125`` - internal crystal oscillator using PLL, 125 MHz output (default),
     * ``int_100`` - internal crystal oscillator using PLL, 100 MHz output,
