@@ -243,8 +243,9 @@ You can list the environments you have created using::
     $ conda env list
 
 .. _reflashing-core-device:
+
 Reflashing core device gateware and firmware
--------------------------------------------
+--------------------------------------------
 
 .. note::
   If you have purchased a pre-assembled system from M-Labs or QUARTIQ, the gateware and firmware of your device will already be flashed to the newest version of ARTIQ. These steps are only necessary if you obtained your hardware in a different way, or if you want to change or upgrade your ARTIQ version after purchase.  
@@ -374,6 +375,8 @@ Check that you can ping the device. If ping fails, check that the Ethernet link 
 
 Regarding use of IPv6, note that the device also has a link-local address that corresponds to its EUI-64, which can be used simultaneously to the IPv6 address defined by using the ``ip6`` configuration key, which may be of arbitrary nature. 
 
+.. _miscellaneous_config_core_device: 
+
 Miscellaneous configuration of the core device
 ----------------------------------------------
 
@@ -422,7 +425,7 @@ Other options include:
 Availability of these options depends on specific board and configuration - specific settings may or may not be supported. See also :ref:`core-device-clocking`. 
 
 Set up resolving RTIO channels to their names
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This feature allows you to print the channels' respective names alongside with their numbers in RTIO error messages. To enable it, run the ``artiq_rtiomap`` tool and write its result into the device config at the ``device_map`` key: ::
 
