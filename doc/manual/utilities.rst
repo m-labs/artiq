@@ -12,7 +12,6 @@ Local running tool
    :ref: artiq.frontend.artiq_run.get_argparser
    :prog: artiq_run
 
-
 Static compiler
 ---------------
 
@@ -48,7 +47,7 @@ Core device management tool
 
 The artiq_coremgmt utility gives remote access to the core device logs, the :ref:`core-device-flash-storage`, and other management functions.
 
-To use this tool, you need to specify a ``device_db.py`` device database file which contains a ``comm`` device (an example is provided in ``examples/master/device_db.py``). This tells the tool how to connect to the core device and with which parameters (e.g. IP address, TCP port). When not specified, the artiq_coremgmt utility will assume that there is a file named ``device_db.py`` in the current directory.
+To use this tool, it is necessary to specify the IP address your core device can be contacted at. If no option is used, the utility will assume there is a file named ``device_db.py`` in the current directory containing the device database; otherwise, a device database file can be provided with ``--device-db`` or an address directly with ``--device`` (see also below).
 
 To read core device logs::
 
