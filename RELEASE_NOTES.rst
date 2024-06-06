@@ -3,8 +3,8 @@
 Release notes
 =============
 
-ARTIQ-8 (Unreleased)
---------------------
+ARTIQ-8
+-------
 
 Highlights:
 
