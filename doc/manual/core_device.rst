@@ -10,7 +10,7 @@ While it is possible to use all the other parts of ARTIQ (controllers, master, G
 Flash storage
 *************
 
-The core device contains some flash storage space which is largely used to store configuration data. It is one sector (typically 64 kB) large and organized as a list of key-value records, accessible by using ``artiq_coremgmt`` (see: :ref:`core-device-management-tool`). 
+The core device contains some flash storage space which is used to store configuration data. It is one sector (typically 64 kB) large and organized as a list of key-value records, accessible by using ``artiq_coremgmt`` (see: :ref:`core-device-management-tool`). 
 
 This area is used to store a variety of configurations, in particular the core device IP address and, if present, the startup and/or idle kernels (see also: :ref:`miscellaneous_config_core_device`).   
 
