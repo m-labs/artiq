@@ -333,12 +333,14 @@ class _DDSWidget(QtWidgets.QFrame):
 
 
 class _DACWidget(QtWidgets.QFrame):
-    def __init__(self, dm, spi_channel, channel, title):
+    def __init__(self, dm, spi_channel, channel, title, vref, offset_dacs):
         QtWidgets.QFrame.__init__(self)
         self.spi_channel = spi_channel
         self.channel = channel
-        self.cur_value = 0
+        self.cur_value = 0x8000
         self.title = title
+        self.vref = vref
+        self.offset_dacs = offset_dacs
 
         self.setFrameShape(QtWidgets.QFrame.Box)
         self.setFrameShadow(QtWidgets.QFrame.Raised)
@@ -348,7 +350,7 @@ class _DACWidget(QtWidgets.QFrame):
         grid.setHorizontalSpacing(0)
         grid.setVerticalSpacing(0)
         self.setLayout(grid)
-        label = QtWidgets.QLabel("{} ch{}".format(title, channel))
+        label = QtWidgets.QLabel("{}[{}]".format(title, channel))
         label.setAlignment(QtCore.Qt.AlignCenter)
         grid.addWidget(label, 1, 1)
 
@@ -362,9 +364,12 @@ class _DACWidget(QtWidgets.QFrame):
 
         self.refresh_display()
 
+    def mu_to_voltage(self, code):
+        return ((code - self.offset_dacs * 0x4) / (1 << 16)) * (4. * self.vref)
+
     def refresh_display(self):
-        self.value.setText("<font size=\"4\">{:.3f}</font><font size=\"2\"> %</font>"
-                           .format(self.cur_value * 100 / 2**16))
+        self.value.setText("<font size=\"4\">{:+.3f} V</font>"
+                           .format(self.mu_to_voltage(self.cur_value)))
 
     def sort_key(self):
         return (2, self.spi_channel, self.channel)
@@ -373,7 +378,7 @@ class _DACWidget(QtWidgets.QFrame):
         return (self.title, self.channel)
 
     def to_model_path(self):
-        return "dac/{} ch{}".format(self.title, self.channel)
+        return "dac/{}[{}]".format(self.title, self.channel)
 
 
 _WidgetDesc = namedtuple("_WidgetDesc", "uid comment cls arguments")
@@ -426,9 +431,11 @@ def setup_from_ddb(ddb):
                         while isinstance(spi_device, str):
                             spi_device = ddb[spi_device]
                         spi_channel = spi_device["arguments"]["channel"]
+                        vref = v["arguments"].get("vref", 5.)
+                        offset_dacs = v["arguments"].get("offset_dacs", 8192)
                         for channel in range(32):
                             widget = _WidgetDesc((k, channel), comment, _DACWidget,
-                                                 (spi_channel, channel, k))
+                                                 (spi_channel, channel, k, vref, offset_dacs))
                             description.add(widget)
                 elif v["type"] == "controller" and k == "core_moninj":
                     mi_addr = v["host"]
