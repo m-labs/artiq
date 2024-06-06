@@ -154,14 +154,14 @@ This will set your user as a trusted user, allowing the use of any untrusted sub
 Installing via MSYS2 (Windows)
 ------------------------------
 
-We recommend using our `offline installer <https://nixbld.m-labs.hk/job/artiq/extra-beta/msys2-offline-installer/latest>`_, which contains all the necessary packages and no additional configuration is needed.
+We recommend using our `offline installer <https://nixbld.m-labs.hk/job/artiq/extra/msys2-offline-installer/latest>`_, which contains all the necessary packages and no additional configuration is needed.
 After installation, launch ``MSYS2 with ARTIQ`` from the Windows Start menu.
 
 Alternatively, you may install `MSYS2 <https://msys2.org>`_, then edit ``C:\MINGW64\etc\pacman.conf`` and add at the end: ::
 
     [artiq]
     SigLevel = Optional TrustAll
-    Server = https://msys2.m-labs.hk/artiq-beta
+    Server = https://msys2.m-labs.hk/artiq
 
 Launch ``MSYS2 CLANG64`` from the Windows Start menu to open the MSYS2 shell, and enter the following commands: ::
 
