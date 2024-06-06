@@ -17,7 +17,7 @@
       pkgs = import nac3.inputs.nixpkgs { system = "x86_64-linux"; overlays = [ (import mozilla-overlay) ]; };
       pkgs-aarch64 = import nac3.inputs.nixpkgs { system = "aarch64-linux"; };
 
-      artiqVersionMajor = 9;
+      artiqVersionMajor = 10;
       artiqVersionMinor = self.sourceInfo.revCount or 0;
       artiqVersionId = self.sourceInfo.shortRev or "unknown";
       artiqVersion = (builtins.toString artiqVersionMajor) + "." + (builtins.toString artiqVersionMinor) + "+" + artiqVersionId + ".beta";

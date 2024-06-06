@@ -11,7 +11,7 @@ def get_rev():
 """
 
 def get_version():
-    return os.getenv("VERSIONEER_OVERRIDE", default="9.0+unknown.beta")
+    return os.getenv("VERSIONEER_OVERRIDE", default="10.0+unknown.beta")
 
 def get_rev():
     return os.getenv("VERSIONEER_REV", default="unknown")
