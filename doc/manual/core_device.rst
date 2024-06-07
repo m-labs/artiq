@@ -10,9 +10,7 @@ While it is possible to use the other parts of ARTIQ (controllers, master, GUI, 
 Flash storage
 ^^^^^^^^^^^^^
 
-The core device contains some flash storage space which is used to store configuration data. It is one sector (typically 64 kB) large and organized as a list of key-value records, accessible by using ``artiq_coremgmt`` (see :ref:`core-device-management-tool`). 
-
-This area is used to store a variety of configurations, in particular the core device IP address and, if present, the startup and/or idle kernels (see :ref:`miscellaneous_config_core_device`).   
+The core device contains some flash storage space which is used to store configuration data. It is one sector (typically 64 kB) large and organized as a list of key-value records, accessible by using ``artiq_coremgmt`` (see :ref:`core-device-management-tool`). The core device IP and MAC addresses, as well as, if present, the startup and/or idle kernels (see :ref:`miscellaneous_config_core_device`) are stored here. 
 
 .. _board-ports:
 
@@ -21,12 +19,10 @@ FPGA board ports
 
 All boards have a serial interface running at 115200bps 8-N-1 that can be used for debugging.
 
-Kasli
-^^^^^
+Kasli and Kasli SoC
+^^^^^^^^^^^^^^^^^^^
 
-`Kasli <https://github.com/sinara-hw/Kasli/wiki>`_ is a versatile core device designed for ARTIQ as part of the open-source `Sinara <https://github.com/sinara-hw/meta/wiki>`_ family of boards. All variants support interfacing to various EEM daughterboards (TTL, DDS, ADC, DAC...) directly connected to the board via twelve EEM ports.
-
-Currently, three Kasli variants are supported by ARTIQ: v1.0, v2.0, and `Kasli-SoC <https://github.com/sinara-hw/Kasli-SOC/wiki>`_ , which is architecturally quite different to the original, among other things running on a separate `Zynq port <https://git.m-labs.hk/M-Labs/artiq-zynq>`_ of the ARTIQ firmware. General improvements and the presence of a hardware FPU allow Kasli-Soc to perform much heavier software computations quickly and immediately on the core device, with low-latency paths to the peripherals, but features remain generally similar to the original Kasli. 
+`Kasli <https://github.com/sinara-hw/Kasli/wiki>`_ and `Kasli-SoC <https://github.com/sinara-hw/Kasli-SOC/wiki>`_ are versatile core devices designed for ARTIQ as part of the open-source `Sinara <https://github.com/sinara-hw/meta/wiki>`_ family of boards. All support interfacing to various EEM daughterboards (TTL, DDS, ADC, DAC...) through twelve onboard EEM ports. Kasli-SoC, which runs on a separate `Zynq port <https://git.m-labs.hk/M-Labs/artiq-zynq>`_ of the ARTIQ firmware, is architecturally separate, among other things being capable of performing much heavier software computations quickly locally to the board, but provides generally similar features to Kasli. Kasli itself exists in two versions, of which the improved Kasli v2.0 is now in more common use, but the original Kasli v1.0 remains supported by ARTIQ. 
 
 Kasli can be connected to the network using a 10000Base-X SFP module, installed into the SFP0 cage. Kasli-SoC features a built-in Ethernet port to use instead. If configured as a DRTIO satellite, both boards instead reserve SFP0 for the upstream DRTIO connection; remaining SFP cages are available for downstream connections. Equally, if used as a DRTIO master, all free SFP cages are available for downstream connections (i.e. all but SFP0 on Kasli, all four on Kasli-SoC). 
 
@@ -155,7 +151,7 @@ The core device generates the RTIO clock using a PLL locked either to an interna
 
 The selected option can be observed in the core device boot logs and accessed using ``artiq_coremgmt config`` with key ``rtio_clock``. 
 
-As of ARTIQ 8, it is now possible for Kasli and Kasli-SoC configurations to enable `WRPLL <http://white-rabbit.web.cern.ch/documents/DDMTD_for_Sub-ns_Synchronization.pdf>`_ both to lock the main RTIO clock and (in DRTIO configurations) to lock satellites to master. This is set by the ``enable_wrpll`` option in the JSON description file. Because WRPLL requires slightly different gateware and firmware, it is necessary to re-flash devices to enable or disable it in extant systems. If you would like to obtain the firmware for a different WRPLL setting through ``awfs_client``, write to the helpdesk@ email. 
+As of ARTIQ 8, it is now possible for Kasli and Kasli-SoC configurations to enable WRPLL -- a clock recovery method using `DDMTD <http://white-rabbit.web.cern.ch/documents/DDMTD_for_Sub-ns_Synchronization.pdf>`_ and Si549 oscillators -- both to lock the main RTIO clock and (in DRTIO configurations) to lock satellites to master. This is set by the ``enable_wrpll`` option in the JSON description file. Because WRPLL requires slightly different gateware and firmware, it is necessary to re-flash devices to enable or disable it in extant systems. If you would like to obtain the firmware for a different WRPLL setting through ``awfs_client``, write to the helpdesk@ email. 
 
 If phase noise performance is the priority, it is recommended to use ``ext0_synth0_125to125`` over other ``ext0`` options, as this bypasses the (noisy) MMCM.  
 
@@ -165,4 +161,4 @@ If not using WRPLL, PLL can also be bypassed entirely with the options
     * ``ext0_bypass_125`` (explicit alias)
     * ``ext0_bypass_100`` (explicit alias)
 
-Bypassing the PLL ensures the skews between input clock, downstream clock outputs, and RTIO clock are deterministic accross reboots of the system. This is useful when phase determinism is required in situations where the reference clock fans out to other devices before reaching the master.
+Bypassing the PLL ensures the skews between input clock, downstream clock outputs, and RTIO clock are deterministic across reboots of the system. This is useful when phase determinism is required in situations where the reference clock fans out to other devices before reaching the master.
