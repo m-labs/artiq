@@ -121,6 +121,8 @@ To track down ``RTIOUnderflows`` in an experiment there are a few approaches:
     code.
   * The :any:`integrated logic analyzer <core-device-rtio-analyzer-tool>` shows the timeline context that lead to the exception. The analyzer is always active and supports plotting of RTIO slack. RTIO slack is the difference between timeline cursor and wall clock time (``now - rtio_counter``).
 
+.. _sequence_errors: 
+
 Sequence errors
 ---------------
 A sequence error happens when the sequence of coarse timestamps cannot be supported by the gateware. For example, there may have been too many timeline rewinds.
