@@ -449,12 +449,12 @@ class CommKernel:
             self._write_bool(value)
         elif tag == "i":
             check(isinstance(value, (int, numpy.int32)) and
-                  (-2**31 <= value < 2**31),
+                  (-2**31 <= value <= 2**31-1),
                   lambda: "32-bit int")
             self._write_int32(value)
         elif tag == "I":
             check(isinstance(value, (int, numpy.int32, numpy.int64)) and
-                  (-2**63 <= value < 2**63),
+                  (-2**63 <= value <= 2**63-1),
                   lambda: "64-bit int")
             self._write_int64(value)
         elif tag == "f":
@@ -463,8 +463,8 @@ class CommKernel:
             self._write_float64(value)
         elif tag == "F":
             check(isinstance(value, Fraction) and
-                  (-2**63 <= value.numerator < 2**63) and
-                  (-2**63 <= value.denominator < 2**63),
+                  (-2**63 <= value.numerator <= 2**63-1) and
+                  (-2**63 <= value.denominator <= 2**63-1),
                   lambda: "64-bit Fraction")
             self._write_int64(value.numerator)
             self._write_int64(value.denominator)

@@ -14,9 +14,9 @@ class IntMonomorphizer(algorithm.Visitor):
     def visit_NumT(self, node):
         if builtins.is_int(node.type):
             if types.is_var(node.type["width"]):
-                if -2**31 < node.n < 2**31-1:
+                if -2**31 <= node.n <= 2**31-1:
                     width = 32
-                elif -2**63 < node.n < 2**63-1:
+                elif -2**63 <= node.n <= 2**63-1:
                     width = 64
                 else:
                     diag = diagnostic.Diagnostic("error",
