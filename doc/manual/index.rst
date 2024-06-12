@@ -12,6 +12,7 @@ ARTIQ documentation
     rtio
     getting_started_core
     getting_started_mgmt
+    using_drtio_subkernels
     environment
     compiler
     management_system
