@@ -259,7 +259,7 @@ Run the command::
 
 Replace ``[username]`` with the login name that was given to you with the subscription, ``[variant]`` with the name of your system variant, and ``[afws_directory]`` with the name of an empty directory, which will be created by the command if it does not exist. Enter your password when prompted and wait for the build (if applicable) and download to finish. If you experience issues with the AFWS client, write to the helpdesk@ email.
 
-For certain configurations (KC705 or ZC705 only) it is also possible to source firmware from `the M-Labs Hydra server <https://nixbld.m-labs.hk/project/artiq>` (in ``main`` and ``zynq`` respectively).
+For certain configurations (KC705 or ZC705 only) it is also possible to source firmware from `the M-Labs Hydra server <https://nixbld.m-labs.hk/project/artiq>`_ (in ``main`` and ``zynq`` respectively).
 
 Without a subscription, you may build the firmware yourself from the open source code. See the section :ref:`Developing ARTIQ <developing-artiq>`.
 
@@ -333,7 +333,9 @@ If the Kasli-SoC won't boot due to nonexistent or corrupted firmware, extract th
 
   The SW13 switches need to be set to 00001.
 
-Flashing over network is also possible for Kasli and KC705, assuming IP networking has been set up. In this case, the ``-H HOSTNAME`` option is used; see the entry for ``artiq_flash`` in the :ref:`Utilities <flashing-loading-tool>` reference.  
+Flashing over network is also possible for Kasli and KC705, assuming IP networking has already been set up. In this case, the ``-H HOSTNAME`` option is used; see the entry for ``artiq_flash`` in the :ref:`Utilities <flashing-loading-tool>` reference.  
+
+.. _core-device-networking: 
 
 Setting up the core device IP networking
 ----------------------------------------
@@ -405,23 +407,12 @@ Select the RTIO clock source
 
 The core device may use any of: an external clock signal, its internal clock with external frequency reference, or its internal clock with internal crystal reference. Clock source and timing are set at power-up. To find out what clock signal you are using, check startup logs with ``artiq_coremgmt log``. 
 
-By default, an internal clock is used; to select another source, use a command of the form: 
+The default is to use an internal 125MHz clock. To select a source, use a command of the form: 
 
   $ artiq_coremgmt config write -s rtio_clock int_125  # internal 125MHz clock (default)
-  $ artiq_coremgmt config write -s rtio_clock ext0_bypass  # external clock (bypass)
+  $ artiq_coremgmt config write -s rtio_clock ext0_synth0_10to125  # external 10MHz reference used to synthesize internal 125MHz
 
-If set to ``ext0_bypass``, the Si5324 synthesizer is bypassed entirely in favor of an input clock, requiring that an input clock be present. 
-
-Other options include:
-  - ``ext0_synth0_10to125`` - external 10MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
-  - ``ext0_synth0_80to125`` - external 80MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
-  - ``ext0_synth0_100to125`` - external 100MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
-  - ``ext0_synth0_125to125`` - external 125MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
-  - ``int_100`` - internal crystal reference is used by Si5324 to synthesize a 100MHz RTIO clock,
-  - ``int_150`` - internal crystal reference is used by Si5324 to synthesize a 150MHz RTIO clock.
-  - ``ext0_bypass_125`` and ``ext0_bypass_100`` - explicit aliases for ``ext0_bypass``.
-
-Availability of these options depends on specific board and configuration - specific settings may or may not be supported. See also :ref:`core-device-clocking`. 
+See :ref:`core-device-clocking` for availability of specific options.    
 
 Set up resolving RTIO channels to their names
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
