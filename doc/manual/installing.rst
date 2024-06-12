@@ -245,13 +245,13 @@ Reflashing core device gateware and firmware
 --------------------------------------------
 
 .. note::
-  If you have purchased a pre-assembled system from M-Labs or QUARTIQ, the gateware and firmware of your device will already be flashed to the newest version of ARTIQ. These steps are only necessary if you obtained your hardware in a different way, or if you want to change or upgrade your ARTIQ version after purchase.  
+  If you have purchased a pre-assembled system from M-Labs or QUARTIQ, the gateware and firmware of your devices will already be flashed to the newest version of ARTIQ. These steps are only necessary if you obtained your hardware in a different way, or if you want to change your system configuration or upgrade your ARTIQ version after the original purchase.  
 
 
 Obtaining the board binaries
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If you have an active firmware subscription with M-Labs or QUARTIQ, you can obtain firmware that corresponds to your currently installed version of ARTIQ using AFWS (ARTIQ firmware service). One year of subscription is included with most hardware purchases. You may purchase or extend firmware subscriptions by writing to the sales@ email.
+If you have an active firmware subscription with M-Labs or QUARTIQ, you can obtain firmware for your system that corresponds to your currently installed version of ARTIQ using AFWS (ARTIQ firmware service). One year of subscription is included with most hardware purchases. You may purchase or extend firmware subscriptions by writing to the sales@ email.
 
 Run the command::
 
@@ -397,11 +397,6 @@ The startup kernel is the kernel executed once immediately whenever the core dev
 
 For DRTIO systems, the startup kernel should wait until the desired destinations (including local RTIO) are up, using :meth:`artiq.coredevice.Core.get_rtio_destination_status`.
 
-Load the DRTIO routing table
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-If you are using DRTIO and the default routing table (for a star topology) is not suitable to your needs, prepare and load a different routing table. See :ref:`Using DRTIO <using-drtio>`.
-
 Select the RTIO clock source
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -423,4 +418,10 @@ This feature allows you to print the channels' respective names alongside with t
   $ artiq_coremgmt config write -f device_map dev_map.bin
 
 .. note:: More information on the ``artiq_rtiomap`` utility can be found on the :ref:`Utilities <rtiomap-tool>` page.
+
+Load the DRTIO routing table
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you are using DRTIO and the default routing table (for a star topology) is not suitable to your needs, you will first need to prepare and load a different routing table. See :ref:`Using DRTIO <drtio-routing>`.
+
 
