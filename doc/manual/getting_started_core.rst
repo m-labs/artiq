@@ -287,7 +287,7 @@ Subkernels behave for the most part like regular kernels; they accept arguments 
    - their return value must be fully annotated with an ARTIQ type,
    - their arguments should be annotated, and only basic ARTIQ types are supported,
    - while ``self`` is allowed, there is no attribute writeback - any changes will be discarded when the subkernel is completed,
-   - they can raise exceptions, but the exceptions cannot be caught by the master,
+   - they can raise exceptions, but the exceptions cannot be caught by the master (rather, they are propagated directly to the host),
    - they begin execution as soon as possible when called, and can be awaited.
 
 To define a subkernel, use the subkernel decorator (``@subkernel(destination=X)``). The destination is the satellite number as defined in the routing table, and must be between 1 and 255. To call a subkernel, call it like a normal function; and to await its result, use ``subkernel_await(function, [timeout])``.
@@ -353,7 +353,7 @@ Without the preload, the delay after the core reset would need to be longer. The
 It is not necessary for subkernels to always be awaited, but awaiting is required to retrieve returned values and exceptions.
 
 .. note::
-    While a subkernel is running, regardless of what devices it makes use of, none of the RTIO devices on that satellite will be available to the master. Control is returned to master after the subkernel completes - to be certain a device is usable, await the subkernel before performing any RTIO operations on the affected satellite. 
+    While a subkernel is running, regardless of what devices it makes use of, none of the RTIO devices on that satellite (or on any satellites downstream) will be available to the master. Control is returned to master after the subkernel completes - to be certain a device is usable, await the subkernel before performing any RTIO operations on the affected satellites. 
 
 Message passing
 ^^^^^^^^^^^^^^^
