@@ -361,7 +361,7 @@ If the ``ip`` config is not set, Kasli-SoC firmware defaults to using the IP add
 
 * For Kasli or KC705: 
 
-If the ``ip`` config field is not set or set to ``use_dhcp``, the device will attempt to obtain an IP address and default gateway using DHCP. If a static IP address is nonetheless wanted, it can be flashed directly (OpenOCD must be installed and configured, as above), along with, as necessary, default gateway, IPv6, and/or MAC address: 
+If the ``ip`` config field is not set or set to ``use_dhcp``, the device will attempt to obtain an IP address and default gateway using DHCP. If a static IP address is nonetheless wanted, it can be flashed directly (OpenOCD must be installed and configured, as above), along with, as necessary, default gateway, IPv6, and/or MAC address: ::
 
   $ artiq_mkfs flash_storage.img [-s mac xx:xx:xx:xx:xx:xx] [-s ip xx.xx.xx.xx/xx] [-s ipv4_default_route xx.xx.xx.xx] [-s ip6 xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx/xx] [-s ipv6_default_route xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx]
   $ artiq_flash -t [board] -V [variant] -f flash_storage.img storage start
@@ -388,7 +388,7 @@ Flash idle or startup kernel
 
 The idle kernel is the kernel (that is, a piece of code running on the core device; see :ref:`next topic <connecting-to-the-core-device>` for more information about kernels) which the core device runs whenever it is not connected to the host via Ethernet. This kernel is therefore stored immediately in the :ref:`core device configuration flash storage <core-device-flash-storage>`.
 
-To flash the idle kernel, first compile an idle experiment. Since the core device is not connected to the host, RPCs (calling Python code running on the host from the kernel) are forbidden, and its ``run()`` method must be a kernel, marked correctly with the ``@kernel`` decorator. Write the compiled experiment to the core device configuration flash storage, under the key ``idle_kernel``: 
+To flash the idle kernel, first compile an idle experiment. Since the core device is not connected to the host, RPCs (calling Python code running on the host from the kernel) are forbidden, and its ``run()`` method must be a kernel, marked correctly with the ``@kernel`` decorator. Write the compiled experiment to the core device configuration flash storage, under the key ``idle_kernel``: ::
 
   $ artiq_compile idle.py
   $ artiq_coremgmt config write -f idle_kernel idle.elf
@@ -407,7 +407,7 @@ Select the RTIO clock source
 
 The core device may use any of: an external clock signal, its internal clock with external frequency reference, or its internal clock with internal crystal reference. Clock source and timing are set at power-up. To find out what clock signal you are using, check startup logs with ``artiq_coremgmt log``. 
 
-The default is to use an internal 125MHz clock. To select a source, use a command of the form: 
+The default is to use an internal 125MHz clock. To select a source, use a command of the form: ::
 
   $ artiq_coremgmt config write -s rtio_clock int_125  # internal 125MHz clock (default)
   $ artiq_coremgmt config write -s rtio_clock ext0_synth0_10to125  # external 10MHz reference used to synthesize internal 125MHz
