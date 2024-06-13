@@ -4,7 +4,7 @@ Developing ARTIQ
 ^^^^^^^^^^^^^^^^
 
 .. warning::
-    This section is only for software or FPGA developers who want to modify ARTIQ. The steps described here are not required if you simply want to run experiments with ARTIQ. If you purchased a system from M-Labs or QUARTIQ, we normally provide board binaries for you.
+    This section is only for software or FPGA developers who want to modify ARTIQ. If you want to modify the firmware for Kasli-SoC or other ARM boards, please refer to the `ARTIQ on Zynq repository <https://git.m-labs.hk/M-Labs/artiq-zynq>`_. The steps described here are not required if you simply want to run experiments with ARTIQ. If you purchased a system from M-Labs or QUARTIQ, we normally provide board binaries for you.
 
 The easiest way to obtain an ARTIQ development environment is via the Nix package manager on Linux. The Nix system is used on the `M-Labs Hydra server <https://nixbld.m-labs.hk/>`_ to build ARTIQ and its dependencies continuously; it ensures that all build instructions are up-to-date and allows binary packages to be used on developers' machines, in particular for large tools such as the Rust compiler.
 ARTIQ itself does not depend on Nix, and it is also possible to compile everything from source (look into the ``flake.nix`` file and/or nixpkgs, and run the commands manually) - but Nix makes the process a lot easier.
