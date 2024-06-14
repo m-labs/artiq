@@ -79,6 +79,27 @@ Use the command-line client to trigger a repository rescan: ::
 
 The dashboard should now display a spin box that allows you to set the value of the ``count`` argument. Try submitting the experiment as before.
 
+Interactive arguments
+---------------------
+
+It is also possible to use interactive arguments, which may be requested and supplied while the experiment is running. This time modify the experiment as follows: ::  
+
+    def build(self):
+        pass 
+    
+    def run(self):
+        repeat = True; 
+        while (repeat): 
+            print("Hello World")
+            with self.interactive(title="Repeat or continue?") as interactive: 
+                interactive.setattr_argument("repeat", BooleanValue(True))
+            repeat = interactive.repeat 
+
+
+Trigger a repository rescan and click the button labeled "Recompute all arguments". Now submit the experiment. It should print once, then wait; in the same dock as "Explorer", find and navigate to the tab "Interactive Args". You can now choose and supply a value for the argument mid-experiment. Every time an argument is requested, the experiment pauses until the input is supplied. If you choose to "Cancel" intead, the experiment will raise an exception and stop. 
+
+While regular arguments are all requested simultaneously before submitting, interactive arguments can be requested at any point. In order to request multiple interactive arguments at once, place them within the same ``with`` block; see also the example ``interactive.py`` in the ``examples/no_hardware`` folder. 
+
 Setting up Git integration
 --------------------------
 
@@ -184,3 +205,36 @@ After the experiment has finished executing, the results are written to a HDF5 f
 
 .. note:: 
     HDFView and h5dump are third-party tools not supplied with ARTIQ.
+
+RTIO analyzer and the dashboard 
+-------------------------------
+
+The :ref:`rtio-analyzer-example` is fully integrated into the dashboard. Navigate to the "Waveform" tab in the dashboard. After running the example experiment in that section, or any other experiment producing an analyzer trace, the waveform results will be directly displayed in this tab. It is also possible to save a trace, reopen it, or export it to VCD directly from the GUI. 
+
+Non-RTIO devices and the controller manager
+-------------------------------------------
+
+As described in :ref:`artiq-real-time-i-o-concepts`, there are two classes of equipment a laboratory typically finds itself needing to operate. So far, we have largely discussed ARTIQ in terms of the second: the kind of specialized hardware that requires the very high-resolution timing control ARTIQ provides. The other class comprises the broad range of regular, "slow" laboratory devices, which do *not* require nanosecond precision and can generally be operated perfectly well from a regular PC over a non-realtime channel such as USB. ARTIQ also provisions for the control and management of these devices, and they can be incorporated into ARTIQ experiment code. 
+
+No core device is necessary for these non-realtime operations. Accordingly, this side of ARTIQ can in fact be used perfectly well without any core device at all, if there is no actual realtime component to the experiments being run. 
+
+To handle "slow" devices, ARTIQ uses *controllers*, intermediate pieces of software which are responsible for the direct I/O to these devices and offer RPC interfaces to the network. Controllers can be started and run standalone, but are generally handled through the *controller manager*, :mod:`~artiq_comtools.artiq_ctlmgr`, available through the ``artiq-comtools`` package. The controller manager in turn interfaces with the ARTIQ master and, if present, the dashboard and GUI.
+
+To start the controller manager (the master must already be running, and artiq-comtools must be installed), the only command necessary is: :: 
+
+    $ artiq_ctlmgr 
+
+Controllers may be run on a different machine from the master, or even on multiple different machines, alleviating cabling issues and OS compatibility problems. In this case, communication with the master happens over the network. One controller manager is necessary per network node (i.e. machine) that runs controllers. Use the ``-s`` and ``--bind`` flags of ``artiq_ctlmgr`` to set IP addresses or hostnames to connect and bind to.
+
+Note, however, that the controller for the particular device you are trying to connect to must first exist and be part of a complete Network Device Support Package, or NDSP. :doc:`Some NDSPs are already available <list_of_ndsps>`. If your device is not on this list, the system is designed to make it quite possible to write your own. For this, see the :doc:`developing_a_ndsp` page. 
+
+Once a device is correctly listed in ``device_db.py``, it can be added to an experiment using ``self.setattr_device([device_name])`` and the methods its API offers called straightforwardly as ``self.[device_name].[method_name]``. As long as the requisite controllers are running and available, the experiment can then be executed with ``artiq_run`` or through the management system. 
+
+The ARTIQ session
+-----------------
+
+If (as is often the case) you intend to mostly operate your ARTIQ system and its devices from a single machine, e.g., the networked aspects of the management system are largely unnecessary and you will be running master, dashboard, and controller manager on a single computer, they can all be started simultaneously with the single command: :: 
+
+    $ artiq_session 
+
+Arguments to the individuals (including ``-s`` and ``--bind``) can still be specificed using the ``-m``, ``-d`` and ``-c`` options respectively. 
