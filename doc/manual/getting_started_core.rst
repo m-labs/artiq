@@ -211,7 +211,7 @@ The core device records the real-time I/O waveforms into a circular buffer. It i
                 rtio_log("ttl0", "i", i)
                 delay(...)
 
-Afterwards, the recorded data can be extracted and written to a VCD file using ``artiq_coreanalyzer -w rtio.vcd`` (see :ref:`core-device-rtio-analyzer-tool`). VCD files can be viewed using third-party tools such as GtkWave.
+When using ``artiq_run``, the recorded data can be extracted using ``artiq_coreanalyzer``(see :ref:`core-device-rtio-analyzer-tool`). To export it to VCD, which can be viewed using third-party tools such as GtkWave, use the command ``artiq_coreanalyzer -w rtio.vcd``. Recorded data can also be viewed directly with the ARTIQ dashboard, which will be presented later in :doc:`getting_started_mgmt`.   
 
 Direct Memory Access (DMA)
 --------------------------
