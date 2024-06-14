@@ -58,6 +58,9 @@ Now, start the dashboard with the following commands in another terminal: ::
 
 The dashboard should display the list of experiments from the repository folder in a dock called "Explorer". There should be only the experiment we created. Select it and click "Submit", then look at the "Log" dock for the output from this simple experiment.
 
+.. note::
+    You may note that experiments may be submitted with a due date, a priority level, a pipeline identifier, and other specific settings. Some of these are self-explanatory. Many are scheduling-related. For more information on experiment scheduling, especially when submitting longer experiments or submitting across multiple users, see :ref:`experiment-scheduling`.  
+
 Adding an argument
 ------------------
 
@@ -100,6 +103,8 @@ Trigger a repository rescan and click the button labeled "Recompute all argument
 
 While regular arguments are all requested simultaneously before submitting, interactive arguments can be requested at any point. In order to request multiple interactive arguments at once, place them within the same ``with`` block; see also the example ``interactive.py`` in the ``examples/no_hardware`` folder. 
 
+.. _master-setting-up-git: 
+    
 Setting up Git integration
 --------------------------
 
@@ -160,9 +165,6 @@ Let's now make a modification to the experiment. In the source present in the wo
 .. note:: 
     You may also use the "Open file outside repository" feature of the GUI, by right-clicking on the explorer.
 
-.. note:: 
-    Submitting an experiment from the repository using the ``artiq_client`` command-line tool is done using the ``-R`` flag.
-
 Verify the log in the GUI. If you are happy with the result, commit the new version and push it into the master's repository: ::
 
     $ cd ~/artiq-work
@@ -197,6 +199,9 @@ Commit, push and submit the experiment as before. Go to the "Datasets" dock of t
 
 Plotting in the ARTIQ dashboard is achieved by programs called "applets". Applets are independent programs that add simple GUI features and are run as separate processes (to achieve goals of modularity and resilience against poorly written applets). Users may write their own applets, or use those supplied with ARTIQ (in the ``artiq.applets`` module) that cover basic plotting.
 
+.. seealso::
+    For writing applets, see also the references provided on :ref:`the management system page<applet-references>` of this manual.  
+
 Applets are configured through their command line to select parameters such as the names of the datasets to plot. The list of command-line options can be retrieved using the ``-h`` option; for an example you can run ``python3 -m artiq.applets.plot_xy -h`` in a terminal.
 
 In our case, create a new applet from the XY template by right-clicking in the empty applet list, and edit the "Command" field so that it retrieves the ``parabola`` dataset (the line should be ``${artiq_applet}plot_xy parabola``). Run the experiment again, and observe how the points are added one by one to the plot.
@@ -224,7 +229,7 @@ To start the controller manager (the master must already be running, and artiq-c
 
     $ artiq_ctlmgr 
 
-Controllers may be run on a different machine from the master, or even on multiple different machines, alleviating cabling issues and OS compatibility problems. In this case, communication with the master happens over the network. One controller manager is necessary per network node (i.e. machine) that runs controllers. Use the ``-s`` and ``--bind`` flags of ``artiq_ctlmgr`` to set IP addresses or hostnames to connect and bind to.
+Controllers may be run on a different machine from the master, or even on multiple different machines, alleviating cabling issues and OS compatibility problems. In this case, communication with the master happens over the network. If multiple machines are running controllers, they must each run their own controller manager. Use the ``-s`` and ``--bind`` flags of ``artiq_ctlmgr`` to set IP addresses or hostnames to connect and bind to.
 
 Note, however, that the controller for the particular device you are trying to connect to must first exist and be part of a complete Network Device Support Package, or NDSP. :doc:`Some NDSPs are already available <list_of_ndsps>`. If your device is not on this list, the system is designed to make it quite possible to write your own. For this, see the :doc:`developing_a_ndsp` page. 
 
