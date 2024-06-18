@@ -350,10 +350,9 @@ If you purchased a Kasli or Kasli-SoC device from M-Labs, it usually comes with 
 
   $ artiq_coremgmt -D 192.168.1.75 config write -s ip [new IP]
 
-and then rebooting the device (with ``artiq_flash start`` or a power cycle).
+and then rebooting the device
 
-.. note::
-  Kasli-SoC is not a valid target for ``artiq_flash``; it is easiest to reboot by power cycle. For a KC705, it is necessary to specify ``artiq_flash -t kc705 start``. 
+  $ artiq_coremgmt reboot 
 
 * For Kasli-SoC: 
   

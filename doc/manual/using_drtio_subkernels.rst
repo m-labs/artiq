@@ -5,13 +5,15 @@ Using DRTIO and subkernels
 
 In larger or more spread-out systems, a single core device might not be suited to managing all the RTIO operations or channels necessary. For these situations ARTIQ supplies Distributed Real-Time IO, or DRTIO. This allows systems to be configured with some or all of their RTIO channels distributed to one or several *satellite* core devices, which are linked to the *master* core device. These remote channels are then accessible in kernels on the master device exactly like local channels. 
 
-The specific topology of core and satellite links is flexible and can be changed at will. It is supplied to the core device by means of a routing table. Links should be high-speed duplex serial lines operating 1Gbps or more.
+While the components of a system, as well as the distribution of peripherals among satellites, are necessarily fixed in the system configuration, the specific topology of core and satellite links is flexible and can be changed whenever necessary. It is supplied to the core device by means of a routing table (see below). Kasli and Kasli-SoC devices use the SFP ports for DRTIO connections, whereunder links should be high-speed duplex serial lines operating 1Gbps or more. 
+
+Certain peripheral cards with onboard FPGAs of their own (e.g. Shuttler) can be configured as satellites in a DRTIO setting, allowing them to run their own subkernels and make use of DDMA. In these cases, the EEM connection to the core device is used for DRTIO communication (DRTIO-over-EEM). 
 
 .. note:: 
     As with other configuration changes (e.g. adding new hardware), if you are in possession of a non-distributed ARTIQ system and you'd like to expand it into a DRTIO setup, it's easily possible to do so, but you need to be sure that both master and satellite are (re)flashed with this in mind. As usual, if you obtained your hardware from M-Labs, you will normally be supplied with all the binaries you need, through ``awfs_client`` or otherwise.  
 
 .. note:: 
-    Do not confuse the DRTIO *master device* (used to mean  the central controlling core device of a distributed system) with the *ARTIQ master* (the central piece of software of ARTIQ's management system, which interacts with ``artiq_client`` and the dashboard.) ``artiq_run`` can be used to run experiments on DRTIO systems just as easily as non-distributed ones, and the ARTIQ master interacts with the central core device regardless of whether it's configured as a DRTIO master or standalone.
+    Do not confuse the DRTIO *master device* (used to mean the central controlling core device of a distributed system) with the *ARTIQ master* (the central piece of software of ARTIQ's management system, which interacts with ``artiq_client`` and the dashboard.) ``artiq_run`` can be used to run experiments on DRTIO systems just as easily as non-distributed ones, and the ARTIQ master interacts with the central core device regardless of whether it's configured as a DRTIO master or standalone.
 
 Using DRTIO
 -----------
@@ -26,7 +28,7 @@ By default, DRTIO assumes a routing table for a star topology (i.e. all satellit
     # create an empty routing table
     $ artiq_route rt.bin init
 
-    # set destination 0 to the local RTIO core
+    # set destination 0 to the master's local RTIO core
     $ artiq_route rt.bin set 0 0
 
     # for destination 1, first use hop 1 (the first downstream port)
@@ -48,17 +50,17 @@ By default, DRTIO assumes a routing table for a star topology (i.e. all satellit
 
 The local RTIO core of the master device is considered a destination like any other; it must be explicitly listed in the routing table to be accessible to kernels. 
 
-All routes must end with the local RTIO core of the master. Incorrect routing tables will cause ``RTIODestinationUnreachable`` exceptions.  
+All routes must end with the local RTIO core of the destination device. Incorrect routing tables will cause ``RTIODestinationUnreachable`` exceptions.  
 
-As with other configuration changes, the core device should be restarted (``artiq_flash start``, power cycle, etc.) for changes to take effect. 
+As with other configuration changes, the core device should be restarted (``artiq_coremgmt reboot``, power cycle, etc.) for changes to take effect. 
 
 Using the core language with DRTIO 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Remote channels are accessed in precisely the same way as local channels: by calling ``self.setattr_device()`` and then referencing the channel by name. 
+Remote channels are accessed just as local channels are (e.g., most commonly, by calling ``self.setattr_device()`` and then referencing the channel by name.)  
 
 Link establishment
 ^^^^^^^^^^^^^^^^^^
-After devices have booted, it takes several seconds for all links in a DRTIO system to become established (especially with the long locking times of low-bandwidth PLLs that are used for jitter reduction purposes). Kernels should not attempt to access destinations until all required links are up (when this happens, the ``RTIODestinationUnreachable`` exception is raised). ARTIQ provides the method :meth:`~artiq.coredevice.core.Core.get_rtio_destination_status` which determines whether a destination can be reached. We recommend calling it in a loop in your startup kernel for each important destination in order to delay startup until they all can be reached.
+After devices have booted, it takes several seconds for all links in a DRTIO system to become established. Kernels should not attempt to access destinations until all required links are up (trying to do so will raise ``RTIODestinationUnreachable`` exceptions). ARTIQ provides the method :meth:`~artiq.coredevice.core.Core.get_rtio_destination_status` which determines whether a destination can be reached. We recommend calling it in a loop in your startup kernel for each important destination in order to delay startup until they all can be reached.
 
 Latency
 ^^^^^^^
@@ -97,12 +99,12 @@ Subkernels behave for the most part like regular kernels; they accept arguments,
    - their return values must be fully annotated with an ARTIQ type,
    - their arguments should be annotated, and only basic ARTIQ types are supported,
    - they can raise exceptions, but the exceptions cannot be caught by the master (they can only be caught locally or propagated directly to the host), 
-   - while ``self`` is allowed as an argument, it is retrieved at compile time and a purely local object afterwards -- any changes made by other kernels will not be shown, and changes made locally will not be visible anywhere else.
+   - while ``self`` is allowed as an argument, it is retrieved at compile time and exists as a purely local object afterwards. Any changes made by other kernels will not be visible, and changes made locally will not be applied anywhere else.
 
 Subkernels in practice
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Subkernels begin execution as soon as possible when called. By default, they are not awaited, but awaiting is necessary to receive results or exceptions. The await function ``subkernel_await(function, [timeout])`` takes as argument the subkernel to be awaited and, optionally, a timeout value in milliseconds. If the timeout is reached without response from the subkernel, a :exc:`~artiq.coredevice.exceptions.SubkernelError` is raised. If no timeout value is supplied the function waits indefinitely. Negative timeout values are ignored. 
+Subkernels begin execution as soon as possible when called. By default, they are not awaited, but awaiting is necessary to receive results or exceptions. The await function ``subkernel_await(function, [timeout])`` takes as argument the subkernel to be awaited and, optionally, a timeout value in milliseconds. If the timeout is reached without response from the subkernel, a :exc:`~artiq.coredevice.exceptions.SubkernelError` is raised. If no timeout value is supplied the function waits indefinitely for the return. Negative timeout values are ignored. 
 
 For example, a subkernel performing integer addition: ::
 
@@ -127,15 +129,15 @@ Subkernels are compiled after the main kernel and immediately sent to the design
 
 If a subkernel is called on a satellite where a kernel is already running, the newer kernel overrides silently, and the previous kernel will not be completed. 
 
-.. note::
+.. warning::
     Be careful with use of ``self.core.reset()`` around subkernels. Since ``self`` in subkernels is purely local, calling ``self.core.reset()`` in a subkernel will only affect that specific satellite and its own FIFOs. On the other hand, calling ``self.core.reset()`` in the master kernel will clear FIFOs in all satellites, regardless of whether a subkernel is running, but will not stop the subkernel. As a result, any event currently in a FIFO queue will be cleared, but the subkernels may continue to queue events. This is likely to result in odd behavior; it's best to avoid using ``self.core.reset()`` during the lifetime of any subkernels.  
-
-.. note:: 
-    Subkernels do not exit automatically if a master kernel exits. It is generally the responsibility of a given experiment to ensure that all its subkernels complete before exiting, by awaiting them or otherwise. If this cannot be guaranteed, it is possible to sanitize by calling trivial kernels in each satellite -- since newer kernels override, any kernels still running will be automatically cancelled. Much like RTIO events still in FIFO queues, the nature of seamless transition means subkernels left running after the end of an experiment cannot be guaranteed to complete. 
 
 If a subkernel is complex and its binary relatively large, the delay between the call and actually running the subkernel may be substantial. If it's necessary to minimize this delay, ``subkernel_preload(function)`` should be used before the call. 
 
-While a subkernel is running, the satellite is disconnected from the RTIO interface of the master. As a result, regardless of what devices the subkernel itself uses, none of the RTIO devices on that satellite will be available to the master, nor will messages be passed on to any further satellites downstream. Control is returned to the master when no subkernel is running -- to be sure that a device will be accessible, await before performing any RTIO operations on the affected satellite.
+While a subkernel is running, the satellite is disconnected from the RTIO interface of the master. As a result, regardless of what devices the subkernel itself uses, none of the RTIO devices on that satellite will be available to the master, nor will messages be passed on to any further satellites downstream. This applies both to regular RTIO operations and DDMA. While a subkernel is running, a satellite may use its own local DMA, but an attempt by any other device to run DDMA through the satellite will fail. Control is returned to the master when no subkernel is running -- to be sure that a device will be accessible, await before performing any RTIO operations on the affected satellite.
+
+.. note:: 
+    Subkernels do not exit automatically if a master kernel exits, and are seamlessly carried over between experiments. Much like RTIO events left in FIFO queues, the nature of seamless transition means subkernels left running after the end of an experiment cannot be guaranteed to complete (as they may be overriden by newer subkernels in the next experiment). Following experiments must also be aware of the risk of attempting to reach RTIO devices currently 'blocked' by an active subkernel left over from a previous experiment. This can be avoided simply by having each experiment await all of its subkernels at some point before exiting. Alternatively, if necessary, a system can be sanitized by calling trivial kernels in each satellite -- any leftover subkernels will be overriden and automatically cancelled.  
 
 Calling other kernels
 ^^^^^^^^^^^^^^^^^^^^^

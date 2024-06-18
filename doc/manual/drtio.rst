@@ -19,7 +19,7 @@ Time transfer and clock syntonization is typically done over the serial link alo
 Terminology
 -----------
 
-In a system of interconnected DRTIO devices, each RTIO core is assigned a number and is called a *destination*. One DRTIO device normally contains one RTIO core.
+In a system of interconnected DRTIO devices, each RTIO core (controlling a certain set of associated RTIO channels) is assigned a number and called a *destination*. One DRTIO device normally contains one RTIO core.
 
 On one DRTIO device, the immediate path that a RTIO request must take is called a *hop*: the request can be sent to the local RTIO core, or to another device downstream. Each possible hop is assigned a number. Hop 0 is normally the local RTIO core, and hops 1 and above correspond to the respective downstream ports of the device.
 
