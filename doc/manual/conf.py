@@ -79,6 +79,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinxarg.ext',
     'sphinxcontrib.wavedrom',  # see also below for config
+    "sphinxcontrib.jquery",
 ]
 
 mathjax_path = "https://m-labs.hk/MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML.js"
