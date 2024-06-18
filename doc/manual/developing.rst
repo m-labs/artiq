@@ -15,6 +15,7 @@ ARTIQ itself does not depend on Nix, and it is also possible to compile everythi
 * If you did not install Vivado in its default location ``/opt``, clone the ARTIQ Git repository and edit ``flake.nix`` accordingly.
 * Enable flakes in Nix by e.g. adding ``experimental-features = nix-command flakes`` to ``nix.conf`` (for example ``~/.config/nix/nix.conf``).
 * Clone the ARTIQ Git repository and run ``nix develop`` at the root (where ``flake.nix`` is).
+* Alternatively, you may run ``nix develop .#boards`` if you only need to build the firmware.
 * Make the current source code of ARTIQ available to the Python interpreter by running ``export PYTHONPATH=`pwd`:$PYTHONPATH``.
 * You can then build the firmware and gateware with a command such as ``$ python -m artiq.gateware.targets.kasli <description>.json``, using a JSON system description file. 
 * Flash the binaries into the FPGA board with a command such as ``$ artiq_flash --srcbuild -d artiq_kasli/<your_variant>``. You need to configure OpenOCD as explained :ref:`in the user section <installing-configuring-openocd>`. OpenOCD is already part of the flake's development environment.
