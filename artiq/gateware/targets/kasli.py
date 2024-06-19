@@ -120,7 +120,8 @@ class StandaloneBase(MiniSoC, AMPSoC):
             self.config["HAS_SI549"] = None
             self.config["WRPLL_REF_CLK"] = "SMA_CLKIN"
         else:
-            self.submodules += SMAClkinForward(self.platform)
+            if self.platform.hw_rev == "v2.0":
+                self.submodules += SMAClkinForward(self.platform)
             self.config["HAS_SI5324"] = None
             self.config["SI5324_SOFT_RESET"] = None
 
