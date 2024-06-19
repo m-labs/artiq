@@ -842,6 +842,8 @@ def main():
     has_shuttler = any(peripheral["type"] == "shuttler" for peripheral in description["peripherals"])
     if has_shuttler and (description["drtio_role"] == "standalone"):
         raise ValueError("Shuttler requires DRTIO, please switch role to master")
+    if description["enable_wrpll"] and description["hw_rev"] in ["v1.0", "v1.1"]:
+        raise ValueError("Kasli {} does not support WRPLL".format(description["hw_rev"])) 
 
     soc = cls(description, gateware_identifier_str=args.gateware_identifier_str, **soc_kasli_argdict(args))
     args.variant = description["variant"]
