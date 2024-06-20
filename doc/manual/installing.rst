@@ -255,9 +255,9 @@ If you have an active firmware subscription with M-Labs or QUARTIQ, you can obta
 
 Run the command::
 
-  $ afws_client [username] build [afws_directory] [variant]
+  $ afws_client [username] build [--major-ver MAJOR_VER] [--rev REV] [afws_directory] [variant]
 
-Replace ``[username]`` with the login name that was given to you with the subscription, ``[variant]`` with the name of your system variant, and ``[afws_directory]`` with the name of an empty directory, which will be created by the command if it does not exist. Enter your password when prompted and wait for the build (if applicable) and download to finish. If you experience issues with the AFWS client, write to the helpdesk@ email.
+Replace ``[username]`` with the login name that was given to you with the subscription, ``[variant]`` with the name of your system variant, and ``[afws_directory]`` with the name of an empty directory, which will be created by the command if it does not exist. You may additionally specify desired firmware version by adding both ``--major-ver MAJOR_VER`` and ``--rev REV``, where ``MAJOR_VER`` is a major ARTIQ version - ``7``, ``8`` or ``9``; and ``REV`` is a commit hash, which you may obtain from the corresponding branch of the respective repository. Enter your password when prompted and wait for the build (if applicable) and download to finish. If you experience issues with the AFWS client, write to the helpdesk@ email.
 
 For certain configurations (KC705 or ZC705 only) it is also possible to source firmware from `the M-Labs Hydra server <https://nixbld.m-labs.hk/project/artiq>`_ (in ``main`` and ``zynq`` respectively).
 
