@@ -42,22 +42,6 @@
         "type": "github"
       }
     },
-    "mozilla-overlay": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1704373101,
-        "narHash": "sha256-+gi59LRWRQmwROrmE1E2b3mtocwueCQqZ60CwLG+gbg=",
-        "owner": "mozilla",
-        "repo": "nixpkgs-mozilla",
-        "rev": "9b11a87c0cc54e308fa83aac5b4ee1816d5418a2",
-        "type": "github"
-      },
-      "original": {
-        "owner": "mozilla",
-        "repo": "nixpkgs-mozilla",
-        "type": "github"
-      }
-    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1718437845,
@@ -77,12 +61,32 @@
     "root": {
       "inputs": {
         "artiq-comtools": "artiq-comtools",
-        "mozilla-overlay": "mozilla-overlay",
         "nixpkgs": "nixpkgs",
+        "rust-overlay": "rust-overlay",
         "sipyco": "sipyco",
         "src-migen": "src-migen",
         "src-misoc": "src-misoc",
         "src-pythonparser": "src-pythonparser"
+      }
+    },
+    "rust-overlay": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1718763539,
+        "narHash": "sha256-JHqQyO5XppLpMSKBaYlxbmPHMc4DpwuavKIch9W+hv4=",
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "rev": "69fcfaebbe564d162a85cadeaadd4dec646be4a2",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "type": "github"
       }
     },
     "sipyco": {
