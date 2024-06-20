@@ -307,27 +307,9 @@
           cp $src/*.bit $out/share/bscan-spi-bitstreams
           '';
         };
-        # https://docs.lambdaconcept.com/screamer/troubleshooting.html#error-contents-differ
-        openocd-fixed = pkgs.openocd.overrideAttrs(oa: {
-          version = "unstable-2021-09-15";
-          src = pkgs.fetchFromGitHub {
-            owner = "openocd-org";
-            repo = "openocd";
-            rev = "a0bd3c9924870c3b8f428648410181040dabc33c";
-            sha256 = "sha256-YgUsl4/FohfsOncM4uiz/3c6g2ZN4oZ0y5vV/2Skwqg=";
-            fetchSubmodules = true;
-          };
-          patches = [
-            (pkgs.fetchurl {
-              url = "https://git.m-labs.hk/M-Labs/nix-scripts/raw/commit/575ef05cd554c239e4cc8cb97ae4611db458a80d/artiq-fast/pkgs/openocd-jtagspi.diff";
-              sha256 = "0g3crk8gby42gm661yxdcgapdi8sp050l5pb2d0yjfic7ns9cw81";
-            })
-          ];
-          nativeBuildInputs = oa.nativeBuildInputs or [] ++ [ pkgs.autoreconfHook269 ];
-        });
       in pkgs.buildEnv {
         name = "openocd-bscanspi";
-        paths = [ openocd-fixed bscan_spi_bitstreams-pkg ];
+        paths = [ pkgs.openocd bscan_spi_bitstreams-pkg ];
       };
 
       latex-artiq-manual = pkgs.texlive.combine {
