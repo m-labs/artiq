@@ -56,7 +56,7 @@ As with other configuration changes, the core device should be restarted (``arti
 
 Using the core language with DRTIO 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Remote channels are accessed just as local channels are (e.g., most commonly, by calling ``self.setattr_device()`` and then referencing the channel by name.)  
+Remote channels are accessed just as local channels are (e.g., most commonly, by calling ``self.setattr_device()`` and then referencing the device by name.)
 
 Link establishment
 ^^^^^^^^^^^^^^^^^^
