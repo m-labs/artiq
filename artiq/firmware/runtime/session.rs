@@ -126,19 +126,6 @@ macro_rules! unexpected {
      ($($arg:tt)*) => (return Err(Error::Unexpected(format!($($arg)*))));
 }
 
-#[cfg(has_drtio)]
-macro_rules! propagate_subkernel_exception {
-    ( $exception:ident, $stream:ident ) => {
-        error!("Exception in subkernel");
-        match $stream {
-            None => return Ok(true),
-            Some(ref mut $stream) => { 
-                $stream.write_all($exception)?;
-            }
-        }
-    }
-}
-
 // Persistent state
 #[derive(Debug)]
 struct Congress {
@@ -690,10 +677,13 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                     Ok(ref res) => {
                             if res.comm_lost {
                                 kern::SubkernelStatus::CommLost
-                            } else if let Some(exception) = &res.exception {
-                                propagate_subkernel_exception!(exception, stream);
-                                // will not be called after exception is served
-                                kern::SubkernelStatus::OtherError
+                            } else if let Some(raw_exception) = &res.exception {
+                                let exception = subkernel::read_exception(raw_exception);
+                                if let Ok(exception) = exception {
+                                    kern::SubkernelStatus::Exception(exception)
+                                } else {
+                                    kern::SubkernelStatus::OtherError
+                                }
                             } else {
                                 kern::SubkernelStatus::NoError
                             }
@@ -712,72 +702,92 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             #[cfg(has_drtio)]
             &kern::SubkernelMsgRecvRequest { id, timeout, tags } => {
                 let message_received = subkernel::message_await(io, subkernel_mutex, id as u32, timeout);
-                let (status, count) = match message_received {
-                    Ok(ref message) => (kern::SubkernelStatus::NoError, message.count),
-                    Err(SubkernelError::Timeout) => (kern::SubkernelStatus::Timeout, 0),
-                    Err(SubkernelError::IncorrectState) => (kern::SubkernelStatus::IncorrectState, 0),
-                    Err(SubkernelError::SubkernelFinished) => {
-                        let res = subkernel::retrieve_finish_status(io, aux_mutex, ddma_mutex, subkernel_mutex,
-                            routing_table, id as u32)?;
-                        if res.comm_lost {
-                            (kern::SubkernelStatus::CommLost, 0)
-                        } else if let Some(exception) = &res.exception {
-                            propagate_subkernel_exception!(exception, stream);
-                            (kern::SubkernelStatus::OtherError, 0)
-                        } else {
-                            (kern::SubkernelStatus::OtherError, 0)
-                        }
-                    }
-                    Err(_) => (kern::SubkernelStatus::OtherError, 0)
-                };
-                kern_send(io, &kern::SubkernelMsgRecvReply { status: status, count: count})?;
-                if let Ok(message) = message_received {
-                    // receive code almost identical to RPC recv, except we are not reading from a stream
-                    let mut reader = Cursor::new(message.data);
-                    let mut current_tags = tags;
-                    let mut i = 0;
-                    loop {
-                        // kernel has to consume all arguments in the whole message
-                        let slot = kern_recv(io, |reply| {
-                            match reply {
-                                &kern::RpcRecvRequest(slot) => Ok(slot),
-                                other => unexpected!(
-                                    "expected root value slot from kernel CPU, not {:?}", other)
-                            }
+                if let Err(SubkernelError::SubkernelFinished) = message_received {
+                    let res = subkernel::retrieve_finish_status(io, aux_mutex, ddma_mutex, subkernel_mutex,
+                        routing_table, id as u32)?;
+                    if res.comm_lost {
+                        kern_send(io, 
+                            &kern::SubkernelMsgRecvReply { 
+                                status: kern::SubkernelStatus::CommLost,
+                                count: 0
                         })?;
-                        let res = rpc::recv_return(&mut reader, current_tags, slot, &|size| -> Result<_, Error<SchedError>> {
-                            if size == 0 {
-                                return Ok(0 as *mut ())
-                            }
-                            kern_send(io, &kern::RpcRecvReply(Ok(size)))?;
-                            Ok(kern_recv(io, |reply| {
+                    } else if let Some(raw_exception) = &res.exception {
+                        let exception = subkernel::read_exception(raw_exception);
+                        if let Ok(exception) = exception {
+                            kern_send(io, 
+                                &kern::SubkernelMsgRecvReply { 
+                                    status: kern::SubkernelStatus::Exception(exception),
+                                    count: 0
+                            })?;
+                        } else {
+                            kern_send(io, 
+                                &kern::SubkernelMsgRecvReply { 
+                                    status: kern::SubkernelStatus::OtherError,
+                                    count: 0
+                            })?;
+                        }
+                    } else {
+                        kern_send(io, 
+                            &kern::SubkernelMsgRecvReply { 
+                                status: kern::SubkernelStatus::OtherError,
+                                count: 0
+                        })?;
+                    }
+                } else {
+                    let (status, count) = match message_received {
+                        Ok(ref message) => (kern::SubkernelStatus::NoError, message.count),
+                        Err(SubkernelError::Timeout) => (kern::SubkernelStatus::Timeout, 0),
+                        Err(SubkernelError::IncorrectState) => (kern::SubkernelStatus::IncorrectState, 0),
+                        Err(SubkernelError::SubkernelFinished) => unreachable!(), // taken care of above
+                        Err(_) => (kern::SubkernelStatus::OtherError, 0)
+                    };
+                    kern_send(io, &kern::SubkernelMsgRecvReply { status: status, count: count})?;
+                    if let Ok(message) = message_received {
+                        // receive code almost identical to RPC recv, except we are not reading from a stream
+                        let mut reader = Cursor::new(message.data);
+                        let mut current_tags = tags;
+                        let mut i = 0;
+                        loop {
+                            // kernel has to consume all arguments in the whole message
+                            let slot = kern_recv(io, |reply| {
                                 match reply {
                                     &kern::RpcRecvRequest(slot) => Ok(slot),
                                     other => unexpected!(
-                                        "expected nested value slot from kernel CPU, not {:?}", other)
+                                        "expected root value slot from kernel CPU, not {:?}", other)
                                 }
-                            })?)
-                        });
-                        match res {
-                            Ok(new_tags) => {
-                                kern_send(io, &kern::RpcRecvReply(Ok(0)))?;
-                                i += 1;
-                                if i < message.count {
-                                    // update the tag for next read
-                                    current_tags = new_tags;
-                                } else {
-                                    // should be done by then
-                                    break;
+                            })?;
+                            let res = rpc::recv_return(&mut reader, current_tags, slot, &|size| -> Result<_, Error<SchedError>> {
+                                if size == 0 {
+                                    return Ok(0 as *mut ())
                                 }
-                            },
-                            Err(_) => unexpected!("expected valid subkernel message data")
-                        };
+                                kern_send(io, &kern::RpcRecvReply(Ok(size)))?;
+                                Ok(kern_recv(io, |reply| {
+                                    match reply {
+                                        &kern::RpcRecvRequest(slot) => Ok(slot),
+                                        other => unexpected!(
+                                            "expected nested value slot from kernel CPU, not {:?}", other)
+                                    }
+                                })?)
+                            });
+                            match res {
+                                Ok(new_tags) => {
+                                    kern_send(io, &kern::RpcRecvReply(Ok(0)))?;
+                                    i += 1;
+                                    if i < message.count {
+                                        // update the tag for next read
+                                        current_tags = new_tags;
+                                    } else {
+                                        // should be done by then
+                                        break;
+                                    }
+                                },
+                                Err(_) => unexpected!("expected valid subkernel message data")
+                            };
+                        }
                     }
-                    Ok(())
-                } else {
                     // if timed out, no data has been received, exception should be raised by kernel
-                    Ok(())
                 }
+                Ok(())
             },
 
             request => unexpected!("unexpected request {:?} from kernel CPU", request)

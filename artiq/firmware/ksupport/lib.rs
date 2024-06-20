@@ -494,7 +494,8 @@ extern "C-unwind" fn subkernel_await_finish(id: u32, timeout: i64) {
             SubkernelStatus::CommLost => raise!("SubkernelError",
                 "Lost communication with satellite"),
             SubkernelStatus::OtherError => raise!("SubkernelError",
-                "An error occurred during subkernel operation")
+                "An error occurred during subkernel operation"),
+            SubkernelStatus::Exception(e) => unsafe { crate::eh_artiq::raise(e) },
         }
     })
 }
@@ -528,7 +529,8 @@ extern "C-unwind" fn subkernel_await_message(id: i32, timeout: i64, tags: &CSlic
             SubkernelStatus::CommLost => raise!("SubkernelError",
                 "Lost communication with satellite"),
             SubkernelStatus::OtherError => raise!("SubkernelError",
-                "An error occurred during subkernel operation")
+                "An error occurred during subkernel operation"),
+            SubkernelStatus::Exception(e) => unsafe { crate::eh_artiq::raise(e) },
         }
     })
     // RpcRecvRequest should be called `count` times after this to receive message data
