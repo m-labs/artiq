@@ -27,7 +27,7 @@
       artiqVersion = (builtins.toString artiqVersionMajor) + "." + (builtins.toString artiqVersionMinor) + "+" + artiqVersionId + ".beta";
       artiqRev = self.sourceInfo.rev or "unknown";
 
-      rust = pkgs.rust-bin.nightly."2021-08-31".default.override {
+      rust = pkgs.rust-bin.nightly."2021-09-01".default.override {
         extensions = [ "rust-src" ];
         targets = [ ];
       };
