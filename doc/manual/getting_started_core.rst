@@ -200,11 +200,7 @@ Within a parallel block, some statements can be scheduled sequentially again usi
     
     In practice, the pulses to ``ttl0`` and ``ttl1`` will execute simultaneously, and the pulse to ``ttl2`` will execute after the pulse to ``ttl1``, bringing the total duration of the ``parallel`` block to 4 us. Internally, statements #3 and #4, contained within the top-level if statement, are considered an atomic sequence and executed within an implicit ``with sequential``. To execute #3 and #4 in parallel, it is necessary to place them inside a second, nested ``parallel`` block within the if statement.   
 
-Particular care needs to be taken when working with ``parallel`` blocks which generate large numbers of RTIO events, as it is possible to create sequence errors. A sequence error is caused when the scalable event dispatcher (SED) cannot queue an RTIO event due to its timestamp being the same as or earlier than another event in its queue. By default, the SED has 8 lanes, which suffice in most cases to avoid sequence errors; however, if many (>8) events are queued with interlaced timestamps the problem can still surface. See :ref:`sequence-errors`. 
-
-Note that for performance reasons sequence errors do not halt execution of the kernel. Instead, they are reported in the core log. If the ``aqctl_corelog`` process has been started with ``artiq_ctlmgr``, then these errors will be posted to the master log. If an experiment is executed through ``artiq_run``, the errors will only be visible in the core log. 
-
-Sequence errors can usually be overcome by reordering the generation of the events (again, different from and unrelated to reordering the events themselves). Alternatively, the number of SED lanes can be increased in the gateware.
+Particular care needs to be taken when working with ``parallel`` blocks which generate large numbers of RTIO events, as it is possible to cause sequencing issues in the gateware; see also :ref:`sequence-errors`.
 
 .. _rtio-analyzer-example:
 
@@ -229,14 +225,14 @@ The core device records the real-time I/O waveforms into a circular buffer. It i
                 rtio_log("ttl0", "i", i)
                 delay(...)
 
-When using ``artiq_run``, the recorded data can be extracted using ``artiq_coreanalyzer``(see :ref:`core-device-rtio-analyzer-tool`). To export it to VCD, which can be viewed using third-party tools such as GtkWave, use the command ``artiq_coreanalyzer -w rtio.vcd``. Recorded data can also be viewed directly with the ARTIQ dashboard, which will be presented later in :doc:`getting_started_mgmt`.   
+When using ``artiq_run``, the recorded data can be extracted using ``artiq_coreanalyzer`` (see :ref:`core-device-rtio-analyzer-tool`). To export it to VCD, which can be viewed using third-party tools such as GtkWave, use the command ``artiq_coreanalyzer -w rtio.vcd``. Recorded data can also be viewed directly with the ARTIQ dashboard, which will be presented later in :doc:`getting_started_mgmt`.   
 
 .. _getting-started-dma: 
 
 Direct Memory Access (DMA)
 --------------------------
 
-DMA allows for storing fixed sequences of RTIO events in system memory and having the DMA core in the FPGA play them back at high speed. Provided that the specifications of a desired event sequence are known far enough in advance, and no other RTIO issues (collisions, sequence errors) are provoked, even extremely fast and detailed event sequences are always possible to generate and execute. However, if they are time-consuming for the CPU to generate, they may require very large amounts of positive slack in order to allow the CPU enough time to complete the generation before the wall clock 'catches up' (that is, without running into RTIO underflows). A better option is to record these sequences to the DMA core. Once recorded, events sequences are fixed and cannot be modified, but can be safely replayed at any position in the timeline, potentially repeatedly. 
+DMA allows for storing fixed sequences of RTIO events in system memory and having the DMA core in the FPGA play them back at high speed. Provided that the specifications of a desired event sequence are known far enough in advance, and no other RTIO issues (collisions, sequence errors) are provoked, even extremely fast and detailed event sequences can always be generated and executed. RTIO underflows occur when events cannot be generated *as fast as* they need to be executed, resulting in an exception when the wall clock 'catches up'. The solution is to record these sequences to the DMA core. Once recorded, event sequences are fixed and cannot be modified, but can be safely replayed very quickly at any position in the timeline, potentially repeatedly. 
 
 Try this: ::
 
