@@ -2,7 +2,10 @@
   description = "A leading-edge control system for quantum information experiments";
 
   inputs.nixpkgs.url = github:NixOS/nixpkgs/nixos-24.05;
-  inputs.mozilla-overlay = { url = github:mozilla/nixpkgs-mozilla; flake = false; };
+  inputs.rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+  };
   inputs.sipyco.url = github:m-labs/sipyco;
   inputs.sipyco.inputs.nixpkgs.follows = "nixpkgs";
   inputs.src-pythonparser = { url = github:m-labs/pythonparser; flake = false; };
@@ -13,9 +16,9 @@
   inputs.src-migen = { url = github:m-labs/migen; flake = false; };
   inputs.src-misoc = { type = "git"; url = "https://github.com/m-labs/misoc.git"; submodules = true; flake = false; };
 
-  outputs = { self, nixpkgs, mozilla-overlay, sipyco, src-pythonparser, artiq-comtools, src-migen, src-misoc }:
+  outputs = { self, nixpkgs, rust-overlay, sipyco, src-pythonparser, artiq-comtools, src-migen, src-misoc }:
     let
-      pkgs = import nixpkgs { system = "x86_64-linux"; overlays = [ (import mozilla-overlay) ]; };
+      pkgs = import nixpkgs { system = "x86_64-linux"; overlays = [ (import rust-overlay) ]; };
       pkgs-aarch64 = import nixpkgs { system = "aarch64-linux"; };
 
       artiqVersionMajor = 9;
@@ -24,24 +27,14 @@
       artiqVersion = (builtins.toString artiqVersionMajor) + "." + (builtins.toString artiqVersionMinor) + "+" + artiqVersionId + ".beta";
       artiqRev = self.sourceInfo.rev or "unknown";
 
-      rustManifest = pkgs.fetchurl {
-        url = "https://static.rust-lang.org/dist/2021-09-01/channel-rust-nightly.toml";
-        sha256 = "sha256-KYLZHfOkotnM6BZd7CU+vBA3w/VtiWxth3ngJlmA41U=";
+      rust = pkgs.rust-bin.nightly."2021-08-31".default.override {
+        extensions = [ "rust-src" ];
+        targets = [ ];
       };
-
-      targets = [];
-      rustChannelOfTargets = _channel: _date: targets:
-        (pkgs.lib.rustLib.fromManifestFile rustManifest {
-          inherit (pkgs) stdenv lib fetchurl patchelf;
-        }).rust.override {
-          inherit targets;
-          extensions = ["rust-src"];
-        };
-      rust = rustChannelOfTargets "nightly" null targets;
-      rustPlatform = pkgs.recurseIntoAttrs (pkgs.makeRustPlatform {
+      rustPlatform = pkgs.makeRustPlatform {
         rustc = rust;
         cargo = rust;
-      });
+      };
 
       vivadoDeps = pkgs: with pkgs; let
         # Apply patch from https://github.com/nix-community/nix-environments/pull/54
@@ -252,7 +245,7 @@
             vivado
             rustPlatform.cargoSetupHook
           ];
-          buildPhase = 
+          buildPhase =
             ''
             ARTIQ_PATH=`python -c "import artiq; print(artiq.__path__[0])"`
             ln -s $ARTIQ_PATH/firmware/Cargo.lock .
