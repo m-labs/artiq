@@ -1,5 +1,7 @@
 from collections import OrderedDict
 from inspect import isclass
+from contextlib import contextmanager
+from types import SimpleNamespace
 
 from sipyco import pyon
 
@@ -10,7 +12,8 @@ from artiq.language.core import rpc
 __all__ = ["NoDefault", "DefaultMissing",
            "PYONValue", "BooleanValue", "EnumerationValue",
            "NumberValue", "StringValue",
-           "HasEnvironment", "Experiment", "EnvExperiment"]
+           "HasEnvironment", "Experiment", "EnvExperiment",
+           "CancelledArgsError"]
 
 
 class NoDefault:
@@ -21,6 +24,12 @@ class NoDefault:
 class DefaultMissing(Exception):
     """Raised by the ``default`` method of argument processors when no default
     value is available."""
+    pass
+
+
+class CancelledArgsError(Exception):
+    """Raised by the ``interactive`` context manager when an interactive
+    arguments request is cancelled."""
     pass
 
 
@@ -80,9 +89,12 @@ class EnumerationValue(_SimpleArgProcessor):
 
     :param choices: A list of string representing the possible values of the
         argument.
+    :param quickstyle: Enables the choices to be displayed in the GUI as a 
+        list of buttons that submit the experiment when clicked.
     """
-    def __init__(self, choices, default=NoDefault):
+    def __init__(self, choices, default=NoDefault, quickstyle=False):
         self.choices = choices
+        self.quickstyle = quickstyle
         super().__init__(default)
 
     def process(self, x):
@@ -93,6 +105,7 @@ class EnumerationValue(_SimpleArgProcessor):
     def describe(self):
         d = _SimpleArgProcessor.describe(self)
         d["choices"] = self.choices
+        d["quickstyle"] = self.quickstyle
         return d
 
 
@@ -212,6 +225,9 @@ class TraceArgumentManager:
         self.requested_args[key] = processor, group, tooltip
         return None
 
+    def get_interactive(self, interactive_arglist, title):
+        raise NotImplementedError
+
 
 class ProcessArgumentManager:
     def __init__(self, unprocessed_arguments):
@@ -232,6 +248,10 @@ class ProcessArgumentManager:
         if unprocessed:
             raise AttributeError("Supplied argument(s) not queried in experiment: " +
                                  ", ".join(unprocessed))
+
+    def get_interactive(self, interactive_arglist, title):
+        raise NotImplementedError
+
 
 class HasEnvironment:
     """Provides methods to manage the environment of an experiment (arguments,
@@ -321,6 +341,33 @@ class HasEnvironment:
         setattr(self, key, self.get_argument(key, processor, group, tooltip))
         kernel_invariants = getattr(self, "kernel_invariants", set())
         self.kernel_invariants = kernel_invariants | {key}
+
+    @contextmanager
+    def interactive(self, title=""):
+        """Request arguments from the user interactively.
+
+        This context manager returns a namespace object on which the method
+        `setattr_argument` should be called, with the usual semantics.
+
+        When the context manager terminates, the experiment is blocked
+        and the user is presented with the requested argument widgets.
+        After the user enters values, the experiment is resumed and
+        the namespace contains the values of the arguments.
+
+        If the interactive arguments request is cancelled, raises
+        ``CancelledArgsError``."""
+        interactive_arglist = []
+        namespace = SimpleNamespace()
+        def setattr_argument(key, processor=None, group=None, tooltip=None):
+            interactive_arglist.append((key, processor, group, tooltip))
+        namespace.setattr_argument = setattr_argument
+        yield namespace
+        del namespace.setattr_argument
+        argdict = self.__argument_mgr.get_interactive(interactive_arglist, title)
+        if argdict is None:
+            raise CancelledArgsError
+        for key, value in argdict.items():
+            setattr(namespace, key, value)
 
     def get_device_db(self):
         """Returns the full contents of the device database."""

@@ -94,10 +94,11 @@ class ADF5356:
 
         :param blind: Do not attempt to verify presence.
         """
+        self.sync()
         if not blind:
             # MUXOUT = VDD
             self.regs[4] = ADF5356_REG4_MUXOUT_UPDATE(self.regs[4], 1)
-            self.sync()
+            self.write(self.regs[4])
             self.core.delay(1000. * us)
             if not self.read_muxout():
                 raise ValueError("MUXOUT not high")
@@ -105,7 +106,7 @@ class ADF5356:
 
             # MUXOUT = DGND
             self.regs[4] = ADF5356_REG4_MUXOUT_UPDATE(self.regs[4], 2)
-            self.sync()
+            self.write(self.regs[4])
             self.core.delay(1000. * us)
             if self.read_muxout():
                 raise ValueError("MUXOUT not low")
@@ -113,8 +114,7 @@ class ADF5356:
 
             # MUXOUT = digital lock-detect
             self.regs[4] = ADF5356_REG4_MUXOUT_UPDATE(self.regs[4], 6)
-        else:
-            self.sync()
+            self.write(self.regs[4])
 
     @kernel
     def set_att(self, att: float):

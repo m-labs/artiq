@@ -6,21 +6,21 @@ ARTIQ documentation
     :maxdepth: 2
 
     introduction
+    release_notes
     installing
     developing
-    release_notes
     rtio
     getting_started_core
-    compiler
     getting_started_mgmt
-    core_device
-    management_system
     environment
-    drtio
+    compiler
+    management_system
+    drtio 
+    core_device
     core_language_reference
-    core_drivers_reference
-    list_of_ndsps
-    developing_a_ndsp
+    core_drivers_reference 
     utilities
+    developing_a_ndsp
+    list_of_ndsps
     default_network_ports
     faq

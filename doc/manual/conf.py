@@ -28,7 +28,9 @@ mock_modules = ["artiq.gui.waitingspinnerwidget",
                 "artiq.gui.models",
                 "artiq.compiler.module",
                 "artiq.compiler.embedding",
-                "qasync", "pyqtgraph", "matplotlib",
+                "artiq.dashboard.waveform",
+                "artiq.dashboard.interactive_args",
+                "qasync", "pyqtgraph", "matplotlib", "lmdb",
                 "numpy", "dateutil", "dateutil.parser", "prettytable", "PyQt5",
                 "h5py", "serial", "scipy", "scipy.interpolate",
                 "nac3artiq",
@@ -71,6 +73,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinxarg.ext',
     'sphinxcontrib.wavedrom',  # see also below for config
+    "sphinxcontrib.jquery",
 ]
 
 mathjax_path = "https://m-labs.hk/MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML.js"
@@ -89,7 +92,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'ARTIQ'
-copyright = '2014-2023, M-Labs Limited'
+copyright = '2014-2024, M-Labs Limited'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

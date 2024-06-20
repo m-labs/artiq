@@ -71,7 +71,6 @@ def build_artiq_soc(soc, argdict):
     if not soc.config["DRTIO_ROLE"] == "satellite":
         builder.add_software_package("runtime", os.path.join(firmware_dir, "runtime"))
     else:
-        # Assume DRTIO satellite.
         builder.add_software_package("satman", os.path.join(firmware_dir, "satman"))
     try:
         builder.build()

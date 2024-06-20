@@ -19,12 +19,13 @@ class DummyDevice:
     pass
 
 
-def _create_device(desc, device_mgr):
+def _create_device(desc, device_mgr, argument_overrides):
     ty = desc["type"]
     if ty == "local":
         module = importlib.import_module(desc["module"])
         device_class = getattr(module, desc["class"])
-        return device_class(device_mgr, **desc.get("arguments", {}))
+        arguments = desc.get("arguments", {}) | argument_overrides
+        return device_class(device_mgr, **arguments)
     elif ty == "controller":
         if desc.get("best_effort", False):
             cls = BestEffortClient
@@ -60,6 +61,7 @@ class DeviceManager:
         self.ddb = ddb
         self.virtual_devices = virtual_devices
         self.active_devices = []
+        self.devarg_override = {}
 
     def get_device_db(self):
         """Returns the full contents of the device database."""
@@ -85,12 +87,19 @@ class DeviceManager:
                 return existing_dev
 
         try:
-            dev = _create_device(desc, self)
+            dev = _create_device(desc, self, self.devarg_override.get(name, {}))
         except Exception as e:
             raise DeviceError("Failed to create device '{}'"
                               .format(name)) from e
         self.active_devices.append((desc, dev))
         return dev
+
+    def notify_run_end(self):
+        """Sends a "end of Experiment run stage" notification to
+        all active devices."""
+        for _desc, dev in self.active_devices:
+            if hasattr(dev, "notify_run_end"):
+                dev.notify_run_end()
 
     def close_devices(self):
         """Closes all active devices, in the opposite order as they were
@@ -101,8 +110,9 @@ class DeviceManager:
                     dev.close_rpc()
                 elif hasattr(dev, "close"):
                     dev.close()
-            except Exception as e:
-                logger.warning("Exception %r when closing device %r", e, dev)
+            except:
+                logger.warning("Exception raised when closing device %r:",
+                               dev, exc_info=True)
         self.active_devices.clear()
 
 

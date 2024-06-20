@@ -130,11 +130,6 @@ class AlmaznyLegacy:
         )
         self.core.delay(100. * us)
 
-    @kernel
-    def _update_all_registers(self):
-        for i in range(4):
-            self._update_register(i)
-
 
 @nac3
 class AlmaznyChannel:

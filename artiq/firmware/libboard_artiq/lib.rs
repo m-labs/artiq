@@ -1,4 +1,4 @@
-#![feature(lang_items, never_type)]
+#![feature(asm, lang_items, never_type)]
 #![no_std]
 
 extern crate failure;
@@ -24,6 +24,8 @@ pub mod rpc_queue;
 
 #[cfg(has_si5324)]
 pub mod si5324;
+#[cfg(has_si549)]
+pub mod si549;
 
 #[cfg(has_grabber)]
 pub mod grabber;

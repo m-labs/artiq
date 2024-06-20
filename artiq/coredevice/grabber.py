@@ -1,7 +1,7 @@
 from numpy import int32, int64
 
 from artiq.language.core import *
-from artiq.coredevice.rtio import rtio_output, rtio_input_data
+from artiq.coredevice.rtio import rtio_output, rtio_input_timestamped_data
 from artiq.coredevice.core import Core
 
 
@@ -9,6 +9,12 @@ from artiq.coredevice.core import Core
 class OutOfSyncException(Exception):
     """Raised when an incorrect number of ROI engine outputs has been
     retrieved from the RTIO input FIFO."""
+    pass
+
+
+@nac3
+class GrabberTimeoutException(Exception):
+    """Raised when a timeout occurs while attempting to read Grabber RTIO input events."""
     pass
 
 
@@ -86,10 +92,10 @@ class Grabber:
         self.gate_roi(0)
 
     @kernel
-    def input_mu(self, data: list[int32]):
+    def input_mu(self, data: list[int32], timeout_mu: int64 = int64(-1)):
         """
         Retrieves the accumulated values for one frame from the ROI engines.
-        Blocks until values are available.
+        Blocks until values are available or timeout is reached.
 
         The input list must be a list of integers of the same length as there
         are enabled ROI engines. This method replaces the elements of the
@@ -99,15 +105,26 @@ class Grabber:
         If the number of elements in the list does not match the number of
         ROI engines that produced output, an exception will be raised during
         this call or the next.
+        
+        If the timeout is reached before data is available, the exception
+        GrabberTimeoutException is raised.
+
+        :param timeout_mu: Timestamp at which a timeout will occur. Set to -1
+                           (default) to disable timeout. 
         """
         channel = self.channel_base + 1
 
-        sentinel = rtio_input_data(channel)
+        timestamp, sentinel = rtio_input_timestamped_data(timeout_mu, channel)
+        if timestamp == int64(-1):
+            raise GrabberTimeoutException("Timeout before Grabber frame available")
         if sentinel != self.sentinel:
             raise OutOfSyncException()
 
         for i in range(len(data)):
-            roi_output = rtio_input_data(channel)
+            timestamp, roi_output = rtio_input_timestamped_data(timeout_mu, channel)
             if roi_output == self.sentinel:
                 raise OutOfSyncException()
+            if timestamp == int64(-1):
+                raise GrabberTimeoutException(
+                    "Timeout retrieving ROIs (attempting to read more ROIs than enabled?)")
             data[i] = roi_output

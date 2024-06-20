@@ -33,7 +33,7 @@ class DatasetCtl:
         try:
             remote = RPCClient()
             await remote.connect_rpc(self.master_host, self.master_port,
-                                     "master_dataset_db")
+                                     "dataset_db")
             try:
                 if op_name == "set":
                     await remote.set(key_or_mod, value, persist, metadata)

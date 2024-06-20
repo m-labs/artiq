@@ -22,8 +22,10 @@ from sipyco.pc_rpc import Client
 from sipyco.sync_struct import Subscriber
 from sipyco.broadcast import Receiver
 from sipyco import common_args, pyon
+from sipyco.asyncio_tools import SignalHandler
 
-from artiq.tools import scale_from_metadata, short_format, parse_arguments
+from artiq.tools import (scale_from_metadata, short_format, parse_arguments,
+                         parse_devarg_override)
 from artiq import __version__ as artiq_version
 
 
@@ -68,6 +70,8 @@ def get_argparser():
     parser_add.add_argument("-r", "--revision", default=None,
                             help="use a specific repository revision "
                                  "(defaults to head, ignored without -R)")
+    parser_add.add_argument("--devarg-override", default="",
+                            help="specify device arguments to override")
     parser_add.add_argument("--content", default=False,
                             action="store_true",
                             help="submit by content")
@@ -109,11 +113,25 @@ def get_argparser():
         "del-dataset", help="delete a dataset")
     parser_del_dataset.add_argument("name", help="name of the dataset")
 
+    parser_supply_interactive = subparsers.add_parser(
+        "supply-interactive", help="supply interactive arguments")
+    parser_supply_interactive.add_argument(
+        "rid", metavar="RID", type=int, help="RID of target experiment")
+    parser_supply_interactive.add_argument(
+        "arguments", metavar="ARGUMENTS", nargs="*",
+        help="interactive arguments")
+
+    parser_cancel_interactive = subparsers.add_parser(
+        "cancel-interactive", help="cancel interactive arguments")
+    parser_cancel_interactive.add_argument(
+        "rid", metavar="RID", type=int, help="RID of target experiment")
+
     parser_show = subparsers.add_parser(
         "show", help="show schedule, log, devices or datasets")
     parser_show.add_argument(
         "what", metavar="WHAT",
-        choices=["schedule", "log", "ccb", "devices", "datasets"],
+        choices=["schedule", "log", "ccb", "devices", "datasets",
+                 "interactive-args"],
         help="select object to show: %(choices)s")
 
     subparsers.add_parser(
@@ -132,8 +150,7 @@ def get_argparser():
         "ls", help="list a directory on the master")
     parser_ls.add_argument("directory", default="", nargs="?")
 
-    subparsers.add_parser(
-        "terminate", help="terminate the ARTIQ master")
+    subparsers.add_parser("terminate", help="terminate the ARTIQ master")
 
     common_args.verbosity_args(parser)
     return parser
@@ -146,6 +163,7 @@ def _action_submit(remote, args):
         raise ValueError("Failed to parse run arguments") from err
 
     expid = {
+        "devarg_override": parse_devarg_override(args.devarg_override),
         "log_level": logging.WARNING + args.quiet*10 - args.verbose*10,
         "class_name": args.class_name,
         "arguments": arguments,
@@ -202,6 +220,15 @@ def _action_del_dataset(remote, args):
 
 def _action_scan_devices(remote, args):
     remote.scan()
+
+
+def _action_supply_interactive(remote, args):
+    arguments = parse_arguments(args.arguments)
+    remote.supply(args.rid, arguments)
+
+
+def _action_cancel_interactive(remote, args):
+    remote.cancel(args.rid)
 
 
 def _action_scan_repository(remote, args):
@@ -270,17 +297,34 @@ def _show_datasets(datasets):
     print(table)
 
 
+def _show_interactive_args(interactive_args):
+    clear_screen()
+    table = PrettyTable(["RID", "Title", "Key", "Type", "Group", "Tooltip"])
+    for rid, input_request in sorted(interactive_args.items(), key=itemgetter(0)):
+        title = input_request["title"]
+        for key, procdesc, group, tooltip in input_request["arglist_desc"]:
+            table.add_row([rid, title, key, procdesc["ty"], group, tooltip])
+    print(table)
+
+
 def _run_subscriber(host, port, subscriber):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        loop.run_until_complete(subscriber.connect(host, port))
+        signal_handler = SignalHandler()
+        signal_handler.setup()
         try:
-            loop.run_until_complete(asyncio.wait_for(subscriber.receive_task,
-                                                     None))
-            print("Connection to master lost")
+            loop.run_until_complete(subscriber.connect(host, port))
+            try:
+                _, pending = loop.run_until_complete(asyncio.wait(
+                    [loop.create_task(signal_handler.wait_terminate()), subscriber.receive_task],
+                    return_when=asyncio.FIRST_COMPLETED))
+                for task in pending:
+                    task.cancel()
+            finally:
+                loop.run_until_complete(subscriber.close())
         finally:
-            loop.run_until_complete(subscriber.close())
+            signal_handler.teardown()
     finally:
         loop.close()
 
@@ -334,18 +378,22 @@ def main():
             _show_dict(args, "devices", _show_devices)
         elif args.what == "datasets":
             _show_dict(args, "datasets", _show_datasets)
+        elif args.what == "interactive-args":
+            _show_dict(args, "interactive_args", _show_interactive_args)
         else:
             raise ValueError
     else:
         port = 3251 if args.port is None else args.port
         target_name = {
-            "submit": "master_schedule",
-            "delete": "master_schedule",
-            "set_dataset": "master_dataset_db",
-            "del_dataset": "master_dataset_db",
-            "scan_devices": "master_device_db",
-            "scan_repository": "master_experiment_db",
-            "ls": "master_experiment_db",
+            "submit": "schedule",
+            "delete": "schedule",
+            "set_dataset": "dataset_db",
+            "del_dataset": "dataset_db",
+            "scan_devices": "device_db",
+            "supply_interactive": "interactive_arg_db",
+            "cancel_interactive": "interactive_arg_db",
+            "scan_repository": "experiment_db",
+            "ls": "experiment_db",
             "terminate": "master_management",
         }[action]
         remote = Client(args.server, port, target_name)

@@ -2,7 +2,8 @@ import asyncio
 
 import lmdb
 
-from sipyco.sync_struct import Notifier, process_mod, ModAction, update_from_dict
+from sipyco.sync_struct import (Notifier, process_mod, ModAction,
+                                update_from_dict)
 from sipyco import pyon
 from sipyco.asyncio_tools import TaskObject
 
@@ -36,6 +37,9 @@ class DeviceDB:
                 desc = self.data.raw_view[desc]
         return desc
 
+    def get_satellite_cpu_target(self, destination):
+        return self.data.raw_view["satellite_cpu_targets"][destination]
+
 
 class DatasetDB(TaskObject):
     def __init__(self, persist_file, autosave_period=30):
@@ -57,12 +61,13 @@ class DatasetDB(TaskObject):
     def save(self):
         with self.lmdb.begin(write=True) as txn:
             for key in self.pending_keys:
-                if key not in self.data.raw_view or not self.data.raw_view[key][0]:
+                if (key not in self.data.raw_view
+                        or not self.data.raw_view[key][0]):
                     txn.delete(key.encode())
                 else:
                     value_and_metadata = (self.data.raw_view[key][1],
                                           self.data.raw_view[key][2])
-                    txn.put(key.encode(), 
+                    txn.put(key.encode(),
                             pyon.encode(value_and_metadata).encode())
         self.pending_keys.clear()
 
@@ -84,7 +89,8 @@ class DatasetDB(TaskObject):
         if mod["path"]:
             key = mod["path"][0]
         else:
-            assert(mod["action"] == ModAction.setitem.value or mod["action"] == ModAction.delitem.value)
+            assert (mod["action"] == ModAction.setitem.value
+                    or mod["action"] == ModAction.delitem.value)
             key = mod["key"]
         self.pending_keys.add(key)
         process_mod(self.data, mod)
@@ -108,3 +114,34 @@ class DatasetDB(TaskObject):
         del self.data[key]
         self.pending_keys.add(key)
     #
+
+
+class InteractiveArgDB:
+    def __init__(self):
+        self.pending = Notifier(dict())
+        self.futures = dict()
+
+    async def get(self, rid, arglist_desc, title):
+        self.pending[rid] = {"title": title, "arglist_desc": arglist_desc}
+        self.futures[rid] = asyncio.get_running_loop().create_future()
+        try:
+            value = await self.futures[rid]
+        finally:
+            del self.pending[rid]
+            del self.futures[rid]
+        return value
+
+    def supply(self, rid, values):
+        # quick sanity checks
+        if rid not in self.futures or self.futures[rid].done():
+            raise ValueError("no experiment with this RID is "
+                             "waiting for interactive arguments")
+        if {i[0] for i in self.pending.raw_view[rid]["arglist_desc"]} != set(values.keys()):
+            raise ValueError("supplied and requested keys do not match")
+        self.futures[rid].set_result(values)
+
+    def cancel(self, rid):
+        if rid not in self.futures or self.futures[rid].done():
+            raise ValueError("no experiment with this RID is "
+                             "waiting for interactive arguments")
+        self.futures[rid].set_result(None)

@@ -4,6 +4,40 @@ import logging
 from PyQt5 import QtCore, QtWidgets
 
 
+class DoubleClickLineEdit(QtWidgets.QLineEdit):
+    finished = QtCore.pyqtSignal()
+
+    def __init__(self, init):
+        QtWidgets.QLineEdit.__init__(self, init)
+        self.setFrame(False)
+        self.setReadOnly(True)
+        self.returnPressed.connect(self._return_pressed)
+        self.editingFinished.connect(self._editing_finished)
+        self._text = init
+
+    def mouseDoubleClickEvent(self, event):
+        if self.isReadOnly():
+            self.setReadOnly(False)
+            self.setFrame(True)
+        QtWidgets.QLineEdit.mouseDoubleClickEvent(self, event)
+
+    def _return_pressed(self):
+        self._text = self.text()
+
+    def _editing_finished(self):
+        self.setReadOnly(True)
+        self.setFrame(False)
+        self.setText(self._text)
+        self.finished.emit()
+
+    def keyPressEvent(self, event):
+        key = event.key()
+        if key == QtCore.Qt.Key_Escape and not self.isReadOnly():
+            self.editingFinished.emit()
+        else:
+            QtWidgets.QLineEdit.keyPressEvent(self, event)
+
+
 def log_level_to_name(level):
     if level >= logging.CRITICAL:
         return "CRITICAL"
@@ -59,6 +93,23 @@ async def get_open_file_name(parent, caption, dir, filter):
     dialog = QtWidgets.QFileDialog(parent, caption, dir, filter)
     dialog.setFileMode(dialog.ExistingFile)
     dialog.setAcceptMode(dialog.AcceptOpen)
+    fut = asyncio.Future()
+
+    def on_accept():
+        fut.set_result(dialog.selectedFiles()[0])
+    dialog.accepted.connect(on_accept)
+    dialog.rejected.connect(fut.cancel)
+    dialog.open()
+    return await fut
+
+
+async def get_save_file_name(parent, caption, dir, filter, suffix=None):
+    """like QtWidgets.QFileDialog.getSaveFileName(), but a coroutine"""
+    dialog = QtWidgets.QFileDialog(parent, caption, dir, filter)
+    dialog.setFileMode(dialog.AnyFile)
+    dialog.setAcceptMode(dialog.AcceptSave)
+    if suffix is not None:
+        dialog.setDefaultSuffix(suffix)
     fut = asyncio.Future()
 
     def on_accept():

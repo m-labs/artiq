@@ -45,6 +45,14 @@ class DMAError(Exception):
 
 
 @nac3
+class SubkernelError(Exception):
+    """Raised when an operation regarding a subkernel is invalid 
+    or cannot be completed.
+    """
+    artiq_builtin = True
+
+
+@nac3
 class ClockFailure(Exception):
     """Raised when RTIO PLL has lost lock."""
     artiq_builtin = True

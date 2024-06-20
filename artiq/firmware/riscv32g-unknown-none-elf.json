@@ -21,20 +21,6 @@
   },
   "relro-level": "full",
   "target-family": "unix",
-  "target-pointer-width": "32",
-  "unsupported-abis": [
-    "cdecl",
-    "stdcall",
-    "fastcall",
-    "vectorcall",
-    "thiscall",
-    "aapcs",
-    "win64",
-    "sysv64",
-    "ptx-kernel",
-    "msp430-interrupt",
-    "x86-interrupt",
-    "amdgpu-kernel"
-  ]
+  "target-pointer-width": "32"
 }
   

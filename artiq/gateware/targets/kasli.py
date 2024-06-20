@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
+from packaging.version import Version
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -14,16 +16,21 @@ from misoc.targets.kasli import (
     BaseSoC, MiniSoC, soc_kasli_args, soc_kasli_argdict)
 from misoc.integration.builder import builder_args, builder_argdict
 
+from artiq import __version__ as artiq_version
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, edge_counter
 from artiq.gateware.rtio.xilinx_clocking import fix_serdes_timing_path
-from artiq.gateware import eem
+from artiq.gateware import rtio, eem, eem_7series
 from artiq.gateware.drtio.transceiver import gtp_7series, eem_serdes
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import *
+from artiq.gateware.wrpll import wrpll
 from artiq.build_soc import *
+from artiq.coredevice import jsondesc
+
+logger = logging.getLogger(__name__)
 
 
 class SMAClkinForward(Module):
@@ -50,7 +57,7 @@ class StandaloneBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
+    def __init__(self, gateware_identifier_str=None, with_wrpll=False, hw_rev="v2.0", **kwargs):
         if hw_rev in ("v1.0", "v1.1"):
             cpu_bus_width = 32
         else:
@@ -76,7 +83,6 @@ class StandaloneBase(MiniSoC, AMPSoC):
             self.submodules.error_led = gpio.GPIOOut(Cat(
                 self.platform.request("error_led")))
             self.csr_devices.append("error_led")
-            self.submodules += SMAClkinForward(self.platform)
             cdr_clk_out = self.platform.request("cdr_clk_clean")
         else:
             cdr_clk_out = self.platform.request("si5324_clkout")
@@ -98,12 +104,31 @@ class StandaloneBase(MiniSoC, AMPSoC):
 
         self.crg.configure(cdr_clk_buf)
 
+        if with_wrpll:
+            clk_synth = self.platform.request("cdr_clk_clean_fabric")
+            clk_synth_se = Signal()
+            self.platform.add_period_constraint(clk_synth.p, 8.0)
+            self.specials += Instance("IBUFGDS", p_DIFF_TERM="TRUE", p_IBUF_LOW_PWR="FALSE", i_I=clk_synth.p, i_IB=clk_synth.n, o_O=clk_synth_se)
+            self.submodules.wrpll_refclk = wrpll.FrequencyMultiplier(self.platform.request("sma_clkin"))
+            self.submodules.wrpll = wrpll.WRPLL(
+                platform=self.platform,
+                cd_ref=self.wrpll_refclk.cd_ref,
+                main_clk_se=clk_synth_se)
+            self.csr_devices.append("wrpll_refclk")
+            self.csr_devices.append("wrpll")
+            self.interrupt_devices.append("wrpll")
+            self.config["HAS_SI549"] = None
+            self.config["WRPLL_REF_CLK"] = "SMA_CLKIN"
+        else:
+            if self.platform.hw_rev == "v2.0":
+                self.submodules += SMAClkinForward(self.platform)
+            self.config["HAS_SI5324"] = None
+            self.config["SI5324_SOFT_RESET"] = None
+
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
         self.csr_devices.append("i2c")
         self.config["I2C_BUS_COUNT"] = 1
-        self.config["HAS_SI5324"] = None
-        self.config["SI5324_SOFT_RESET"] = None
 
     def add_rtio(self, rtio_channels, sed_lanes=8):
         fix_serdes_timing_path(self.platform)
@@ -130,89 +155,6 @@ class StandaloneBase(MiniSoC, AMPSoC):
         self.csr_devices.append("rtio_analyzer")
 
 
-class Tester(StandaloneBase):
-    """
-    Configuration for CI tests. Contains the maximum number of different EEMs.
-    """
-    def __init__(self, hw_rev=None, dds=None, **kwargs):
-        if hw_rev is None:
-            hw_rev = "v2.0"
-        if dds is None:
-            dds = "ad9910"
-        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
-
-        # self.config["SI5324_EXT_REF"] = None
-        self.config["RTIO_FREQUENCY"] = "125.0"
-        if hw_rev == "v1.0":
-            # EEM clock fan-out from Si5324, not MMCX
-            self.comb += self.platform.request("clk_sel").eq(1)
-
-        self.rtio_channels = []
-        eem.DIO.add_std(self, 5,
-            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X,
-            edge_counter_cls=edge_counter.SimpleEdgeCounter)
-        eem.Urukul.add_std(self, 0, 1, ttl_serdes_7series.Output_8X, dds,
-                           ttl_simple.ClockGen)
-        eem.Sampler.add_std(self, 3, 2, ttl_serdes_7series.Output_8X)
-        eem.Zotino.add_std(self, 4, ttl_serdes_7series.Output_8X)
-
-        if hw_rev in ("v1.0", "v1.1"):
-            for i in (1, 2):
-                sfp_ctl = self.platform.request("sfp_ctl", i)
-                phy = ttl_simple.Output(sfp_ctl.led)
-                self.submodules += phy
-                self.rtio_channels.append(rtio.Channel.from_phy(phy))
-
-        self.config["HAS_RTIO_LOG"] = None
-        self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
-        self.rtio_channels.append(rtio.LogChannel())
-        self.add_rtio(self.rtio_channels)
-
-
-class SUServo(StandaloneBase):
-    """
-    SUServo (Sampler-Urukul-Servo) extension variant configuration
-    """
-    def __init__(self, hw_rev=None, **kwargs):
-        if hw_rev is None:
-            hw_rev = "v2.0"
-        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
-
-        # self.config["SI5324_EXT_REF"] = None
-        self.config["RTIO_FREQUENCY"] = "125.0"
-        if hw_rev == "v1.0":
-            # EEM clock fan-out from Si5324, not MMCX
-            self.comb += self.platform.request("clk_sel").eq(1)
-
-        self.rtio_channels = []
-        # EEM0, EEM1: DIO
-        eem.DIO.add_std(self, 0,
-            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
-        eem.DIO.add_std(self, 1,
-            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
-
-        # EEM3/2: Sampler, EEM5/4: Urukul, EEM7/6: Urukul
-        eem.SUServo.add_std(self, 
-                            eems_sampler=(3, 2), 
-                            eems_urukul=[[5, 4], [7, 6]])
-
-        for i in (1, 2):
-            sfp_ctl = self.platform.request("sfp_ctl", i)
-            phy = ttl_simple.Output(sfp_ctl.led)
-            self.submodules += phy
-            self.rtio_channels.append(rtio.Channel.from_phy(phy))
-
-        self.config["HAS_RTIO_LOG"] = None
-        self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
-        self.rtio_channels.append(rtio.LogChannel())
-
-        self.add_rtio(self.rtio_channels)
-
-        pads = self.platform.lookup_request("sampler3_adc_data_p")
-        self.platform.add_false_path_constraints(
-            pads.clkout, self.crg.cd_sys.clk)
-
-
 class MasterBase(MiniSoC, AMPSoC):
     mem_map = {
         "cri_con":       0x10000000,
@@ -223,7 +165,7 @@ class MasterBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, with_wrpll=False, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
         if hw_rev in ("v1.0", "v1.1"):
             cpu_bus_width = 32
         else:
@@ -249,14 +191,33 @@ class MasterBase(MiniSoC, AMPSoC):
             self.submodules.error_led = gpio.GPIOOut(Cat(
                 self.platform.request("error_led")))
             self.csr_devices.append("error_led")
-            self.submodules += SMAClkinForward(platform)
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
         self.csr_devices.append("i2c")
         self.config["I2C_BUS_COUNT"] = 1
-        self.config["HAS_SI5324"] = None
-        self.config["SI5324_SOFT_RESET"] = None
+
+        if with_wrpll:
+            clk_synth = platform.request("cdr_clk_clean_fabric")
+            clk_synth_se = Signal()
+            platform.add_period_constraint(clk_synth.p, 8.0)
+            self.specials += Instance("IBUFGDS", p_DIFF_TERM="TRUE", p_IBUF_LOW_PWR="FALSE", i_I=clk_synth.p, i_IB=clk_synth.n, o_O=clk_synth_se)
+            self.submodules.wrpll_refclk = wrpll.FrequencyMultiplier(platform.request("sma_clkin"))
+            self.submodules.wrpll = wrpll.WRPLL(
+                platform=self.platform,
+                cd_ref=self.wrpll_refclk.cd_ref,
+                main_clk_se=clk_synth_se)
+            self.csr_devices.append("wrpll_refclk")
+            self.csr_devices.append("wrpll")
+            self.interrupt_devices.append("wrpll")
+            self.config["HAS_SI549"] = None
+            self.config["WRPLL_REF_CLK"] = "SMA_CLKIN"
+        else:
+            if platform.hw_rev == "v2.0":
+                self.submodules += SMAClkinForward(self.platform)
+            self.config["HAS_SI5324"] = None
+            self.config["SI5324_SOFT_RESET"] = None
+
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
 
         drtio_data_pads = []
@@ -313,10 +274,11 @@ class MasterBase(MiniSoC, AMPSoC):
             setattr(self.submodules, coreaux_name, coreaux)
             self.csr_devices.append(coreaux_name)
 
-            memory_address = self.mem_map["drtioaux"] + 0x800*i
-            self.add_wb_slave(memory_address, 0x800,
+            drtio_aux_mem_size = 1024 * 16 # max_packet * 8 buffers * 2 (tx, rx halves)
+            memory_address = self.mem_map["drtioaux"] + drtio_aux_mem_size*i
+            self.add_wb_slave(memory_address, drtio_aux_mem_size,
                               coreaux.bus)
-            self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
+            self.add_memory_region(memory_name, memory_address | self.shadow_base, drtio_aux_mem_size)
         self.config["HAS_DRTIO"] = None
         self.config["HAS_DRTIO_ROUTING"] = None
         self.config["DRTIO_ROLE"] = "master"
@@ -326,7 +288,8 @@ class MasterBase(MiniSoC, AMPSoC):
 
         txout_buf = Signal()
         self.specials += Instance("BUFG", i_I=gtp.txoutclk, o_O=txout_buf)
-        self.crg.configure(txout_buf, clk_sw=gtp.tx_init.done)
+        self.crg.configure(txout_buf, clk_sw=self.gt_drtio.stable_clkin.storage, ext_async_rst=self.crg.clk_sw_fsm.o_clk_sw & ~gtp.tx_init.done)
+        self.specials += MultiReg(self.crg.clk_sw_fsm.o_clk_sw & self.crg.mmcm_locked, self.gt_drtio.clk_path_ready, odomain="bootstrap")
 
         platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
@@ -394,10 +357,11 @@ class MasterBase(MiniSoC, AMPSoC):
             setattr(self.submodules, coreaux_name, coreaux)
             self.csr_devices.append(coreaux_name)
 
-            memory_address = self.mem_map["drtioaux"] + 0x800*channel
-            self.add_wb_slave(memory_address, 0x800,
+            drtio_aux_mem_size = 1024 * 16 # max_packet * 8 buffers * 2 (tx, rx halves)
+            memory_address = self.mem_map["drtioaux"] + drtio_aux_mem_size*channel
+            self.add_wb_slave(memory_address, drtio_aux_mem_size,
                             coreaux.bus)
-            self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
+            self.add_memory_region(memory_name, memory_address | self.shadow_base, drtio_aux_mem_size)
 
     def add_drtio_cpuif_groups(self):
         self.add_csr_group("drtio", self.drtio_csr_group)
@@ -451,7 +415,7 @@ class SatelliteBase(BaseSoC, AMPSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, *, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, with_wrpll=False, *, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
         if hw_rev in ("v1.0", "v1.1"):
             cpu_bus_width = 32
         else:
@@ -529,15 +493,15 @@ class SatelliteBase(BaseSoC, AMPSoC):
 
         self.submodules.rtio_tsc = rtio.TSC(glbl_fine_ts_width=3)
 
-        drtioaux_csr_group = []
-        drtioaux_memory_group = []
-        drtiorep_csr_group = []
+        self.drtioaux_csr_group = []
+        self.drtioaux_memory_group = []
+        self.drtiorep_csr_group = []
         self.drtio_cri = []
         for i in range(len(self.gt_drtio.channels)):
             coreaux_name = "drtioaux" + str(i)
             memory_name = "drtioaux" + str(i) + "_mem"
-            drtioaux_csr_group.append(coreaux_name)
-            drtioaux_memory_group.append(memory_name)
+            self.drtioaux_csr_group.append(coreaux_name)
+            self.drtioaux_memory_group.append(memory_name)
 
             cdr = ClockDomainsRenamer({"rtio_rx": "rtio_rx" + str(i)})
 
@@ -550,7 +514,7 @@ class SatelliteBase(BaseSoC, AMPSoC):
                 self.csr_devices.append("drtiosat")
             else:
                 corerep_name = "drtiorep" + str(i-1)
-                drtiorep_csr_group.append(corerep_name)
+                self.drtiorep_csr_group.append(corerep_name)
 
                 core = cdr(DRTIORepeater(
                     self.rtio_tsc, self.gt_drtio.channels[i]))
@@ -562,16 +526,14 @@ class SatelliteBase(BaseSoC, AMPSoC):
             setattr(self.submodules, coreaux_name, coreaux)
             self.csr_devices.append(coreaux_name)
 
-            memory_address = self.mem_map["drtioaux"] + 0x800*i
-            self.add_wb_slave(memory_address, 0x800,
+            drtio_aux_mem_size = 1024 * 16 # max_packet * 8 buffers * 2 (tx, rx halves)
+            memory_address = self.mem_map["drtioaux"] + drtio_aux_mem_size * i
+            self.add_wb_slave(memory_address, drtio_aux_mem_size,
                               coreaux.bus)
-            self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
+            self.add_memory_region(memory_name, memory_address | self.shadow_base, drtio_aux_mem_size)
         self.config["HAS_DRTIO"] = None
         self.config["HAS_DRTIO_ROUTING"] = None
         self.config["DRTIO_ROLE"] = "satellite"
-        self.add_csr_group("drtioaux", drtioaux_csr_group)
-        self.add_memory_group("drtioaux_mem", drtioaux_memory_group)
-        self.add_csr_group("drtiorep", drtiorep_csr_group)
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
@@ -581,22 +543,39 @@ class SatelliteBase(BaseSoC, AMPSoC):
         rtio_clk_period = 1e9/rtio_clk_freq
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
 
-        self.submodules.siphaser = SiPhaser7Series(
-            si5324_clkin=platform.request("cdr_clk") if platform.hw_rev == "v2.0"
-                else platform.request("si5324_clkin"),
-            rx_synchronizer=self.rx_synchronizer,
-            ref_clk=self.crg.clk125_div2, ref_div2=True,
-            rtio_clk_freq=rtio_clk_freq)
-        platform.add_false_path_constraints(
-            self.crg.cd_sys.clk, self.siphaser.mmcm_freerun_output)
-        self.csr_devices.append("siphaser")
-        self.config["HAS_SI5324"] = None
-        self.config["SI5324_SOFT_RESET"] = None
+        if with_wrpll:
+            clk_synth = platform.request("cdr_clk_clean_fabric")
+            clk_synth_se = Signal()
+            platform.add_period_constraint(clk_synth.p, 8.0)
+            self.specials += Instance("IBUFGDS", p_DIFF_TERM="TRUE", p_IBUF_LOW_PWR="FALSE", i_I=clk_synth.p, i_IB=clk_synth.n, o_O=clk_synth_se)
+            self.submodules.wrpll = wrpll.WRPLL(
+                platform=self.platform,
+                cd_ref=self.gt_drtio.cd_rtio_rx0,
+                main_clk_se=clk_synth_se)
+            self.submodules.wrpll_skewtester = wrpll.SkewTester(self.rx_synchronizer)
+            self.csr_devices.append("wrpll_skewtester")
+            self.csr_devices.append("wrpll")
+            self.interrupt_devices.append("wrpll")
+            self.config["HAS_SI549"] = None
+            self.config["WRPLL_REF_CLK"] = "GT_CDR"
+        else:
+            self.submodules.siphaser = SiPhaser7Series(
+                si5324_clkin=platform.request("cdr_clk") if platform.hw_rev == "v2.0"
+                    else platform.request("si5324_clkin"),
+                rx_synchronizer=self.rx_synchronizer,
+                ref_clk=self.crg.clk125_div2, ref_div2=True,
+                rtio_clk_freq=rtio_clk_freq)
+            platform.add_false_path_constraints(
+                self.crg.cd_sys.clk, self.siphaser.mmcm_freerun_output)
+            self.csr_devices.append("siphaser")
+            self.config["HAS_SI5324"] = None
+            self.config["SI5324_SOFT_RESET"] = None
 
         gtp = self.gt_drtio.gtps[0]
         txout_buf = Signal()
         self.specials += Instance("BUFG", i_I=gtp.txoutclk, o_O=txout_buf)
-        self.crg.configure(txout_buf, clk_sw=gtp.tx_init.done)
+        self.crg.configure(txout_buf, clk_sw=self.gt_drtio.stable_clkin.storage, ext_async_rst=self.crg.clk_sw_fsm.o_clk_sw & ~gtp.tx_init.done)
+        self.specials += MultiReg(self.crg.clk_sw_fsm.o_clk_sw & self.crg.mmcm_locked, self.gt_drtio.clk_path_ready, odomain="bootstrap")
 
         platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
@@ -638,77 +617,237 @@ class SatelliteBase(BaseSoC, AMPSoC):
                                                 self.get_native_sdram_if(), cpu_dw=self.cpu_dw)
         self.csr_devices.append("rtio_analyzer")
 
+    def add_eem_drtio(self, eem_drtio_channels):
+        # Must be called before invoking add_rtio() to construct the CRI
+        # interconnect properly
+        self.submodules.eem_transceiver = eem_serdes.EEMSerdes(self.platform, eem_drtio_channels)
+        self.csr_devices.append("eem_transceiver")
+        self.config["HAS_DRTIO_EEM"] = None
+        self.config["EEM_DRTIO_COUNT"] = len(eem_drtio_channels)
 
-class Master(MasterBase):
-    def __init__(self, hw_rev=None, **kwargs):
+        cdr = ClockDomainsRenamer({"rtio_rx": "sys"})
+        for i in range(len(self.eem_transceiver.channels)):
+            channel = i + len(self.gt_drtio.channels)
+            corerep_name = "drtiorep" + str(channel-1)
+            coreaux_name = "drtioaux" + str(channel)
+            memory_name = "drtioaux" + str(channel) + "_mem"
+            self.drtiorep_csr_group.append(corerep_name)
+            self.drtioaux_csr_group.append(coreaux_name)
+            self.drtioaux_memory_group.append(memory_name)
+
+            core = cdr(DRTIORepeater(
+                self.rtio_tsc, self.eem_transceiver.channels[i]))
+            setattr(self.submodules, corerep_name, core)
+            self.drtio_cri.append(core.cri)
+            self.csr_devices.append(corerep_name)
+
+            coreaux = cdr(DRTIOAuxController(core.link_layer, self.cpu_dw))
+            setattr(self.submodules, coreaux_name, coreaux)
+            self.csr_devices.append(coreaux_name)
+
+            drtio_aux_mem_size = 1024 * 16 # max_packet * 8 buffers * 2 (tx, rx halves)
+            memory_address = self.mem_map["drtioaux"] + drtio_aux_mem_size*channel
+            self.add_wb_slave(memory_address, drtio_aux_mem_size,
+                            coreaux.bus)
+            self.add_memory_region(memory_name, memory_address | self.shadow_base, drtio_aux_mem_size)
+
+    def add_drtio_cpuif_groups(self):
+        self.add_csr_group("drtiorep", self.drtiorep_csr_group)
+        self.add_csr_group("drtioaux", self.drtioaux_csr_group)
+        self.add_memory_group("drtioaux_mem", self.drtioaux_memory_group)
+
+class GenericStandalone(StandaloneBase):
+    def __init__(self, description, hw_rev=None,**kwargs):
         if hw_rev is None:
-            hw_rev = "v2.0"
-        MasterBase.__init__(self, hw_rev=hw_rev, **kwargs)
+            hw_rev = description["hw_rev"]
+        self.class_name_override = description["variant"]
+        StandaloneBase.__init__(self,
+            hw_rev=hw_rev,
+            with_wrpll=description["enable_wrpll"],
+            **kwargs)
+        self.config["RTIO_FREQUENCY"] = "{:.1f}".format(description["rtio_frequency"]/1e6)
+        if "ext_ref_frequency" in description:
+            self.config["SI5324_EXT_REF"] = None
+            self.config["EXT_REF_FREQUENCY"] = "{:.1f}".format(
+                description["ext_ref_frequency"]/1e6)
+        if hw_rev == "v1.0":
+            # EEM clock fan-out from Si5324, not MMCX
+            self.comb += self.platform.request("clk_sel").eq(1)
+
+        has_grabber = any(peripheral["type"] == "grabber" for peripheral in description["peripherals"])
+        if has_grabber:
+            self.grabber_csr_group = []
 
         self.rtio_channels = []
-
-        phy = ttl_simple.Output(self.platform.request("user_led", 0))
-        self.submodules += phy
-        self.rtio_channels.append(rtio.Channel.from_phy(phy))
-        # matches Tester EEM numbers
-        eem.DIO.add_std(self, 5,
-            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
-        eem.Urukul.add_std(self, 0, 1, ttl_serdes_7series.Output_8X)
+        eem_7series.add_peripherals(self, description["peripherals"])
+        if hw_rev in ("v1.0", "v1.1"):
+            for i in (1, 2):
+                print("SFP LED at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
+                sfp_ctl = self.platform.request("sfp_ctl", i)
+                phy = ttl_simple.Output(sfp_ctl.led)
+                self.submodules += phy
+                self.rtio_channels.append(rtio.Channel.from_phy(phy))
+        if hw_rev in ("v1.1", "v2.0"):
+            for i in range(3):
+                print("USER LED at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
+                phy = ttl_simple.Output(self.platform.request("user_led", i))
+                self.submodules += phy
+                self.rtio_channels.append(rtio.Channel.from_phy(phy))
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
         self.rtio_channels.append(rtio.LogChannel())
 
-        self.add_rtio(self.rtio_channels)
+        self.add_rtio(self.rtio_channels, sed_lanes=description["sed_lanes"])
+
+        if has_grabber:
+            self.config["HAS_GRABBER"] = None
+            self.add_csr_group("grabber", self.grabber_csr_group)
+            for grabber in self.grabber_csr_group:
+                self.platform.add_false_path_constraints(
+                    self.crg.cd_sys.clk, getattr(self, grabber).deserializer.cd_cl.clk)
 
 
-class Satellite(SatelliteBase):
-    def __init__(self, hw_rev=None, **kwargs):
+class GenericMaster(MasterBase):
+    def __init__(self, description, hw_rev=None, **kwargs):
         if hw_rev is None:
-            hw_rev = "v2.0"
-        SatelliteBase.__init__(self, hw_rev=hw_rev, **kwargs)
+            hw_rev = description["hw_rev"]
+        self.class_name_override = description["variant"]
+        has_drtio_over_eem = any(peripheral["type"] == "shuttler" for peripheral in description["peripherals"])
+        MasterBase.__init__(self,
+            hw_rev=hw_rev,
+            rtio_clk_freq=description["rtio_frequency"],
+            enable_sata=description["enable_sata_drtio"],
+            enable_sys5x=has_drtio_over_eem,
+            with_wrpll=description["enable_wrpll"],
+            **kwargs)
+        if "ext_ref_frequency" in description:
+            self.config["SI5324_EXT_REF"] = None
+            self.config["EXT_REF_FREQUENCY"] = "{:.1f}".format(
+                description["ext_ref_frequency"]/1e6)
+        if hw_rev == "v1.0":
+            # EEM clock fan-out from Si5324, not MMCX
+            self.comb += self.platform.request("clk_sel").eq(1)
+
+        if has_drtio_over_eem:
+            self.eem_drtio_channels = []
+        has_grabber = any(peripheral["type"] == "grabber" for peripheral in description["peripherals"])
+        if has_grabber:
+            self.grabber_csr_group = []
 
         self.rtio_channels = []
-        phy = ttl_simple.Output(self.platform.request("user_led", 0))
-        self.submodules += phy
-        self.rtio_channels.append(rtio.Channel.from_phy(phy))
-        # matches Tester EEM numbers
-        eem.DIO.add_std(self, 5,
-            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
+        eem_7series.add_peripherals(self, description["peripherals"])
+        if hw_rev in ("v1.1", "v2.0"):
+            for i in range(3):
+                print("USER LED at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
+                phy = ttl_simple.Output(self.platform.request("user_led", i))
+                self.submodules += phy
+                self.rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        self.add_rtio(self.rtio_channels)
+        self.config["HAS_RTIO_LOG"] = None
+        self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
+        self.rtio_channels.append(rtio.LogChannel())
+
+        if has_drtio_over_eem:
+            self.add_eem_drtio(self.eem_drtio_channels)
+        self.add_drtio_cpuif_groups()
+
+        self.add_rtio(self.rtio_channels, sed_lanes=description["sed_lanes"])
+
+        if has_grabber:
+            self.config["HAS_GRABBER"] = None
+            self.add_csr_group("grabber", self.grabber_csr_group)
+            for grabber in self.grabber_csr_group:
+                self.platform.add_false_path_constraints(
+                    self.gt_drtio.gtps[0].txoutclk, getattr(self, grabber).deserializer.cd_cl.clk)
 
 
-VARIANTS = {cls.__name__.lower(): cls for cls in [Tester, SUServo, Master, Satellite]}
+class GenericSatellite(SatelliteBase):
+    def __init__(self, description, hw_rev=None, **kwargs):
+        if hw_rev is None:
+            hw_rev = description["hw_rev"]
+        self.class_name_override = description["variant"]
+        has_drtio_over_eem = any(peripheral["type"] == "shuttler" for peripheral in description["peripherals"])
+        SatelliteBase.__init__(self,
+                               hw_rev=hw_rev,
+                               rtio_clk_freq=description["rtio_frequency"],
+                               enable_sata=description["enable_sata_drtio"],
+                               enable_sys5x=has_drtio_over_eem,
+                               with_wrpll=description["enable_wrpll"],
+                               **kwargs)
+        if hw_rev == "v1.0":
+            # EEM clock fan-out from Si5324, not MMCX
+            self.comb += self.platform.request("clk_sel").eq(1)
+        if has_drtio_over_eem:
+            self.eem_drtio_channels = []
+        has_grabber = any(peripheral["type"] == "grabber" for peripheral in description["peripherals"])
+        if has_grabber:
+            self.grabber_csr_group = []
+
+        self.rtio_channels = []
+        eem_7series.add_peripherals(self, description["peripherals"])
+        if hw_rev in ("v1.1", "v2.0"):
+            for i in range(3):
+                print("USER LED at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
+                phy = ttl_simple.Output(self.platform.request("user_led", i))
+                self.submodules += phy
+                self.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        self.config["HAS_RTIO_LOG"] = None
+        self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
+        self.rtio_channels.append(rtio.LogChannel())
+
+        if has_drtio_over_eem:
+            self.add_eem_drtio(self.eem_drtio_channels)
+        self.add_drtio_cpuif_groups()
+
+        self.add_rtio(self.rtio_channels, sed_lanes=description["sed_lanes"])
+        if has_grabber:
+            self.config["HAS_GRABBER"] = None
+            self.add_csr_group("grabber", self.grabber_csr_group)
+            for grabber in self.grabber_csr_group:
+                self.platform.add_false_path_constraints(
+                    self.gt_drtio.gtps[0].txoutclk, getattr(self, grabber).deserializer.cd_cl.clk)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="ARTIQ device binary builder for Kasli systems")
+        description="ARTIQ device binary builder for generic Kasli systems")
     builder_args(parser)
     soc_kasli_args(parser)
     parser.set_defaults(output_dir="artiq_kasli")
-    parser.add_argument("-V", "--variant", default="tester",
-                        help="variant: {} (default: %(default)s)".format(
-                            "/".join(sorted(VARIANTS.keys()))))
-    parser.add_argument("--tester-dds", default=None,
-                        help="Tester variant DDS type: ad9910/ad9912 "
-                             "(default: ad9910)")
+    parser.add_argument("description", metavar="DESCRIPTION",
+                        help="JSON system description file")
     parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
     args = parser.parse_args()
+    description = jsondesc.load(args.description)
 
-    argdict = dict()
-    argdict["gateware_identifier_str"] = args.gateware_identifier_str
-    argdict["dds"] = args.tester_dds
+    min_artiq_version = description["min_artiq_version"]
+    if Version(artiq_version) < Version(min_artiq_version):
+        logger.warning("ARTIQ version mismatch: current %s < %s minimum",
+                       artiq_version, min_artiq_version)
 
-    variant = args.variant.lower()
-    try:
-        cls = VARIANTS[variant]
-    except KeyError:
-        raise SystemExit("Invalid variant (-V/--variant)")
+    if description["target"] != "kasli":
+        raise ValueError("Description is for a different target")
 
-    soc = cls(**soc_kasli_argdict(args), **argdict)
+    if description["drtio_role"] == "standalone":
+        cls = GenericStandalone
+    elif description["drtio_role"] == "master":
+        cls = GenericMaster
+    elif description["drtio_role"] == "satellite":
+        cls = GenericSatellite
+    else:
+        raise ValueError("Invalid DRTIO role")
+
+    has_shuttler = any(peripheral["type"] == "shuttler" for peripheral in description["peripherals"])
+    if has_shuttler and (description["drtio_role"] == "standalone"):
+        raise ValueError("Shuttler requires DRTIO, please switch role to master")
+    if description["enable_wrpll"] and description["hw_rev"] in ["v1.0", "v1.1"]:
+        raise ValueError("Kasli {} does not support WRPLL".format(description["hw_rev"])) 
+
+    soc = cls(description, gateware_identifier_str=args.gateware_identifier_str, **soc_kasli_argdict(args))
+    args.variant = description["variant"]
     build_artiq_soc(soc, builder_argdict(args))
 
 

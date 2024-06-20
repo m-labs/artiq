@@ -1,3 +1,5 @@
+.. _artiq-real-time-i-o-concepts:
+
 ARTIQ Real-Time I/O Concepts
 ============================
 
@@ -118,6 +120,8 @@ To track down ``RTIOUnderflows`` in an experiment there are a few approaches:
   * Exception backtraces show where underflow has occurred while executing the
     code.
   * The :any:`integrated logic analyzer <core-device-rtio-analyzer-tool>` shows the timeline context that lead to the exception. The analyzer is always active and supports plotting of RTIO slack. RTIO slack is the difference between timeline cursor and wall clock time (``now - rtio_counter``).
+
+.. _sequence-errors: 
 
 Sequence errors
 ---------------

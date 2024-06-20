@@ -28,6 +28,8 @@ class Request(Enum):
     RPCReply = 7
     RPCException = 8
 
+    SubkernelUpload = 9
+
 
 class Reply(Enum):
     SystemInfo = 2
@@ -316,6 +318,7 @@ class CommKernel:
         self.unpack_float64 = struct.Struct(self.endian + "d").unpack
 
         self.pack_header = struct.Struct(self.endian + "lB").pack
+        self.pack_int8 = struct.Struct(self.endian + "B").pack
         self.pack_int32 = struct.Struct(self.endian + "l").pack
         self.pack_int64 = struct.Struct(self.endian + "q").pack
         self.pack_float64 = struct.Struct(self.endian + "d").pack
@@ -430,7 +433,7 @@ class CommKernel:
         self._write(chunk)
 
     def _write_int8(self, value):
-        self._write(value)
+        self._write(self.pack_int8(value))
 
     def _write_int32(self, value):
         self._write(self.pack_int32(value))
@@ -481,6 +484,19 @@ class CommKernel:
 
     def load(self, kernel_library):
         self._write_header(Request.LoadKernel)
+        self._write_bytes(kernel_library)
+        self._flush()
+
+        self._read_header()
+        if self._read_type == Reply.LoadFailed:
+            raise LoadError(self._read_string())
+        else:
+            self._read_expect(Reply.LoadCompleted)
+
+    def upload_subkernel(self, kernel_library, id, destination):
+        self._write_header(Request.SubkernelUpload)
+        self._write_int32(id)
+        self._write_int8(destination)
         self._write_bytes(kernel_library)
         self._flush()
 
@@ -557,12 +573,12 @@ class CommKernel:
             self._write_bool(value)
         elif tag == "i":
             check(isinstance(value, (int, numpy.int32)) and
-                  (-2**31 <= value < 2**31),
+                  (-2**31 <= value <= 2**31-1),
                   lambda: "32-bit int")
             self._write_int32(value)
         elif tag == "I":
             check(isinstance(value, (int, numpy.int32, numpy.int64)) and
-                  (-2**63 <= value < 2**63),
+                  (-2**63 <= value <= 2**63-1),
                   lambda: "64-bit int")
             self._write_int64(value)
         elif tag == "f":
@@ -571,8 +587,8 @@ class CommKernel:
             self._write_float64(value)
         elif tag == "F":
             check(isinstance(value, Fraction) and
-                  (-2**63 <= value.numerator < 2**63) and
-                  (-2**63 <= value.denominator < 2**63),
+                  (-2**63 <= value.numerator <= 2**63-1) and
+                  (-2**63 <= value.denominator <= 2**63-1),
                   lambda: "64-bit Fraction")
             self._write_int64(value.numerator)
             self._write_int64(value.denominator)

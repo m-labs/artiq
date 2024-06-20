@@ -10,87 +10,26 @@ import h5py
 from sipyco import pyon
 
 from artiq import __artiq_dir__ as artiq_dir
-from artiq.gui.tools import (LayoutWidget, WheelFilter, 
-                             log_level_to_name, get_open_file_name)
-from artiq.gui.entries import procdesc_to_entry
+from artiq.gui.tools import (LayoutWidget, log_level_to_name, get_open_file_name)
+from artiq.gui.entries import procdesc_to_entry, EntryTreeWidget
 from artiq.master.worker import Worker, log_worker_exception
 
 logger = logging.getLogger(__name__)
 
 
-class _ArgumentEditor(QtWidgets.QTreeWidget):
+class _ArgumentEditor(EntryTreeWidget):
     def __init__(self, dock):
-        QtWidgets.QTreeWidget.__init__(self)
-        self.setColumnCount(3)
-        self.header().setStretchLastSection(False)
-        try:
-            set_resize_mode = self.header().setSectionResizeMode
-        except AttributeError:
-            set_resize_mode = self.header().setResizeMode
-        set_resize_mode(0, QtWidgets.QHeaderView.ResizeToContents)
-        set_resize_mode(1, QtWidgets.QHeaderView.Stretch)
-        set_resize_mode(2, QtWidgets.QHeaderView.ResizeToContents)
-        self.header().setVisible(False)
-        self.setSelectionMode(self.NoSelection)
-        self.setHorizontalScrollMode(self.ScrollPerPixel)
-        self.setVerticalScrollMode(self.ScrollPerPixel)
-
-        self.setStyleSheet("QTreeWidget {background: " +
-                           self.palette().midlight().color().name() + " ;}")
-
-        self.viewport().installEventFilter(WheelFilter(self.viewport(), True))
-
-        self._groups = dict()
-        self._arg_to_widgets = dict()
+        EntryTreeWidget.__init__(self)
         self._dock = dock
 
         if not self._dock.arguments:
-            self.addTopLevelItem(QtWidgets.QTreeWidgetItem(["No arguments"]))
-        gradient = QtGui.QLinearGradient(
-            0, 0, 0, QtGui.QFontMetrics(self.font()).lineSpacing()*2.5)
-        gradient.setColorAt(0, self.palette().base().color())
-        gradient.setColorAt(1, self.palette().midlight().color())
+            self.insertTopLevelItem(0, QtWidgets.QTreeWidgetItem(["No arguments"]))
 
         for name, argument in self._dock.arguments.items():
-            widgets = dict()
-            self._arg_to_widgets[name] = widgets
+            self.set_argument(name, argument)
 
-            entry = procdesc_to_entry(argument["desc"])(argument)
-            widget_item = QtWidgets.QTreeWidgetItem([name])
-            if argument["tooltip"]:
-                widget_item.setToolTip(0, argument["tooltip"])
-            widgets["entry"] = entry
-            widgets["widget_item"] = widget_item
+        self.quickStyleClicked.connect(self._dock._run_clicked)
 
-            for col in range(3):
-                widget_item.setBackground(col, gradient)
-            font = widget_item.font(0)
-            font.setBold(True)
-            widget_item.setFont(0, font)
-
-            if argument["group"] is None:
-                self.addTopLevelItem(widget_item)
-            else:
-                self._get_group(argument["group"]).addChild(widget_item)
-            fix_layout = LayoutWidget()
-            widgets["fix_layout"] = fix_layout
-            fix_layout.addWidget(entry)
-            self.setItemWidget(widget_item, 1, fix_layout)
-
-            recompute_argument = QtWidgets.QToolButton()
-            recompute_argument.setToolTip("Re-run the experiment's build "
-                                          "method and take the default value")
-            recompute_argument.setIcon(
-                QtWidgets.QApplication.style().standardIcon(
-                    QtWidgets.QStyle.SP_BrowserReload))
-            recompute_argument.clicked.connect(
-                partial(self._recompute_argument_clicked, name))
-            fix_layout = LayoutWidget()
-            fix_layout.addWidget(recompute_argument)
-            self.setItemWidget(widget_item, 2, fix_layout)
-
-        widget_item = QtWidgets.QTreeWidgetItem()
-        self.addTopLevelItem(widget_item)
         recompute_arguments = QtWidgets.QPushButton("Recompute all arguments")
         recompute_arguments.setIcon(
             QtWidgets.QApplication.style().standardIcon(
@@ -100,7 +39,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         load = QtWidgets.QPushButton("Set arguments from HDF5")
         load.setToolTip("Set arguments from currently selected HDF5 file")
         load.setIcon(QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_DialogApplyButton))
+            QtWidgets.QStyle.SP_DialogApplyButton))
         load.clicked.connect(self._load_clicked)
 
         buttons = LayoutWidget()
@@ -108,21 +47,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         buttons.addWidget(load, 1, 2)
         for i, s in enumerate((1, 0, 0, 1)):
             buttons.layout.setColumnStretch(i, s)
-        self.setItemWidget(widget_item, 1, buttons)
-
-    def _get_group(self, name):
-        if name in self._groups:
-            return self._groups[name]
-        group = QtWidgets.QTreeWidgetItem([name])
-        for col in range(3):
-            group.setBackground(col, self.palette().mid())
-            group.setForeground(col, self.palette().brightText())
-            font = group.font(col)
-            font.setBold(True)
-            group.setFont(col, font)
-        self.addTopLevelItem(group)
-        self._groups[name] = group
-        return group
+        self.setItemWidget(self.bottom_item, 1, buttons)
 
     def _load_clicked(self):
         asyncio.ensure_future(self._dock.load_hdf5_task())
@@ -130,8 +55,8 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
     def _recompute_arguments_clicked(self):
         asyncio.ensure_future(self._dock._recompute_arguments())
 
-    def _recompute_argument_clicked(self, name):
-        asyncio.ensure_future(self._recompute_argument(name))
+    def reset_entry(self, key):
+        asyncio.ensure_future(self._recompute_argument(key))
 
     async def _recompute_argument(self, name):
         try:
@@ -146,29 +71,7 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         state = procdesc_to_entry(procdesc).default_state(procdesc)
         argument["desc"] = procdesc
         argument["state"] = state
-
-        widgets = self._arg_to_widgets[name]
-
-        widgets["entry"].deleteLater()
-        widgets["entry"] = procdesc_to_entry(procdesc)(argument)
-        widgets["fix_layout"] = LayoutWidget()
-        widgets["fix_layout"].addWidget(widgets["entry"])
-        self.setItemWidget(widgets["widget_item"], 1, widgets["fix_layout"])
-        self.updateGeometries()
-
-    def save_state(self):
-        expanded = []
-        for k, v in self._groups.items():
-            if v.isExpanded():
-                expanded.append(k)
-        return {"expanded": expanded}
-
-    def restore_state(self, state):
-        for e in state["expanded"]:
-            try:
-                self._groups[e].setExpanded(True)
-            except KeyError:
-                pass
+        self.update_argument(name, argument)
 
 
 log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
@@ -277,8 +180,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         state = self.argeditor.save_state()
         self.argeditor.deleteLater()
         self.argeditor = _ArgumentEditor(self)
-        self.argeditor.restore_state(state)
         self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
+        self.argeditor.restore_state(state)
 
     async def load_hdf5_task(self, filename=None):
         if filename is None:
@@ -466,6 +369,8 @@ class ExperimentsArea(QtWidgets.QMdiArea):
     def initialize_submission_arguments(self, arginfo):
         arguments = OrderedDict()
         for name, (procdesc, group, tooltip) in arginfo.items():
+            if procdesc["ty"] == "EnumerationValue" and procdesc["quickstyle"]:
+                procdesc["quickstyle"] = False
             state = procdesc_to_entry(procdesc).default_state(procdesc)
             arguments[name] = {
                 "desc": procdesc,
@@ -507,6 +412,10 @@ class ExperimentsArea(QtWidgets.QMdiArea):
         dock.sigClosed.connect(partial(self.on_dock_closed, dock))
         self.open_experiments.append(dock)
         return dock
+
+    def set_argument_value(self, expurl, name, value):
+        logger.warning("Unable to set argument '%s', dropping change. "
+                       "'set_argument_value' not supported in browser.", name)
 
     def on_dock_closed(self, dock):
         self.open_experiments.remove(dock)

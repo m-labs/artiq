@@ -27,6 +27,16 @@ organize datasets in folders?
 
 Use the dot (".") in dataset names to separate folders. The GUI will automatically create and delete folders in the dataset tree display.
 
+organize experiment windows in the dashboard?
+---------------------------------------------
+
+Experiment windows can be organized by using the following hotkeys:
+
+* CTRL+SHIFT+T to tile experiment windows
+* CTRL+SHIFT+C to cascade experiment windows
+
+The windows will be organized in the order they were last interacted with.
+
 write a generator feeding a kernel feeding an analyze function?
 ---------------------------------------------------------------
 

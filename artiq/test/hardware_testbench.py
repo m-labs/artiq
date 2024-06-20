@@ -56,6 +56,7 @@ class ExperimentCase(unittest.TestCase):
         try:
             exp = self.create(cls, *args, **kwargs)
             exp.run()
+            self.device_mgr.notify_run_end()
             exp.analyze()
             return exp
         except CompileError as error:

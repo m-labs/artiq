@@ -42,13 +42,13 @@ class _AppletRequestInterface:
         """
         raise NotImplementedError
 
-    def set_argument_value(self, expurl, name, value):
+    def set_argument_value(self, expurl, key, value):
         """
         Temporarily set the value of an argument in a experiment in the dashboard.
         The value resets to default value when recomputing the argument.
 
         :param expurl: Experiment URL identifying the experiment in the dashboard. Example: 'repo:ArgumentsDemo'.
-        :param name: Name of the argument in the experiment.
+        :param key: Name of the argument in the experiment.
         :param value: Object representing the new temporary value of the argument. For ``Scannable`` arguments, this parameter
             should be a ``ScanObject``. The type of the ``ScanObject`` will be set as the selected type when this function is called. 
         """
@@ -77,10 +77,10 @@ class AppletRequestIPC(_AppletRequestInterface):
         mod = {"action": "append", "path": [key, 1], "x": value}
         self.ipc.update_dataset(mod)
 
-    def set_argument_value(self, expurl, name, value):
+    def set_argument_value(self, expurl, key, value):
         if isinstance(value, ScanObject):
             value = value.describe()
-        self.ipc.set_argument_value(expurl, name, value)
+        self.ipc.set_argument_value(expurl, key, value)
 
 
 class AppletRequestRPC(_AppletRequestInterface):
@@ -182,10 +182,10 @@ class AppletIPCClient(AsyncioChildComm):
         self.write_pyon({"action": "update_dataset",
                          "mod": mod})
 
-    def set_argument_value(self, expurl, name, value):
+    def set_argument_value(self, expurl, key, value):
         self.write_pyon({"action": "set_argument_value",
                          "expurl": expurl,
-                         "name": name,
+                         "key": key,
                          "value": value})
 
 
@@ -255,7 +255,7 @@ class SimpleApplet:
         if self.embed is None:
             dataset_ctl = RPCClient()
             self.loop.run_until_complete(dataset_ctl.connect_rpc(
-                self.args.server, self.args.port_control, "master_dataset_db"))
+                self.args.server, self.args.port_control, "dataset_db"))
             self.req = AppletRequestRPC(self.loop, dataset_ctl)
         else:
             self.req = AppletRequestIPC(self.ipc)

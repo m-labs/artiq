@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import os, sys, logging, argparse
+import os, sys, io, tarfile, logging, argparse
 
 from sipyco import common_args
 
@@ -70,7 +70,6 @@ def main():
             dataset_db.close_db()
     finally:
         device_mgr.close_devices()
-
 
 if __name__ == "__main__":
     main()

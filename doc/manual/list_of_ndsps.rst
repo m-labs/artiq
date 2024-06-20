@@ -29,4 +29,4 @@ The following network device support packages are available for ARTIQ. If you wo
 | InfluxDB database               | Not available                     | Not available                    | `HTML <https://gitlab.com/charlesbaynham/artiq_influx_generic>`_                                    | https://gitlab.com/charlesbaynham/artiq_influx_generic |
 +---------------------------------+-----------------------------------+----------------------------------+-----------------------------------------------------------------------------------------------------+--------------------------------------------------------+
 
-MSYS2 packages all start with the ``mingw-w64-x86_64-`` prefix.
+MSYS2 packages all start with the ``mingw-w64-clang-x86_64-`` prefix.

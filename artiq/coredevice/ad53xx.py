@@ -243,7 +243,7 @@ class AD53xx:
     def write_gain_mu(self, channel: int32, gain: int32 = 0xffff):
         """Program the gain register for a DAC channel.
 
-        The DAC output is not updated until LDAC is pulsed (see :meth load:).
+        The DAC output is not updated until LDAC is pulsed (see :meth:`load`).
         This method advances the timeline by the duration of one SPI transfer.
 
         :param gain: 16-bit gain register value (default: 0xffff)
@@ -255,7 +255,7 @@ class AD53xx:
     def write_offset_mu(self, channel: int32, offset: int32 = 0x8000):
         """Program the offset register for a DAC channel.
 
-        The DAC output is not updated until LDAC is pulsed (see :meth load:).
+        The DAC output is not updated until LDAC is pulsed (see :meth:`load`).
         This method advances the timeline by the duration of one SPI transfer.
 
         :param offset: 16-bit offset register value (default: 0x8000)
@@ -268,7 +268,7 @@ class AD53xx:
         """Program the DAC offset voltage for a channel.
 
         An offset of +V can be used to trim out a DAC offset error of -V.
-        The DAC output is not updated until LDAC is pulsed (see :meth load:).
+        The DAC output is not updated until LDAC is pulsed (see :meth:`load`).
         This method advances the timeline by the duration of one SPI transfer.
 
         :param voltage: the offset voltage
@@ -280,7 +280,7 @@ class AD53xx:
     def write_dac_mu(self, channel: int32, value: int32):
         """Program the DAC input register for a channel.
 
-        The DAC output is not updated until LDAC is pulsed (see :meth load:).
+        The DAC output is not updated until LDAC is pulsed (see :meth:`load`).
         This method advances the timeline by the duration of one SPI transfer.
         """
         self.bus.write(
@@ -290,7 +290,7 @@ class AD53xx:
     def write_dac(self, channel: int32, voltage: float):
         """Program the DAC output voltage for a channel.
 
-        The DAC output is not updated until LDAC is pulsed (see :meth load:).
+        The DAC output is not updated until LDAC is pulsed (see :meth:`load`).
         This method advances the timeline by the duration of one SPI transfer.
         """
         self.write_dac_mu(channel, voltage_to_mu(voltage, self.offset_dacs,
@@ -323,7 +323,7 @@ class AD53xx:
 
         If no LDAC device was defined, the LDAC pulse is skipped.
 
-        See :meth load:.
+        See :meth:`load`.
 
         :param values: list of DAC values to program
         :param channels: list of DAC channels to program. If not specified,
@@ -366,7 +366,7 @@ class AD53xx:
         """Two-point calibration of a DAC channel.
 
         Programs the offset and gain register to trim out DAC errors. Does not
-        take effect until LDAC is pulsed (see :meth load:).
+        take effect until LDAC is pulsed (see :meth:`load`).
 
         Calibration consists of measuring the DAC output voltage for a channel
         with the DAC set to zero-scale (0x0000) and full-scale (0xffff).

@@ -24,8 +24,8 @@
       artiqRev = self.sourceInfo.rev or "unknown";
 
       rustManifest = pkgs.fetchurl {
-        url = "https://static.rust-lang.org/dist/2021-01-29/channel-rust-nightly.toml";
-        sha256 = "sha256-EZKgw89AH4vxaJpUHmIMzMW/80wAFQlfcxRoBD9nz0c=";
+        url = "https://static.rust-lang.org/dist/2021-09-01/channel-rust-nightly.toml";
+        sha256 = "sha256-KYLZHfOkotnM6BZd7CU+vBA3w/VtiWxth3ngJlmA41U=";
       };
 
       targets = [];
@@ -187,7 +187,8 @@
           cargoDeps = rustPlatform.importCargoLock {
             lockFile = ./artiq/firmware/Cargo.lock;
             outputHashes = {
-              "fringe-1.2.1" = "sha256-m4rzttWXRlwx53LWYpaKuU5AZe4GSkbjHS6oINt5d3Y=";
+              "fringe-1.2.1" = "sha256-u7NyZBzGrMii79V+Xs4Dx9tCpiby6p8IumkUl7oGBm0=";
+              "tar-no-std-0.1.8" = "sha256-xm17108v4smXOqxdLvHl9CxTCJslmeogjm4Y87IXFuM=";
             };
           };
           nativeBuildInputs = [
@@ -277,23 +278,26 @@
         paths = [ openocd-fixed bscan_spi_bitstreams-pkg ];
       };
 
-      sphinxcontrib-wavedrom = pkgs.python3Packages.buildPythonPackage rec {
-        pname = "sphinxcontrib-wavedrom";
-        version = "3.0.4";
-        format = "pyproject";
-        src = pkgs.python3Packages.fetchPypi {
-          inherit pname version;
-          sha256 = "sha256-0zTHVBr9kXwMEo4VRTFsxdX2HI31DxdHfLUHCQmw1Ko=";
-        };
-        nativeBuildInputs = [ pkgs.python3Packages.setuptools-scm ];
-        propagatedBuildInputs = (with pkgs.python3Packages; [ wavedrom sphinx xcffib cairosvg ]);
-      };
       latex-artiq-manual = pkgs.texlive.combine {
         inherit (pkgs.texlive)
           scheme-basic latexmk cmap collection-fontsrecommended fncychap
           titlesec tabulary varwidth framed fancyvrb float wrapfig parskip
           upquote capt-of needspace etoolbox booktabs;
       };
+
+      artiq-frontend-dev-wrappers = pkgs.runCommandNoCC "artiq-frontend-dev-wrappers" {}
+        ''
+        mkdir -p $out/bin
+        for program in ${self}/artiq/frontend/*.py; do
+          if [ -x $program ]; then
+            progname=`basename -s .py $program`
+            outname=$out/bin/$progname
+            echo "#!${pkgs.bash}/bin/bash" >> $outname
+            echo "exec python3 -m artiq.frontend.$progname \"\$@\"" >> $outname
+            chmod 755 $outname
+          fi
+        done
+        '';
     in rec {
       packages.x86_64-linux = rec {
         inherit (nac3.packages.x86_64-linux) python3-mimalloc;
@@ -308,14 +312,14 @@
           target = "efc";
           variant = "shuttler";
         };
-        inherit sphinxcontrib-wavedrom latex-artiq-manual;
+        inherit latex-artiq-manual;
         artiq-manual-html = pkgs.stdenvNoCC.mkDerivation rec {
           name = "artiq-manual-html-${version}";
           version = artiqVersion;
           src = self;
-          buildInputs = [
-            pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
-            pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom
+          buildInputs = with pkgs.python3Packages; [
+            sphinx sphinx_rtd_theme
+            sphinx-argparse sphinxcontrib-wavedrom
           ];
           buildPhase = ''
             export VERSIONEER_OVERRIDE=${artiqVersion}
@@ -333,11 +337,10 @@
           name = "artiq-manual-pdf-${version}";
           version = artiqVersion;
           src = self;
-          buildInputs = [
-            pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
-            pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom
-            latex-artiq-manual
-          ];
+          buildInputs = with pkgs.python3Packages; [
+            sphinx sphinx_rtd_theme
+            sphinx-argparse sphinxcontrib-wavedrom
+          ] ++ [ latex-artiq-manual ];
           buildPhase = ''
             export VERSIONEER_OVERRIDE=${artiq.version}
             export SOURCE_DATE_EPOCH=${builtins.toString self.sourceInfo.lastModified}
@@ -355,13 +358,14 @@
 
       packages.x86_64-w64-mingw32 = import ./windows { inherit sipyco nac3 artiq-comtools; artiq = self; };
 
-      inherit makeArtiqBoardPackage;
+      inherit makeArtiqBoardPackage openocd-bscanspi-f;
 
       defaultPackage.x86_64-linux = packages.x86_64-linux.python3-mimalloc.withPackages(ps: [ packages.x86_64-linux.artiq ]);
 
       # Main development shell with everything you need to develop ARTIQ on Linux.
-      # ARTIQ itself is not included in the environment, you can make Python use the current sources using e.g.
-      # export PYTHONPATH=`pwd`:$PYTHONPATH
+      # The current copy of the ARTIQ sources is added to PYTHONPATH so changes can be tested instantly.
+      # Additionally, executable wrappers that import the current ARTIQ sources for the ARTIQ frontends
+      # are added to PATH.
       devShells.x86_64-linux.default = pkgs.mkShell {
         name = "artiq-dev-shell";
         buildInputs = [
@@ -370,16 +374,19 @@
           pkgs.llvmPackages_14.clang-unwrapped
           pkgs.llvm_14
           pkgs.lld_14
+          pkgs.git
+          artiq-frontend-dev-wrappers
           # use the vivado-env command to enter a FHS shell that lets you run the Vivado installer
           packages.x86_64-linux.vivadoEnv
           packages.x86_64-linux.vivado
           packages.x86_64-linux.openocd-bscanspi
           pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
-          pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom latex-artiq-manual
+          pkgs.python3Packages.sphinx-argparse pkgs.python3Packages.sphinxcontrib-wavedrom latex-artiq-manual
         ];
         shellHook = ''
           export QT_PLUGIN_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}:${pkgs.qt5.qtsvg.bin}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}
           export QML2_IMPORT_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtQmlPrefix}
+          export PYTHONPATH=`git rev-parse --show-toplevel`:$PYTHONPATH
         '';
       };
 

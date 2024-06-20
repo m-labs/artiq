@@ -8,7 +8,6 @@ from sipyco import pyon
 from artiq.tools import scale_from_metadata, short_format, exc_to_warning
 from artiq.gui.tools import LayoutWidget, QRecursiveFilterProxyModel
 from artiq.gui.models import DictSyncTreeSepModel
-from artiq.gui.scientific_spinbox import ScientificSpinBox
 
 
 logger = logging.getLogger(__name__)
@@ -81,8 +80,7 @@ class CreateEditDialog(QtWidgets.QDialog):
             t = value.dtype if value is np.ndarray else type(value)
             if scale != 1 and np.issubdtype(t, np.number):
                 # degenerates to float type
-                value_edit_string = self.value_to_edit_string(
-                        np.float64(value / scale))
+                value_edit_string = self.value_to_edit_string(value / scale)
             self.unit_widget.setText(metadata.get('unit', ''))
             self.scale_widget.setText(str(metadata.get('scale', '')))
             self.precision_widget.setText(str(metadata.get('precision', '')))
@@ -109,11 +107,13 @@ class CreateEditDialog(QtWidgets.QDialog):
         t = value.dtype if value is np.ndarray else type(value)
         if scale != 1 and np.issubdtype(t, np.number):
             # degenerates to float type
-            value = np.float64(value * scale)
+            value = float(value * scale)
         if self.key and self.key != key:
-            asyncio.ensure_future(exc_to_warning(rename(self.key, key, value, metadata, persist, self.dataset_ctl)))
+            asyncio.ensure_future(exc_to_warning(rename(self.key, key, value, metadata, persist,
+                                                        self.dataset_ctl)))
         else:
-            asyncio.ensure_future(exc_to_warning(self.dataset_ctl.set(key, value, metadata=metadata, persist=persist)))
+            asyncio.ensure_future(exc_to_warning(self.dataset_ctl.set(key, value, metadata=metadata,
+                                                                      persist=persist)))
         self.key = key
         QtWidgets.QDialog.accept(self)
 
@@ -163,7 +163,7 @@ class CreateEditDialog(QtWidgets.QDialog):
 
 
 class Model(DictSyncTreeSepModel):
-    def __init__(self,  init):
+    def __init__(self, init):
         DictSyncTreeSepModel.__init__(self, ".",
                                       ["Dataset", "Persistent", "Value"],
                                       init)

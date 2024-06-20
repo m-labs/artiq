@@ -247,10 +247,11 @@ class _MasterBase(MiniSoC, AMPSoC):
             setattr(self.submodules, coreaux_name, coreaux)
             self.csr_devices.append(coreaux_name)
 
-            memory_address = self.mem_map["drtioaux"] + 0x800*i
-            self.add_wb_slave(memory_address, 0x800,
+            drtio_aux_mem_size = 1024 * 16 # max_packet * 8 buffers * 2 (tx, rx halves)
+            memory_address = self.mem_map["drtioaux"] + drtio_aux_mem_size*i
+            self.add_wb_slave(memory_address, drtio_aux_mem_size,
                               coreaux.bus)
-            self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
+            self.add_memory_region(memory_name, memory_address | self.shadow_base, drtio_aux_mem_size)
         self.config["HAS_DRTIO"] = None
         self.config["HAS_DRTIO_ROUTING"] = None
         self.add_csr_group("drtio", drtio_csr_group)
@@ -273,7 +274,8 @@ class _MasterBase(MiniSoC, AMPSoC):
 
         txout_buf = Signal()
         self.specials += Instance("BUFG", i_I=gtx0.txoutclk, o_O=txout_buf)
-        self.crg.configure(txout_buf, clk_sw=gtx0.tx_init.done)
+        self.crg.configure(txout_buf, clk_sw=self.gt_drtio.stable_clkin.storage, ext_async_rst=self.crg.clk_sw_fsm.o_clk_sw & ~gtx0.tx_init.done)
+        self.specials += MultiReg(self.crg.clk_sw_fsm.o_clk_sw & self.crg.mmcm_locked, self.gt_drtio.clk_path_ready, odomain="bootstrap")
 
         self.comb += [
             platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx0")),
@@ -404,10 +406,11 @@ class _SatelliteBase(BaseSoC, AMPSoC):
             setattr(self.submodules, coreaux_name, coreaux)
             self.csr_devices.append(coreaux_name)
 
-            memory_address = self.mem_map["drtioaux"] + 0x800*i
-            self.add_wb_slave(memory_address, 0x800,
+            drtio_aux_mem_size = 1024 * 16 # max_packet * 8 buffers * 2 (tx, rx halves)
+            memory_address = self.mem_map["drtioaux"] + drtio_aux_mem_size*i
+            self.add_wb_slave(memory_address, drtio_aux_mem_size,
                               coreaux.bus)
-            self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
+            self.add_memory_region(memory_name, memory_address | self.shadow_base, drtio_aux_mem_size)
         self.config["HAS_DRTIO"] = None
         self.config["HAS_DRTIO_ROUTING"] = None
         self.add_csr_group("drtioaux", drtioaux_csr_group)
@@ -440,7 +443,8 @@ class _SatelliteBase(BaseSoC, AMPSoC):
 
         txout_buf = Signal()
         self.specials += Instance("BUFG", i_I=gtx0.txoutclk, o_O=txout_buf)
-        self.crg.configure(txout_buf, clk_sw=gtx0.tx_init.done)
+        self.crg.configure(txout_buf, clk_sw=self.gt_drtio.stable_clkin.storage, ext_async_rst=self.crg.clk_sw_fsm.o_clk_sw & ~gtx0.tx_init.done)
+        self.specials += MultiReg(self.crg.clk_sw_fsm.o_clk_sw & self.crg.mmcm_locked, self.gt_drtio.clk_path_ready, odomain="bootstrap")
 
         self.comb += [
             platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx0")),

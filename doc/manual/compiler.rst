@@ -79,6 +79,25 @@ interpreter.
 
 Empty lists do not have valid list element types, so they cannot be used in the kernel.
 
+In kernels, lifetime of allocated values (e.g. lists or numpy arrays) might not be correctly
+tracked across function calls (see `#1497 <https://github.com/m-labs/artiq/issues/1497>`_,
+`#1677 <https://github.com/m-labs/artiq/issues/1677>`_) like in this example ::
+
+    @kernel
+    def func(a):
+        return a
+
+    class ProblemReturn1(EnvExperiment):
+        def build(self):
+            self.setattr_device("core")
+
+        @kernel
+        def run(self):
+            # results in memory corruption
+            return func([1, 2, 3])
+
+This results in memory corruption at runtime.
+
 Asynchronous RPCs
 -----------------
 

@@ -226,9 +226,15 @@ class Worker:
             else:
                 func = self.handlers[action]
             try:
-                data = func(*obj["args"], **obj["kwargs"])
+                if getattr(func, "_worker_pass_rid", False):
+                    args = [self.rid] + list(obj["args"])
+                else:
+                    args = obj["args"]
+                data = func(*args, **obj["kwargs"])
+                if asyncio.iscoroutine(data):
+                    data = await data
                 reply = {"status": "ok", "data": data}
-            except:
+            except Exception:
                 reply = {
                     "status": "failed",
                     "exception": current_exc_packed()

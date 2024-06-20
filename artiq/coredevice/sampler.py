@@ -25,7 +25,7 @@ def adc_mu_to_volt(data: int32, gain: int32 = 0, corrected_fs: bool = True) -> f
     :param data: 16 bit signed ADC word
     :param gain: PGIA gain setting (0: 1, ..., 3: 1000)
     :param corrected_fs: use corrected ADC FS reference.
-    Should be True for Samplers' revisions after v2.1. False for v2.1 and earlier.
+        Should be True for Samplers' revisions after v2.1. False for v2.1 and earlier.
     :return: Voltage in Volts
     """
     volt_per_lsb = 0.

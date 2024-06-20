@@ -6,7 +6,7 @@ ENTRY(_reset_handler)
  * ld does not allow this expression here.
  */
 MEMORY {
-    runtime (RWX) : ORIGIN = 0x40000000, LENGTH = 0x4000000 /* 64M */
+    firmware (RWX) : ORIGIN = 0x40000000, LENGTH = 0x4000000 /* 64M */
 }
 
 SECTIONS
@@ -14,24 +14,24 @@ SECTIONS
     .vectors :
     {
         *(.vectors)
-    } > runtime
+    } > firmware
 
     .text :
     {
         *(.text .text.*)
-    } > runtime
+    } > firmware
 
     .eh_frame :
     {
         __eh_frame_start = .;
         KEEP(*(.eh_frame))
         __eh_frame_end = .;
-    } > runtime
+    } > firmware
 
     .eh_frame_hdr :
     {
         KEEP(*(.eh_frame_hdr))
-    } > runtime
+    } > firmware
 
     __eh_frame_hdr_start = SIZEOF(.eh_frame_hdr) > 0 ? ADDR(.eh_frame_hdr) : 0;
     __eh_frame_hdr_end = SIZEOF(.eh_frame_hdr) > 0 ? . : 0;
@@ -39,35 +39,35 @@ SECTIONS
     .gcc_except_table :
     {
         *(.gcc_except_table)
-    } > runtime
+    } > firmware
 
     /* https://sourceware.org/bugzilla/show_bug.cgi?id=20475 */
     .got :
     {
         *(.got)
-    } > runtime
+    } > firmware
 
     .got.plt :
     {
         *(.got.plt)
-    } > runtime
+    } > firmware
 
     .rodata :
     {
         *(.rodata .rodata.*)
-    } > runtime
+    } > firmware
 
     .data :
     {
         *(.data .data.*)
-    } > runtime
+    } > firmware
 
     .bss (NOLOAD) : ALIGN(4)
     {
         _fbss = .;
         *(.sbss .sbss.* .bss .bss.*);
         _ebss = .;
-    } > runtime
+    } > firmware
 
     .stack (NOLOAD) : ALIGN(0x1000)
     {
@@ -76,12 +76,12 @@ SECTIONS
         _estack = .;
         . += 0x10000;
         _fstack = . - 16;
-    } > runtime
+    } > firmware
 
     .heap (NOLOAD) : ALIGN(16)
     {
         _fheap = .;
-        . = ORIGIN(runtime) + LENGTH(runtime);
+        . = ORIGIN(firmware) + LENGTH(firmware);
         _eheap = .;
-    } > runtime
+    } > firmware
 }

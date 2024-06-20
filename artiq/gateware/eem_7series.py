@@ -134,7 +134,7 @@ def peripheral_shuttler(module, peripheral, **kwargs):
         port, port_aux = peripheral["ports"]
     else:
         raise ValueError("wrong number of ports")
-    eem.Shuttler.add_std(module, port, port_aux)
+    eem.Shuttler.add_std(module, port, port_aux, **kwargs)
 
 peripheral_processors = {
     "dio": peripheral_dio,

@@ -49,6 +49,10 @@
             "default": 125e6,
             "description": "RTIO frequency"
         },
+        "enable_wrpll": {
+            "type": "boolean",
+            "default": false
+        },
         "core_addr": {
             "type": "string",
             "format": "ipv4",
@@ -308,8 +312,7 @@
                         "clk_div": {
                             "type": "integer",
                             "minimum": 0,
-                            "maximum": 3,
-                            "default": 0
+                            "maximum": 3
                         },
                         "pll_n": {
                             "type": "integer"
@@ -582,8 +585,11 @@
                             "maxItems": 2
                         },
                         "drtio_destination": {
-                            "type": "integer",
-                            "default": 4
+                            "type": "integer"
+                        },
+                        "hw_rev": {
+                            "type": "string",
+                            "enum": ["v1.0", "v1.1"]
                         }
                     },
                     "required": ["ports"]

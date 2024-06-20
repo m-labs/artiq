@@ -5,7 +5,7 @@
   :target: https://m-labs.hk/artiq
 
 ARTIQ (Advanced Real-Time Infrastructure for Quantum physics) is a leading-edge control and data acquisition system for quantum information experiments.
-It is maintained and developed by `M-Labs <https://m-labs.hk>`_ and the initial development was for and in partnership with the `Ion Storage Group at NIST <https://www.nist.gov/pml/time-and-frequency-division/ion-storage>`_. ARTIQ is free software and offered to the entire research community as a solution equally applicable to other challenging control tasks, including outside the field of ion trapping. Many laboratories around the world have adopted ARTIQ as their control system, with over a hundred Sinara hardware crates deployed, and some have `contributed <https://m-labs.hk/experiment-control/funding/>`_ to it.
+It is maintained and developed by `M-Labs <https://m-labs.hk>`_ and the initial development was for and in partnership with the `Ion Storage Group at NIST <https://www.nist.gov/pml/time-and-frequency-division/ion-storage>`_. ARTIQ is free software and offered to the entire research community as a solution equally applicable to other challenging control tasks, including outside the field of ion trapping. Many laboratories around the world have adopted ARTIQ as their control system and some have `contributed <https://m-labs.hk/experiment-control/funding/>`_ to it.
 
 The system features a high-level programming language that helps describing complex experiments, which is compiled and executed on dedicated hardware with nanosecond timing resolution and sub-microsecond latency. It includes graphical user interfaces to parametrize and schedule experiments and to visualize and explore the results.
 
@@ -29,7 +29,7 @@ Website: https://m-labs.hk/artiq
 License
 =======
 
-Copyright (C) 2014-2023 M-Labs Limited.
+Copyright (C) 2014-2024 M-Labs Limited.
 
 ARTIQ is free software: you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as published by

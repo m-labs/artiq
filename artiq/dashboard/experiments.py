@@ -9,10 +9,10 @@ import h5py
 
 from sipyco import pyon
 
-from artiq.gui.entries import procdesc_to_entry, ScanEntry
+from artiq.gui.entries import procdesc_to_entry, EntryTreeWidget
 from artiq.gui.fuzzy_select import FuzzySelectWidget
-from artiq.gui.tools import (LayoutWidget, WheelFilter, 
-                             log_level_to_name, get_open_file_name)
+from artiq.gui.tools import (LayoutWidget, log_level_to_name, get_open_file_name)
+from artiq.tools import parse_devarg_override, unparse_devarg_override
 
 
 logger = logging.getLogger(__name__)
@@ -24,99 +24,23 @@ logger = logging.getLogger(__name__)
 # 2. file:<class name>@<file name>
 
 
-class _ArgumentEditor(QtWidgets.QTreeWidget):
+class _ArgumentEditor(EntryTreeWidget):
     def __init__(self, manager, dock, expurl):
         self.manager = manager
         self.expurl = expurl
 
-        QtWidgets.QTreeWidget.__init__(self)
-        self.setColumnCount(3)
-        self.header().setStretchLastSection(False)
-        if hasattr(self.header(), "setSectionResizeMode"):
-            set_resize_mode = self.header().setSectionResizeMode
-        else:
-            set_resize_mode = self.header().setResizeMode
-        set_resize_mode(0, QtWidgets.QHeaderView.ResizeToContents)
-        set_resize_mode(1, QtWidgets.QHeaderView.Stretch)
-        set_resize_mode(2, QtWidgets.QHeaderView.ResizeToContents)
-        self.header().setVisible(False)
-        self.setSelectionMode(self.NoSelection)
-        self.setHorizontalScrollMode(self.ScrollPerPixel)
-        self.setVerticalScrollMode(self.ScrollPerPixel)
-
-        self.setStyleSheet("QTreeWidget {background: " +
-                           self.palette().midlight().color().name() + " ;}")
-
-        self.viewport().installEventFilter(WheelFilter(self.viewport(), True))
-
-        self._groups = dict()
-        self._arg_to_widgets = dict()
+        EntryTreeWidget.__init__(self)
 
         arguments = self.manager.get_submission_arguments(self.expurl)
 
         if not arguments:
-            self.addTopLevelItem(QtWidgets.QTreeWidgetItem(["No arguments"]))
+            self.insertTopLevelItem(0, QtWidgets.QTreeWidgetItem(["No arguments"]))
 
-        gradient = QtGui.QLinearGradient(
-            0, 0, 0, QtGui.QFontMetrics(self.font()).lineSpacing()*2.5)
-        gradient.setColorAt(0, self.palette().base().color())
-        gradient.setColorAt(1, self.palette().midlight().color())
         for name, argument in arguments.items():
-            widgets = dict()
-            self._arg_to_widgets[name] = widgets
+            self.set_argument(name, argument)
 
-            entry = procdesc_to_entry(argument["desc"])(argument)
-            widget_item = QtWidgets.QTreeWidgetItem([name])
-            if argument["tooltip"]:
-                widget_item.setToolTip(0, argument["tooltip"])
-            widgets["entry"] = entry
-            widgets["widget_item"] = widget_item
+        self.quickStyleClicked.connect(dock.submit_clicked)
 
-            for col in range(3):
-                widget_item.setBackground(col, gradient)
-            font = widget_item.font(0)
-            font.setBold(True)
-            widget_item.setFont(0, font)
-
-            if argument["group"] is None:
-                self.addTopLevelItem(widget_item)
-            else:
-                self._get_group(argument["group"]).addChild(widget_item)
-            fix_layout = LayoutWidget()
-            widgets["fix_layout"] = fix_layout
-            fix_layout.addWidget(entry)
-            self.setItemWidget(widget_item, 1, fix_layout)
-            recompute_argument = QtWidgets.QToolButton()
-            recompute_argument.setToolTip("Re-run the experiment's build "
-                                          "method and take the default value")
-            recompute_argument.setIcon(
-                QtWidgets.QApplication.style().standardIcon(
-                    QtWidgets.QStyle.SP_BrowserReload))
-            recompute_argument.clicked.connect(
-                partial(self._recompute_argument_clicked, name))
-
-            tool_buttons = LayoutWidget()
-            tool_buttons.addWidget(recompute_argument, 1)
-
-            disable_other_scans = QtWidgets.QToolButton()
-            widgets["disable_other_scans"] = disable_other_scans
-            disable_other_scans.setIcon(
-                QtWidgets.QApplication.style().standardIcon(
-                    QtWidgets.QStyle.SP_DialogResetButton))
-            disable_other_scans.setToolTip("Disable all other scans in "
-                                           "this experiment")
-            disable_other_scans.clicked.connect(
-                partial(self._disable_other_scans, name))
-            tool_buttons.layout.setRowStretch(0, 1)
-            tool_buttons.layout.setRowStretch(3, 1)
-            tool_buttons.addWidget(disable_other_scans, 2)
-            if not isinstance(entry, ScanEntry):
-                disable_other_scans.setVisible(False)
-
-            self.setItemWidget(widget_item, 2, tool_buttons)
-
-        widget_item = QtWidgets.QTreeWidgetItem()
-        self.addTopLevelItem(widget_item)
         recompute_arguments = QtWidgets.QPushButton("Recompute all arguments")
         recompute_arguments.setIcon(
             QtWidgets.QApplication.style().standardIcon(
@@ -135,41 +59,10 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         buttons.layout.setColumnStretch(1, 0)
         buttons.layout.setColumnStretch(2, 0)
         buttons.layout.setColumnStretch(3, 1)
-        self.setItemWidget(widget_item, 1, buttons)
+        self.setItemWidget(self.bottom_item, 1, buttons)
 
-    def _get_group(self, name):
-        if name in self._groups:
-            return self._groups[name]
-        group = QtWidgets.QTreeWidgetItem([name])
-        for col in range(3):
-            group.setBackground(col, self.palette().mid())
-            group.setForeground(col, self.palette().brightText())
-            font = group.font(col)
-            font.setBold(True)
-            group.setFont(col, font)
-        self.addTopLevelItem(group)
-        self._groups[name] = group
-        return group
-
-    def update_argument(self, name, argument):
-        widgets = self._arg_to_widgets[name]
-
-        # Qt needs a setItemWidget() to handle layout correctly,
-        # simply replacing the entry inside the LayoutWidget
-        # results in a bug.
-
-        widgets["entry"].deleteLater()
-        widgets["entry"] = procdesc_to_entry(argument["desc"])(argument)
-        widgets["disable_other_scans"].setVisible(
-            isinstance(widgets["entry"], ScanEntry))
-        widgets["fix_layout"].deleteLater()
-        widgets["fix_layout"] = LayoutWidget()
-        widgets["fix_layout"].addWidget(widgets["entry"])
-        self.setItemWidget(widgets["widget_item"], 1, widgets["fix_layout"])
-        self.updateGeometries()
-
-    def _recompute_argument_clicked(self, name):
-        asyncio.ensure_future(self._recompute_argument(name))
+    def reset_entry(self, key):
+        asyncio.ensure_future(self._recompute_argument(key))
 
     async def _recompute_argument(self, name):
         try:
@@ -185,30 +78,6 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         argument["desc"] = procdesc
         argument["state"] = state
         self.update_argument(name, argument)
-
-    def _disable_other_scans(self, current_name):
-        for name, widgets in self._arg_to_widgets.items():
-            if (name != current_name
-                    and isinstance(widgets["entry"], ScanEntry)):
-                widgets["entry"].disable()
-
-    def save_state(self):
-        expanded = []
-        for k, v in self._groups.items():
-            if v.isExpanded():
-                expanded.append(k)
-        return {
-            "expanded": expanded,
-            "scroll": self.verticalScrollBar().value()
-        }
-
-    def restore_state(self, state):
-        for e in state["expanded"]:
-            try:
-                self._groups[e].setExpanded(True)
-            except KeyError:
-                pass
-        self.verticalScrollBar().setValue(state["scroll"])
 
     # Hooks that allow user-supplied argument editors to react to imminent user
     # actions. Here, we always keep the manager-stored submission arguments
@@ -229,7 +98,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
     def __init__(self, manager, expurl):
         QtWidgets.QMdiSubWindow.__init__(self)
         qfm = QtGui.QFontMetrics(self.font())
-        self.resize(100*qfm.averageCharWidth(), 30*qfm.lineSpacing())
+        self.resize(100 * qfm.averageCharWidth(), 30 * qfm.lineSpacing())
         self.setWindowTitle(expurl)
         self.setWindowIcon(QtWidgets.QApplication.style().standardIcon(
             QtWidgets.QStyle.SP_FileDialogContentsView))
@@ -262,17 +131,17 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
             datetime.setDate(QtCore.QDate.currentDate())
         else:
             datetime.setDateTime(QtCore.QDateTime.fromMSecsSinceEpoch(
-                int(scheduling["due_date"]*1000)))
+                int(scheduling["due_date"] * 1000)))
         datetime_en.setChecked(scheduling["due_date"] is not None)
 
         def update_datetime(dt):
-            scheduling["due_date"] = dt.toMSecsSinceEpoch()/1000
+            scheduling["due_date"] = dt.toMSecsSinceEpoch() / 1000
             datetime_en.setChecked(True)
         datetime.dateTimeChanged.connect(update_datetime)
 
         def update_datetime_en(checked):
             if checked:
-                due_date = datetime.dateTime().toMSecsSinceEpoch()/1000
+                due_date = datetime.dateTime().toMSecsSinceEpoch() / 1000
             else:
                 due_date = None
             scheduling["due_date"] = due_date
@@ -305,13 +174,27 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         flush = self.flush
         flush.setToolTip("Flush the pipeline (of current- and higher-priority "
                          "experiments) before starting the experiment")
-        self.layout.addWidget(flush, 2, 2, 1, 2)
+        self.layout.addWidget(flush, 2, 2)
 
         flush.setChecked(scheduling["flush"])
 
         def update_flush(checked):
             scheduling["flush"] = bool(checked)
         flush.stateChanged.connect(update_flush)
+
+        devarg_override = QtWidgets.QComboBox()
+        devarg_override.setEditable(True)
+        devarg_override.lineEdit().setPlaceholderText("Override device arguments")
+        devarg_override.lineEdit().setClearButtonEnabled(True)
+        devarg_override.insertItem(0, "core:analyze_at_run_end=True")
+        self.layout.addWidget(devarg_override, 2, 3)
+
+        devarg_override.setCurrentText(options["devarg_override"])
+
+        def update_devarg_override(text):
+            options["devarg_override"] = text
+        devarg_override.editTextChanged.connect(update_devarg_override)
+        self.devarg_override = devarg_override
 
         log_level = QtWidgets.QComboBox()
         log_level.addItems(log_levels)
@@ -333,9 +216,11 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         if "repo_rev" in options:
             repo_rev = QtWidgets.QLineEdit()
             repo_rev.setPlaceholderText("current")
-            repo_rev_label = QtWidgets.QLabel("Revision:")
+            repo_rev.setClearButtonEnabled(True)
+            repo_rev_label = QtWidgets.QLabel("Rev / ref:")
             repo_rev_label.setToolTip("Experiment repository revision "
-                                      "(commit ID) to use")
+                                      "(commit ID) or reference (branch "
+                                      "or tag) to use")
             self.layout.addWidget(repo_rev_label, 3, 2)
             self.layout.addWidget(repo_rev, 3, 3)
 
@@ -352,7 +237,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
         submit = QtWidgets.QPushButton("Submit")
         submit.setIcon(QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_DialogOkButton))
+                       QtWidgets.QStyle.SP_DialogOkButton))
         submit.setToolTip("Schedule the experiment (Ctrl+Return)")
         submit.setShortcut("CTRL+RETURN")
         submit.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
@@ -362,7 +247,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
         reqterm = QtWidgets.QPushButton("Terminate instances")
         reqterm.setIcon(QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_DialogCancelButton))
+                        QtWidgets.QStyle.SP_DialogCancelButton))
         reqterm.setToolTip("Request termination of instances (Ctrl+Backspace)")
         reqterm.setShortcut("CTRL+BACKSPACE")
         reqterm.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
@@ -404,8 +289,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         arginfo = expdesc["arginfo"]
         for k, v in overrides.items():
             # Some values (e.g. scans) may have multiple defaults in a list
-            if ("default" in arginfo[k][0]
-                    and isinstance(arginfo[k][0]["default"], list)):
+            if ("default" in arginfo[k][0] and isinstance(arginfo[k][0]["default"], list)):
                 arginfo[k][0]["default"].insert(0, v)
             else:
                 arginfo[k][0]["default"] = v
@@ -416,8 +300,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
         editor_class = self.manager.get_argument_editor_class(self.expurl)
         self.argeditor = editor_class(self.manager, self, self.expurl)
-        self.argeditor.restore_state(argeditor_state)
         self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
+        self.argeditor.restore_state(argeditor_state)
 
     def contextMenuEvent(self, event):
         menu = QtWidgets.QMenu(self)
@@ -465,11 +349,14 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
             return
 
         try:
+            if "devarg_override" in expid:
+                self.devarg_override.setCurrentText(
+                    unparse_devarg_override(expid["devarg_override"]))
             self.log_level.setCurrentIndex(log_levels.index(
                 log_level_to_name(expid["log_level"])))
-            if ("repo_rev" in expid and
-                    expid["repo_rev"] != "N/A" and
-                    hasattr(self, "repo_rev")):
+            if "repo_rev" in expid and \
+               expid["repo_rev"] != "N/A" and \
+               hasattr(self, "repo_rev"):
                 self.repo_rev.setText(expid["repo_rev"])
         except:
             logger.error("Could not set submission options from HDF5 expid",
@@ -638,7 +525,8 @@ class ExperimentManager:
         else:
             # mutated by _ExperimentDock
             options = {
-                "log_level": logging.WARNING
+                "log_level": logging.WARNING,
+                "devarg_override": ""
             }
             if expurl[:5] == "repo:":
                 options["repo_rev"] = None
@@ -658,7 +546,7 @@ class ExperimentManager:
         self.submission_arguments[expurl] = arguments
         self.argument_ui_names[expurl] = ui_name
         return arguments
-    
+
     def set_argument_value(self, expurl, name, value):
         try:
             argument = self.submission_arguments[expurl][name]
@@ -671,7 +559,8 @@ class ExperimentManager:
             if expurl in self.open_experiments.keys():
                 self.open_experiments[expurl].argeditor.update_argument(name, argument)
         except:
-            logger.warn("Failed to set value for argument \"{}\" in experiment: {}.".format(name, expurl), exc_info=1)
+            logger.warn("Failed to set value for argument \"{}\" in experiment: {}."
+                        .format(name, expurl), exc_info=1)
 
     def get_submission_arguments(self, expurl):
         if expurl in self.submission_arguments:
@@ -681,8 +570,8 @@ class ExperimentManager:
                 raise ValueError("Submission arguments must be preinitialized "
                                  "when not using repository")
             class_desc = self.explist[expurl[5:]]
-            return self.initialize_submission_arguments(expurl,
-                class_desc["arginfo"], class_desc.get("argument_ui", None))
+            return self.initialize_submission_arguments(expurl, class_desc["arginfo"],
+                                                        class_desc.get("argument_ui", None))
 
     def open_experiment(self, expurl):
         if expurl in self.open_experiments:
@@ -719,8 +608,13 @@ class ExperimentManager:
         del self.open_experiments[expurl]
 
     async def _submit_task(self, expurl, *args):
-        rid = await self.schedule_ctl.submit(*args)
-        logger.info("Submitted '%s', RID is %d", expurl, rid)
+        try:
+            rid = await self.schedule_ctl.submit(*args)
+        except KeyError:
+            expid = args[1]
+            logger.error("Submission failed - revision \"%s\" was not found", expid["repo_rev"])
+        else:
+            logger.info("Submitted '%s', RID is %d", expurl, rid)
 
     def submit(self, expurl):
         file, class_name, _ = self.resolve_expurl(expurl)
@@ -733,7 +627,14 @@ class ExperimentManager:
             entry_cls = procdesc_to_entry(argument["desc"])
             argument_values[name] = entry_cls.state_to_value(argument["state"])
 
+        try:
+            devarg_override = parse_devarg_override(options["devarg_override"])
+        except:
+            logger.error("Failed to parse device argument overrides for %s", expurl)
+            return
+
         expid = {
+            "devarg_override": devarg_override,
             "log_level": options["log_level"],
             "file": file,
             "class_name": class_name,
@@ -770,9 +671,9 @@ class ExperimentManager:
                 repo_match = "repo_rev" in expid
             else:
                 repo_match = "repo_rev" not in expid
-            if (repo_match and
-                    ("file" in expid and expid["file"] == file) and
-                    expid["class_name"] == class_name):
+            if repo_match and \
+               ("file" in expid and expid["file"] == file) and \
+               expid["class_name"] == class_name:
                 rids.append(rid)
         asyncio.ensure_future(self._request_term_multiple(rids))
 
@@ -792,7 +693,7 @@ class ExperimentManager:
         for class_name, class_desc in description.items():
             expurl = "file:{}@{}".format(class_name, file)
             self.initialize_submission_arguments(expurl, class_desc["arginfo"],
-                class_desc.get("argument_ui", None))
+                                                 class_desc.get("argument_ui", None))
             if expurl in self.open_experiments:
                 self.open_experiments[expurl].close()
             self.open_experiment(expurl)
@@ -826,6 +727,7 @@ class ExperimentManager:
 
         self.is_quick_open_shown = True
         dialog = _QuickOpenDialog(self)
+
         def closed():
             self.is_quick_open_shown = False
         dialog.closed.connect(closed)

@@ -4,13 +4,14 @@
 
 import argparse
 import sys
+import tarfile
 from operator import itemgetter
 import logging
 from collections import defaultdict
 
 import h5py
 
-from sipyco import common_args
+from sipyco import common_args, pyon
 
 from artiq import __version__ as artiq_version
 from artiq.language.environment import EnvExperiment, ProcessArgumentManager
@@ -40,6 +41,20 @@ class ELFRunner(FileRunner):
     def compile(self):
         with open(self.file, "rb") as f:
             return f.read()
+
+
+class TARRunner(FileRunner):
+    def compile(self):
+        with tarfile.open(self.file, "r:") as tar:
+            for entry in tar:
+                if entry.name == 'main.elf':
+                    main_lib = tar.extractfile(entry).read()
+                else:
+                    subkernel_name = entry.name.removesuffix(".elf")
+                    sid, dest = tuple(map(lambda x: int(x), subkernel_name.split(" ")))
+                    subkernel_lib = tar.extractfile(entry).read()
+                    self.core.comm.upload_subkernel(subkernel_lib, sid, dest)
+        return main_lib
 
 
 class DummyScheduler:
@@ -106,11 +121,33 @@ def get_argparser(with_file=True):
     return parser
 
 
+class ArgumentManager(ProcessArgumentManager):
+    def get_interactive(self, interactive_arglist, title):
+        print(title)
+        result = dict()
+        for key, processor, group, tooltip in interactive_arglist:
+            success = False
+            while not success:
+                user_input = input("{}:{} (group={}, tooltip={}): ".format(
+                    key, type(processor).__name__, group, tooltip))
+                try:
+                    user_input_deser = pyon.decode(user_input)
+                    value = processor.process(user_input_deser)
+                except:
+                    logger.error("failed to process user input, retrying",
+                                 exc_info=True)
+                else:
+                    success = True
+            result[key] = value
+        return result
+
+
 def _build_experiment(device_mgr, dataset_mgr, args):
     arguments = parse_arguments(args.arguments)
-    argument_mgr = ProcessArgumentManager(arguments)
+    argument_mgr = ArgumentManager(arguments)
     managers = (device_mgr, dataset_mgr, argument_mgr, {})
     if hasattr(args, "file"):
+        is_tar = tarfile.is_tarfile(args.file)
         is_elf = args.file.endswith(".elf")
         if is_elf:
             if args.arguments:
@@ -118,7 +155,9 @@ def _build_experiment(device_mgr, dataset_mgr, args):
             if args.class_name:
                 raise ValueError("class-name not supported "
                                  "for precompiled kernels")
-        if is_elf:
+        if is_tar:
+            return TARRunner(managers, file=args.file)
+        elif is_elf:
             return ELFRunner(managers, file=args.file)
         else:
             import_cache.install_hook()
@@ -152,6 +191,7 @@ def run(with_file=False):
             exp_inst = _build_experiment(device_mgr, dataset_mgr, args)
             exp_inst.prepare()
             exp_inst.run()
+            device_mgr.notify_run_end()
             exp_inst.analyze()
         except Exception as exn:
             if hasattr(exn, "artiq_core_exception"):

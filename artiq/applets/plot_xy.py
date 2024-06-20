@@ -24,11 +24,11 @@ class XYPlot(pyqtgraph.PlotWidget):
             y = value[self.args.y]
         except KeyError:
             return
-        x = value.get(self.args.x, (False, None))
+        x = value.get(self.args.x)
         if x is None:
             x = np.arange(len(y))
-        error = value.get(self.args.error, (False, None))
-        fit = value.get(self.args.fit, (False, None))
+        error = value.get(self.args.error)
+        fit = value.get(self.args.fit)
 
         if not len(y) or len(y) != len(x):
             self.mismatch['X values'] = True

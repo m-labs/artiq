@@ -6,6 +6,7 @@
     "peripherals": [
         {
             "type": "shuttler",
+            "hw_rev": "v1.1",
             "ports": [0]
         },
         {

@@ -31,6 +31,7 @@ def fifo_ingress(seqn_width, layout_payload):
     return [
         ("we", 1, DIR_M_TO_S),
         ("writable", 1, DIR_S_TO_M),
+        ("high_watermark", 1, DIR_S_TO_M),
         ("seqn", seqn_width, DIR_M_TO_S),
         ("payload", [(a, b, DIR_M_TO_S) for a, b in layout_payload])
     ]

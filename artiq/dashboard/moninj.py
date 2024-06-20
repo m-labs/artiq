@@ -2,22 +2,19 @@ import asyncio
 import logging
 import textwrap
 from collections import namedtuple
+from functools import partial
 
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt5 import QtCore, QtWidgets
 
-from sipyco.sync_struct import Subscriber
-
-from artiq.coredevice.comm_moninj import *
-from artiq.coredevice.ad9910 import (
-    _AD9910_REG_PROFILE0, _AD9910_REG_PROFILE7, 
-    _AD9910_REG_FTW, _AD9910_REG_CFR1
-)
-from artiq.coredevice.ad9912_reg import AD9912_POW1, AD9912_SER_CONF
-from artiq.gui.tools import LayoutWidget
-from artiq.gui.flowlayout import FlowLayout
+from artiq.coredevice.comm_moninj import CommMonInj, TTLOverride, TTLProbe
+from artiq.coredevice.ad9912_reg import AD9912_SER_CONF
+from artiq.gui.tools import LayoutWidget, QDockWidgetCloseDetect, DoubleClickLineEdit
+from artiq.gui.dndwidgets import VDragScrollArea, DragDropFlowLayoutWidget
+from artiq.gui.models import DictSyncTreeSepModel
 
 
 logger = logging.getLogger(__name__)
+
 
 class _CancellableLineEdit(QtWidgets.QLineEdit):
     def escapePressedConnect(self, cb):
@@ -37,6 +34,7 @@ class _TTLWidget(QtWidgets.QFrame):
         self.channel = channel
         self.set_mode = dm.ttl_set_mode
         self.force_out = force_out
+        self.title = title
 
         self.setFrameShape(QtWidgets.QFrame.Box)
         self.setFrameShadow(QtWidgets.QFrame.Raised)
@@ -133,7 +131,7 @@ class _TTLWidget(QtWidgets.QFrame):
         else:
             color = ""
         self.value.setText("<font size=\"5\"{}>{}</font>".format(
-                            color, value_s))
+                           color, value_s))
         oe = self.cur_oe or self.force_out
         direction = "OUT" if oe else "IN"
         self.direction.setText("<font size=\"2\">" + direction + "</font>")
@@ -148,40 +146,13 @@ class _TTLWidget(QtWidgets.QFrame):
             self.programmatic_change = False
 
     def sort_key(self):
-        return self.channel
+        return (0, self.channel, 0)
 
+    def uid(self):
+        return self.title
 
-class _SimpleDisplayWidget(QtWidgets.QFrame):
-    def __init__(self, title):
-        QtWidgets.QFrame.__init__(self)
-
-        self.setFrameShape(QtWidgets.QFrame.Box)
-        self.setFrameShadow(QtWidgets.QFrame.Raised)
-
-        grid = QtWidgets.QGridLayout()
-        grid.setContentsMargins(0, 0, 0, 0)
-        grid.setHorizontalSpacing(0)
-        grid.setVerticalSpacing(0)
-        self.setLayout(grid)
-        label = QtWidgets.QLabel(title)
-        label.setAlignment(QtCore.Qt.AlignCenter)
-        grid.addWidget(label, 1, 1)
-
-        self.value = QtWidgets.QLabel()
-        self.value.setAlignment(QtCore.Qt.AlignCenter)
-        grid.addWidget(self.value, 2, 1, 6, 1)
-
-        grid.setRowStretch(1, 1)
-        grid.setRowStretch(2, 0)
-        grid.setRowStretch(3, 1)
-
-        self.refresh_display()
-
-    def refresh_display(self):
-        raise NotImplementedError
-
-    def sort_key(self):
-        raise NotImplementedError
+    def to_model_path(self):
+        return "ttl/{}".format(self.title)
 
 
 class _DDSModel:
@@ -191,7 +162,7 @@ class _DDSModel:
         self.cur_reg = 0
         self.dds_type = dds_type
         self.is_urukul = dds_type in ["AD9910", "AD9912"]
-    
+
         if dds_type == "AD9914":
             self.ftw_per_hz = 2**32 / ref_clk
         else:
@@ -216,13 +187,15 @@ class _DDSModel:
 
 
 class _DDSWidget(QtWidgets.QFrame):
-    def __init__(self, dm, title, bus_channel=0, channel=0, dds_model=None):
+    def __init__(self, dm, title, bus_channel, channel,
+                 dds_type, ref_clk, cpld=None, pll=1, clk_div=0):
         self.dm = dm
         self.bus_channel = bus_channel
         self.channel = channel
         self.dds_name = title
         self.cur_frequency = 0
-        self.dds_model = dds_model
+        self.dds_model = _DDSModel(dds_type, ref_clk, cpld, pll, clk_div)
+        self.title = title
 
         QtWidgets.QFrame.__init__(self)
 
@@ -283,7 +256,7 @@ class _DDSWidget(QtWidgets.QFrame):
         set_btn.setText("Set")
         set_btn.setToolTip("Set frequency")
         set_grid.addWidget(set_btn, 0, 1, 1, 1)
-        
+
         # for urukuls also allow switching off RF
         if self.dds_model.is_urukul:
             off_btn = QtWidgets.QToolButton()
@@ -327,18 +300,17 @@ class _DDSWidget(QtWidgets.QFrame):
     def set_clicked(self, set):
         self.data_stack.setCurrentIndex(1)
         self.button_stack.setCurrentIndex(1)
-        self.value_edit.setText("{:.7f}"
-                .format(self.cur_frequency/1e6))
+        self.value_edit.setText("{:.7f}".format(self.cur_frequency / 1e6))
         self.value_edit.setFocus()
         self.value_edit.selectAll()
 
     def off_clicked(self, set):
         self.dm.dds_channel_toggle(self.dds_name, self.dds_model, sw=False)
-    
+
     def apply_changes(self, apply):
         self.data_stack.setCurrentIndex(0)
         self.button_stack.setCurrentIndex(0)
-        frequency = float(self.value_edit.text())*1e6
+        frequency = float(self.value_edit.text()) * 1e6
         self.dm.dds_set_frequency(self.dds_name, self.dds_model, frequency)
 
     def cancel_changes(self, cancel):
@@ -347,28 +319,61 @@ class _DDSWidget(QtWidgets.QFrame):
 
     def refresh_display(self):
         self.cur_frequency = self.dds_model.cur_frequency
-        self.value_label.setText("<font size=\"4\">{:.7f}</font>"
-                           .format(self.cur_frequency/1e6))
-        self.value_edit.setText("{:.7f}"
-                           .format(self.cur_frequency/1e6))
+        self.value_label.setText("<font size=\"4\">{:.7f}</font>".format(self.cur_frequency / 1e6))
+        self.value_edit.setText("{:.7f}".format(self.cur_frequency / 1e6))
 
     def sort_key(self):
-        return (self.bus_channel, self.channel)
+        return (1, self.bus_channel, self.channel)
+
+    def uid(self):
+        return self.title
+
+    def to_model_path(self):
+        return "dds/{}".format(self.title)
 
 
-class _DACWidget(_SimpleDisplayWidget):
+class _DACWidget(QtWidgets.QFrame):
     def __init__(self, dm, spi_channel, channel, title):
+        QtWidgets.QFrame.__init__(self)
         self.spi_channel = spi_channel
         self.channel = channel
         self.cur_value = 0
-        _SimpleDisplayWidget.__init__(self, "{} ch{}".format(title, channel))
+        self.title = title
+
+        self.setFrameShape(QtWidgets.QFrame.Box)
+        self.setFrameShadow(QtWidgets.QFrame.Raised)
+
+        grid = QtWidgets.QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(0)
+        grid.setVerticalSpacing(0)
+        self.setLayout(grid)
+        label = QtWidgets.QLabel("{} ch{}".format(title, channel))
+        label.setAlignment(QtCore.Qt.AlignCenter)
+        grid.addWidget(label, 1, 1)
+
+        self.value = QtWidgets.QLabel()
+        self.value.setAlignment(QtCore.Qt.AlignCenter)
+        grid.addWidget(self.value, 2, 1, 6, 1)
+
+        grid.setRowStretch(1, 1)
+        grid.setRowStretch(2, 0)
+        grid.setRowStretch(3, 1)
+
+        self.refresh_display()
 
     def refresh_display(self):
         self.value.setText("<font size=\"4\">{:.3f}</font><font size=\"2\"> %</font>"
-                           .format(self.cur_value*100/2**16))
+                           .format(self.cur_value * 100 / 2**16))
 
     def sort_key(self):
-        return (self.spi_channel, self.channel)
+        return (2, self.spi_channel, self.channel)
+
+    def uid(self):
+        return (self.title, self.channel)
+
+    def to_model_path(self):
+        return "dac/{} ch{}".format(self.title, self.channel)
 
 
 _WidgetDesc = namedtuple("_WidgetDesc", "uid comment cls arguments")
@@ -392,18 +397,15 @@ def setup_from_ddb(ddb):
                         force_out = v["class"] == "TTLOut"
                         widget = _WidgetDesc(k, comment, _TTLWidget, (channel, force_out, k))
                         description.add(widget)
-                    elif (v["module"] == "artiq.coredevice.ad9914"
-                            and v["class"] == "AD9914"):
+                    elif (v["module"] == "artiq.coredevice.ad9914" and v["class"] == "AD9914"):
                         bus_channel = v["arguments"]["bus_channel"]
                         channel = v["arguments"]["channel"]
                         dds_sysclk = v["arguments"]["sysclk"]
-                        model = _DDSModel(v["class"], dds_sysclk)
-                        widget = _WidgetDesc(k, comment, _DDSWidget, (k, bus_channel, channel, model))
+                        widget = _WidgetDesc(k, comment, _DDSWidget,
+                                             (k, bus_channel, channel, v["class"], dds_sysclk))
                         description.add(widget)
-                    elif (v["module"] == "artiq.coredevice.ad9910"
-                                and v["class"] == "AD9910") or \
-                            (v["module"] == "artiq.coredevice.ad9912"
-                                and v["class"] == "AD9912"):
+                    elif (v["module"] == "artiq.coredevice.ad9910" and v["class"] == "AD9910") or \
+                         (v["module"] == "artiq.coredevice.ad9912" and v["class"] == "AD9912"):
                         channel = v["arguments"]["chip_select"] - 4
                         if channel < 0:
                             continue
@@ -413,18 +415,20 @@ def setup_from_ddb(ddb):
                         pll = v["arguments"]["pll_n"]
                         refclk = ddb[dds_cpld]["arguments"]["refclk"]
                         clk_div = v["arguments"].get("clk_div", 0)
-                        model = _DDSModel( v["class"], refclk, dds_cpld, pll, clk_div)
-                        widget = _WidgetDesc(k, comment, _DDSWidget, (k, bus_channel, channel, model))
-                        description.add(widget)       
-                    elif (   (v["module"] == "artiq.coredevice.ad53xx" and v["class"] == "AD53xx")
-                          or (v["module"] == "artiq.coredevice.zotino" and v["class"] == "Zotino")):
+                        widget = _WidgetDesc(k, comment, _DDSWidget,
+                                             (k, bus_channel, channel, v["class"],
+                                              refclk, dds_cpld, pll, clk_div))
+                        description.add(widget)
+                    elif (v["module"] == "artiq.coredevice.ad53xx" and v["class"] == "AD53xx") or \
+                         (v["module"] == "artiq.coredevice.zotino" and v["class"] == "Zotino"):
                         spi_device = v["arguments"]["spi_device"]
                         spi_device = ddb[spi_device]
                         while isinstance(spi_device, str):
                             spi_device = ddb[spi_device]
                         spi_channel = spi_device["arguments"]["channel"]
                         for channel in range(32):
-                            widget = _WidgetDesc((k, channel), comment, _DACWidget, (spi_channel, channel, k))
+                            widget = _WidgetDesc((k, channel), comment, _DACWidget,
+                                                 (spi_channel, channel, k))
                             description.add(widget)
                 elif v["type"] == "controller" and k == "core_moninj":
                     mi_addr = v["host"]
@@ -449,18 +453,15 @@ class _DeviceManager:
         self.widgets_by_uid = dict()
 
         self.dds_sysclk = 0
-        self.ttl_cb = lambda: None
         self.ttl_widgets = dict()
-        self.dds_cb = lambda: None
         self.dds_widgets = dict()
-        self.dac_cb = lambda: None
         self.dac_widgets = dict()
+        self.channels_cb = lambda: None
 
     def init_ddb(self, ddb):
         self.ddb = ddb
-        return ddb
 
-    def notify(self, mod):
+    def notify_ddb(self, mod):
         mi_addr, mi_port, description = setup_from_ddb(self.ddb)
 
         if (mi_addr, mi_port) != (self.mi_addr, self.mi_port):
@@ -471,24 +472,8 @@ class _DeviceManager:
         for to_remove in self.description - description:
             widget = self.widgets_by_uid[to_remove.uid]
             del self.widgets_by_uid[to_remove.uid]
-
-            if isinstance(widget, _TTLWidget):
-                self.setup_ttl_monitoring(False, widget.channel)
-                widget.deleteLater()
-                del self.ttl_widgets[widget.channel]
-                self.ttl_cb()
-            elif isinstance(widget, _DDSWidget):
-                self.setup_dds_monitoring(False, widget.bus_channel, widget.channel)
-                widget.deleteLater()
-                del self.dds_widgets[(widget.bus_channel, widget.channel)]
-                self.dds_cb()
-            elif isinstance(widget, _DACWidget):
-                self.setup_dac_monitoring(False, widget.spi_channel, widget.channel)
-                widget.deleteLater()
-                del self.dac_widgets[(widget.spi_channel, widget.channel)]
-                self.dac_cb()     
-            else:
-                raise ValueError
+            self.setup_monitoring(False, widget)
+            widget.deleteLater()
 
         for to_add in description - self.description:
             widget = to_add.cls(self, *to_add.arguments)
@@ -496,26 +481,15 @@ class _DeviceManager:
                 widget.setToolTip(to_add.comment)
             self.widgets_by_uid[to_add.uid] = widget
 
-            if isinstance(widget, _TTLWidget):
-                self.ttl_widgets[widget.channel] = widget
-                self.ttl_cb()
-                self.setup_ttl_monitoring(True, widget.channel)
-            elif isinstance(widget, _DDSWidget):
-                self.dds_widgets[(widget.bus_channel, widget.channel)] = widget
-                self.dds_cb()
-                self.setup_dds_monitoring(True, widget.bus_channel, widget.channel)
-            elif isinstance(widget, _DACWidget):
-                self.dac_widgets[(widget.spi_channel, widget.channel)] = widget
-                self.dac_cb()
-                self.setup_dac_monitoring(True, widget.spi_channel, widget.channel)
-            else:
-                raise ValueError
+        if description != self.description:
+            self.channels_cb()
 
         self.description = description
 
     def ttl_set_mode(self, channel, mode):
         if self.mi_connection is not None:
-            widget = self.ttl_widgets[channel]
+            widget_uid = self.ttl_widgets[channel]
+            widget = self.widgets_by_uid[widget_uid]
             if mode == "0":
                 widget.cur_override = True
                 widget.cur_level = False
@@ -565,7 +539,7 @@ class _DeviceManager:
             cpld_dev = """self.setattr_device("core_cache")
                 self.setattr_device("{}")""".format(dds_model.cpld)
 
-            # `sta`/`rf_sw`` variables are guaranteed for urukuls 
+            # `sta`/`rf_sw`` variables are guaranteed for urukuls
             # so {action} can use it
             # if there's no RF enabled, CPLD may have not been initialized
             # but if there is, it has been initialised - no need to do again
@@ -624,8 +598,8 @@ class _DeviceManager:
                    channel_init=channel_init))
         asyncio.ensure_future(
             self._submit_by_content(
-                dds_exp, 
-                title, 
+                dds_exp,
+                title,
                 log_msg))
 
     def dds_set_frequency(self, dds_channel, dds_model, freq):
@@ -640,8 +614,8 @@ class _DeviceManager:
             dds_channel,
             dds_model,
             action,
-            "SetDDS", 
-            "Set DDS {} {}MHz".format(dds_channel, freq/1e6))
+            "SetDDS",
+            "Set DDS {} {}MHz".format(dds_channel, freq / 1e6))
 
     def dds_channel_toggle(self, dds_channel, dds_model, sw=True):
         # urukul only
@@ -661,8 +635,33 @@ class _DeviceManager:
             dds_channel,
             dds_model,
             action,
-            "ToggleDDS", 
+            "ToggleDDS",
             "Toggle DDS {} {}".format(dds_channel, "on" if sw else "off"))
+
+    def setup_monitoring(self, enable, widget):
+        if isinstance(widget, _TTLWidget):
+            key = widget.channel
+            args = (key,)
+            subscribers = self.ttl_widgets
+            subscribe_func = self.setup_ttl_monitoring
+        elif isinstance(widget, _DDSWidget):
+            key = (widget.bus_channel, widget.channel)
+            args = key
+            subscribers = self.dds_widgets
+            subscribe_func = self.setup_dds_monitoring
+        elif isinstance(widget, _DACWidget):
+            key = (widget.spi_channel, widget.channel)
+            args = key
+            subscribers = self.dac_widgets
+            subscribe_func = self.setup_dac_monitoring
+        else:
+            raise ValueError
+        if enable and key not in subscribers:
+            subscribers[key] = widget.uid()
+            subscribe_func(enable, *args)
+        elif not enable and key in subscribers:
+            subscribe_func(enable, *args)
+            del subscribers[key]
 
     def setup_ttl_monitoring(self, enable, channel):
         if self.mi_connection is not None:
@@ -683,24 +682,28 @@ class _DeviceManager:
 
     def monitor_cb(self, channel, probe, value):
         if channel in self.ttl_widgets:
-            widget = self.ttl_widgets[channel]
+            widget_uid = self.ttl_widgets[channel]
+            widget = self.widgets_by_uid[widget_uid]
             if probe == TTLProbe.level.value:
                 widget.cur_level = bool(value)
             elif probe == TTLProbe.oe.value:
                 widget.cur_oe = bool(value)
             widget.refresh_display()
         elif (channel, probe) in self.dds_widgets:
-            widget = self.dds_widgets[(channel, probe)]
+            widget_uid = self.dds_widgets[(channel, probe)]
+            widget = self.widgets_by_uid[widget_uid]
             widget.dds_model.monitor_update(probe, value)
             widget.refresh_display()
         elif (channel, probe) in self.dac_widgets:
-            widget = self.dac_widgets[(channel, probe)]
+            widget_uid = self.dac_widgets[(channel, probe)]
+            widget = self.widgets_by_uid[widget_uid]
             widget.cur_value = value
             widget.refresh_display()
 
     def injection_status_cb(self, channel, override, value):
         if channel in self.ttl_widgets:
-            widget = self.ttl_widgets[channel]
+            widget_uid = self.ttl_widgets[channel]
+            widget = self.widgets_by_uid[widget_uid]
             if override == TTLOverride.en.value:
                 widget.cur_override = bool(value)
             if override == TTLOverride.level.value:
@@ -719,14 +722,12 @@ class _DeviceManager:
                 await self.mi_connection.close()
                 self.mi_connection = None
             new_mi_connection = CommMonInj(self.monitor_cb, self.injection_status_cb,
-                    self.disconnect_cb)
+                                           self.disconnect_cb)
             try:
                 await new_mi_connection.connect(self.mi_addr, self.mi_port)
-            except asyncio.CancelledError:
-                logger.info("cancelled connection to moninj")
-                break
-            except:
-                logger.error("failed to connect to moninj. Is aqctl_moninj_proxy running?", exc_info=True)
+            except Exception:
+                logger.error("failed to connect to moninj. Is aqctl_moninj_proxy running?",
+                             exc_info=True)
                 await asyncio.sleep(10.)
                 self.reconnect_mi.set()
             else:
@@ -736,9 +737,9 @@ class _DeviceManager:
                 for ttl_channel in self.ttl_widgets.keys():
                     self.setup_ttl_monitoring(True, ttl_channel)
                 for bus_channel, channel in self.dds_widgets.keys():
-                    self.setup_dds_monitoring(True, bus_channel, channel)
+                     self.setup_dds_monitoring(True, bus_channel, channel)
                 for spi_channel, channel in self.dac_widgets.keys():
-                    self.setup_dac_monitoring(True, spi_channel, channel)
+                     self.setup_dac_monitoring(True, spi_channel, channel)
 
     async def close(self):
         self.mi_connector_task.cancel()
@@ -750,48 +751,233 @@ class _DeviceManager:
             await self.mi_connection.close()
 
 
-class _MonInjDock(QtWidgets.QDockWidget):
-    def __init__(self, name):
-        QtWidgets.QDockWidget.__init__(self, name)
+class Model(DictSyncTreeSepModel):
+    def __init__(self, init):
+        DictSyncTreeSepModel.__init__(self, "/", ["Channels"], init)
+
+    def clear(self):
+        for k in self.backing_store:
+            self._del_item(self, k.split(self.separator))
+        self.backing_store.clear()
+
+    def update(self, d):
+        for k, v in d.items():
+            self[v.to_model_path()] = v
+
+
+class _AddChannelDialog(QtWidgets.QDialog):
+    def __init__(self, parent, model):
+        QtWidgets.QDialog.__init__(self, parent=parent)
+        self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        self.setWindowTitle("Add channels")
+
+        layout = QtWidgets.QVBoxLayout()
+        self.setLayout(layout)
+
+        self._model = model
+        self._tree_view = QtWidgets.QTreeView()
+        self._tree_view.setHeaderHidden(True)
+        self._tree_view.setSelectionBehavior(
+            QtWidgets.QAbstractItemView.SelectItems)
+        self._tree_view.setSelectionMode(
+            QtWidgets.QAbstractItemView.ExtendedSelection)
+        self._tree_view.setModel(self._model)
+        layout.addWidget(self._tree_view)
+
+        self._button_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
+        self._button_box.setCenterButtons(True)
+        self._button_box.accepted.connect(self.add_channels)
+        self._button_box.rejected.connect(self.reject)
+        layout.addWidget(self._button_box)
+
+    def add_channels(self):
+        selection = self._tree_view.selectedIndexes()
+        channels = []
+        for select in selection:
+            key = self._model.index_to_key(select)
+            if key is not None:
+                channels.append(self._model[key].ref)
+        self.channels = channels
+        self.accept()
+
+
+class _MonInjDock(QDockWidgetCloseDetect):
+    def __init__(self, name, manager):
+        QtWidgets.QDockWidget.__init__(self, "MonInj")
         self.setObjectName(name)
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
                          QtWidgets.QDockWidget.DockWidgetFloatable)
+        grid = LayoutWidget()
+        self.setWidget(grid)
+        self.manager = manager
+        self.widget_uids = None
+
+        newdock = QtWidgets.QToolButton()
+        newdock.setToolTip("Create new moninj dock")
+        newdock.setIcon(QtWidgets.QApplication.style().standardIcon(
+            QtWidgets.QStyle.SP_FileDialogNewFolder))
+        newdock.clicked.connect(lambda: self.manager.create_new_dock())
+        grid.addWidget(newdock, 0, 0)
+
+        self.channel_dialog = _AddChannelDialog(self, self.manager.channel_model)
+        self.channel_dialog.accepted.connect(self.add_channels)
+
+        dialog_btn = QtWidgets.QToolButton()
+        dialog_btn.setToolTip("Add channels")
+        dialog_btn.setIcon(
+            QtWidgets.QApplication.style().standardIcon(
+                QtWidgets.QStyle.SP_FileDialogListView))
+        dialog_btn.clicked.connect(self.channel_dialog.open)
+        grid.addWidget(dialog_btn, 0, 1)
+
+        self.label = DoubleClickLineEdit(name)
+        self.label.setStyleSheet("background:transparent;")
+        grid.addWidget(self.label, 0, 2)
+
+        scroll_area = VDragScrollArea(self)
+        grid.addWidget(scroll_area, 1, 0, 1, 10)
+        self.flow = DragDropFlowLayoutWidget()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setWidget(self.flow)
+        self.flow.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.flow.customContextMenuRequested.connect(self.custom_context_menu)
+
+    def custom_context_menu(self, pos):
+        index = self.flow._get_index(pos)
+        if index == -1:
+            return
+        menu = QtWidgets.QMenu()
+        delete_action = QtWidgets.QAction("Delete widget", menu)
+        delete_action.triggered.connect(partial(self.delete_widget, index))
+        menu.addAction(delete_action)
+        menu.exec_(self.flow.mapToGlobal(pos))
+
+    def delete_all_widgets(self):
+        for index in reversed(range(self.flow.count())):
+            self.delete_widget(index, True)
+
+
+    def delete_widget(self, index, checked):
+        widget = self.flow.itemAt(index).widget()
+        widget.hide()
+        self.manager.dm.setup_monitoring(False, widget)
+        self.flow.layout.takeAt(index)
+
+    def add_channels(self):
+        channels = self.channel_dialog.channels
+        self.layout_widgets(channels)
 
     def layout_widgets(self, widgets):
-        scroll_area = QtWidgets.QScrollArea()
-        self.setWidget(scroll_area)
-
-        grid = FlowLayout()
-        grid_widget = QtWidgets.QWidget()
-        grid_widget.setLayout(grid)
-
         for widget in sorted(widgets, key=lambda w: w.sort_key()):
-            grid.addWidget(widget)
+            widget.show()
+            self.manager.dm.setup_monitoring(True, widget)
+            self.flow.addWidget(widget)
 
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setWidget(grid_widget)
+    def restore_widgets(self):
+        if self.widget_uids is not None:
+            widgets_by_uid = self.manager.dm.widgets_by_uid
+            widgets = list()
+            for uid in self.widget_uids:
+                if uid in widgets_by_uid:
+                    widgets.append(widgets_by_uid[uid])
+                else:
+                    logger.warning("removing moninj widget {}".format(uid))
+            self.layout_widgets(widgets)
+            self.widget_uids = None
+
+    def _save_widget_uids(self):
+        uids = []
+        for i in range(self.flow.count()):
+            uids.append(self.flow.itemAt(i).widget().uid())
+        return uids
+
+    def save_state(self):
+        return {
+            "dock_label": self.label.text(),
+            "widget_uids": self._save_widget_uids()
+        }
+
+    def restore_state(self, state):
+        try:
+            label = state["dock_label"]
+        except KeyError:
+            pass
+        else:
+            self.label._text = label
+            self.label.setText(label)
+        try:
+            self.widget_uids = state["widget_uids"]
+        except KeyError:
+            pass
 
 
 class MonInj:
-    def __init__(self, schedule_ctl):
-        self.ttl_dock = _MonInjDock("TTL")
-        self.dds_dock = _MonInjDock("DDS")
-        self.dac_dock = _MonInjDock("DAC")
-
+    def __init__(self, schedule_ctl, main_window):
+        self.docks = dict()
+        self.main_window = main_window
         self.dm = _DeviceManager(schedule_ctl)
-        self.dm.ttl_cb = lambda: self.ttl_dock.layout_widgets(
-                            self.dm.ttl_widgets.values())
-        self.dm.dds_cb = lambda: self.dds_dock.layout_widgets(
-                            self.dm.dds_widgets.values())
-        self.dm.dac_cb = lambda: self.dac_dock.layout_widgets(
-                            self.dm.dac_widgets.values())
+        self.dm.channels_cb = self.add_channels
+        self.channel_model = Model({})
 
-        self.subscriber = Subscriber("devices", self.dm.init_ddb, self.dm.notify)
+    def add_channels(self):
+        self.channel_model.clear()
+        self.channel_model.update(self.dm.widgets_by_uid)
+        for dock in self.docks.values():
+            dock.restore_widgets()
 
-    async def start(self, server, port):
-        await self.subscriber.connect(server, port)
+    def create_new_dock(self, add_to_area=True):
+        n = 0
+        name = "moninj0"
+        while name in self.docks:
+            n += 1
+            name = "moninj" + str(n)
+
+        dock = _MonInjDock(name, self)
+        self.docks[name] = dock
+        if add_to_area:
+            self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
+            dock.setFloating(True)
+        dock.sigClosed.connect(partial(self.on_dock_closed, name))
+        self.update_closable()
+        return dock
+
+    def on_dock_closed(self, name):
+        dock = self.docks[name]
+        del self.docks[name]
+        self.update_closable()
+        dock.delete_all_widgets()
+        dock.hide()  # dock may be parent, only delete on exit
+
+    def update_closable(self):
+        flags = (QtWidgets.QDockWidget.DockWidgetMovable |
+                 QtWidgets.QDockWidget.DockWidgetFloatable)
+        if len(self.docks) > 1:
+            flags |= QtWidgets.QDockWidget.DockWidgetClosable
+        for dock in self.docks.values():
+            dock.setFeatures(flags)
+
+    def first_moninj_dock(self):
+        if self.docks:
+            return None
+        dock = self.create_new_dock(False)
+        return dock
+
+    def save_state(self):
+        return {name: dock.save_state() for name, dock in self.docks.items()}
+
+    def restore_state(self, state):
+        if self.docks:
+            raise NotImplementedError
+        for name, dock_state in state.items():
+            dock = _MonInjDock(name, self)
+            self.docks[name] = dock
+            dock.restore_state(dock_state)
+            self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
+            dock.sigClosed.connect(partial(self.on_dock_closed, name))
+        self.update_closable()
 
     async def stop(self):
-        await self.subscriber.close()
         if self.dm is not None:
             await self.dm.close()

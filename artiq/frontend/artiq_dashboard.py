@@ -6,7 +6,6 @@ import atexit
 import importlib
 import os
 import logging
-import sys
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from qasync import QEventLoop
@@ -15,13 +14,15 @@ from sipyco.pc_rpc import AsyncioClient, Client
 from sipyco.broadcast import Receiver
 from sipyco import common_args
 from sipyco.asyncio_tools import atexit_register_coroutine
+from sipyco.sync_struct import Subscriber
 
 from artiq import __artiq_dir__ as artiq_dir, __version__ as artiq_version
 from artiq.tools import get_user_config_dir
 from artiq.gui.models import ModelSubscriber
 from artiq.gui import state, log
 from artiq.dashboard import (experiments, shortcuts, explorer,
-                             moninj, datasets, schedule, applets_ccb)
+                             moninj, datasets, schedule, applets_ccb,
+                             waveform, interactive_args)
 
 
 def get_argparser():
@@ -47,6 +48,15 @@ def get_argparser():
     parser.add_argument(
         "-p", "--load-plugin", dest="plugin_modules", action="append",
         help="Python module to load on startup")
+    parser.add_argument(
+        "--analyzer-proxy-timeout", default=5, type=float,
+        help="connection timeout to core analyzer proxy")
+    parser.add_argument(
+        "--analyzer-proxy-timer", default=5, type=float,
+        help="retry timer to core analyzer proxy")
+    parser.add_argument(
+        "--analyzer-proxy-timer-backoff", default=1.1, type=float,
+        help="retry timer backoff multiplier to core analyzer proxy")
     common_args.verbosity_args(parser)
     return parser
 
@@ -60,7 +70,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setWindowTitle("ARTIQ Dashboard - {}".format(server))
 
         qfm = QtGui.QFontMetrics(self.font())
-        self.resize(140*qfm.averageCharWidth(), 38*qfm.lineSpacing())
+        self.resize(140 * qfm.averageCharWidth(), 38 * qfm.lineSpacing())
 
         self.exit_request = asyncio.Event()
 
@@ -85,11 +95,23 @@ class MdiArea(QtWidgets.QMdiArea):
         self.pixmap = QtGui.QPixmap(os.path.join(
             artiq_dir, "gui", "logo_ver.svg"))
 
+        self.setActivationOrder(self.ActivationHistoryOrder)
+
+        self.tile = QtWidgets.QShortcut(
+            QtGui.QKeySequence('Ctrl+Shift+T'), self)
+        self.tile.activated.connect(
+            lambda: self.tileSubWindows())
+
+        self.cascade = QtWidgets.QShortcut(
+            QtGui.QKeySequence('Ctrl+Shift+C'), self)
+        self.cascade.activated.connect(
+            lambda: self.cascadeSubWindows())
+
     def paintEvent(self, event):
         QtWidgets.QMdiArea.paintEvent(self, event)
         painter = QtGui.QPainter(self.viewport())
-        x = (self.width() - self.pixmap.width())//2
-        y = (self.height() - self.pixmap.height())//2
+        x = (self.width() - self.pixmap.width()) // 2
+        y = (self.height() - self.pixmap.height()) // 2
         painter.setOpacity(0.5)
         painter.drawPixmap(x, y, self.pixmap)
 
@@ -106,9 +128,9 @@ def main():
 
     if args.db_file is None:
         args.db_file = os.path.join(get_user_config_dir(),
-                           "artiq_dashboard_{server}_{port}.pyon".format(
-                            server=args.server.replace(":","."),
-                            port=args.port_notify))
+                                    "artiq_dashboard_{server}_{port}.pyon".format(
+                                    server=args.server.replace(":", "."),
+                                    port=args.port_notify))
 
     app = QtWidgets.QApplication(["ARTIQ Dashboard"])
     loop = QEventLoop(app)
@@ -118,10 +140,10 @@ def main():
 
     # create connections to master
     rpc_clients = dict()
-    for target in "schedule", "experiment_db", "dataset_db", "device_db":
+    for target in "schedule", "experiment_db", "dataset_db", "device_db", "interactive_arg_db":
         client = AsyncioClient()
         loop.run_until_complete(client.connect_rpc(
-            args.server, args.port_control, "master_" + target))
+            args.server, args.port_control, target))
         atexit.register(client.close_rpc)
         rpc_clients[target] = client
 
@@ -132,6 +154,7 @@ def main():
         master_management.close_rpc()
 
     disconnect_reported = False
+
     def report_disconnect():
         nonlocal disconnect_reported
         if not disconnect_reported:
@@ -143,9 +166,9 @@ def main():
     for notifier_name, modelf in (("explist", explorer.Model),
                                   ("explist_status", explorer.StatusUpdater),
                                   ("datasets", datasets.Model),
-                                  ("schedule", schedule.Model)):
-        subscriber = ModelSubscriber(notifier_name, modelf,
-            report_disconnect)
+                                  ("schedule", schedule.Model),
+                                  ("interactive_args", interactive_args.Model)):
+        subscriber = ModelSubscriber(notifier_name, modelf, report_disconnect)
         loop.run_until_complete(subscriber.connect(
             args.server, args.port_notify))
         atexit_register_coroutine(subscriber.close, loop=loop)
@@ -203,9 +226,21 @@ def main():
     smgr.register(d_applets)
     broadcast_clients["ccb"].notify_cbs.append(d_applets.ccb_notify)
 
-    d_ttl_dds = moninj.MonInj(rpc_clients["schedule"])
-    loop.run_until_complete(d_ttl_dds.start(args.server, args.port_notify))
+    d_ttl_dds = moninj.MonInj(rpc_clients["schedule"], main_window)
+    smgr.register(d_ttl_dds)
     atexit_register_coroutine(d_ttl_dds.stop, loop=loop)
+
+    d_waveform = waveform.WaveformDock(
+        args.analyzer_proxy_timeout,
+        args.analyzer_proxy_timer,
+        args.analyzer_proxy_timer_backoff
+    )
+    atexit_register_coroutine(d_waveform.stop, loop=loop)
+
+    d_interactive_args = interactive_args.InteractiveArgsDock(
+        sub_clients["interactive_args"],
+        rpc_clients["interactive_arg_db"]
+    )
 
     d_schedule = schedule.ScheduleDock(
         rpc_clients["schedule"], sub_clients["schedule"])
@@ -219,8 +254,8 @@ def main():
     # lay out docks
     right_docks = [
         d_explorer, d_shortcuts,
-        d_ttl_dds.ttl_dock, d_ttl_dds.dds_dock, d_ttl_dds.dac_dock,
-        d_datasets, d_applets
+        d_datasets, d_applets,
+        d_waveform, d_interactive_args
     ]
     main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, right_docks[0])
     for d1, d2 in zip(right_docks, right_docks[1:]):
@@ -234,18 +269,25 @@ def main():
         # QDockWidgets fail to be embedded.
         main_window.show()
     smgr.load()
+
+    def init_cbs(ddb):
+        d_ttl_dds.dm.init_ddb(ddb)
+        d_waveform.init_ddb(ddb)
+        return ddb
+    devices_sub = Subscriber("devices", init_cbs, [d_ttl_dds.dm.notify_ddb, d_waveform.notify_ddb])
+    loop.run_until_complete(devices_sub.connect(args.server, args.port_notify))
+    atexit_register_coroutine(devices_sub.close, loop=loop)
+
     smgr.start(loop=loop)
     atexit_register_coroutine(smgr.stop, loop=loop)
-
-    # work around for https://github.com/m-labs/artiq/issues/1307
-    d_ttl_dds.ttl_dock.show()
-    d_ttl_dds.dds_dock.show()
 
     # create first log dock if not already in state
     d_log0 = logmgr.first_log_dock()
     if d_log0 is not None:
         main_window.tabifyDockWidget(d_schedule, d_log0)
-
+    d_moninj0 = d_ttl_dds.first_moninj_dock()
+    if d_moninj0 is not None:
+        main_window.tabifyDockWidget(right_docks[-1], d_moninj0)
 
     if server_name is not None:
         server_description = server_name + " ({})".format(args.server)
@@ -256,6 +298,7 @@ def main():
     # run
     main_window.show()
     loop.run_until_complete(main_window.exit_request.wait())
+
 
 if __name__ == "__main__":
     main()

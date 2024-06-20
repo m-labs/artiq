@@ -574,3 +574,29 @@ class NumpyQuotingTest(ExperimentCase):
     def test_issue_1871(self):
         """Ensure numpy.array() does not break NumPy math functions"""
         self.create(_NumpyQuoting).run()
+
+
+class _IntBoundary(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.int32_min = numpy.iinfo(numpy.int32).min
+        self.int32_max = numpy.iinfo(numpy.int32).max
+        self.int64_min = numpy.iinfo(numpy.int64).min
+        self.int64_max = numpy.iinfo(numpy.int64).max
+
+    @kernel
+    def test_int32_bounds(self, min_val: TInt32, max_val: TInt32):
+        return min_val == self.int32_min and max_val == self.int32_max
+
+    @kernel
+    def test_int64_bounds(self, min_val: TInt64, max_val: TInt64):
+        return min_val == self.int64_min and max_val == self.int64_max
+
+    @kernel
+    def run(self):
+        self.test_int32_bounds(self.int32_min, self.int32_max)
+        self.test_int64_bounds(self.int64_min, self.int64_max)
+
+class IntBoundaryTest(ExperimentCase):
+    def test_int_boundary(self):
+        self.create(_IntBoundary).run()
