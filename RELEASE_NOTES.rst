@@ -3,7 +3,12 @@
 Release notes
 =============
 
-ARTIQ-8 (Unreleased)
+ARTIQ-9 (Unreleased)
+--------------------
+
+* Zadig Driver Installer was added to the MSYS2 offline installer.
+
+ARTIQ-8
 --------------------
 
 Highlights:
