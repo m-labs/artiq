@@ -299,7 +299,7 @@ If you installed OpenOCD on Linux using Conda and are using the Conda environmen
   $ sudo cp ~/.conda/envs/artiq/share/openocd/contrib/60-openocd.rules /etc/udev/rules.d
   $ sudo udevadm trigger
 
-* On Windows, a third-party tool, `Zadig <http://zadig.akeo.ie/>`_, is necessary. Use it as follows:
+* On Windows, a third-party tool, `Zadig <http://zadig.akeo.ie/>`_, is necessary. It is also included with the MSYS2 offline installer and available from the Start Menu as ``Zadig Driver Installer``. Use it as follows:
 
 1. Make sure the FPGA board's JTAG USB port is connected to your computer.
 2. Activate Options → List All Devices.
