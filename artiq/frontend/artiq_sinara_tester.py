@@ -466,7 +466,7 @@ class SinaraTester(EnvExperiment):
                 pass
             for ch in almaznys:
                 ch.set(31.5, False, True)
-                self.core.delay(100*ms)
+                self.core.delay(100.*ms)
                 ch.set(31.5, False, False)
     
     @kernel
@@ -836,8 +836,8 @@ class SinaraTester(EnvExperiment):
         input()
 
     @kernel
-    def setup_shuttler_init(self, relay: ShuttlerRelay, adc: ShuttlerADC, dcbias: ShuttlerDCBias, 
-                            dds: ShuttlerDDS, trigger: TTLOut, config: ShuttlerConfig):
+    def setup_shuttler_init(self, relay: ShuttlerRelay, adc: ShuttlerADC, dcbias: list[ShuttlerDCBias],
+                            dds: list[ShuttlerDDS], trigger: ShuttlerTrigger, config: ShuttlerConfig):
         self.core.break_realtime()
         # Reset Shuttler Output Relay
         relay.init()
@@ -852,7 +852,7 @@ class SinaraTester(EnvExperiment):
 
         delay_mu(int64(self.core.ref_multiplier))
         if adc.read_id() >> 4 != 0x038d:
-            print("Remote AFE Board's ADC is not found. Check Remote AFE Board's Cables Connections")
+            print_rpc("Remote AFE Board's ADC is not found. Check Remote AFE Board's Cables Connections")
             assert adc.read_id() >> 4 == 0x038d
 
         delay_mu(int64(self.core.ref_multiplier))
@@ -874,21 +874,22 @@ class SinaraTester(EnvExperiment):
         return adc.read_ch(ch)
 
     @kernel
-    def setup_shuttler_set_output(self, dcbias: ShuttlerDCBias, dds: ShuttlerDDS, trigger: ShuttlerTrigger, ch: int32, volt: float):
+    def setup_shuttler_set_output(self, dcbias: list[ShuttlerDCBias], dds: list[ShuttlerDDS],
+                                  trigger: ShuttlerTrigger, ch: int32, volt: float):
         self.core.break_realtime()
         dcbias[ch].set_waveform(
             a0=shuttler_volt_to_mu(volt),
             a1=0,
-            a2=0,
-            a3=0,
+            a2=int64(0),
+            a3=int64(0),
         )
         delay_mu(int64(self.core.ref_multiplier))
 
         dds[ch].set_waveform(
             b0=0,
             b1=0,
-            b2=0,
-            b3=0,
+            b2=int64(0),
+            b3=int64(0),
             c0=0,
             c1=0,
             c2=0,
