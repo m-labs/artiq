@@ -103,7 +103,7 @@ It is also possible to use interactive arguments, which may be requested and sup
             repeat = interactive.repeat 
 
 
-Trigger a repository rescan and click the button labeled "Recompute all arguments". Now submit the experiment. It should print once, then wait; in the same dock as "Explorer", find and navigate to the tab "Interactive Args". You can now choose and supply a value for the argument mid-experiment. Every time an argument is requested, the experiment pauses until the input is supplied. If you choose to "Cancel" intead, the experiment will raise a :exc:`artiq.language.environment.CancelledArgsError`  and halt. 
+Trigger a repository rescan and click the button labeled "Recompute all arguments". Now submit the experiment. It should print once, then wait; in the same dock as "Explorer", find and navigate to the tab "Interactive Args". You can now choose and supply a value for the argument mid-experiment. Every time an argument is requested, the experiment pauses until the input is supplied. If you choose to "Cancel" instead, an :exc:`artiq.language.environment.CancelledArgsError` will be raised (which the experiment can choose to catch, rather than halting.)  
 
 While regular arguments are all requested simultaneously before submitting, interactive arguments can be requested at any point. In order to request multiple interactive arguments at once, place them within the same ``with`` block; see also the example ``interactive.py`` in the ``examples/no_hardware`` folder. 
 
@@ -230,13 +230,13 @@ Non-RTIO devices and the controller manager
 
 As described in :ref:`artiq-real-time-i-o-concepts`, there are two classes of equipment a laboratory typically finds itself needing to operate. So far, we have largely discussed ARTIQ in terms of one only: the kind of specialized hardware that requires the very high-resolution timing control ARTIQ provides. The other class comprises the broad range of regular, "slow" laboratory devices, which do *not* require nanosecond precision and can generally be operated perfectly well from a regular PC over a non-realtime channel such as USB. 
 
-To handle these "slow" devices, ARTIQ uses *controllers*, intermediate pieces of software which are responsible for the direct I/O to these devices and offer RPC interfaces to the network. Controllers can be started and run standalone, but are generally handled through the *controller manager*, :mod:`~artiq_comtools.artiq_ctlmgr`, available through the ``artiq-comtools`` package. The controller manager in turn interfaces with the ARTIQ master and, if present, the dashboard and GUI.
+To handle these "slow" devices, ARTIQ uses *controllers*, intermediate pieces of software which are responsible for the direct I/O to these devices and offer RPC interfaces to the network. Controllers can be started and run standalone, but are generally handled through the *controller manager*, :mod:`~artiq_comtools.artiq_ctlmgr`, available through the ``artiq-comtools`` package (normally automatically installed together with ARTIQ.) The controller manager in turn communicates with the ARTIQ master, and through it with clients or the GUI. 
 
-To start the controller manager (the master must already be running, and artiq-comtools must be installed), the only command necessary is: :: 
+To start the controller manager (the master must already be running), the only command necessary is: :: 
 
     $ artiq_ctlmgr 
 
-Controllers may be run on a different machine from the master, or even on multiple different machines, alleviating cabling issues and OS compatibility problems. In this case, communication with the master happens over the network. If multiple machines are running controllers, they must each run their own controller manager. Use the ``-s`` and ``--bind`` flags of ``artiq_ctlmgr`` to set IP addresses or hostnames to connect and bind to.
+Controllers may be run on a different machine from the master, or even on multiple different machines, alleviating cabling issues and OS compatibility problems. In this case, communication with the master happens over the network. If multiple machines are running controllers, they must each run their own controller manager (for which only ``artiq-comtools`` and its few dependencies are necessary, not the full ARTIQ installation.) Use the ``-s`` and ``--bind`` flags of ``artiq_ctlmgr`` to set IP addresses or hostnames to connect and bind to.
 
 Note, however, that the controller for the particular device you are trying to connect to must first exist and be part of a complete Network Device Support Package, or NDSP. :doc:`Some NDSPs are already available <list_of_ndsps>`. If your device is not on this list, the system is designed to make it quite possible to write your own. For this, see the :doc:`developing_a_ndsp` page. 
 
@@ -245,7 +245,7 @@ Once a device is correctly listed in ``device_db.py``, it can be added to an exp
 The ARTIQ session
 -----------------
 
-If (as is often the case) you intend to mostly operate your ARTIQ system and its devices from a single machine, e.g., the networked aspects of the management system are largely unnecessary and you will be running master, dashboard, and controller manager on one computer, they can all be started simultaneously with the single command: :: 
+If (as is often the case) you intend to mostly operate your ARTIQ system and its devices from a single machine, i.e., the networked aspects of the management system are largely unnecessary and you will be running master, dashboard, and controller manager on one computer, they can all be started simultaneously with the single command: :: 
 
     $ artiq_session 
 
