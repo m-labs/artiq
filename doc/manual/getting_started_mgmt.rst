@@ -1,11 +1,18 @@
 Getting started with the management system
 ==========================================
 
-In practice, rather than managing experiments by executing ``artiq_run`` over and over, most use cases are better served by using the ARTIQ *management system.* This is the high-level part of ARTIQ, which can be used to schedule experiments, distribute and store the results, and manage devices and parameters. It possesses a detailed GUI, the ARTIQ dashboard, and can be used on several machines concurrently, communicating with each other and the ARTIQ core device over the network. Accordingly, multiple users on different machines can schedule experiments or retrieve results on the same ARTIQ system, potentially at the same time. 
+In practice, rather than managing experiments by executing ``artiq_run`` over and over, most use cases are better served by using the ARTIQ *management system.* This is the high-level part of ARTIQ, which can be used to schedule experiments, distribute and store the results, and manage devices and parameters. It possesses a detailed GUI and can be used on several machines concurrently, allowing them to coordinate with each other and with the specialized hardware over the network. As a result, multiple users on different machines can schedule experiments or retrieve results on the same ARTIQ system, potentially simultaneously. 
 
-The management system consists of at least two parts: the ARTIQ master, which runs on a single machine, facilitates communication with the core device, and is responsible for most of the actual duties of the system, and one or more ARTIQ clients, which may be local or remote and which communicate only with the master. As well as the dashboard GUI, a straightforward command line client is also provided.
+The management system contains of at least two parts:
 
-In this tutorial, we will explore the basic operation of the management system. Because the management system only interfaces with the core device, rather than running on it, it is not actually necessary to have a core device set up or connected to follow these steps. Most of the examples in this tutorial can be carried out using only your computer. 
+    a. the **ARTIQ master,** which runs on a single machine, facilitates communication with the core device and peripherals, and is responsible for most of the actual duties of the system, 
+    b. one or more **ARTIQ clients,** which may be local or remote and which communicate only with the master. Both a GUI (the **dashboard**) and a straightforward command line client are provided, with many of the same capabilities. 
+
+as well as, optionally, 
+
+    c. one or more **controller managers**, which help coordinate the operation of certain (generally, non-realtime) classes of device. 
+
+In this tutorial, we will explore the basic operation of the management system. Because the various components of the management system run wholly on the host machine, and not on the core device (in other words, they do not inherently involve any kernel functions), it is not necessary to have a core device or any special hardware set up to use it. The examples in this tutorial can all be carried out using only your computer. 
 
 Starting your first experiment with the master
 ----------------------------------------------
@@ -192,7 +199,12 @@ Modify the experiment as follows, once again using a single non-interactive argu
 .. note:: 
     You need to import the ``time`` module, and the ``numpy`` module as ``np``.
 
-Commit, push and submit the experiment as before. Go to the "Datasets" dock of the GUI and observe that a new dataset has been created. We will now create a new XY plot showing this new result.
+Commit, push and submit the experiment as before. Go to the "Datasets" dock of the GUI and observe that a new dataset has been created. 
+
+Applets
+-------
+
+We will now create a new XY plot to show our result dataset graphically.  
 
 Plotting in the ARTIQ dashboard is achieved by programs called "applets". Applets are independent programs that add simple GUI features and are run as separate processes (to achieve goals of modularity and resilience against poorly written applets). Users may write their own applets, or use those supplied with ARTIQ (in the ``artiq.applets`` module) that cover basic plotting.
 
@@ -216,20 +228,15 @@ The :ref:`rtio-analyzer-example` is fully integrated into the dashboard. Navigat
 Non-RTIO devices and the controller manager
 -------------------------------------------
 
-As described in :ref:`artiq-real-time-i-o-concepts`, there are two classes of equipment a laboratory typically finds itself needing to operate. So far, we have largely discussed ARTIQ in terms of the second: the kind of specialized hardware that requires the very high-resolution timing control ARTIQ provides. The other class comprises the broad range of regular, "slow" laboratory devices, which do *not* require nanosecond precision and can generally be operated perfectly well from a regular PC over a non-realtime channel such as USB. ARTIQ also provisions for the control and management of these devices, and they can be operated from ARTIQ experiment code. 
+As described in :ref:`artiq-real-time-i-o-concepts`, there are two classes of equipment a laboratory typically finds itself needing to operate. So far, we have largely discussed ARTIQ in terms of one only: the kind of specialized hardware that requires the very high-resolution timing control ARTIQ provides. The other class comprises the broad range of regular, "slow" laboratory devices, which do *not* require nanosecond precision and can generally be operated perfectly well from a regular PC over a non-realtime channel such as USB. 
 
-No core device is necessary for these non-realtime operations. Accordingly, this side of ARTIQ can in fact be used perfectly well without any core device at all, if there is no actual realtime component to the experiments being run. 
-
-To handle "slow" devices, ARTIQ uses *controllers*, intermediate pieces of software which are responsible for the direct I/O to these devices and offer RPC interfaces to the network. Controllers can be started and run standalone, but are generally handled through the *controller manager*, :mod:`~artiq_comtools.artiq_ctlmgr`, available through the ``artiq-comtools`` package. The controller manager in turn interfaces with the ARTIQ master and, if present, the dashboard and GUI.
+To handle these "slow" devices, ARTIQ uses *controllers*, intermediate pieces of software which are responsible for the direct I/O to these devices and offer RPC interfaces to the network. Controllers can be started and run standalone, but are generally handled through the *controller manager*, :mod:`~artiq_comtools.artiq_ctlmgr`, available through the ``artiq-comtools`` package. The controller manager in turn interfaces with the ARTIQ master and, if present, the dashboard and GUI.
 
 To start the controller manager (the master must already be running, and artiq-comtools must be installed), the only command necessary is: :: 
 
     $ artiq_ctlmgr 
 
 Controllers may be run on a different machine from the master, or even on multiple different machines, alleviating cabling issues and OS compatibility problems. In this case, communication with the master happens over the network. If multiple machines are running controllers, they must each run their own controller manager. Use the ``-s`` and ``--bind`` flags of ``artiq_ctlmgr`` to set IP addresses or hostnames to connect and bind to.
-
-.. warning:: 
-   With some network setups, the current machine's hostname without the domain name resolves to a localhost address (127.0.0.1 or even 127.0.1.1). If you wish to use controllers across a network, make sure that the hostname you provide resolves to an IP address visible on the network (e.g. try providing the full hostname including the domain name).
 
 Note, however, that the controller for the particular device you are trying to connect to must first exist and be part of a complete Network Device Support Package, or NDSP. :doc:`Some NDSPs are already available <list_of_ndsps>`. If your device is not on this list, the system is designed to make it quite possible to write your own. For this, see the :doc:`developing_a_ndsp` page. 
 
@@ -238,7 +245,7 @@ Once a device is correctly listed in ``device_db.py``, it can be added to an exp
 The ARTIQ session
 -----------------
 
-If (as is often the case) you intend to mostly operate your ARTIQ system and its devices from a single machine, e.g., the networked aspects of the management system are largely unnecessary and you will be running master, dashboard, and controller manager on a single computer, they can all be started simultaneously with the single command: :: 
+If (as is often the case) you intend to mostly operate your ARTIQ system and its devices from a single machine, e.g., the networked aspects of the management system are largely unnecessary and you will be running master, dashboard, and controller manager on one computer, they can all be started simultaneously with the single command: :: 
 
     $ artiq_session 
 
