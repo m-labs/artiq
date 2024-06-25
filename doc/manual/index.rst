@@ -18,6 +18,7 @@ ARTIQ documentation
     management_system
     drtio 
     core_device
+    main_frontend_reference
     core_language_reference
     core_drivers_reference 
     utilities
