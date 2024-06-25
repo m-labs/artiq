@@ -168,7 +168,6 @@ The program below exemplifies how to use logging: ::
     if __name__ == "__main__":
         main()
 
-.. _ndsp-integeration: 
 
 Integration with ARTIQ experiments
 ----------------------------------
