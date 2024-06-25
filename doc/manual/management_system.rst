@@ -10,9 +10,9 @@ Components
 Master
 ^^^^^^
 
-The :ref:`ARTIQ master <frontend-artiq-master>` is responsible for managing the parameter and device databases, the experiment repository, scheduling and running experiments, archiving results, and distributing real-time results. It is a headless component, and one or several clients (command-line or GUI) use the network to interact with it. It also uses the network to interact with any relevant controller managers. 
+The :ref:`ARTIQ master <frontend-artiq-master>` is responsible for managing the parameter and device databases, the experiment repository, scheduling and running experiments, archiving results, and distributing real-time results. It is a headless component, and one or several clients (command-line or GUI) use the network to interact with it.
 
-It should not be confused with the 'master' device in a DRTIO system, which is simply a designation for the particular core device acting as central node in a distributed configuration of ARTIQ. The two concepts are otherwise unrelated. 
+It should not be confused with the 'master' device in a DRTIO system, which is only a designation for the particular core device acting as central node in a distributed configuration of ARTIQ. The two concepts are otherwise unrelated. 
 
 Command-line client
 ^^^^^^^^^^^^^^^^^^^
@@ -22,17 +22,17 @@ The :ref:`command-line client <frontend-artiq-client>` connects to the master an
 Dashboard
 ^^^^^^^^^
 
-The :ref:`dashboard <frontend-artiq-dashboard>` connects to the master and is the main method of interacting with it. The main features of the dashboard are scheduling of experiments, setting of their arguments, examining the schedule, displaying real-time results, and debugging TTL and DDS channels in real time.
+The :ref:`dashboard <frontend-artiq-dashboard>` connects to the master and is the main method of interacting with it. The main features of the dashboard are scheduling of experiments, setting of their arguments, examining the schedule, displaying real-time results, and debugging TTL and DDS channels in real time. 
+
+The dashboard remembers and restores GUI state (window/dock positions, last values entered by the user, etc.) in between instances. This information is stored in a file called ``artiq_dashboard_{server}_{port}.pyon`` in the configuration directory (e.g. generally ``~/.config/artiq`` for Unix, same as data directory for Windows), distinguished in subfolders by ARTIQ version. 
 
 Controller manager
 ^^^^^^^^^^^^^^^^^^
 
-The controller manager is provided in the ``artiq-comtools`` package and started with the ``artiq_ctlmgr`` command. It is responsible for running and stopping controllers on a machine. One controller manager must be run by each network node that runs controllers. 
+The controller manager is provided in the ``artiq-comtools`` package (which is made available separately from mainline ARTIQ to allow independent use with minimal dependencies) and started with the ``artiq_ctlmgr`` command. It is responsible for running and stopping controllers on a machine. One controller manager must be run by each network node that runs controllers. 
 
-A controller manager connects to the master and accesses the device database through it to determine what controllrs need to be run. The local network address of the connection is used to filter for only those controllers allocated to the current node. Hostname resolution is supported. Changes to the device database are tracked and controllers will be stopped and started accordingly. 
+A controller manager connects to the master and accesses the device database through it to determine what controllers need to be run. The local network address of the connection is used to filter for only those controllers allocated to the current node. Hostname resolution is supported. Changes to the device database are tracked and controllers will be stopped and started accordingly.
 
-.. warning:: 
-   With some network setups, the current machine's hostname without the domain name resolves to a localhost address (127.0.0.1 or even 127.0.1.1). If you wish to use controllers across a network, make sure that the hostname you provide resolves to an IP address visible on the network (e.g. try providing the full hostname including the domain name).
 
 Git integration
 ---------------
@@ -46,7 +46,7 @@ You will want Git to notify the master every time the repository is pushed to (e
 .. note:: 
    If you plan to run the ARTIQ system entirely on a single machine, you may also consider using a non-bare repository and the ``post-commit`` hook to trigger repository scans every time you commit changes (locally). In this case, note that the ARTIQ master never uses the repository's working directory, but only what is committed. More precisely, when scanning the repository, it fetches the last (atomically) completed commit at that time of repository scan and checks it out in a temporary folder. This commit ID is used by default when subsequently submitting experiments. There is one temporary folder by commit ID currently referenced in the system, so concurrently running experiments from different repository revisions is fully supported by the master.
 
-The dashboard always runs experiments from the repository. By default the command-line client (``artiq_client submit``) runs experiments from the raw filesystem (which is useful for iterating rapidly without creating many disorganized commits). If you want to use the repository instead, simply pass the ``-R`` option.
+By default, the dashboard runs experiments from the repository, whereas the command-line client (``artiq_client submit``) runs experiments from the raw filesystem (which is useful for iterating rapidly without creating many disorganized commits). In order to run from the raw filesystem when using the dashboard, right-click in the Explorer window and select the option "Open file outside repository"; in order to run from the repository when using the command-line client, simply pass the ``-R`` flag. 
 
 .. _experiment-scheduling: 
 
@@ -89,7 +89,7 @@ When determining what experiment should begin executing next (i.e. enter the pre
 Multiple pipelines
 ^^^^^^^^^^^^^^^^^^
 
-Experiments must be placed into a pipeline at submission time, set by the "Pipeline" field. Multiple pipelines can operate in parallel within the same master. Pipelines are identified by their names, and are automtically created (when an experiment is scheduled with a pipeline name that does not yet exist) and destroyed (when they run empty). By default, all experiments are submitted into the same pipeline, ``main``.
+Experiments must be placed into a pipeline at submission time, set by the "Pipeline" field. The master supports multiple simultaneous pipelines, which will operate in parallel. Pipelines are identified by their names, and are automatically created (when an experiment is scheduled with a pipeline name that does not yet exist) and destroyed (when they run empty). By default, all experiments are submitted into the same pipeline, ``main``.
 
 When using multiple pipelines it is the responsibility of the user to ensure that experiments scheduled in parallel will never conflict with those of another pipeline over resources (e.g. attempt to use the same devices simultaneously). 
 

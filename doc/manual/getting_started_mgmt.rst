@@ -3,7 +3,7 @@ Getting started with the management system
 
 In practice, rather than managing experiments by executing ``artiq_run`` over and over, most use cases are better served by using the ARTIQ *management system.* This is the high-level part of ARTIQ, which can be used to schedule experiments, distribute and store the results, and manage devices and parameters. It possesses a detailed GUI, the ARTIQ dashboard, and can be used on several machines concurrently, communicating with each other and the ARTIQ core device over the network. Accordingly, multiple users on different machines can schedule experiments or retrieve results on the same ARTIQ system, potentially at the same time. 
 
-In practice, the management system consists of at least two parts: the ARTIQ master, which runs on a single machine, communicates directly with the core device, and is responsible for most of the actual duties of the system, and one or more ARTIQ clients, which may be local or remote and which communicate only with the master. As well as the dashboard GUI, a straightforward command line client is also provided.
+The management system consists of at least two parts: the ARTIQ master, which runs on a single machine, facilitates communication with the core device, and is responsible for most of the actual duties of the system, and one or more ARTIQ clients, which may be local or remote and which communicate only with the master. As well as the dashboard GUI, a straightforward command line client is also provided.
 
 In this tutorial, we will explore the basic operation of the management system. Because the management system only interfaces with the core device, rather than running on it, it is not actually necessary to have a core device set up or connected to follow these steps. Most of the examples in this tutorial can be carried out using only your computer. 
 
@@ -42,9 +42,6 @@ Now, start the dashboard with the following commands in another terminal: ::
     $ artiq_dashboard
 
 .. note:: 
-    The ``artiq_dashboard`` program will generate and use a file called ``artiq_dashboard.pyon`` in the current directory to save and restore the GUI state (window/dock positions, last values entered by the user, etc.).
-
-.. note:: 
     In order to connect to a master over the network, start it with the command ::
 
         $ artiq_master --bind [hostname or IP]
@@ -58,7 +55,7 @@ Now, start the dashboard with the following commands in another terminal: ::
 
 The dashboard should display the list of experiments from the repository folder in a dock called "Explorer". There should be only the experiment we created. Select it and click "Submit", then look at the "Log" dock for the output from this simple experiment.
 
-.. note::
+.. seealso::
     You may note that experiments may be submitted with a due date, a priority level, a pipeline identifier, and other specific settings. Some of these are self-explanatory. Many are scheduling-related. For more information on experiment scheduling, especially when submitting longer experiments or submitting across multiple users, see :ref:`experiment-scheduling`.  
 
 Adding an argument
@@ -91,15 +88,15 @@ It is also possible to use interactive arguments, which may be requested and sup
         pass 
     
     def run(self):
-        repeat = True; 
-        while (repeat): 
+        repeat = True 
+        while repeat: 
             print("Hello World")
-            with self.interactive(title="Repeat or continue?") as interactive: 
+            with self.interactive(title="Repeat?") as interactive: 
                 interactive.setattr_argument("repeat", BooleanValue(True))
             repeat = interactive.repeat 
 
 
-Trigger a repository rescan and click the button labeled "Recompute all arguments". Now submit the experiment. It should print once, then wait; in the same dock as "Explorer", find and navigate to the tab "Interactive Args". You can now choose and supply a value for the argument mid-experiment. Every time an argument is requested, the experiment pauses until the input is supplied. If you choose to "Cancel" intead, the experiment will raise an exception and stop. 
+Trigger a repository rescan and click the button labeled "Recompute all arguments". Now submit the experiment. It should print once, then wait; in the same dock as "Explorer", find and navigate to the tab "Interactive Args". You can now choose and supply a value for the argument mid-experiment. Every time an argument is requested, the experiment pauses until the input is supplied. If you choose to "Cancel" intead, the experiment will raise a :exc:`artiq.language.environment.CancelledArgsError`  and halt. 
 
 While regular arguments are all requested simultaneously before submitting, interactive arguments can be requested at any point. In order to request multiple interactive arguments at once, place them within the same ``with`` block; see also the example ``interactive.py`` in the ``examples/no_hardware`` folder. 
 
@@ -219,7 +216,7 @@ The :ref:`rtio-analyzer-example` is fully integrated into the dashboard. Navigat
 Non-RTIO devices and the controller manager
 -------------------------------------------
 
-As described in :ref:`artiq-real-time-i-o-concepts`, there are two classes of equipment a laboratory typically finds itself needing to operate. So far, we have largely discussed ARTIQ in terms of the second: the kind of specialized hardware that requires the very high-resolution timing control ARTIQ provides. The other class comprises the broad range of regular, "slow" laboratory devices, which do *not* require nanosecond precision and can generally be operated perfectly well from a regular PC over a non-realtime channel such as USB. ARTIQ also provisions for the control and management of these devices, and they can be incorporated into ARTIQ experiment code. 
+As described in :ref:`artiq-real-time-i-o-concepts`, there are two classes of equipment a laboratory typically finds itself needing to operate. So far, we have largely discussed ARTIQ in terms of the second: the kind of specialized hardware that requires the very high-resolution timing control ARTIQ provides. The other class comprises the broad range of regular, "slow" laboratory devices, which do *not* require nanosecond precision and can generally be operated perfectly well from a regular PC over a non-realtime channel such as USB. ARTIQ also provisions for the control and management of these devices, and they can be operated from ARTIQ experiment code. 
 
 No core device is necessary for these non-realtime operations. Accordingly, this side of ARTIQ can in fact be used perfectly well without any core device at all, if there is no actual realtime component to the experiments being run. 
 
@@ -230,6 +227,9 @@ To start the controller manager (the master must already be running, and artiq-c
     $ artiq_ctlmgr 
 
 Controllers may be run on a different machine from the master, or even on multiple different machines, alleviating cabling issues and OS compatibility problems. In this case, communication with the master happens over the network. If multiple machines are running controllers, they must each run their own controller manager. Use the ``-s`` and ``--bind`` flags of ``artiq_ctlmgr`` to set IP addresses or hostnames to connect and bind to.
+
+.. warning:: 
+   With some network setups, the current machine's hostname without the domain name resolves to a localhost address (127.0.0.1 or even 127.0.1.1). If you wish to use controllers across a network, make sure that the hostname you provide resolves to an IP address visible on the network (e.g. try providing the full hostname including the domain name).
 
 Note, however, that the controller for the particular device you are trying to connect to must first exist and be part of a complete Network Device Support Package, or NDSP. :doc:`Some NDSPs are already available <list_of_ndsps>`. If your device is not on this list, the system is designed to make it quite possible to write your own. For this, see the :doc:`developing_a_ndsp` page. 
 
@@ -242,4 +242,4 @@ If (as is often the case) you intend to mostly operate your ARTIQ system and its
 
     $ artiq_session 
 
-Arguments to the individuals (including ``-s`` and ``--bind``) can still be specificed using the ``-m``, ``-d`` and ``-c`` options respectively. 
+Arguments to the individuals (including ``-s`` and ``--bind``) can still be specified using the ``-m``, ``-d`` and ``-c`` options respectively. 
