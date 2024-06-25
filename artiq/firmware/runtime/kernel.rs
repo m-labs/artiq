@@ -278,8 +278,15 @@ pub mod subkernel {
     {
         let mut reader = Cursor::new(buffer);
 
-        let _sync = reader.read_u32()?;
-        let _9 = reader.read_u8()?;
+        let mut byte = reader.read_u8()?;
+        // to sync
+        while byte != 0x5a {
+            byte = reader.read_u8()?;
+        }
+        // skip sync bytes, 0x09 indicates exception
+        while byte != 0x09 {
+            byte = reader.read_u8()?;
+        }
         let _len = reader.read_u32()?;
         // ignore the remaining exceptions, stack traces etc. - unwinding from another device would be unwise anyway
         Ok(Exception {
