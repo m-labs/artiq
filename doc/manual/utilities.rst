@@ -3,15 +3,7 @@ Utilities
 
 .. Sort these tool by some subjective combination of their
    typical sequence and expected frequency of use.
-
-
-Local running tool
-------------------
-
-.. argparse::
-   :ref: artiq.frontend.artiq_run.get_argparser
-   :prog: artiq_run
-
+   
 Static compiler
 ---------------
 
