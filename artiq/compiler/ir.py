@@ -1047,6 +1047,42 @@ class Builtin(Instruction):
     def opcode(self):
         return "builtin({})".format(self.op)
 
+class BuiltinInvoke(Terminator):
+    """
+    A builtin operation which can raise exceptions.
+
+    :ivar op: (string) operation name
+    """
+
+    """
+    :param op: (string) operation name
+    :param normal: (:class:`BasicBlock`) normal target
+    :param exn: (:class:`BasicBlock`) exceptional target
+    """
+    def __init__(self, op, operands, typ, normal, exn, name=None):
+        assert isinstance(op, str)
+        for operand in operands: assert isinstance(operand, Value)
+        assert isinstance(normal, BasicBlock)
+        assert isinstance(exn, BasicBlock)
+        if name is None:
+            name = "BLTINV.{}".format(op)
+        super().__init__(operands + [normal, exn], typ, name)
+        self.op = op
+
+    def copy(self, mapper):
+        self_copy = super().copy(mapper)
+        self_copy.op = self.op
+        return self_copy
+
+    def normal_target(self):
+        return self.operands[-2]
+
+    def exception_target(self):
+        return self.operands[-1]
+
+    def opcode(self):
+        return "builtinInvokable({})".format(self.op)
+
 class Closure(Instruction):
     """
     A closure creation operation.
