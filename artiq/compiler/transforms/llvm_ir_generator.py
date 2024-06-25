@@ -1437,6 +1437,44 @@ class LLVMIRGenerator:
         else:
             assert False
 
+    def process_BuiltinInvoke(self, insn):
+        llnormalblock = self.map(insn.normal_target())
+        llunwindblock = self.map(insn.exception_target())
+        if insn.op == "subkernel_retrieve_return":
+            llsid = self.map(insn.operands[0])
+            lltimeout = self.map(insn.operands[1])
+            lltagptr = self._build_subkernel_tags([insn.type])
+            llheadu = self.llbuilder.append_basic_block(name="subkernel.await.unwind")
+            self.llbuilder.invoke(self.llbuiltin("subkernel_await_message"), 
+                                  [llsid, lltimeout, lltagptr, ll.Constant(lli8, 1), ll.Constant(lli8, 1)],
+                                  llheadu, llunwindblock,
+                                  name="subkernel.await.message")
+            self.llbuilder.position_at_end(llheadu)
+            llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
+                                             name="subkernel.arg.stack")
+            return self._build_rpc_recv(insn.type, llstackptr, llnormalblock, llunwindblock)
+        elif insn.op == "subkernel_await_finish":
+            llsid = self.map(insn.operands[0])
+            lltimeout = self.map(insn.operands[1])
+            return self.llbuilder.invoke(self.llbuiltin("subkernel_await_finish"), [llsid, lltimeout],
+                                         llnormalblock, llunwindblock,
+                                         name="subkernel.await.finish")
+        elif insn.op == "subkernel_recv":
+            llmsgid = self.map(insn.operands[0])
+            lltimeout = self.map(insn.operands[1])
+            lltagptr = self._build_subkernel_tags([insn.type])
+            llheadu = self.llbuilder.append_basic_block(name="subkernel.await.unwind")
+            self.llbuilder.invoke(self.llbuiltin("subkernel_await_message"), 
+                                  [llmsgid, lltimeout, lltagptr, ll.Constant(lli8, 1), ll.Constant(lli8, 1)],
+                                  llheadu, llunwindblock,
+                                  name="subkernel.await.message")
+            self.llbuilder.position_at_end(llheadu)
+            llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
+                                             name="subkernel.arg.stack")
+            return self._build_rpc_recv(insn.type, llstackptr, llnormalblock, llunwindblock)
+        else:
+            assert False
+
     def process_SubkernelAwaitArgs(self, insn):
         llmin = self.map(insn.operands[0])
         llmax = self.map(insn.operands[1])

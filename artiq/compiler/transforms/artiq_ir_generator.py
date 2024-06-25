@@ -2544,10 +2544,22 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 fn = types.get_method_function(fn)
             sid = ir.Constant(fn.sid, builtins.TInt32())
             if not builtins.is_none(fn.ret):
-                ret = self.append(ir.Builtin("subkernel_retrieve_return", [sid, timeout], fn.ret))
+                if self.unwind_target is None:
+                    ret = self.append(ir.Builtin("subkernel_retrieve_return", [sid, timeout], fn.ret))
+                else:
+                    after_invoke = self.add_block("invoke")
+                    ret = self.append(ir.BuiltinInvoke("subkernel_retrieve_return", [sid, timeout], 
+                                                       fn.ret, after_invoke, self.unwind_target))
+                    self.current_block = after_invoke
             else:
                 ret = ir.Constant(None, builtins.TNone())
-            self.append(ir.Builtin("subkernel_await_finish", [sid, timeout], builtins.TNone()))
+            if self.unwind_target is None:
+                self.append(ir.Builtin("subkernel_await_finish", [sid, timeout], builtins.TNone()))
+            else:
+                after_invoke = self.add_block("invoke")
+                self.append(ir.BuiltinInvoke("subkernel_await_finish", [sid, timeout], 
+                                                builtins.TNone(), after_invoke, self.unwind_target))
+                self.current_block = after_invoke
             return ret
         elif types.is_builtin(typ, "subkernel_preload"):
             if len(node.args) == 1 and len(node.keywords) == 0:
@@ -2594,7 +2606,14 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     {"name": name, "recv": vartype, "send": msg.value_type},
                     node.loc)
                 self.engine.process(diag)
-            return self.append(ir.Builtin("subkernel_recv", [msg_id, timeout], vartype))
+            if self.unwind_target is None:
+                ret = self.append(ir.Builtin("subkernel_recv", [msg_id, timeout], vartype))
+            else:
+                after_invoke = self.add_block("invoke")
+                ret = self.append(ir.BuiltinInvoke("subkernel_recv", [msg_id, timeout], 
+                                                   vartype, after_invoke, self.unwind_target))
+                self.current_block = after_invoke
+            return ret
         elif types.is_exn_constructor(typ):
             return self.alloc_exn(node.type, *[self.visit(arg_node) for arg_node in node.args])
         elif types.is_constructor(typ):
@@ -2946,7 +2965,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 format_string += ")"
             elif builtins.is_exception(value.type):
                 # message may not be an actual string...
-                # so we cannot really print it
+                # so we cannot really print itInvoke
                 name    = self.append(ir.GetAttr(value, "#__name__"))
                 param1  = self.append(ir.GetAttr(value, "#__param0__"))
                 param2  = self.append(ir.GetAttr(value, "#__param1__"))
