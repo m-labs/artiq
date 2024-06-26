@@ -111,6 +111,8 @@ We see that the client has made a request to the server, which has, through the 
 
 To access this driver in an experiment, we can retrieve the ``Client`` instance with the ``get_device`` and ``set_device`` methods of :class:`artiq.language.environment.HasEnvironment`, and then use it like any other device (provided the controller is running and accessible at the time). 
 
+.. _ndsp-integration:
+
 Integration with ARTIQ experiments
 ----------------------------------
 
