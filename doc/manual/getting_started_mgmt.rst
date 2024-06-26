@@ -3,7 +3,7 @@ Getting started with the management system
 
 In practice, rather than managing experiments by executing ``artiq_run`` over and over, most use cases are better served by using the ARTIQ *management system.* This is the high-level part of ARTIQ, which can be used to schedule experiments, distribute and store the results, and manage devices and parameters. It possesses a detailed GUI and can be used on several machines concurrently, allowing them to coordinate with each other and with the specialized hardware over the network. As a result, multiple users on different machines can schedule experiments or retrieve results on the same ARTIQ system, potentially simultaneously. 
 
-The management system contains of at least two parts:
+The management system consists of at least two parts:
 
     a. the **ARTIQ master,** which runs on a single machine, facilitates communication with the core device and peripherals, and is responsible for most of the actual duties of the system, 
     b. one or more **ARTIQ clients,** which may be local or remote and which communicate only with the master. Both a GUI (the **dashboard**) and a straightforward command line client are provided, with many of the same capabilities. 
@@ -65,6 +65,8 @@ The dashboard should display the list of experiments from the repository folder 
 .. seealso::
     You may note that experiments may be submitted with a due date, a priority level, a pipeline identifier, and other specific settings. Some of these are self-explanatory. Many are scheduling-related. For more information on experiment scheduling, especially when submitting longer experiments or submitting across multiple users, see :ref:`experiment-scheduling`.  
 
+.. _mgmt-arguments:
+
 Adding an argument
 ------------------
 
@@ -78,7 +80,7 @@ Experiments may have arguments whose values can be set in the dashboard and used
             print("Hello World", i)
 
 
-``NumberValue`` represents a floating point numeric argument. There are many other types, see :class:`artiq.language.environment` and :class:`artiq.language.scan`.
+``NumberValue`` represents a floating point numeric argument. There are many other types, see :class:`~artiq.language.environment` and :class:`~artiq.language.scan`.
 
 Use the command-line client to trigger a repository rescan: ::
 
@@ -103,7 +105,7 @@ It is also possible to use interactive arguments, which may be requested and sup
             repeat = interactive.repeat 
 
 
-Trigger a repository rescan and click the button labeled "Recompute all arguments". Now submit the experiment. It should print once, then wait; in the same dock as "Explorer", find and navigate to the tab "Interactive Args". You can now choose and supply a value for the argument mid-experiment. Every time an argument is requested, the experiment pauses until the input is supplied. If you choose to "Cancel" instead, an :exc:`artiq.language.environment.CancelledArgsError` will be raised (which the experiment can choose to catch, rather than halting.)  
+Trigger a repository rescan and click the button labeled "Recompute all arguments". Now submit the experiment. It should print once, then wait; in the same dock as "Explorer", find and navigate to the tab "Interactive Args". You can now choose and supply a value for the argument mid-experiment. Every time an argument is requested, the experiment pauses until the input is supplied. If you choose to "Cancel" instead, an :exc:`~artiq.language.environment.CancelledArgsError` will be raised (which the experiment can choose to catch, rather than halting.)  
 
 While regular arguments are all requested simultaneously before submitting, interactive arguments can be requested at any point. In order to request multiple interactive arguments at once, place them within the same ``with`` block; see also the example ``interactive.py`` in the ``examples/no_hardware`` folder. 
 
@@ -182,8 +184,12 @@ The master should now run the new version from its repository.
 
 As an exercise, add another experiment to the repository, commit and push the result, and verify that it appears in the GUI.
 
+.. _getting-started-datasets: 
+
 Datasets
 --------
+
+ARTIQ uses the concept of *datasets* to manage the data exchanged with experiments, both supplied *to* experiments (generally, from other experiments) and saved *from* experiments (i.e. results or records). 
 
 Modify the experiment as follows, once again using a single non-interactive argument: ::
 
@@ -196,29 +202,33 @@ Modify the experiment as follows, once again using a single non-interactive argu
             self.mutate_dataset("parabola", i, i*i)
             time.sleep(0.5)
 
-.. note:: 
+.. tip:: 
     You need to import the ``time`` module, and the ``numpy`` module as ``np``.
 
-Commit, push and submit the experiment as before. Go to the "Datasets" dock of the GUI and observe that a new dataset has been created. 
+Commit, push and submit the experiment as before. Go to the "Datasets" dock of the GUI and observe that a new dataset has been created. Once the experiment has finished executing, navigate to ``~/artiq-master/`` in a terminal or file manager and see that a new directory has been created called ``results``. Your dataset should be stored as an HD5 dump file in ``results`` under ``<date>/<hour>``. 
+
+.. note:: 
+    By default, datasets are primarily attributes of the experiments that run them, and are not shared with the master or the dashboard. The ``broadcast=True`` argument specifies that an argument should be shared in real-time with the master, which is responsible for dispatching it to the clients. A more detailed description of dataset methods and their arguments can be found under :mod:`artiq.language.environment.HasEnvironment`. 
+
+Open the file for your first dataset with HDFView, h5dump, or any similar third-party tool, and observe the data we just generated as well as the Git commit ID of the experiment (a hexadecimal hash such as ``947acb1f90ae1b8862efb489a9cc29f7d4e0c645`` which represents a particular state of the Git repository). A list of Git commit IDs can be found by running the ``git log`` command in ``~/artiq-master/``. 
 
 Applets
 -------
 
-We will now create a new XY plot to show our result dataset graphically.  
-
-Plotting in the ARTIQ dashboard is achieved by programs called "applets". Applets are independent programs that add simple GUI features and are run as separate processes (to achieve goals of modularity and resilience against poorly written applets). Users may write their own applets, or use those supplied with ARTIQ (in the ``artiq.applets`` module) that cover basic plotting.
+Often, rather than the HDF dump, we would like to see our result datasets in readable graphical form, preferably immediately. In the ARTIQ dashboard, this is achieved by programs called "applets". Applets are independent programs that add simple GUI features and are run as separate processes (to achieve goals of modularity and resilience against poorly written applets). ARTIQ supplies several applets for basic plotting in the ``artiq.applets`` module, and users may write their own using the provided interfaces. 
 
 .. seealso::
-    For writing applets, see also the references provided on :ref:`the management system page<applet-references>` of this manual.  
+    For developing your own applets, see the references provided on the :ref:`management system page<applet-references>` of this manual. 
 
-Applets are configured through their command line to select parameters such as the names of the datasets to plot. The list of command-line options can be retrieved using the ``-h`` option; for an example you can run ``python3 -m artiq.applets.plot_xy -h`` in a terminal.
+For our ``parabola`` dataset, we will create an XY plot using the provided ``artiq.applets.plot_xy``. Applets are configured with simple command line options; we can find the list of available options using the ``-h`` flag. Try running: ::
 
-In our case, create a new applet from the XY template by right-clicking in the empty applet list, and edit the "Command" field so that it retrieves the ``parabola`` dataset (the line should be ``${artiq_applet}plot_xy parabola``). Run the experiment again, and observe how the points are added one by one to the plot.
+    $ python3 -m artiq.applets.plot_xy -h 
 
-After the experiment has finished executing, the results are written to a HDF5 file that resides in ``~/artiq-master/results/<date>/<hour>``. Open that file with HDFView or h5dump, and observe the data we just generated as well as the Git commit ID of the experiment (a hexadecimal hash such as ``947acb1f90ae1b8862efb489a9cc29f7d4e0c645`` that represents the data at a particular time in the Git repository). The list of Git commit IDs can be found using the ``git log`` command in ``~/artiq-work``.
+In our case, we only need to supply our dataset as the y-values to be plotted. Navigate to the "Applet" dock in the dashboard. Right-click in the empty list and select "New applet from template" and "XY". This will generate a version of the applet command that shows all applicable options; edit the command so that it retrieves the ``parabola`` dataset and erase the unused options. The line should now be: :: 
 
-.. note:: 
-    HDFView and h5dump are third-party tools not supplied with ARTIQ.
+    ${artiq_applet}plot_xy parabola
+
+Run the experiment again, and observe how the points are added one by one to the plot.
 
 RTIO analyzer and the dashboard 
 -------------------------------
