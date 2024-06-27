@@ -112,7 +112,7 @@ Controllers for third-party devices (e.g. Thorlabs TCube, Lab Brick Digital Atte
 
 Set up the Conda channel and install ARTIQ into a new Conda environment: ::
 
-    $ conda config --prepend channels https://conda.m-labs.hk/artiq
+    $ conda config --prepend channels https://conda.m-labs.hk/artiq-legacy
     $ conda config --append channels conda-forge
     $ conda create -n artiq artiq
 
