@@ -129,6 +129,13 @@ Now it can be added using ``self.setattr_device("hello")`` in the ``build()`` ph
 	
 	self.hello.message("Hello world!")
 
+.. note:: 
+    In order to be correctly started and stopped by a controller manager, your controller must additionally implement a ``ping()`` method, which should simply return true, e.g. :: 
+        
+        def ping(self):
+            return True
+            
+
 Remote execution support
 ------------------------
 
