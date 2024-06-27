@@ -103,7 +103,7 @@ When installing and initializing ARTIQ using commands like ``nix shell``, ``nix 
 
 We recommend accepting these settings by responding with ``y``. If asked to permanently mark these values as trusted, choose ``y`` again. This action saves the configuration to ``~/.local/share/nix/trusted-settings.json``, allowing future prompts to be bypassed.
 
-Alternatively, you can also use the option `accept-flake-config <https://nixos.org/manual/nix/stable/command-ref/conf-file#conf-accept-flake-config>`_ by appending ``--accept-flake-config`` to your nix command:
+Alternatively, you can also use the option `accept-flake-config <https://nix.dev/manual/nix/stable/command-ref/conf-file#conf-accept-flake-config>`_ by appending ``--accept-flake-config`` to your nix command:
 
 ::
 
@@ -129,7 +129,7 @@ If the following message displays when running ``nix shell`` or ``nix develop``
   warning: ignoring untrusted substituter 'https://nixbld.m-labs.hk', you are not a trusted user.
   Run `man nix.conf` for more information on the `substituters` configuration option.
 
-and Nix proceeds to build some packages from source, this means that you are using `multi-user mode <https://nixos.org/manual/nix/stable/installation/multi-user>`_ in Nix, for example when Nix is installed via ``pacman`` in Arch Linux.
+and Nix proceeds to build some packages from source, this means that you are using `multi-user mode <https://nix.dev/manual/nix/stable/installation/multi-user>`_ in Nix, for example when Nix is installed via ``pacman`` in Arch Linux.
 
 By default, users accessing Nix in multi-user mode are "unprivileged" and cannot use untrusted substituters. To change this, edit ``/etc/nix/nix.conf`` and add the following line (or append to the key if the key already exists):
 
@@ -176,7 +176,7 @@ Installing via Conda (Windows, Linux) [DEPRECATED]
 .. warning::
   Installing ARTIQ via Conda is not recommended. Instead, Linux users should install it via Nix and Windows users should install it via MSYS2. Conda support may be removed in future ARTIQ releases and M-Labs can only provide very limited technical support for Conda.
 
-First, install `Anaconda <https://www.anaconda.com/distribution/>`_ or the more minimalistic `Miniconda <https://conda.io/en/latest/miniconda.html>`_.
+First, install `Anaconda <https://www.anaconda.com/download>`_ or the more minimalistic `Miniconda <https://conda.io/en/latest/miniconda.html>`_.
 
 After installing either Anaconda or Miniconda, open a new terminal (also known as command line, console, or shell and denoted here as lines starting with ``$``) and verify the following command works::
 
