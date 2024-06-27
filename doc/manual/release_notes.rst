@@ -1,5 +1,5 @@
 ARTIQ Releases 
-==============
+##############
 
 ARTIQ follows a rolling release model, with beta, stable, and legacy channels. Different releases are saved as different branches on the M-Labs `ARTIQ repository <https://github.com/m-labs/artiq>`_. The ``master`` branch represents the beta version, where at any time the next stable release of ARTIQ is currently in development. This branch is unstable and does not yet guarantee reliability or consistency, but may also already offer new features and improvements; see the `beta release notes <https://github.com/m-labs/artiq/blob/master/RELEASE_NOTES.rst>`_ for the most up-to-date information. The ``release-[number]`` branches represent stable releases, of which the most recent is considered the current stable version, and the second-most recent the current legacy version. 
 
