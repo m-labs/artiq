@@ -14,7 +14,7 @@ In the current state of affairs, we recommend that Linux users install ARTIQ via
 Installing via Nix (Linux)
 --------------------------
 
-First, install the Nix package manager. Some distributions provide a package for the Nix package manager, otherwise, it can be installed via the script on the `Nix website <http://nixos.org/nix/>`_. Make sure you get Nix version 2.4 or higher.
+First, install the Nix package manager. Some distributions provide a package for the Nix package manager, otherwise, it can be installed via the script on the `Nix website <https://nixos.org/download/>`_. Make sure you get Nix version 2.4 or higher.
 
 Once Nix is installed, enable Flakes: ::
 
@@ -100,7 +100,7 @@ Installing via Conda (Windows, Linux)
 .. warning::
   For Linux users, the Nix package manager is preferred, as it is more reliable and faster than Conda.
 
-First, install `Anaconda <https://www.anaconda.com/distribution/>`_ or the more minimalistic `Miniconda <https://conda.io/en/latest/miniconda.html>`_.
+First, install `Anaconda <https://www.anaconda.com/download>`_ or the more minimalistic `Miniconda <https://conda.io/en/latest/miniconda.html>`_.
 
 After installing either Anaconda or Miniconda, open a new terminal (also known as command line, console, or shell and denoted here as lines starting with ``$``) and verify the following command works::
 
