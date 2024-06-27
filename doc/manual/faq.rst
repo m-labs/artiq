@@ -81,7 +81,7 @@ It will give you the ``/dev/ttyUSBxx`` (or the ``COMxx`` for Windows) device
 names.
 The ``hwid:`` field gives you the string you can pass via the ``hwgrep://``
 feature of pyserial
-`serial_for_url() <http://pyserial.sourceforge.net/pyserial_api.html#serial.serial_for_url>`_
+`serial_for_url() <https://pythonhosted.org/pyserial/pyserial_api.html#serial.serial_for_url>`_
 in order to open a serial device.
 
 The preferred way to specify a serial device is to make use of the ``hwgrep://``
