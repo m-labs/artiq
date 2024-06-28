@@ -167,30 +167,56 @@ class Client:
         json_str = (await self.reader.read(length)).decode("ascii")
         return "OK", json_str
 
-
-async def main_async():
+def get_argparser(): 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--server", default="afws.m-labs.hk", help="server to connect to (default: %(default)s)")
-    parser.add_argument("--port", default=80, type=int, help="port to connect to (default: %(default)d)")
-    parser.add_argument("--cert", default=None, help="SSL certificate file used to authenticate server (default: use system certificates)")
+    parser.add_argument("--server", default="afws.m-labs.hk", 
+                        help="server to connect to (default: %(default)s)")
+    parser.add_argument("--port", default=80, type=int, 
+                        help="port to connect to (default: %(default)d)")
+    parser.add_argument("--cert", default=None, 
+                        help="SSL certificate file used to authenticate server " 
+                                "(default: use system certificates)")
     parser.add_argument("username", help="user name for logging into AFWS")
+
     action = parser.add_subparsers(dest="action")
     action.required = True
-    act_build = action.add_parser("build", help="build and download firmware")
-    act_build.add_argument("--major-ver", default=None, help="ARTIQ major version")
-    act_build.add_argument("--rev", default=None, help="revision to build (default: currently installed ARTIQ revision)")
-    act_build.add_argument("--log", action="store_true", help="Display the build log")
-    act_build.add_argument("--experimental", action="append", default=[], help="enable an experimental feature (can be repeatedly specified to enable multiple features)")
-    act_build.add_argument("directory", help="output directory")
-    act_build.add_argument("variant", nargs="?", default=None, help="variant to build (can be omitted if user is authorised to build only one)")
-    act_passwd = action.add_parser("passwd", help="change password")
-    act_get_variants = action.add_parser("get_variants", help="get available variants and expiry dates")
-    act_get_json = action.add_parser("get_json", help="get JSON description file of variant")
-    act_get_json.add_argument("variant", nargs="?", default=None, help="variant to get (can be omitted if user is authorised to build only one)")
-    act_get_json.add_argument("-o", "--out", default=None, help="output JSON file")
-    act_get_json.add_argument("-f", "--force", action="store_true", help="overwrite file if it already exists")
-    args = parser.parse_args()
 
+    act_build = action.add_parser("build", help="build and download firmware")
+    act_build.add_argument("--major-ver", default=None, 
+                            help="ARTIQ major version")
+    act_build.add_argument("--rev", default=None, 
+                            help="revision to build "
+                                "(default: currently installed ARTIQ revision)")
+    act_build.add_argument("--log", action="store_true", 
+                            help="Display the build log")
+    act_build.add_argument("--experimental", action="append", default=[], 
+                            help="enable an experimental feature "
+                                "(can be repeatedly specified to "
+                                "enable multiple features)")                    
+    act_build.add_argument("directory", help="output directory")
+    act_build.add_argument("variant", nargs="?", default=None, 
+                            help="variant to build (can be omitted if "
+                                "user is authorised to build only one)")
+
+    act_passwd = action.add_parser("passwd", help="change password")
+
+    act_get_variants = action.add_parser("get_variants", 
+                            help="get available variants and expiry dates")
+
+    act_get_json = action.add_parser("get_json", 
+                            help="get JSON description file of variant")
+    act_get_json.add_argument("variant", nargs="?", default=None, 
+                            help="variant to get (can be omitted if "
+                            "user is authorised to build only one)")
+    act_get_json.add_argument("-o", "--out", default=None, 
+                            help="output JSON file")
+    act_get_json.add_argument("-f", "--force", action="store_true", 
+                            help="overwrite file if it already exists")
+    return parser 
+
+
+async def main_async():
+    args = get_argparser().parse_args()
     client = Client(args.server, args.port, args.cert)
     await client.connect()
     try:

@@ -832,8 +832,7 @@ def process(output, primary_description, satellites):
         processor = getattr(pm, "process_"+str(peripheral["type"]))
         processor(peripheral)
 
-
-def main():
+def get_argparser(): 
     parser = argparse.ArgumentParser(
         description="ARTIQ device database template builder")
     parser.add_argument("--version", action="version",
@@ -847,8 +846,10 @@ def main():
                         default=[], metavar=("DESTINATION", "DESCRIPTION"), type=str,
                         help="add DRTIO satellite at the given destination number with "
                              "devices from the given JSON description")
+    return parser
 
-    args = parser.parse_args()
+def main():
+    args = get_argparser().parse_args()
 
     primary_description = jsondesc.load(args.primary_description)
 
