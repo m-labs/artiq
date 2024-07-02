@@ -861,9 +861,10 @@ class _MonInjDock(QDockWidgetCloseDetect):
 
     def delete_widget(self, index, checked):
         widget = self.flow.itemAt(index).widget()
-        widget.hide()
         self.manager.dm.setup_monitoring(False, widget)
         self.flow.layout.takeAt(index)
+        widget.setParent(self.manager.main_window)
+        widget.hide()
 
     def add_channels(self):
         channels = self.channel_dialog.channels
@@ -948,7 +949,7 @@ class MonInj:
         del self.docks[name]
         self.update_closable()
         dock.delete_all_widgets()
-        dock.hide()  # dock may be parent, only delete on exit
+        dock.deleteLater()
 
     def update_closable(self):
         flags = (QtWidgets.QDockWidget.DockWidgetMovable |
