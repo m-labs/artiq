@@ -14,6 +14,10 @@ This tool serves as a client for building tailored firmware and gateware from M-
    :prog: afws_client 
    :nodescription: 
    :nodefault: 
+
+   passwd 
+      .. warning:: 
+         After receiving your credentials from M-Labs, it is strongly recommended to change your password as soon as possible. It is your responsibility to set and remember a secure password. In emergencies passwords can be reset by contacting helpdesk@.  
    
 Static compiler
 ---------------
