@@ -871,9 +871,9 @@ class _MonInjDock(QDockWidgetCloseDetect):
 
     def layout_widgets(self, widgets):
         for widget in sorted(widgets, key=lambda w: w.sort_key()):
-            widget.show()
             self.manager.dm.setup_monitoring(True, widget)
             self.flow.addWidget(widget)
+            widget.show()
 
     def restore_widgets(self):
         if self.widget_uids is not None:
