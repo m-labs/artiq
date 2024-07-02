@@ -32,31 +32,28 @@ def get_argparser():
                         help="print the ARTIQ version number")
     parser.add_argument(
         "-s", "--server", default="::1",
-        help="hostname or IP of the master to connect to")
-    parser.add_argument(
-        "--port-notify", default=3250, type=int,
-        help="TCP port to connect to for notifications")
+        help="hostname or IP of the master to connect to (default: %(default)s)")
     parser.add_argument(
         "--port-control", default=3251, type=int,
-        help="TCP port to connect to for control")
+        help="TCP port to connect to for control (default: %(default)s)")
     parser.add_argument(
         "--port-broadcast", default=1067, type=int,
-        help="TCP port to connect to for broadcasts")
+        help="TCP port to connect to for broadcasts (default: %(default)s)")
     parser.add_argument(
         "--db-file", default=None,
-        help="database file for local GUI settings")
+        help="database file for local GUI settings (default: %(default)s)")
     parser.add_argument(
         "-p", "--load-plugin", dest="plugin_modules", action="append",
         help="Python module to load on startup")
     parser.add_argument(
         "--analyzer-proxy-timeout", default=5, type=float,
-        help="connection timeout to core analyzer proxy")
+        help="connection timeout to core analyzer proxy (default: %(default)s)")
     parser.add_argument(
         "--analyzer-proxy-timer", default=5, type=float,
-        help="retry timer to core analyzer proxy")
+        help="retry timer to core analyzer proxy (default: %(default)s)")
     parser.add_argument(
         "--analyzer-proxy-timer-backoff", default=1.1, type=float,
-        help="retry timer backoff multiplier to core analyzer proxy")
+        help="retry timer backoff multiplier to core analyzer proxy, (default: %(default)s)")
     common_args.verbosity_args(parser)
     return parser
 

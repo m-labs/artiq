@@ -13,16 +13,18 @@ This tool serves as a client for building tailored firmware and gateware from M-
    :ref: artiq.frontend.afws_client.get_argparser
    :prog: afws_client 
    :nodescription: 
+   :nodefault: 
    
 Static compiler
 ---------------
 
-This tool compiles an experiment into a ELF file. It is primarily used to prepare binaries for the default experiment loaded in non-volatile storage of the core device. Experiments compiled with this tool are not allowed to use RPCs, and their ``run`` entry point must be a kernel.
+This tool compiles an experiment into a ELF file. It is primarily used to prepare binaries for the startup and idle kernels, loaded in non-volatile storage of the core device. Experiments compiled with this tool are not allowed to use RPCs, and their ``run`` entry point must be a kernel.
 
 .. argparse::
    :ref: artiq.frontend.artiq_compile.get_argparser
    :prog: artiq_compile
    :nodescription:
+   :nodefault: 
 
 Flash storage image generator
 -----------------------------
@@ -33,6 +35,7 @@ This tool compiles key/value pairs (e.g. configuration information) into a binar
    :ref: artiq.frontend.artiq_mkfs.get_argparser
    :prog: artiq_mkfs
    :nodescription: 
+   :nodefault: 
 
 .. _flashing-loading-tool: 
 
@@ -42,6 +45,7 @@ Flashing/Loading tool
 .. argparse::
    :ref: artiq.frontend.artiq_flash.get_argparser
    :prog: artiq_flash
+   :nodefault: 
 
 .. _core-device-management-tool:
 
@@ -55,7 +59,8 @@ To use this tool, it is necessary to specify the IP address your core device can
 .. argparse::
    :ref: artiq.frontend.artiq_coremgmt.get_argparser
    :prog: artiq_coremgmt
-   :nodescription: 
+   :nodescription:
+   :nodefault: 
 
 Core device logging controller
 ------------------------------
@@ -63,6 +68,7 @@ Core device logging controller
 .. argparse::
    :ref: artiq.frontend.aqctl_corelog.get_argparser
    :prog: aqctl_corelog
+   :nodefault:
 
 Device database template generator
 ----------------------------------
@@ -70,6 +76,7 @@ Device database template generator
 .. argparse:: 
    :ref: artiq.frontend.artiq_ddb_template.get_argparser
    :prog: artiq_ddb_template 
+   :nodefault: 
 
 ARTIQ RTIO monitor 
 ------------------
@@ -77,6 +84,7 @@ ARTIQ RTIO monitor
 .. argparse::
    :ref: artiq.frontend.artiq_rtiomon.get_argparser 
    :prog: artiq_rtiomon  
+   :nodefault: 
 
 Moninj proxy
 ------------
@@ -84,6 +92,7 @@ Moninj proxy
 .. argparse::
    :ref: artiq.frontend.aqctl_moninj_proxy.get_argparser
    :prog: aqctl_moninj_proxy
+   :nodefault: 
 
 .. _rtiomap-tool:
 
@@ -93,6 +102,7 @@ RTIO channel name map tool
 .. argparse::
    :ref: artiq.frontend.artiq_rtiomap.get_argparser
    :prog: artiq_rtiomap
+   :nodefault: 
 
 .. _core-device-rtio-analyzer-tool:
 
@@ -105,6 +115,7 @@ This tool converts core device RTIO logs to VCD waveform files that are readable
    :ref: artiq.frontend.artiq_coreanalyzer.get_argparser
    :prog: artiq_coreanalyzer
    :nodescription: 
+   :nodefault: 
 
 .. _routing-table-tool:
 
@@ -116,7 +127,8 @@ This tool distributes the core analyzer dump to several clients such as the dash
 .. argparse::
    :ref: artiq.frontend.aqctl_coreanalyzer_proxy.get_argparser
    :prog: aqctl_coreanalyzer_proxy
-   :nodescription: 
+   :nodescription:
+   :nodefault: 
 
 DRTIO routing table manipulation tool
 -------------------------------------
@@ -124,3 +136,4 @@ DRTIO routing table manipulation tool
 .. argparse::
    :ref: artiq.frontend.artiq_route.get_argparser
    :prog: artiq_route
+   :nodefault: 

@@ -40,10 +40,10 @@ def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ CLI client")
     parser.add_argument(
         "-s", "--server", default="::1",
-        help="hostname or IP of the master to connect to")
+        help="hostname or IP of the master to connect to (default: %(default)s)")
     parser.add_argument(
         "--port", default=None, type=int,
-        help="TCP port to use to connect to the master")
+        help="TCP port to use to connect to the master (default: %(default)s)")
     parser.add_argument("--version", action="version",
                         version="ARTIQ v{}".format(artiq_version),
                         help="print the ARTIQ version number")
@@ -57,9 +57,10 @@ def get_argparser():
                                  "(default: %(default)s)")
     parser_add.add_argument("-P", "--priority", default=0, type=int,
                             help="priority (higher value means sooner "
-                                 "scheduling, default: %(default)s)")
+                                 "scheduling default: %(default)s)")
     parser_add.add_argument("-t", "--timed", default=None, type=str,
-                            help="set a due date for the experiment")
+                            help="set a due date for the experiment "
+                            "(default: %(default)s)")
     parser_add.add_argument("-f", "--flush", default=False,
                             action="store_true",
                             help="flush the pipeline before preparing "
@@ -97,11 +98,13 @@ def get_argparser():
     parser_set_dataset.add_argument("value", metavar="VALUE",
                                     help="value in PYON format")
     parser_set_dataset.add_argument("--unit", default=None, type=str,
-                                    help="physical unit of the dataset")
+                                    help="physical unit of the dataset (default: %(default)s)")
     parser_set_dataset.add_argument("--scale", default=None, type=float,
-                                    help="factor to multiply value of dataset in displays")
+                                    help="factor to multiply value of dataset in displays "
+                                    "(default: %(default)s)")
     parser_set_dataset.add_argument("--precision", default=None, type=int,
-                                    help="maximum number of decimals to print in displays")
+                                    help="maximum number of decimals to print in displays "
+                                    "(default: %(default)s)")
 
     persist_group = parser_set_dataset.add_mutually_exclusive_group()
     persist_group.add_argument("-p", "--persist", action="store_true",
