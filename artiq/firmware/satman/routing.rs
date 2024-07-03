@@ -4,7 +4,6 @@ use board_artiq::{drtioaux, drtio_routing};
 use board_misoc::csr;
 use core::cmp::min;
 use proto_artiq::drtioaux_proto::PayloadStatus;
-use SAT_PAYLOAD_MAX_SIZE;
 use MASTER_PAYLOAD_MAX_SIZE;
 
 /* represents data that has to be sent with the aux protocol */
@@ -57,7 +56,6 @@ impl Sliceable {
         self.data.extend(data);
     }
 
-    get_slice_fn!(get_slice_sat, SAT_PAYLOAD_MAX_SIZE);
     get_slice_fn!(get_slice_master, MASTER_PAYLOAD_MAX_SIZE);
 }
 
