@@ -267,4 +267,7 @@ Try this: ::
                 # each playback advances the timeline by 50*(100+100) ns
                 self.core_dma.playback_handle(pulses_handle)
 
+.. note:: 
+    Only output events are redirected to the DMA core. Input methods inside a ``with dma`` block will be called as they would be outside of the block, in the current real-time context, and input events will be buffered normally, not to DMA.
+
 For more documentation on the methods used, see the :mod:`artiq.coredevice.dma` reference.
