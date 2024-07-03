@@ -159,6 +159,9 @@ Other notes:
 * Zero-duration methods (such as :meth:`artiq.coredevice.ttl.TTLOut.on()`) do not advance the timeline and so will always consume additional lanes if they are scheduled simultaneously. Adding a delay of at least one coarse RTIO cycle will prevent this (e.g. ``delay_mu(np.int64(self.core.ref_multiplier))``).
 * Whether a particular sequence of timestamps causes a sequence error or not is fully deterministic (starting from a known RTIO state, e.g. after a reset). Adding a constant offset to the sequence will not affect the result.
 
+.. warning:: 
+  In some cases, sequence errors may surface (nondeterministically) because of *event spreading.* The SED judges 'fullness' of a lane based on a certain high watermark of number of events in a lane, which is not perfectly deterministic: events leave the lane in real time and therefore deterministically, but enter whenever the CPU schedules them, which is dependent on CPU execution time jitter. Lane changes due to 'fullness' are therefore not fully predictable. 
+
 .. note:: 
   To change the number of SED lanes, it is necessary to recompile the gateware and reflash your core device. Use the ``sed_lanes`` field in your system description file to set the value, then follow the instructions in :doc:`developing`. Alternatively, if you have an active firmware subscription with M-Labs, contact helpdesk@ for edited binaries.   
 
