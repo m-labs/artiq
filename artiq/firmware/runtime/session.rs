@@ -673,26 +673,26 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             &kern::SubkernelAwaitFinishRequest{ id, timeout } => {
                 let res = subkernel::await_finish(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table,
                     id, timeout);
-                let status = match res {
+                let response = match res {
                     Ok(ref res) => {
                             if res.comm_lost {
-                                kern::SubkernelStatus::CommLost
+                                kern::SubkernelError(kern::SubkernelStatus::CommLost)
                             } else if let Some(raw_exception) = &res.exception {
                                 let exception = subkernel::read_exception(raw_exception);
                                 if let Ok(exception) = exception {
-                                    kern::SubkernelStatus::Exception(exception)
+                                    kern::SubkernelError(kern::SubkernelStatus::Exception(exception))
                                 } else {
-                                    kern::SubkernelStatus::OtherError
+                                    kern::SubkernelError(kern::SubkernelStatus::OtherError)
                                 }
                             } else {
-                                kern::SubkernelStatus::NoError
+                                kern::SubkernelAwaitFinishReply
                             }
                         },
-                    Err(SubkernelError::Timeout) => kern::SubkernelStatus::Timeout,
-                    Err(SubkernelError::IncorrectState) => kern::SubkernelStatus::IncorrectState,
-                    Err(_) => kern::SubkernelStatus::OtherError
+                    Err(SubkernelError::Timeout) => kern::SubkernelError(kern::SubkernelStatus::Timeout),
+                    Err(SubkernelError::IncorrectState) => kern::SubkernelError(kern::SubkernelStatus::IncorrectState),
+                    Err(_) => kern::SubkernelError(kern::SubkernelStatus::OtherError)
                 };
-                kern_send(io, &kern::SubkernelAwaitFinishReply { status: status })
+                kern_send(io, &response)
             }
             #[cfg(has_drtio)]
             &kern::SubkernelMsgSend { id, destination, count, tag, data } => {
@@ -707,41 +707,29 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                         routing_table, id as u32)?;
                     if res.comm_lost {
                         kern_send(io, 
-                            &kern::SubkernelMsgRecvReply { 
-                                status: kern::SubkernelStatus::CommLost,
-                                count: 0
-                        })?;
+                            &kern::SubkernelError(kern::SubkernelStatus::CommLost))?;
                     } else if let Some(raw_exception) = &res.exception {
                         let exception = subkernel::read_exception(raw_exception);
                         if let Ok(exception) = exception {
-                            kern_send(io, 
-                                &kern::SubkernelMsgRecvReply { 
-                                    status: kern::SubkernelStatus::Exception(exception),
-                                    count: 0
-                            })?;
+                            kern_send(io,
+                                &kern::SubkernelError(kern::SubkernelStatus::Exception(exception)))?;
                         } else {
-                            kern_send(io, 
-                                &kern::SubkernelMsgRecvReply { 
-                                    status: kern::SubkernelStatus::OtherError,
-                                    count: 0
-                            })?;
+                            kern_send(io,
+                                &kern::SubkernelError(kern::SubkernelStatus::OtherError))?;
                         }
                     } else {
-                        kern_send(io, 
-                            &kern::SubkernelMsgRecvReply { 
-                                status: kern::SubkernelStatus::OtherError,
-                                count: 0
-                        })?;
+                        kern_send(io,
+                            &kern::SubkernelError(kern::SubkernelStatus::OtherError))?;
                     }
                 } else {
-                    let (status, count) = match message_received {
-                        Ok(ref message) => (kern::SubkernelStatus::NoError, message.count),
-                        Err(SubkernelError::Timeout) => (kern::SubkernelStatus::Timeout, 0),
-                        Err(SubkernelError::IncorrectState) => (kern::SubkernelStatus::IncorrectState, 0),
+                    let message = match message_received {
+                        Ok(ref message) => kern::SubkernelMsgRecvReply { count: message.count },
+                        Err(SubkernelError::Timeout) => kern::SubkernelError(kern::SubkernelStatus::Timeout),
+                        Err(SubkernelError::IncorrectState) => kern::SubkernelError(kern::SubkernelStatus::IncorrectState),
                         Err(SubkernelError::SubkernelFinished) => unreachable!(), // taken care of above
-                        Err(_) => (kern::SubkernelStatus::OtherError, 0)
+                        Err(_) => kern::SubkernelError(kern::SubkernelStatus::OtherError)
                     };
-                    kern_send(io, &kern::SubkernelMsgRecvReply { status: status, count: count})?;
+                    kern_send(io, &message)?;
                     if let Ok(message) = message_received {
                         // receive code almost identical to RPC recv, except we are not reading from a stream
                         let mut reader = Cursor::new(message.data);
