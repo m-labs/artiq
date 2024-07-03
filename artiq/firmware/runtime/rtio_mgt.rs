@@ -119,17 +119,19 @@ pub mod drtio {
             },
             // (potentially) routable packets
             drtioaux::Packet::DmaAddTraceRequest      { destination, .. } |
-                drtioaux::Packet::DmaAddTraceReply        { destination, .. } |
-                drtioaux::Packet::DmaRemoveTraceRequest   { destination, .. } |
-                drtioaux::Packet::DmaRemoveTraceReply     { destination, .. } |
-                drtioaux::Packet::DmaPlaybackRequest      { destination, .. } |
-                drtioaux::Packet::DmaPlaybackReply        { destination, .. } |
-                drtioaux::Packet::SubkernelLoadRunRequest { destination, .. } |
-                drtioaux::Packet::SubkernelLoadRunReply   { destination, .. } |
-                drtioaux::Packet::SubkernelMessage        { destination, .. } |
-                drtioaux::Packet::SubkernelMessageAck     { destination, .. } |
-                drtioaux::Packet::DmaPlaybackStatus       { destination, .. } |
-                drtioaux::Packet::SubkernelFinished       { destination, .. } => {
+                drtioaux::Packet::DmaAddTraceReply          { destination, .. } |
+                drtioaux::Packet::DmaRemoveTraceRequest     { destination, .. } |
+                drtioaux::Packet::DmaRemoveTraceReply       { destination, .. } |
+                drtioaux::Packet::DmaPlaybackRequest        { destination, .. } |
+                drtioaux::Packet::DmaPlaybackReply          { destination, .. } |
+                drtioaux::Packet::SubkernelLoadRunRequest   { destination, .. } |
+                drtioaux::Packet::SubkernelLoadRunReply     { destination, .. } |
+                drtioaux::Packet::SubkernelMessage          { destination, .. } |
+                drtioaux::Packet::SubkernelMessageAck       { destination, .. } |
+                drtioaux::Packet::SubkernelExceptionRequest { destination, .. } |
+                drtioaux::Packet::SubkernelException        { destination, .. } |
+                drtioaux::Packet::DmaPlaybackStatus         { destination, .. } |
+                drtioaux::Packet::SubkernelFinished         { destination, .. } => {
                 if *destination == 0 {
                     false
                 } else {
@@ -612,9 +614,9 @@ pub mod drtio {
         let mut remote_data: Vec<u8> = Vec::new();
         loop {
             let reply = aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno, 
-                &drtioaux::Packet::SubkernelExceptionRequest { destination: destination })?;
+                &drtioaux::Packet::SubkernelExceptionRequest { source: 0, destination: destination })?;
             match reply {
-                drtioaux::Packet::SubkernelException { last, length, data } => { 
+                drtioaux::Packet::SubkernelException { destination: 0, last, length, data } => { 
                     remote_data.extend(&data[0..length as usize]);
                     if last {
                         return Ok(remote_data);
