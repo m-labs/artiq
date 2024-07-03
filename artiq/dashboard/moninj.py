@@ -391,8 +391,6 @@ def setup_from_ddb(ddb):
                 comment = v.get("comment")
                 if v["type"] == "local":
                     if v["module"] == "artiq.coredevice.ttl":
-                        if "ttl_urukul" in k:
-                            continue
                         channel = v["arguments"]["channel"]
                         force_out = v["class"] == "TTLOut"
                         widget = _WidgetDesc(k, comment, _TTLWidget, (channel, force_out, k))
