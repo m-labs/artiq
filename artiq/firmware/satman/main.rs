@@ -455,15 +455,21 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             kernelmgr.remote_subkernel_finished(id, with_exception, exception_src);
             Ok(())
         }
-        drtioaux::Packet::SubkernelExceptionRequest { destination: _destination } => {
+        drtioaux::Packet::SubkernelExceptionRequest { source, destination: _destination } => {
             forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
-            let mut data_slice: [u8; SAT_PAYLOAD_MAX_SIZE] = [0; SAT_PAYLOAD_MAX_SIZE];
+            let mut data_slice: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
             let meta = kernelmgr.exception_get_slice(&mut data_slice);
-            drtioaux::send(0, &drtioaux::Packet::SubkernelException {
+            router.send(drtioaux::Packet::SubkernelException {
+                destination: source,
                 last: meta.status.is_last(),
                 length: meta.len,
                 data: data_slice,
-            })
+            }, _routing_table, *rank, *self_destination)
+        }
+        drtioaux::Packet::SubkernelException { destination: _destination, last, length, data } => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+            kernelmgr.received_exception(&data[..length as usize], last, router, _routing_table, *rank, *self_destination);
+            Ok(())
         }
         drtioaux::Packet::SubkernelMessage { source, destination: _destination, id, status, length, data } => {
             forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
