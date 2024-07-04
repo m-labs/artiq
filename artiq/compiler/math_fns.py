@@ -61,22 +61,6 @@ unary_fp_runtime_calls = [
     ("cbrt", "cbrt"),
 ]
 
-#: float -> float numpy.* math functions lowered to runtime calls.
-unary_fp_runtime_calls = [
-    ("tan", "tan"),
-    ("arcsin", "asin"),
-    ("arccos", "acos"),
-    ("arctan", "atan"),
-    ("sinh", "sinh"),
-    ("cosh", "cosh"),
-    ("tanh", "tanh"),
-    ("arcsinh", "asinh"),
-    ("arccosh", "acosh"),
-    ("arctanh", "atanh"),
-    ("expm1", "expm1"),
-    ("cbrt", "cbrt"),
-]
-
 scipy_special_unary_runtime_calls = [
     ("erf", "erf"),
     ("erfc", "erfc"),
