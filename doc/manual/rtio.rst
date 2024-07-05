@@ -28,11 +28,11 @@ Timeline and terminology
 The set of all input and output events on all channels constitutes the *timeline*.
 A high-resolution wall clock (``rtio_counter_mu``) counts clock cycles and manages the precise timing of the events. Output events are executed when their timestamp matches the current clock value. Input events are recorded when they reach the gateware and stamped with the current clock value accordingly. 
 
-The kernel runtime environment maintains a timeline cursor (called ``now_mu``) used as the timestamp when output events are submitted to the FIFOs. Both ``now`` and ``rtio_counter`` are counted in integer *machine units,* or mu, rather than SI units. The machine unit represents the maximum resolution of RTIO timing in an ARTIQ system. The duration of a machine unit is the *reference period* of the system, and may be changed by the user, but normally corresponds to a duration of one nanosecond. 
+The kernel runtime environment maintains a timeline cursor (called ``now_mu``) used as the timestamp when output events are submitted to the FIFOs. Both ``now_mu`` and ``rtio_counter_mu`` are counted in integer *machine units,* or mu, rather than SI units. The machine unit represents the maximum resolution of RTIO timing in an ARTIQ system. The duration of a machine unit is the *reference period* of the system, and may be changed by the user, but normally corresponds to a duration of one nanosecond. 
 
-The timeline cursor ``now`` can be moved forward or backward on the timeline using :func:`artiq.language.core.delay` and :func:`artiq.language.core.delay_mu` (for delays given in SI units or machine units respectively). The absolute value of ``now`` on the timeline can be retrieved using :func:`artiq.language.core.now_mu` and it can be set using :func:`artiq.language.core.at_mu`. The difference between the cursor and the wall clock is referred to as *slack.* A system is considered in a situation of *positive slack* when the cursor is ahead of the wall clock, i.e., in the future; respectively, it is in *negative slack* if the cursor is behind the wall clock, i.e. in the past. 
+The timeline cursor ``now_mu`` can be moved forward or backward on the timeline using :func:`artiq.language.core.delay` and :func:`artiq.language.core.delay_mu` (for delays given in SI units or machine units respectively). The absolute value of ``now_mu`` on the timeline can be retrieved using :func:`artiq.language.core.now_mu` and it can be set using :func:`artiq.language.core.at_mu`. The difference between the cursor and the wall clock is referred to as *slack.* A system is considered in a situation of *positive slack* when the cursor is ahead of the wall clock, i.e., in the future; respectively, it is in *negative slack* if the cursor is behind the wall clock, i.e. in the past. 
 
-RTIO timestamps, the timeline cursor, and the ``rtio_counter`` wall clock are all counted relative to the core device startup/boot time. The wall clock keeps running across experiments. 
+RTIO timestamps, the timeline cursor, and the ``rtio_counter_mu`` wall clock are all counted relative to the core device startup/boot time. The wall clock keeps running across experiments. 
 
 Absolute timestamps can be large numbers. 
 They are represented internally as 64-bit integers. 
@@ -59,7 +59,7 @@ It emits a precisely timed 2 µs pulse::
   ttl.off()
 
 The device ``ttl`` represents a single digital output channel (:class:`artiq.coredevice.ttl.TTLOut`).
-The :meth:`artiq.coredevice.ttl.TTLOut.on` method places an rising edge on the timeline at the current cursor position (``now``).
+The :meth:`artiq.coredevice.ttl.TTLOut.on` method places an rising edge on the timeline at the current cursor position (``now_mu``).
 Then the cursor is moved forward 2 µs and a falling edge is placed at the new cursor position.
 Later, when the wall clock reaches the respective timestamps, the RTIO gateware executes the two events. 
 
@@ -70,11 +70,11 @@ The following diagram shows what is going on at the different levels of the soft
   {
     "signal": [
       {"name": "kernel", "wave": "x32.3x", "data": ["on()", "delay(2*us)", "off()"], "node": "..A.XB"},
-      {"name": "now", "wave": "2...2.", "data": ["7000", "9000"], "node": "..P..Q"},
+      {"name": "now_mu", "wave": "2...2.", "data": ["7000", "9000"], "node": "..P..Q"},
       {},
       {"name": "slack", "wave": "x2x.2x", "data": ["4400", "5800"]},
       {},
-      {"name": "rtio_counter", "wave": "x2x|2x|2x2x", "data": ["2600", "3200", "7000", "9000"], "node": "       V.W"},
+      {"name": "rtio_counter_mu", "wave": "x2x|2x|2x2x", "data": ["2600", "3200", "7000", "9000"], "node": "       V.W"},
       {"name": "ttl", "wave": "x1.0", "node": " R.S", "phase": -6.5},
       {                               "node": " T.U", "phase": -6.5}
     ],
@@ -97,7 +97,7 @@ Underflows
 ^^^^^^^^^^
 
 A RTIO ouput event must always be programmed with a timestamp in the future. 
-In other words, the timeline cursor ``now`` must be in advance of the current wall clock ``rtio_counter``: the past cannot be altered. 
+In other words, the timeline cursor ``now_mu`` must be in advance of the current wall clock ``rtio_counter_mu``: the past cannot be altered. 
 The following example tries to place a rising edge event on the timeline. 
 If the current cursor is in the past, an :class:`artiq.coredevice.exceptions.RTIOUnderflow` exception is thrown. 
 The experiment attempts to handle the exception by moving the cursor forward and repeating the programming of the rising edge:: 
@@ -142,12 +142,12 @@ Sequence errors
 
 A sequence error occurs when a sequence of coarse timestamps cannot be transferred to the gateware. Internally, the gateware stores output events in an array of FIFO buffers (the 'lanes'). Within each particular lane, the coarse timestamps of events must be strictly increasing. 
 
-If an event with a timestamp coarsely equal to or lesser than the previous timestamp is submitted, *or* if the current lane is nearly full, the scaleable event dispatcher (SED) selects the next lane, wrapping around once the final lane is reached. If this lane also contains an event with a timestamp equal to or beyond the one being submitted, the placement fails and a sequence error occurs.
+If an event with a timestamp coarsely equal to or lesser than the previous timestamp is submitted, *or* if the current lane is nearly full, the scaleable event dispatcher (SED) selects the next lane, wrapping around once the final lane is reached. If this lane also contains an event with a timestamp equal to or beyond the one being submitted, the placement fails and a sequence error occurs. 
 
 .. note:: 
   For performance reasons, unlike :class:`~artiq.coredevice.exceptions.RTIOUnderflow`, most gateware errors do not halt execution of the kernel, because the kernel cannot wait for potential error reports before continuing. As a result, sequence errors are not raised as exceptions and cannot be caught. Instead, the offending event -- in this case, the event that could not be queued -- is discarded, the experiment continues, and the error is reported in the core log. To check the core log, use the command ``artiq_coremgmt log``.  
 
-By default, the ARTIQ SED has eight lanes, which normally suffices to avoid sequence errors, but problems may still occur if many (>8) events are issued to the gateware with interleaving timestamps. Due to the strict timing limitations imposed on RTIO gateware, it is not possible for the SED to rearrange events in a lane once submitted, nor to anticipate future events when making lane choices. This makes sequence errors fairly 'unintelligent', but also generally fairly easy to eliminate by manually rearranging the generation of events (*not* rearranging the timing of the events themselves, which is rarely necessary.)
+By default, the ARTIQ SED has eight lanes, which normally suffices to avoid sequence errors, but problems may still occur if many (>8) events are issued to the gateware with interleaving timestamps. Due to the strict timing limitations imposed on RTIO gateware, it is not possible for the SED to rearrange events in a lane once submitted, nor to anticipate future events when making lane choices. This makes sequence errors fairly 'unintelligent', but also generally fairly easy to eliminate by manually rearranging the generation of events (*not* rearranging the timing of the events themselves, which is rarely necessary.) 
 
 It is also possible to increase the number of SED lanes in the gateware, which will reduce the frequency of sequencing issues, but will also correspondingly put more stress on FPGA resources and timing.   
 
@@ -195,7 +195,7 @@ Note that many input methods will necessarily involve the wall clock catching up
 This is to be expected: managing output events means working to plan the future, but managing input events means working to react to the past. 
 For input channels, it is the past that is under discussion. 
 
-In this case, the :meth:`~artiq.coredevice.ttl.TTLInOut.gate_rising` waits for the duration of the 500ns interval (or *gate window*) and records an event for each rising edge. At the end of the interval it exits, leaving the timeline cursor at the end of the interval (``now = rtio_counter``). :meth:`~artiq.coredevice.ttl.TTLInOut.count` unloads these events from the input buffers and counts the number of events recorded, during which the wall clock necessarily advances (``rtio_counter > now``). Accordingly, before we place any further output events, a :func:`~artiq.language.core.delay` is necessary to re-establish positive slack. 
+In this case, the :meth:`~artiq.coredevice.ttl.TTLInOut.gate_rising` waits for the duration of the 500ns interval (or *gate window*) and records an event for each rising edge. At the end of the interval it exits, leaving the timeline cursor at the end of the interval (``now_mu = rtio_counter_mu``). :meth:`~artiq.coredevice.ttl.TTLInOut.count` unloads these events from the input buffers and counts the number of events recorded, during which the wall clock necessarily advances (``rtio_counter_mu > now_mu``). Accordingly, before we place any further output events, a :func:`~artiq.language.core.delay` is necessary to re-establish positive slack. 
 
 Similar situations arise with methods such as :meth:`TTLInOut.sample_get <artiq.coredevice.ttl.TTLInOut.sample_get>` and :meth:`TTLInOut.watch_done <artiq.coredevice.ttl.TTLInOut.watch_done>`.
 
@@ -227,7 +227,7 @@ The condition is converted into an :class:`~artiq.coredevice.exceptions.RTIOOver
 Overflow exceptions are generally best dealt with simply by reading out from the input buffers more frequently. In odd or particular cases, users may consider modifying the length of individual buffers in gateware. 
 
 .. note:: 
-  It is not possible to provoke an :class:`~artiq.coredevice.exceptions.RTIOOverflow` on a RTIO output channel. While output buffers are also of finite size, and can be filled up, the CPU will simply stall the submission of further events until it is once again possible to buffer them. Among other things, this means that padding the timeline cursor with large amounts of positive slack is not always a valid strategy to avoid :class:`~artiq.coredevice.exceptions.RTIOOverflow` exceptions when generating fast event sequences. In practice only a fixed number of events can be generated in advance, and the rest of the processing will be carried out when the wall clock is much closer to ``now``. For larger numbers of events which run up against this restriction, the correct method is to use :ref:`getting-started-dma`.  
+  It is not possible to provoke an :class:`~artiq.coredevice.exceptions.RTIOOverflow` on a RTIO output channel. While output buffers are also of finite size, and can be filled up, the CPU will simply stall the submission of further events until it is once again possible to buffer them. Among other things, this means that padding the timeline cursor with large amounts of positive slack is not always a valid strategy to avoid :class:`~artiq.coredevice.exceptions.RTIOOverflow` exceptions when generating fast event sequences. In practice only a fixed number of events can be generated in advance, and the rest of the processing will be carried out when the wall clock is much closer to ``now_mu``. For larger numbers of events which run up against this restriction, the correct method is to use :ref:`getting-started-dma`.  
 
 Seamless handover
 -----------------
@@ -255,10 +255,10 @@ Here, ``run()`` calls ``k1()`` which exits leaving the cursor one second after t
   {
     "signal": [
       {"name": "kernel", "wave": "3.2..2..|3.", "data": ["k1: on()", "k1: delay(dt)", "k1->k2 swap", "k2: off()"], "node": "..A........B"},
-      {"name": "now", "wave": "2....2...|.", "data": ["t", "t+dt"], "node": "..P........Q"},
+      {"name": "now_mu", "wave": "2....2...|.", "data": ["t", "t+dt"], "node": "..P........Q"},
       {},
       {},
-      {"name": "rtio_counter", "wave": "x......|2xx|2", "data": ["t", "t+dt"], "node": "........V...W"},
+      {"name": "rtio_counter_mu", "wave": "x......|2xx|2", "data": ["t", "t+dt"], "node": "........V...W"},
       {"name": "ttl", "wave": "x1...0", "node": ".R...S", "phase": -7.5},
       {                                 "node": " T...U", "phase": -7.5}
     ],
@@ -288,7 +288,7 @@ On the other hand, if a kernel exits while some of its events are still waiting 
       {"name": "now", "wave": "2..", "data": ["7000"], "node": "..P"},
       {},
       {},
-      {"name": "rtio_counter", "wave": "x2x.|..2x..", "data": ["2000", "7000"], "node": "   ....V"},
+      {"name": "rtio_counter_mu", "wave": "x2x.|..2x..", "data": ["2000", "7000"], "node": "   ....V"},
       {"name": "ttl", "wave": "x1", "node": " R", "phase": -6.5}
     ],
     "edge": [
