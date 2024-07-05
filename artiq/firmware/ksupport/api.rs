@@ -105,6 +105,7 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(nextafter),
     api!(pow),
     api!(round),
+    api!(rint),
     api!(sin),
     api!(sinh),
     api!(sqrt),
