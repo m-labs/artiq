@@ -11,6 +11,7 @@ from artiq.coredevice.ad9912_reg import AD9912_SER_CONF
 from artiq.gui.tools import LayoutWidget, QDockWidgetCloseDetect, DoubleClickLineEdit
 from artiq.gui.dndwidgets import VDragScrollArea, DragDropFlowLayoutWidget
 from artiq.gui.models import DictSyncTreeSepModel
+from artiq.tools import elide
 
 
 logger = logging.getLogger(__name__)
@@ -27,31 +28,37 @@ class _CancellableLineEdit(QtWidgets.QLineEdit):
         QtWidgets.QLineEdit.keyPressEvent(self, event)
 
 
-class _TTLWidget(QtWidgets.QFrame):
-    def __init__(self, dm, channel, force_out, title):
+class _MoninjWidget(QtWidgets.QFrame):
+    def __init__(self, title, channel=None):
         QtWidgets.QFrame.__init__(self)
+        self.setFrameShape(QtWidgets.QFrame.Box)
+        self.setFrameShape(QtWidgets.QFrame.Box)
+        self.setFrameShadow(QtWidgets.QFrame.Raised)
+        self.setFixedHeight(100)
+        self.setFixedWidth(150)
+        self.grid = QtWidgets.QGridLayout()
+        self.grid.setContentsMargins(0, 0, 0, 0)
+        self.grid.setHorizontalSpacing(0)
+        self.grid.setVerticalSpacing(0)
+        self.setLayout(self.grid)
+        title = elide(title, 17)
+        title += "" if channel is None else "[{}]".format(channel) 
+        label = QtWidgets.QLabel(title)
+        label.setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignTop)
+        self.grid.addWidget(label, 1, 1)
+
+
+class _TTLWidget(_MoninjWidget):
+    def __init__(self, dm, channel, force_out, title):
+        _MoninjWidget.__init__(self, title)
 
         self.channel = channel
         self.set_mode = dm.ttl_set_mode
         self.force_out = force_out
         self.title = title
 
-        self.setFrameShape(QtWidgets.QFrame.Box)
-        self.setFrameShadow(QtWidgets.QFrame.Raised)
-
-        grid = QtWidgets.QGridLayout()
-        grid.setContentsMargins(0, 0, 0, 0)
-        grid.setHorizontalSpacing(0)
-        grid.setVerticalSpacing(0)
-        self.setLayout(grid)
-        label = QtWidgets.QLabel(title)
-        label.setAlignment(QtCore.Qt.AlignCenter)
-        label.setSizePolicy(QtWidgets.QSizePolicy.Ignored,
-                            QtWidgets.QSizePolicy.Preferred)
-        grid.addWidget(label, 1, 1)
-
         self.stack = QtWidgets.QStackedWidget()
-        grid.addWidget(self.stack, 2, 1)
+        self.grid.addWidget(self.stack, 2, 1)
 
         self.direction = QtWidgets.QLabel()
         self.direction.setAlignment(QtCore.Qt.AlignCenter)
@@ -75,12 +82,12 @@ class _TTLWidget(QtWidgets.QFrame):
 
         self.value = QtWidgets.QLabel()
         self.value.setAlignment(QtCore.Qt.AlignCenter)
-        grid.addWidget(self.value, 3, 1)
+        self.grid.addWidget(self.value, 3, 1)
 
-        grid.setRowStretch(1, 1)
-        grid.setRowStretch(2, 0)
-        grid.setRowStretch(3, 0)
-        grid.setRowStretch(4, 1)
+        self.grid.setRowStretch(1, 1)
+        self.grid.setRowStretch(2, 0)
+        self.grid.setRowStretch(3, 0)
+        self.grid.setRowStretch(4, 1)
 
         self.programmatic_change = False
         self.override.clicked.connect(self.override_toggled)
@@ -186,7 +193,7 @@ class _DDSModel:
         return ftw / self.ftw_per_hz
 
 
-class _DDSWidget(QtWidgets.QFrame):
+class _DDSWidget(_MoninjWidget):
     def __init__(self, dm, title, bus_channel, channel,
                  dds_type, ref_clk, cpld=None, pll=1, clk_div=0):
         self.dm = dm
@@ -197,19 +204,7 @@ class _DDSWidget(QtWidgets.QFrame):
         self.dds_model = _DDSModel(dds_type, ref_clk, cpld, pll, clk_div)
         self.title = title
 
-        QtWidgets.QFrame.__init__(self)
-
-        self.setFrameShape(QtWidgets.QFrame.Box)
-        self.setFrameShadow(QtWidgets.QFrame.Raised)
-
-        grid = QtWidgets.QGridLayout()
-        grid.setContentsMargins(0, 0, 0, 0)
-        grid.setHorizontalSpacing(0)
-        grid.setVerticalSpacing(0)
-        self.setLayout(grid)
-        label = QtWidgets.QLabel(title)
-        label.setAlignment(QtCore.Qt.AlignCenter)
-        grid.addWidget(label, 1, 1)
+        _MoninjWidget.__init__(self, title)
 
         # FREQ DATA/EDIT FIELD
         self.data_stack = QtWidgets.QStackedWidget()
@@ -244,7 +239,7 @@ class _DDSWidget(QtWidgets.QFrame):
         grid_edit.addWidget(unit, 0, 3, 1, 1)
         self.data_stack.addWidget(grid_edit)
 
-        grid.addWidget(self.data_stack, 2, 1)
+        self.grid.addWidget(self.data_stack, 2, 1)
 
         # BUTTONS
         self.button_stack = QtWidgets.QStackedWidget()
@@ -277,11 +272,11 @@ class _DDSWidget(QtWidgets.QFrame):
         cancel.setToolTip("Cancel changes")
         apply_grid.addWidget(cancel, 0, 2, 1, 1)
         self.button_stack.addWidget(apply_grid)
-        grid.addWidget(self.button_stack, 3, 1)
+        self.grid.addWidget(self.button_stack, 3, 1)
 
-        grid.setRowStretch(1, 1)
-        grid.setRowStretch(2, 1)
-        grid.setRowStretch(3, 1)
+        self.grid.setRowStretch(1, 1)
+        self.grid.setRowStretch(2, 1)
+        self.grid.setRowStretch(3, 1)
 
         set_btn.clicked.connect(self.set_clicked)
         apply.clicked.connect(self.apply_changes)
@@ -332,9 +327,9 @@ class _DDSWidget(QtWidgets.QFrame):
         return "dds/{}".format(self.title)
 
 
-class _DACWidget(QtWidgets.QFrame):
+class _DACWidget(_MoninjWidget):
     def __init__(self, dm, spi_channel, channel, title, vref, offset_dacs):
-        QtWidgets.QFrame.__init__(self)
+        _MoninjWidget.__init__(self, title, channel)
         self.spi_channel = spi_channel
         self.channel = channel
         self.cur_value = 0x8000
@@ -342,25 +337,13 @@ class _DACWidget(QtWidgets.QFrame):
         self.vref = vref
         self.offset_dacs = offset_dacs
 
-        self.setFrameShape(QtWidgets.QFrame.Box)
-        self.setFrameShadow(QtWidgets.QFrame.Raised)
-
-        grid = QtWidgets.QGridLayout()
-        grid.setContentsMargins(0, 0, 0, 0)
-        grid.setHorizontalSpacing(0)
-        grid.setVerticalSpacing(0)
-        self.setLayout(grid)
-        label = QtWidgets.QLabel("{}[{}]".format(title, channel))
-        label.setAlignment(QtCore.Qt.AlignCenter)
-        grid.addWidget(label, 1, 1)
-
         self.value = QtWidgets.QLabel()
         self.value.setAlignment(QtCore.Qt.AlignCenter)
-        grid.addWidget(self.value, 2, 1, 6, 1)
+        self.grid.addWidget(self.value, 2, 1, 6, 1)
 
-        grid.setRowStretch(1, 1)
-        grid.setRowStretch(2, 0)
-        grid.setRowStretch(3, 1)
+        self.grid.setRowStretch(1, 1)
+        self.grid.setRowStretch(2, 0)
+        self.grid.setRowStretch(3, 1)
 
         self.refresh_display()
 
