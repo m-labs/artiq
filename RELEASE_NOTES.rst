@@ -6,6 +6,7 @@ Release notes
 ARTIQ-9 (Unreleased)
 --------------------
 
+* Zotino monitoring in the dashboard now displays the values in volts.
 * afws_client now uses the "happy eyeballs" algorithm (RFC 6555) for a faster and more
   reliable connection to the server.
 * The Zadig driver installer was added to the MSYS2 offline installer.
