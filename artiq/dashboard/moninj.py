@@ -338,12 +338,11 @@ class _DACWidget(_MoninjWidget):
         self.offset_dacs = offset_dacs
 
         self.value = QtWidgets.QLabel()
-        self.value.setAlignment(QtCore.Qt.AlignCenter)
+        self.value.setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignTop)
         self.grid.addWidget(self.value, 2, 1, 6, 1)
 
         self.grid.setRowStretch(1, 1)
-        self.grid.setRowStretch(2, 0)
-        self.grid.setRowStretch(3, 1)
+        self.grid.setRowStretch(2, 1)
 
         self.refresh_display()
 
