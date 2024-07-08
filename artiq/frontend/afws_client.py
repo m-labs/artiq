@@ -72,11 +72,11 @@ class Client:
 
     async def close(self):
         if self.writer:
-            await self.writer.close()
+            self.writer.close()
             await self.writer.wait_closed()
 
     async def send_command(self, *command):
-        await self.writer.write((" ".join(command) + "\n").encode())
+        self.writer.write((" ".join(command) + "\n").encode())
 
     async def read_line(self):
         return (await self.reader.readline()).decode("ascii")
@@ -120,7 +120,7 @@ class Client:
         if status != "done":
             return status, None
         print("Build completed. Downloading...")
-        reply, length = self.read_reply()
+        reply, length = await self.read_reply()
         if reply != "PRODUCT":
             raise ValueError("Unexpected server reply: expected 'PRODUCT', got '{}'".format(reply))
         length = int(length)
@@ -129,7 +129,7 @@ class Client:
             total = 0
             while total != length:
                 chunk_len = min(4096, length-total)
-                contents += self.fsocket.read(chunk_len)
+                contents += await self.reader.read(chunk_len)
                 total += chunk_len
                 progress_bar.update(chunk_len)
         print("Download completed.")
