@@ -5,6 +5,6 @@ ARTIQ follows a rolling release model, with beta, stable, and legacy channels. D
 
 To install the current stable version of ARTIQ, consult the *current* `Installing ARTIQ <https://m-labs.hk/artiq/manual/installing.html>`_ page. To install beta or legacy versions, consult the same page in their respective manuals. Instructions given in pre-legacy versions of the manual may or may not install their corresponding ARTIQ systems, and may or may not currently be supported (e.g. M-Labs does not host older ARTIQ versions for Conda, and Conda support will probably eventually be removed entirely). Regardless, all out-of-date versions remain available as complete source code on the repository.
 
-The beta manual is hosted `here <https://m-labs.hk/artiq/manual-beta/>`_. The current manual is hosted `here <https://m-labs.hk/artiq/manual/>`_. The legacy manual is hosted `here <https://m-labs.hk/artiq/manual-legacy/>`_. Older versions of the manual can be rebuilt from the source files in ``doc/manual``, retrieved from the respective branch.
+The beta manual is hosted `here <https://m-labs.hk/artiq/manual-beta/>`_. The current manual is hosted `here <https://m-labs.hk/artiq/manual/>`__. The legacy manual is hosted `here <https://m-labs.hk/artiq/manual-legacy/>`___. Older versions of the manual can be rebuilt from the source files in ``doc/manual``, retrieved from the respective branch.
 
 .. include:: ../../RELEASE_NOTES.rst
