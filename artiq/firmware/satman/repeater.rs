@@ -186,10 +186,31 @@ impl Repeater {
         }
     }
 
-    pub fn aux_forward(&self, request: &drtioaux::Packet) -> Result<(), drtioaux::Error<!>> {
+    pub fn aux_forward(&self, request: &drtioaux::Packet, router: &mut Router, 
+        routing_table: &drtio_routing::RoutingTable, rank: u8,
+        self_destination: u8) -> Result<(), drtioaux::Error<!>> {
         self.aux_send(request)?;
-        let reply = self.recv_aux_timeout(200)?;
-        drtioaux::send(0, &reply).unwrap();
+        loop {
+            let reply = self.recv_aux_timeout(200)?;
+            match reply {
+                // async/locally requested packets to be consumed or routed
+                // these may come while a packet would be forwarded
+                drtioaux::Packet::DmaPlaybackStatus { .. } |
+                drtioaux::Packet::SubkernelFinished { .. } |
+                drtioaux::Packet::SubkernelMessage  { .. } | 
+                drtioaux::Packet::SubkernelMessageAck { .. } | 
+                drtioaux::Packet::SubkernelLoadRunReply { .. } |
+                drtioaux::Packet::SubkernelException { .. } |
+                drtioaux::Packet::DmaAddTraceReply { .. } |
+                drtioaux::Packet::DmaPlaybackReply { .. } => {
+                    router.route(reply, routing_table, rank, self_destination);
+                }
+                _ => {
+                    drtioaux::send(0, &reply).unwrap();
+                    break;
+                }
+            }
+        }
         Ok(())
     }
 
