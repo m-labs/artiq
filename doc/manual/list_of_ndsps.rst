@@ -26,7 +26,7 @@ The following network device support packages are available for ARTIQ. If you wo
 +---------------------------------+-----------------------------------+----------------------------------+-------------------------------------------------------------------+--------------------------------------------------------+
 | HighFinesse wavemeters          | ``highfinesse-net``               | Not available                    | Not available                                                     | https://github.com/quartiq/highfinesse-net             |
 +---------------------------------+-----------------------------------+----------------------------------+-------------------------------------------------------------------+--------------------------------------------------------+
-| InfluxDB database               | Not available                     | Not available                    | `HTML <https://gitlab.com/charlesbaynham/artiq_influx_generic>`_  | https://gitlab.com/charlesbaynham/artiq_influx_generic |
+| InfluxDB database               | Not available                     | Not available                    | `HTML <https://gitlab.com/charlesbaynham/artiq_influx_generic>`__ | https://gitlab.com/charlesbaynham/artiq_influx_generic |
 +---------------------------------+-----------------------------------+----------------------------------+-------------------------------------------------------------------+--------------------------------------------------------+
 
 MSYS2 packages all start with the ``mingw-w64-clang-x86_64-`` prefix.
