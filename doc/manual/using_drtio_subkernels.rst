@@ -96,9 +96,9 @@ Subkernels behave for the most part like regular kernels; they accept arguments,
    - subkernels do not support RPCs,
    - subkernels do not support (recursive) DRTIO (but they can call other subkernels and send messages to each other, see below),
    - they support DMA, for which DDMA is considered always enabled,
+   - they can raise exceptions, which they may catch locally or propagate to the calling kernel,
    - their return values must be fully annotated with an ARTIQ type,
    - their arguments should be annotated, and only basic ARTIQ types are supported,
-   - they can raise exceptions, but the exceptions cannot be caught by the master (they can only be caught locally or propagated directly to the host),
    - while ``self`` is allowed as an argument, it is retrieved at compile time and exists as a purely local object afterwards. Any changes made by other kernels will not be visible, and changes made locally will not be applied anywhere else.
 
 Subkernels in practice
