@@ -14,7 +14,7 @@ extern crate io;
 extern crate eh;
 
 use core::convert::TryFrom;
-use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
+use board_misoc::{csr, ident, clock, config, uart_logger, i2c, pmp};
 #[cfg(has_si5324)]
 use board_artiq::si5324;
 #[cfg(has_si549)]
@@ -68,6 +68,10 @@ fn drtiosat_tsc_loaded() -> bool {
         }
         tsc_loaded
     }
+}
+
+fn toggle_sed_spread(val: u8) {
+    unsafe { csr::drtiosat::sed_spread_enable_write(val); }
 }
 
 #[derive(Clone, Copy)]
@@ -753,6 +757,18 @@ pub extern fn main() -> i32 {
     }
 
     init_rtio_crg();
+
+    config::read_str("sed_spread_enable", |r| {
+        match r {
+            Ok("1") => { info!("SED spreading enabled"); toggle_sed_spread(1); },
+            Ok("0") => { info!("SED spreading disabled"); toggle_sed_spread(0); },
+            Ok(_) => { 
+                warn!("sed_spread_enable value not supported (only 1, 0 allowed), disabling by default");
+                toggle_sed_spread(0);
+            },
+            Err(_) => { info!("SED spreading disabled by default"); toggle_sed_spread(0) },
+        }
+    });
 
     #[cfg(has_drtio_eem)]
     drtio_eem::init();

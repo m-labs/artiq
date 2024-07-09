@@ -3,7 +3,7 @@ from operator import and_
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
-from migen.genlib.cdc import BlindTransfer
+from migen.genlib.cdc import MultiReg, BlindTransfer
 from misoc.interconnect.csr import *
 
 from artiq.gateware.rtio import cri
@@ -18,6 +18,7 @@ class Core(Module, AutoCSR):
         self.cri = cri.Interface()
         self.reset = CSR()
         self.reset_phy = CSR()
+        self.sed_spread_enable = CSRStorage()
         self.async_error = CSR(3)
         self.collision_channel = CSRStatus(16)
         self.busy_channel = CSRStatus(16)
@@ -67,6 +68,7 @@ class Core(Module, AutoCSR):
         self.submodules += outputs
         self.comb += outputs.coarse_timestamp.eq(tsc.coarse_ts)
         self.sync += outputs.minimum_coarse_timestamp.eq(tsc.coarse_ts + 12)
+        self.specials += MultiReg(self.sed_spread_enable.storage, outputs.enable_spread, "rio")
 
         inputs = ClockDomainsRenamer("rio")(InputCollector(tsc, channels,
             quash_channels=quash_channels,
