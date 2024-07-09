@@ -468,7 +468,10 @@ class _SatelliteBase(BaseSoC, AMPSoC):
 
         # DRTIO
         self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels)
-        self.comb += self.drtiosat.async_errors.eq(self.local_io.async_errors)
+        self.comb += [ 
+            self.drtiosat.async_errors.eq(self.local_io.async_errors),
+            self.local_io.sed_spread_enable.eq(self.drtiosat.sed_spread_enable.storage)
+        ]
 
         # subkernel RTIO
         self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
