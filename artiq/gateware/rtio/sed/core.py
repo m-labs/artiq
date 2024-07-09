@@ -12,7 +12,7 @@ __all__ = ["SED"]
 
 class SED(Module):
     def __init__(self, channels, glbl_fine_ts_width,
-                 lane_count=8, fifo_depth=128, fifo_high_watermark=1.0, enable_spread=True,
+                 lane_count=8, fifo_depth=128, fifo_high_watermark=1.0,
                  quash_channels=[], report_buffer_space=False, interface=None):
         seqn_width = layouts.seqn_width(lane_count, fifo_depth)
 
@@ -23,7 +23,6 @@ class SED(Module):
             layouts.fifo_payload(channels),
             [channel.interface.o.delay for channel in channels],
             glbl_fine_ts_width,
-            enable_spread=enable_spread,
             quash_channels=quash_channels,
             interface=interface)
         self.submodules.fifos = FIFOs(lane_count, fifo_depth, fifo_high_watermark,
@@ -46,6 +45,10 @@ class SED(Module):
                 self.cri.o_buffer_space_valid.eq(1),
                 self.cri.o_buffer_space.eq(self.fifos.buffer_space)
             ]
+
+    @property
+    def enable_spread(self):
+        return self.lane_dist.enable_spread
 
     @property
     def cri(self):
