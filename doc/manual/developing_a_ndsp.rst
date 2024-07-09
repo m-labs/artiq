@@ -1,7 +1,7 @@
 Developing a Network Device Support Package (NDSP)
 ==================================================
 
-Besides the kind of specialized real-time hardware most of ARTIQ is concerned with the difficult problem of managing, ARTIQ also easily handles more conventional 'slow' devices. This is done through *controllers*, based on `SiPyCO <https://github.com/m-labs/sipyco>`_ (manual hosted `here <https://m-labs.hk/artiq/sipyco-manual/>`_), which expose remote procedure call (RPC) interfaces to the network. This allows experiments to issue RPCs to the controllers as necessary, without needing to do direct I/O to the devices. Some advantages of this architecture include: 
+Besides the kind of specialized real-time hardware most of ARTIQ is concerned with the control and management of, ARTIQ also easily handles more conventional 'slow' devices. This is done through *controllers*, based on `SiPyCo <https://github.com/m-labs/sipyco>`_ (manual hosted `here <https://m-labs.hk/artiq/sipyco-manual/>`_), which expose remote procedure call (RPC) interfaces to the network. This allows experiments to issue RPCs to the controllers as necessary, without needing to do direct I/O to the devices. Some advantages of this architecture include: 
 
 * Controllers/drivers can be run on different machines, alleviating cabling issues and OS compatibility problems. 
 * Reduces the impact of driver crashes. 
@@ -10,7 +10,7 @@ Besides the kind of specialized real-time hardware most of ARTIQ is concerned wi
 Certain devices (such as the PDQ2) may still perform real-time operations by having certain controls physically connected to the core device (for example, the trigger and frame selection signals on the PDQ2). For handling such cases, parts of the support infrastructure may be kernels executed on the core device.
 
 .. seealso::
-    Some NDSPs for particular devices are already been made available. They are listed in this manual on the page :doc:`list_of_ndsps`. 
+    Some NDSPs for particular devices have already been written and made available to the public. A (non-exhaustive) list can be found on the page :doc:`list_of_ndsps`. 
 
 Components of a NDSP
 --------------------
@@ -114,7 +114,7 @@ To access this driver in an experiment, we can retrieve the ``Client`` instance 
 Integration with ARTIQ experiments
 ----------------------------------
 
-Often, we will want to add the device to the ``device_db.py``, so that we can add it simply through ``self.setattr_device`` and so the controller can be started and stopped automatically by a controller manager (the ``artiq_ctlmgr`` utility from ``artiq-comtools``). when using the ARTIQ master. To do so, add an entry to your device database in this format: :: 
+Generally we will want to add the device to our :ref:`device database <device-db>` so that we can add it to an experiment with ``self.setattr_device`` and so the controller can be started and stopped automatically by a controller manager (the ``artiq_ctlmgr`` utility from ``artiq-comtools``). To do so, add an entry to your device database in this format: :: 
 
 	device_db.update({
             "hello": {
@@ -125,7 +125,7 @@ Often, we will want to add the device to the ``device_db.py``, so that we can ad
     	    },
 	})
 	
-Now it can be added using ``self.setattr_device("hello")`` in the ``build()`` phase of the experiment, and methods accessed via: ::
+Now it can be added using ``self.setattr_device("hello")`` in the ``build()`` phase of the experiment, and its methods accessed via: ::
 	
 	self.hello.message("Hello world!")
 
@@ -144,7 +144,7 @@ If you wish to support remote execution in your controller, you may do so by sim
 Command-line arguments
 ----------------------
 
-Use the Python ``argparse`` module to make the bind address(es) and port configurable on the controller, and the server address, port and message configurable on the client. We suggest naming the controller parameters ``--bind`` (which adds a bind address in addition to a default binding to localhost), ``--no-bind-localhost`` (which disables the default binding to localhost), and ``--port``, so that those parameters stay consistent across controllers. Use ``-s/--server`` and ``--port`` on the client. The ``sipyco.common_args.simple_network_args`` library function adds such arguments for the controller, and the ``sipyco.common_args.bind_address_from_args`` function processes them.
+Use the Python ``argparse`` module to make the bind address(es) and port configurable on the controller, and the server address, port and message configurable on the client. We suggest naming the controller parameters ``--bind`` (which adds a bind address in addition to a default binding to localhost), ``--no-bind-localhost`` (which disables the default binding to localhost), and ``--port``, so that those parameters stay consistent across controllers. Use ``-s/--server`` and ``--port`` on the client. The :meth:`sipyco.common_args.simple_network_args` library function adds such arguments for the controller, and the :meth:`sipyco.common_args.bind_address_from_args` function processes them.
 
 The controller's code would contain something similar to this: ::
 
@@ -164,7 +164,7 @@ We suggest that you define a function ``get_argparser`` that returns the argumen
 Logging
 -------
 
-For debug, information and warning messages, use the ``logging`` Python module and print the log on the standard error output (the default setting). As in other areas, there are five logging levels, from most to least critical, ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, and ``DEBUG``. By default, the logger is created at ``WARNING``, meaning it will print messages of level WARNING and above (and no debug nor information messages). By calling ``sipyco.common_args.verbosity_args`` with the parser as argument, you add support for the ``--verbose`` (``-v``) and ``--quiet`` (``-q``) arguments in your controller. Each occurrence of ``-v`` (resp. ``-q``) in the arguments will increase (resp. decrease) the log level of the logging module. For instance, if only one ``-v`` is present, then more messages (INFO and above) will be printed. If only one ``-q`` is present in the arguments, then ERROR and above will be printed. If ``-qq`` is present in the arguments, then only CRITICAL will be printed.
+For debug, information and warning messages, use the ``logging`` Python module and print the log on the standard error output (the default setting). As in other areas, there are five logging levels, from most to least critical, ``CRITICAL``, ``ERROR``, ``WARNING``, ``INFO``, and ``DEBUG``. By default, the logging level starts at ``WARNING``, meaning it will print messages of level WARNING and above (and no debug nor information messages). By calling ``sipyco.common_args.verbosity_args`` with the parser as argument, you add support for the ``--verbose`` (``-v``) and ``--quiet`` (``-q``) arguments in your controller. Each occurrence of ``-v`` (resp. ``-q``) in the arguments will increase (resp. decrease) the log level of the logging module. For instance, if only one ``-v`` is present, then more messages (INFO and above) will be printed. If only one ``-q`` is present in the arguments, then ERROR and above will be printed. If ``-qq`` is present in the arguments, then only CRITICAL will be printed.
 
 The program below exemplifies how to use logging: ::
 
