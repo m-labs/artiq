@@ -14,6 +14,7 @@ def simulate(input_events, compensation=None, wait=True):
     if compensation is None:
         compensation = [0]*256
     dut = lane_distributor.LaneDistributor(LANE_COUNT, 8, layout, compensation, 3)
+    dut.comb += dut.enable_spread.eq(1)
 
     output = []
     access_results = []
