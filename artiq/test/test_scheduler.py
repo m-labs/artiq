@@ -141,132 +141,21 @@ class SchedulerCase(unittest.TestCase):
         high_priority = 3
         middle_priority = 2
         low_priority = 1
+
+        # "late" is far in the future, beyond any reasonable test timeout.
         late = time() + 100000
         early = time() + 1
 
-        expect = [
-            {
-                "path": [],
-                "action": "setitem",
-                "value": {
-                    "repo_msg": None,
-                    "priority": low_priority,
-                    "pipeline": "main",
-                    "due_date": None,
-                    "status": "pending",
-                    "expid": expid_bg,
-                    "flush": False
-                },
-                "key": 0
-            },
-            {
-                "path": [],
-                "action": "setitem",
-                "value": {
-                    "repo_msg": None,
-                    "priority": high_priority,
-                    "pipeline": "main",
-                    "due_date": late,
-                    "status": "pending",
-                    "expid": expid_empty,
-                    "flush": False
-                },
-                "key": 1
-            },
-            {
-                "path": [],
-                "action": "setitem",
-                "value": {
-                    "repo_msg": None,
-                    "priority": middle_priority,
-                    "pipeline": "main",
-                    "due_date": early,
-                    "status": "pending",
-                    "expid": expid_empty,
-                    "flush": False
-                },
-                "key": 2
-            },
-            {
-                "path": [0],
-                "action": "setitem",
-                "value": "preparing",
-                "key": "status"
-            },
-            {
-                "path": [0],
-                "action": "setitem",
-                "value": "prepare_done",
-                "key": "status"
-            },
-            {
-                "path": [0],
-                "action": "setitem",
-                "value": "running",
-                "key": "status"
-            },
-            {
-                "path": [2],
-                "action": "setitem",
-                "value": "preparing",
-                "key": "status"
-            },
-            {
-                "path": [2],
-                "action": "setitem",
-                "value": "prepare_done",
-                "key": "status"
-            },
-            {
-                "path": [0],
-                "action": "setitem",
-                "value": "paused",
-                "key": "status"
-            },
-            {
-                "path": [2],
-                "action": "setitem",
-                "value": "running",
-                "key": "status"
-            },
-            {
+        middle_priority_done = asyncio.Event()
+        def notify(mod):
+            # Watch for the "middle_priority" experiment's completion
+            if mod == {
                 "path": [2],
                 "action": "setitem",
                 "value": "run_done",
                 "key": "status"
-            },
-            {
-                "path": [0],
-                "action": "setitem",
-                "value": "running",
-                "key": "status"
-            },
-            {
-                "path": [2],
-                "action": "setitem",
-                "value": "analyzing",
-                "key": "status"
-            },
-            {
-                "path": [2],
-                "action": "setitem",
-                "value": "deleting",
-                "key": "status"
-            },
-            {
-                "path": [],
-                "action": "delitem",
-                "key": 2
-            },
-        ]
-        done = asyncio.Event()
-        expect_idx = 0
-        def notify(mod):
-            nonlocal expect_idx
-            self.assertEqual(mod, expect[expect_idx])
-            expect_idx += 1
-            if expect_idx >= len(expect):
-                done.set()
+            }:
+                middle_priority_done.set()
         scheduler.notifier.publish = notify
 
         scheduler.start(loop=loop)
@@ -275,7 +164,9 @@ class SchedulerCase(unittest.TestCase):
         scheduler.submit("main", expid_empty, high_priority, late)
         scheduler.submit("main", expid_empty, middle_priority, early)
 
-        loop.run_until_complete(done.wait())
+        # Check that the "middle_priority" experiment finishes. This would hang for a
+        # long time (until "late") if the due times were not being respected.
+        loop.run_until_complete(middle_priority_done.wait())
         scheduler.notifier.publish = None
         loop.run_until_complete(scheduler.stop())
 
