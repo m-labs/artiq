@@ -83,7 +83,7 @@ class ZoomIconView(QtWidgets.QListView):
             w = self.iconSize().width()*self.zoom_step**(
                 ev.angleDelta().y()/120.)
             if a <= w <= b:
-                self.setIconSize(QtCore.QSize(w, w*self.aspect))
+                self.setIconSize(QtCore.QSize(int(w), int(w*self.aspect)))
         else:
             QtWidgets.QListView.wheelEvent(self, ev)
 
