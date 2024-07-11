@@ -3,21 +3,25 @@ Installing ARTIQ
 
 ARTIQ can be installed using the Nix (on Linux) or MSYS2 (on Windows) package managers. Using Conda is also possible on both platforms but not recommended.
 
-.. _installing-nix-users:
-
 Installing via Nix (Linux)
 --------------------------
 
-First, install the Nix package manager. Some distributions provide a package for the Nix package manager, otherwise, it can be installed via the script on the `Nix website <http://nixos.org/nix/>`_. Make sure you get Nix version 2.4 or higher.
+First install the Nix package manager. Some distributions provide a package for it; otherwise, it can be installed via the script on the `Nix website <http://nixos.org/nix/>`_. Make sure you get Nix version 2.4 or higher. Prefer a single-user installation for simplicity. 
 
-Once Nix is installed, enable Flakes: ::
+Once Nix is installed, enable flakes, for example by running: ::
 
   $ mkdir -p ~/.config/nix
   $ echo "experimental-features = nix-command flakes" > ~/.config/nix/nix.conf
 
-The easiest way to obtain ARTIQ is then to install it into the user environment with ``$ nix profile install git+https://github.com/m-labs/artiq.git``. Answer "Yes" to the questions about setting Nix configuration options. This provides a minimal installation of ARTIQ where the usual commands (``artiq_master``, ``artiq_dashboard``, ``artiq_run``, etc.) are available.
+See also the different options for enabling flakes on `the NixOs wiki <https://nixos.wiki/wiki/flakes>`_. 
 
-This installation is however quite limited, as Nix creates a dedicated Python environment for the ARTIQ commands alone. This means that other useful Python packages that you may want (pandas, matplotlib, ...) are not available to them.
+The easiest way to obtain ARTIQ is to install it into the user environment with ::
+  
+  $ nix profile install git+https://github.com/m-labs/artiq.git
+  
+Answer "Yes" to the questions about setting Nix configuration options (for more details see 'Troubleshooting' below.) You should now have a minimal installation of ARTIQ, where the usual front-end commands (``artiq_run``, ``artiq_master``, ``artiq_dashboard``, etc.) are all available to you. 
+
+This installation is however quite limited, as Nix creates a dedicated Python environment for the ARTIQ commands alone. This means that other useful Python packages, which ARTIQ is not dependent on but which you may want to use in your experiments (pandas, mathplotlib...), are not available.
 
 Installing multiple packages and making them visible to the ARTIQ commands requires using the Nix language. Create an empty directory with a file ``flake.nix`` with the following contents:
 
@@ -39,6 +43,7 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
             (pkgs.python3.withPackages(ps: [
               # List desired Python packages here.
               artiq.artiq
+              #ps.misoc # to access UART logs 
               #ps.paramiko  # needed if and only if flashing boards remotely (artiq_flash -H)
               #artiq.flake8-artiq
               #artiq.dax
@@ -47,8 +52,6 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
               # The NixOS package collection contains many other packages that you may find
               # interesting. Here are some examples:
               #ps.pandas
-              #ps.numpy
-              #ps.scipy
               #ps.numba
               #ps.matplotlib
               # or if you need Qt (will recompile):
@@ -56,11 +59,13 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
               #ps.bokeh
               #ps.cirq
               #ps.qiskit
+              # Note that NixOS also provides packages ps.numpy and ps.scipy, but it is 
+              # not necessary to explicitly add these, since they are dependencies of 
+              # ARTIQ and available with an ARTIQ install anyway. 
             ]))
             #artiq.korad_ka3005p
             #artiq.novatech409b
             # List desired non-Python packages here
-            #artiq.openocd-bscanspi  # needed if and only if flashing boards
             # Other potentially interesting non-Python packages from the NixOS package collection:
             #pkgs.gtkwave
             #pkgs.spyder
@@ -78,14 +83,16 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
     };
   }
 
+.. note::
+  You might consider adding matplotlib and numba in particular, as these are required by certain ARTIQ example experiments. 
 
-Then spawn a shell containing the packages with ``$ nix shell``. The ARTIQ commands with all the additional packages should now be available.
+You can now spawn a shell containing these packages by running ``$ nix shell`` in the directory containing the ``flake.nix``. This should make both the ARTIQ commands and all the additional packages available to you. You can exit the shell with Control+D or with the command  ``exit``. A first execution of ``$ nix shell`` may take some time, but for any future repetitions Nix will use cached packages and startup should be much faster. 
 
-You can exit the shell by typing Control-D. The next time ``$ nix shell`` is invoked, Nix uses the cached packages so the shell startup is fast.
+You might be interested in creating multiple directories containing different ``flake.nix`` files which represent different sets of packages for different purposes. If you are familiar with Conda, using Nix in this way is similar to having multiple Conda environments.
 
-You can create directories containing each a ``flake.nix`` that correspond to different sets of packages. If you are familiar with Conda, using Nix in this way is similar to having multiple Conda environments.
+To find more packages you can browse the `Nix package search <https://search.nixos.org/packages>`_ website. If your favorite package is not available with Nix, contact M-Labs using the helpdesk@ email.
 
-If your favorite package is not available with Nix, contact us using the helpdesk@ email.
+.. _installing-troubleshooting:
 
 Troubleshooting
 ^^^^^^^^^^^^^^^
@@ -93,9 +100,7 @@ Troubleshooting
 "Do you want to allow configuration setting... (y/N)?"
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
 
-When installing and initializing ARTIQ using commands like ``nix shell``, ``nix develop``, or ``nix profile install``, you may encounter prompts to modify certain configuration settings. These settings correspond to the ``nixConfig`` flag within the ARTIQ flake:
-
-::
+When installing and initializing ARTIQ using commands like ``nix shell``, ``nix develop``, or ``nix profile install``, you may encounter prompts to modify certain configuration settings. These settings correspond to the ``nixConfig`` flag within the ARTIQ flake: ::
 
   do you want to allow configuration setting 'extra-sandbox-paths' to be set to '/opt' (y/N)?
   do you want to allow configuration setting 'extra-substituters' to be set to 'https://nixbld.m-labs.hk' (y/N)?
@@ -103,15 +108,11 @@ When installing and initializing ARTIQ using commands like ``nix shell``, ``nix 
 
 We recommend accepting these settings by responding with ``y``. If asked to permanently mark these values as trusted, choose ``y`` again. This action saves the configuration to ``~/.local/share/nix/trusted-settings.json``, allowing future prompts to be bypassed.
 
-Alternatively, you can also use the option `accept-flake-config <https://nix.dev/manual/nix/stable/command-ref/conf-file#conf-accept-flake-config>`_ by appending ``--accept-flake-config`` to your nix command:
-
-::
+Alternatively, you can also use the option `accept-flake-config <https://nix.dev/manual/nix/stable/command-ref/conf-file#conf-accept-flake-config>`_ by appending ``--accept-flake-config`` to your nix command, for example: ::
 
   nix develop --accept-flake-config
 
-Or add the option to ``~/.config/nix/nix.conf`` to make the setting more permanent:
-
-::
+Or add the option to ``~/.config/nix/nix.conf`` to make the setting more permanent: ::
 
   extra-experimental-features = flakes
   accept-flake-config = true
@@ -122,26 +123,18 @@ Or add the option to ``~/.config/nix/nix.conf`` to make the setting more permane
 "Ignoring untrusted substituter, you are not a trusted user"
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-If the following message displays when running ``nix shell`` or ``nix develop``
-
-::
+If the following message displays when running ``nix shell`` or ``nix develop`` ::
 
   warning: ignoring untrusted substituter 'https://nixbld.m-labs.hk', you are not a trusted user.
   Run `man nix.conf` for more information on the `substituters` configuration option.
 
-and Nix proceeds to build some packages from source, this means that you are using `multi-user mode <https://nix.dev/manual/nix/stable/installation/multi-user>`_ in Nix, for example when Nix is installed via ``pacman`` in Arch Linux.
-
-By default, users accessing Nix in multi-user mode are "unprivileged" and cannot use untrusted substituters. To change this, edit ``/etc/nix/nix.conf`` and add the following line (or append to the key if the key already exists):
-
-::
+and Nix proceeds to build some packages from source, this means that you are using `multi-user mode <https://nix.dev/manual/nix/stable/installation/multi-user>`_ in Nix, which may be the case for example when Nix is installed via ``pacman`` in Arch Linux. By default, users accessing Nix in multi-user mode are "unprivileged" and cannot use untrusted substituters. To change this, edit ``/etc/nix/nix.conf`` and add the following line (or append to the key if the key already exists): ::
 
   trusted-substituters = https://nixbld.m-labs.hk
 
 This will add the substituter as a trusted substituter for all users using Nix.
 
-Alternatively, add the following line:
-
-::
+Alternatively, add the following line: ::
 
   trusted-users = <username>  # Replace <username> with the user invoking `nix`
 
@@ -154,8 +147,7 @@ This will set your user as a trusted user, allowing the use of any untrusted sub
 Installing via MSYS2 (Windows)
 ------------------------------
 
-We recommend using our `offline installer <https://nixbld.m-labs.hk/job/artiq/extra-beta/msys2-offline-installer/latest>`_, which contains all the necessary packages and no additional configuration is needed.
-After installation, launch ``MSYS2 with ARTIQ`` from the Windows Start menu.
+We recommend using our `offline installer <https://nixbld.m-labs.hk/job/artiq/extra-beta/msys2-offline-installer/latest>`_, which contains all the necessary packages and requires no additional configuration. After installation, simply launch ``MSYS2 with ARTIQ`` from the Windows Start menu.
 
 Alternatively, you may install `MSYS2 <https://msys2.org>`_, then edit ``C:\MINGW64\etc\pacman.conf`` and add at the end: ::
 
@@ -165,24 +157,26 @@ Alternatively, you may install `MSYS2 <https://msys2.org>`_, then edit ``C:\MING
 
 Launch ``MSYS2 CLANG64`` from the Windows Start menu to open the MSYS2 shell, and enter the following commands: ::
 
-    pacman -Syy
-    pacman -S mingw-w64-clang-x86_64-artiq
+  $  pacman -Syy
+  $  pacman -S mingw-w64-clang-x86_64-artiq
 
-If your favorite package is not available with MSYS2, contact us using the helpdesk@ email.
+As above in the Nix section, you may find yourself wanting to add other useful packages (pandas, matplotlib, etc.). MSYS2 uses a port of ArchLinux's ``pacman`` to manage (add, remove, and update) packages. To add a specific package, you can simply use a command of the form: :: 
 
-Installing via Conda (Windows, Linux) [DEPRECATED]
---------------------------------------------------
+  $ pacman -S <package name>
+
+For more see the `MSYS2 documentation <https://www.msys2.org/docs/package-management/>`_ on package management. If your favorite package is not available with MSYS2, contact M-Labs using the helpdesk@ email.
+
+Installing via Conda [DEPRECATED]
+---------------------------------
 
 .. warning::
   Installing ARTIQ via Conda is not recommended. Instead, Linux users should install it via Nix and Windows users should install it via MSYS2. Conda support may be removed in future ARTIQ releases and M-Labs can only provide very limited technical support for Conda.
 
-First, install `Anaconda <https://www.anaconda.com/download>`_ or the more minimalistic `Miniconda <https://conda.io/en/latest/miniconda.html>`_.
-
-After installing either Anaconda or Miniconda, open a new terminal (also known as command line, console, or shell and denoted here as lines starting with ``$``) and verify the following command works::
+First, install `Anaconda <https://www.anaconda.com/download>`_ or the more minimalistic `Miniconda <https://conda.io/en/latest/miniconda.html>`_. After installing either Anaconda or Miniconda, open a new terminal and verify that the following command works::
 
     $ conda
 
-Executing just ``conda`` should print the help of the ``conda`` command. If your shell does not find the ``conda`` command, make sure that the Conda binaries are in your ``$PATH``. If ``$ echo $PATH`` does not show the Conda directories, add them: execute ``$ export PATH=$HOME/miniconda3/bin:$PATH`` if you installed Conda into ``~/miniconda3``.
+Executing just ``conda`` should print the help of the ``conda`` command. If your shell cannot find the ``conda`` command, make sure that the Conda binaries are in your ``$PATH``. If ``$ echo $PATH`` does not show the Conda directories, add them: execute e.g. ``$ export PATH=$HOME/miniconda3/bin:$PATH`` if you installed Conda into ``~/miniconda3``.
 
 Controllers for third-party devices (e.g. Thorlabs TCube, Lab Brick Digital Attenuator, etc.) that are not shipped with ARTIQ can also be installed with this script. Browse `Hydra <https://nixbld.m-labs.hk/project/artiq>`_ or see the list of NDSPs in this manual to find the names of the corresponding packages, and list them at the beginning of the script.
 
@@ -204,14 +198,11 @@ After the installation, activate the newly created environment by name. ::
 
 This activation has to be performed in every new shell you open to make the ARTIQ tools from that environment available.
 
-.. note::
-    Some ARTIQ examples also require matplotlib and numba, and they must be installed manually for running those examples. They are available in Conda.
-
 Upgrading ARTIQ
 ---------------
 
 .. note:: 
-    When you upgrade ARTIQ, as well as updating the software on your host machine, it may also be necessary to reflash the gateware and firmware of your core device to keep them compatible. New numbered release versions in particular incorporate breaking changes and are not generally compatible. See :ref:`reflashing-core-device` below for instructions on reflashing.
+    When you upgrade ARTIQ, as well as updating the software on your host machine, it may also be necessary to reflash the gateware and firmware of your core device to keep them compatible. New numbered release versions in particular incorporate breaking changes and are not generally compatible. See :doc:`flashing` for instructions.
 
 Upgrading with Nix 
 ^^^^^^^^^^^^^^^^^^
@@ -223,13 +214,12 @@ To rollback to the previous version, respectively use ``$ nix profile rollback``
 Upgrading with MSYS2
 ^^^^^^^^^^^^^^^^^^^^
 
-Run ``pacman -Syu`` to update all MSYS2 packages including ARTIQ. If you get a message telling you that the shell session must be restarted after a partial update, open the shell again after the partial update and repeat the command. See the MSYS2 and Pacman manual for information on how to update individual packages if required.
+Run ``pacman -Syu`` to update all MSYS2 packages, including ARTIQ. If you get a message telling you that the shell session must be restarted after a partial update, open the shell again after the partial update and repeat the command. See the `MSYS2 <https://www.msys2.org/docs/updating/>`__ and `Pacman <https://wiki.archlinux.org/title/Pacman>`_ manuals for more information, including how to update individual packages if required.
 
 Upgrading with Conda 
 ^^^^^^^^^^^^^^^^^^^^
 
-When upgrading ARTIQ or when testing different versions it is recommended that new Conda environments are created instead of upgrading the packages in existing environments.
-As a rule, keep previous environments around unless you are certain that they are no longer needed and the new environment is working correctly.
+When upgrading ARTIQ or when testing different versions it is recommended that new Conda environments are created instead of upgrading the packages in existing environments. As a rule, keep previous environments around unless you are certain that they are no longer needed and the new environment is working correctly.
 
 To install the latest version, simply select a different environment name and run the installation commands again.
 
