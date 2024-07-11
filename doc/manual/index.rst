@@ -13,6 +13,8 @@ ARTIQ manual
     :maxdepth: 2
 
     installing
+    flashing 
+    configuring
     developing
     
 .. toctree::
