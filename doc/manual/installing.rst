@@ -418,6 +418,11 @@ This feature allows you to print the channels' respective names alongside with t
 
 .. note:: More information on the ``artiq_rtiomap`` utility can be found on the :ref:`Utilities <rtiomap-tool>` page.
 
+Enabling event spreading 
+------------------------
+
+This feature changes the logic used for queueing RTIO output events in the core device for a more efficient use of FPGA resources, at the cost of introducing nondeterminism and potential unpredictability in certain timing errors (specifically gateware :ref:`sequence errors<sequence-errors>`). It can be enabled with the config key ``sed_spread_enable``. See :ref:`sed-event-spreading`.
+
 Load the DRTIO routing table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
