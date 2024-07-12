@@ -157,10 +157,7 @@ Other notes:
 * Strictly increasing *fine* timestamps within the same coarse cycle may still cause sequence errors. 
 * The number of lanes is a hard limit on the number of RTIO output events that may be emitted within one coarse cycle.  
 * Zero-duration methods (such as :meth:`artiq.coredevice.ttl.TTLOut.on()`) do not advance the timeline and so will always consume additional lanes if they are scheduled simultaneously. Adding a delay of at least one coarse RTIO cycle will prevent this (e.g. ``delay_mu(np.int64(self.core.ref_multiplier))``).
-* Whether a particular sequence of timestamps causes a sequence error or not is fully deterministic (starting from a known RTIO state, e.g. after a reset). Adding a constant offset to the sequence will not affect the result.
-
-.. warning:: 
-  In some cases, sequence errors may surface (nondeterministically) because of *event spreading.* The SED judges 'fullness' of a lane based on a certain high watermark of number of events in a lane, which is not perfectly deterministic: events leave the lane in real time and therefore deterministically, but enter whenever the CPU schedules them, which is dependent on CPU execution time jitter. Lane changes due to 'fullness' are therefore not fully predictable. 
+* Whether a particular sequence of timestamps causes a sequence error or not is fully deterministic (starting from a known RTIO state, e.g. after a reset). Adding a constant offset to the sequence will not affect the result.  
 
 .. note:: 
   To change the number of SED lanes, it is necessary to recompile the gateware and reflash your core device. Use the ``sed_lanes`` field in your system description file to set the value, then follow the instructions in :doc:`developing`. Alternatively, if you have an active firmware subscription with M-Labs, contact helpdesk@ for edited binaries.   
@@ -215,8 +212,13 @@ Similar situations arise with methods such as :meth:`TTLInOut.sample_get <artiq.
     ]
   }
 
+
+| 
+ 
+.. ^ for spacing reasons only  
+
 Overflow exceptions
--------------------
+^^^^^^^^^^^^^^^^^^^
 
 The RTIO input channels buffer input events received while an input gate is open, or when using the sampling API (:meth:`TTLInOut.sample_input <artiq.coredevice.ttl.TTLInOut.sample_input>`) at certain points in time. 
 The events are kept in a FIFO until the CPU reads them out via e.g. :meth:`~artiq.coredevice.ttl.TTLInOut.count`, :meth:`~artiq.coredevice.ttl.TTLInOut.timestamp_mu` or :meth:`~artiq.coredevice.ttl.TTLInOut.sample_get`. 
@@ -227,7 +229,24 @@ The condition is converted into an :class:`~artiq.coredevice.exceptions.RTIOOver
 Overflow exceptions are generally best dealt with simply by reading out from the input buffers more frequently. In odd or particular cases, users may consider modifying the length of individual buffers in gateware. 
 
 .. note:: 
-  It is not possible to provoke an :class:`~artiq.coredevice.exceptions.RTIOOverflow` on a RTIO output channel. While output buffers are also of finite size, and can be filled up, the CPU will simply stall the submission of further events until it is once again possible to buffer them. Among other things, this means that padding the timeline cursor with large amounts of positive slack is not always a valid strategy to avoid :class:`~artiq.coredevice.exceptions.RTIOOverflow` exceptions when generating fast event sequences. In practice only a fixed number of events can be generated in advance, and the rest of the processing will be carried out when the wall clock is much closer to ``now_mu``. For larger numbers of events which run up against this restriction, the correct method is to use :ref:`getting-started-dma`.  
+  It is not possible to provoke an :class:`~artiq.coredevice.exceptions.RTIOOverflow` on a RTIO output channel. While output buffers are also of finite size, and can be filled up, the CPU will simply stall the submission of further events until it is once again possible to buffer them. Among other things, this means that padding the timeline cursor with large amounts of positive slack is not always a valid strategy to avoid :class:`~artiq.coredevice.exceptions.RTIOOverflow` exceptions when generating fast event sequences. In practice only a fixed number of events can be generated in advance, and the rest of the processing will be carried out when the wall clock is much closer to ``now_mu``. 
+  
+  For larger numbers of events which run up against this restriction, the correct method is to use :ref:`getting-started-dma`. In edge cases, enabling event spreading (see below) may fix the problem. 
+
+.. _sed-event-spreading:
+
+Event spreading 
+---------------
+
+By default, the SED only ever switches lanes for timestamp sequence reasons, as described above in :ref:`sequence-errors`. If only output events of strictly increasing coarse timestamps are queued, the SED fills up a single lane and stalls when it is full, regardless of the state of other lanes. This is preserved to avoid nondeterminism in sequence errors and corresponding unpredictable failures (since the timing of 'fullness' depends on the timing of when events are *queued*, which can vary slightly based on CPU execution jitter). 
+
+For better utilization of resources and to maximize buffering capacity, *event spreading* may be enabled, which allows the SED to switch lanes immediately when they reach a certain high watermark of 'fullness', increasing the number of events that can be queued before stalls ensue. To enable event spreading, use the ``sed_spread_enable`` config key and set it to ``1``: :: 
+
+  $ artiq_coremgmt config write -s sed_spread_enable 1 
+
+This will change where and when sequence errors occur in your kernels, and might cause them to vary from execution to execution of the same experiment. It will generally reduce or eliminate :class:`~artiq.coredevice.exceptions.RTIOUnderflow` exceptions caused by queueing stalls and significantly increase the threshold on sequence length before :ref:`DMA <getting-started-dma>` becomes necessary. 
+
+Note that event spreading can be particularly helpful in DRTIO satellites, as it is the space remaining in the *fullest* FIFO that is used as a metric for when the satellite can receive more data from the master. The setting is not system-wide and can and must be set independently for each core device in a system. In other words, to enable or disable event spreading in satellites, flash the satellite core configuration directly; this will have no effect on any other satellites or the master. 
 
 Seamless handover
 -----------------
