@@ -14,7 +14,25 @@
 
   outputs = { self, mozilla-overlay, sipyco, nac3, artiq-comtools, src-migen, src-misoc }:
     let
-      pkgs = import nac3.inputs.nixpkgs { system = "x86_64-linux"; overlays = [ (import mozilla-overlay) ]; };
+      pkgs = import nac3.inputs.nixpkgs { system = "x86_64-linux"; overlays = [
+        (import mozilla-overlay)
+        (final: prev: {
+          pythonPackagesExtensions = prev.pythonPackagesExtensions ++ [
+            (
+              python-final: python-prev: {
+                pyqt5 = python-prev.pyqt5.overridePythonAttrs (oldAttrs: rec {
+                  version = "5.15.10";
+                  src = python-prev.fetchPypi {
+                    pname = "PyQt5";
+                    inherit version;
+                    hash = "sha256-1Gt4BLGxCk/5F1P4ET5bVYDStEYvMiYoji2ESXM0iYo=";
+                  };
+                });
+              }
+            )
+          ];
+        })
+      ]; };
       pkgs-aarch64 = import nac3.inputs.nixpkgs { system = "aarch64-linux"; };
 
       artiqVersionMajor = 10;
