@@ -140,7 +140,7 @@ class _NestedFinally(EnvExperiment):
                 raise ValueError
             finally:
                 try:
-                    raise IndexError()
+                    raise IndexError
                 except ValueError:
                     self._trace(0)
         except:
@@ -166,7 +166,7 @@ class _NestedExceptions(EnvExperiment):
                 raise
             finally:
                 try:
-                    raise IndexError()
+                    raise IndexError
                 except ValueError:
                     self._trace(1)
                     raise
@@ -212,7 +212,7 @@ class _Exceptions(EnvExperiment):
                 if i == 1:
                     raise _MyException()
                 elif i == 2:
-                    raise IndexError()
+                    raise IndexError
             except IndexError:
                 self._trace(101)
                 raise

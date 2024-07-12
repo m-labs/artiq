@@ -689,7 +689,7 @@ class SinaraTester(EnvExperiment):
                     window=0x000, profiles=[1 for _ in range(len(osc))])
                 self.core.delay(1.*ms)
         else:
-            raise ValueError()
+            raise ValueError
 
     @kernel
     def phaser_led_wave(self, phasers: list[Phaser]):

@@ -111,7 +111,7 @@ class Fastino:
         :param addr: Address to read from.
         :return: The data read.
         """
-        raise NotImplementedError()
+        raise NotImplementedError
         # rtio_output(self.channel | addr | 0x80)
         # return rtio_input_data(self.channel >> 8)
 

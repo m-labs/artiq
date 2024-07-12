@@ -72,7 +72,7 @@ class RTT(EnvExperiment):
                 self.ttl_inout.pulse(1*us)
         t1 = self.ttl_inout.timestamp_mu(now_mu())
         if t1 < 0:
-            raise PulseNotReceived()
+            raise PulseNotReceived
         self.set_dataset("rtt", self.core.mu_to_seconds(t1 - t0))
 
 
@@ -96,7 +96,7 @@ class Loopback(EnvExperiment):
                 self.loop_out.pulse(1*us)
         t1 = self.loop_in.timestamp_mu(now_mu())
         if t1 < 0:
-            raise PulseNotReceived()
+            raise PulseNotReceived
         self.set_dataset("rtt", self.core.mu_to_seconds(t1 - t0))
 
 
@@ -257,7 +257,7 @@ class LoopbackGateTiming(EnvExperiment):
         in_mu = self.loop_in.timestamp_mu(gate_end_mu)
         print("timings: ", gate_start_mu, in_mu - lat_offset, gate_end_mu)
         if in_mu < 0:
-            raise PulseNotReceived()
+            raise PulseNotReceived
         if not (gate_start_mu <= (in_mu - lat_offset) <= gate_end_mu):
             raise IncorrectPulseTiming("Input event should occur during gate")
         if not (-2 < (in_mu - out_mu - loop_delay_mu) < 2):
@@ -433,7 +433,7 @@ class HandoverException(EnvExperiment):
     def k(self, var):
         self.set_dataset(var, now_mu())
         delay_mu(1234)
-        raise DummyException()
+        raise DummyException
 
     def run(self):
         try:

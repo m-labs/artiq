@@ -81,6 +81,6 @@ class TDR(EnvExperiment):
         for i in range(len(self.t)):
             ti = self.ttl3.timestamp_mu(now_mu())
             if ti <= int64(0):
-                raise PulseNotReceivedError()
+                raise PulseNotReceivedError
             self.t[i] = int32(int64(self.t[i]) + ti - t0)
         self.ttl3.count(now_mu())  # flush

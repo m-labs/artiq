@@ -118,12 +118,12 @@ class Grabber:
         if timestamp == int64(-1):
             raise GrabberTimeoutException("Timeout before Grabber frame available")
         if sentinel != self.sentinel:
-            raise OutOfSyncException()
+            raise OutOfSyncException
 
         for i in range(len(data)):
             timestamp, roi_output = rtio_input_timestamped_data(timeout_mu, channel)
             if roi_output == self.sentinel:
-                raise OutOfSyncException()
+                raise OutOfSyncException
             if timestamp == int64(-1):
                 raise GrabberTimeoutException(
                     "Timeout retrieving ROIs (attempting to read more ROIs than enabled?)")

@@ -138,7 +138,7 @@ class Option(Generic[T]):
 
     def unwrap(self):
         if self.is_none():
-            raise UnwrapNoneError()
+            raise UnwrapNoneError
         return self._nac3_option
 
     def __repr__(self) -> str:
