@@ -348,7 +348,7 @@ class _DACWidget(QtWidgets.QFrame):
         grid.setHorizontalSpacing(0)
         grid.setVerticalSpacing(0)
         self.setLayout(grid)
-        label = QtWidgets.QLabel("{} ch{}".format(title, channel))
+        label = QtWidgets.QLabel("{}_ch{}".format(title, channel))
         label.setAlignment(QtCore.Qt.AlignCenter)
         grid.addWidget(label, 1, 1)
 
@@ -373,7 +373,7 @@ class _DACWidget(QtWidgets.QFrame):
         return (self.title, self.channel)
 
     def to_model_path(self):
-        return "dac/{} ch{}".format(self.title, self.channel)
+        return "dac/{}_ch{}".format(self.title, self.channel)
 
 
 _WidgetDesc = namedtuple("_WidgetDesc", "uid comment cls arguments")
