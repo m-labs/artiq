@@ -7,7 +7,7 @@ Utilities
 ARTIQ Firmware Service (AFWS) client
 ------------------------------------
 
-This tool serves as a client for building tailored firmware and gateware from M-Lab's servers and downloading the binaries in ready-to-flash format. It is necessary to have a valid subscription to AFWS. Subscription also includes general helpdesk support and can be purchased or extended by contacting ``sales@``. One year of support is included with most hardware purchased from M-Labs. 
+This tool serves as a client for building tailored firmware and gateware from M-Lab's servers and downloading the binaries in ready-to-flash format. It is necessary to have a valid subscription to AFWS to use it. Subscription also includes general helpdesk support and can be purchased or extended by contacting ``sales@``. One year of support is included with any Kasli carriers or crates containing them purchased from M-Labs. Additional one-time use is generally provided with purchase of additional cards to facilitate the system configuration change. 
 
 .. argparse:: 
    :ref: artiq.frontend.afws_client.get_argparser
@@ -17,7 +17,7 @@ This tool serves as a client for building tailored firmware and gateware from M-
 
    passwd 
       .. warning:: 
-         After receiving your credentials from M-Labs, it is strongly recommended to change your password as soon as possible. It is your responsibility to set and remember a secure password. In emergencies passwords can be reset by contacting helpdesk@.  
+         After receiving your credentials from M-Labs, it is strongly recommended to change your password as soon as possible. It is your responsibility to set and remember a secure password. If necessary, passwords can be reset by contacting helpdesk@.  
    
 Static compiler
 ---------------

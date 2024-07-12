@@ -10,12 +10,12 @@ While it is possible to use the other parts of ARTIQ (controllers, master, GUI, 
 Flash storage
 -------------
 
-The core device contains some flash storage space which is used to store configuration data and the idle/startup kernels. It is one sector (typically 64 kB) large and organized as a list of key-value records, accessible either through ``artiq_mkfs`` and ``artiq_flash`` or (preferable in most cases) the ``config`` option of the ``artiq_coremgmt`` core management tool (see below). Information can be stored to keys of any name, but the specific keys currently used and referenced by ARTIQ in one or another form are summarized below: 
+The core device contains some flash storage space which is used to store configuration data and the idle/startup kernels. It is one sector (typically 64 kB) large and organized as a list of key-value records, accessible either through ``artiq_mkfs`` and ``artiq_flash`` or (preferable in most cases) the ``config`` option of the ``artiq_coremgmt`` core management tool (see below). Information can be stored to keys of any name, but the specific keys currently used and referenced by ARTIQ are summarized below:
 
 ``idle_kernel``
-  Stores (compiled ``tar`` or ``.elf`` binary of) idle kernel. See :ref:`miscellaneous_config_core_device`. 
+  Stores (compiled ``.tar`` or ``.elf`` binary of) idle kernel. See :ref:`miscellaneous_config_core_device`. 
 ``startup_kernel``
-  Stores (compiled ``tar`` or ``.elf`` binary of) startup kernel. See :ref:`miscellaneous_config_core_device`.
+  Stores (compiled ``.tar`` or ``.elf`` binary of) startup kernel. See :ref:`miscellaneous_config_core_device`.
 ``ip`` 
   Sets IP address of core device. For this and other networking options see also :ref:`core-device-networking`.
 ``mac``
@@ -39,7 +39,7 @@ The core device contains some flash storage space which is used to store configu
 ``device_map``
   If set, allows the core log to connect RTIO channels to device names and use device names as well as channel numbers in log output. A correctly formatted table can be automatically generated with ``artiq_rtiomap``, see :ref:`Utilities<rtiomap-tool>`.
 ``net_trace``
-  If set to ``1``, will activate net trace (print all packets sent and received to UART and core log). This will considerably slow down all network response from the core. Not applicable for ARTIQ-Zynq (Kasli-SoC, ZC705).
+  If set to ``1``, will activate net trace (print all packets sent and received to UART and core log). This will considerably slow down all network response from the core. Not applicable for ARTIQ-Zynq (Kasli-SoC, ZC706).
 ``panic_reset`` 
   If set to ``1``, core device will restart automatically.  Not applicable for ARTIQ-Zynq.
 ``no_flash_boot``

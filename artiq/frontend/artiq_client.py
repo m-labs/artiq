@@ -57,7 +57,7 @@ def get_argparser():
                                  "(default: %(default)s)")
     parser_add.add_argument("-P", "--priority", default=0, type=int,
                             help="priority (higher value means sooner "
-                                 "scheduling default: %(default)s)")
+                                 "scheduling, default: %(default)s)")
     parser_add.add_argument("-t", "--timed", default=None, type=str,
                             help="set a due date for the experiment "
                             "(default: %(default)s)")
@@ -98,13 +98,11 @@ def get_argparser():
     parser_set_dataset.add_argument("value", metavar="VALUE",
                                     help="value in PYON format")
     parser_set_dataset.add_argument("--unit", default=None, type=str,
-                                    help="physical unit of the dataset (default: %(default)s)")
+                                    help="physical unit of the dataset")
     parser_set_dataset.add_argument("--scale", default=None, type=float,
-                                    help="factor to multiply value of dataset in displays "
-                                    "(default: %(default)s)")
+                                    help="factor to multiply value of dataset in displays")
     parser_set_dataset.add_argument("--precision", default=None, type=int,
-                                    help="maximum number of decimals to print in displays "
-                                    "(default: %(default)s)")
+                                    help="maximum number of decimals to print in displays")
 
     persist_group = parser_set_dataset.add_mutually_exclusive_group()
     persist_group.add_argument("-p", "--persist", action="store_true",
