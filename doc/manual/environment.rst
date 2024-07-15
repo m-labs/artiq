@@ -1,5 +1,5 @@
-The environment
-===============
+Environment
+===========
 
 ARTIQ experiments exist in an environment, which consists of devices, arguments, and datasets. Access to the environment is handled through the :class:`~artiq.language.environment.HasEnvironment` manager provided by the :class:`~artiq.language.environment.EnvExperiment` class that experiments should derive from. 
 
