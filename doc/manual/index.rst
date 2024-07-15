@@ -6,7 +6,7 @@ ARTIQ manual
     :maxdepth: 2
     
     introduction
-    release_notes
+    releases
 
 .. toctree::
     :caption: Setting up ARTIQ 
