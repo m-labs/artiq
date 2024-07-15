@@ -162,7 +162,7 @@ class Client:
         return "OK", json_str
 
 
-def main():
+def get_argparser():
     parser = argparse.ArgumentParser()
     parser.add_argument("--server", default="afws.m-labs.hk", help="server to connect to (default: %(default)s)")
     parser.add_argument("--port", default=80, type=int, help="port to connect to (default: %(default)d)")
@@ -184,7 +184,11 @@ def main():
     act_get_json.add_argument("-o", "--out", default=None, help="output JSON file")
     act_get_json.add_argument("-f", "--force", action="store_true", help="overwrite file if it already exists")
     args = parser.parse_args()
+    return parser
 
+
+def main():
+    args = get_argparser().parse_args()
     client = Client(args.server, args.port, args.cert)
     try:
         if args.action == "build":
