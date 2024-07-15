@@ -44,7 +44,11 @@ class AD9912:
         self.pll_en = pll_en
         self.pll_n = pll_n
         if pll_en:
-            sysclk = self.cpld.refclk / [1, 1, 2, 4][self.cpld.clk_div] * pll_n
+            refclk = self.cpld.refclk
+            if refclk < 11e6:
+                # use SYSCLK PLL Doubler
+                refclk = refclk * 2
+            sysclk = refclk / [1, 1, 2, 4][self.cpld.clk_div] * pll_n
         else:
             sysclk = self.cpld.refclk
         assert sysclk <= 1e9
@@ -115,7 +119,11 @@ class AD9912:
             self.write(AD9912_N_DIV, self.pll_n // 2 - 2, length=1)
             self.cpld.io_update.pulse(2 * us)
             # I_cp = 375 µA, VCO high range
-            self.write(AD9912_PLLCFG, 0b00000101, length=1)
+            if self.cpld.refclk < 11e6:
+                # enable SYSCLK PLL Doubler
+                self.write(AD9912_PLLCFG, 0b00001101, length=1)
+            else:
+                self.write(AD9912_PLLCFG, 0b00000101, length=1)
             self.cpld.io_update.pulse(2 * us)
         delay(1 * ms)
 
