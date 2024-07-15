@@ -168,7 +168,7 @@ class Client:
         return "OK", json_str
 
 
-def get_argparser():
+async def main_async():
     parser = argparse.ArgumentParser()
     parser.add_argument("--server", default="afws.m-labs.hk", help="server to connect to (default: %(default)s)")
     parser.add_argument("--port", default=80, type=int, help="port to connect to (default: %(default)d)")
@@ -189,11 +189,6 @@ def get_argparser():
     act_get_json.add_argument("variant", nargs="?", default=None, help="variant to get (can be omitted if user is authorised to build only one)")
     act_get_json.add_argument("-o", "--out", default=None, help="output JSON file")
     act_get_json.add_argument("-f", "--force", action="store_true", help="overwrite file if it already exists")
-    return parser  
-
-
-async def main_async():
-    parser = get_argparser()
     args = parser.parse_args()
 
     client = Client(args.server, args.port, args.cert)
