@@ -69,6 +69,10 @@ In a different console, verify that you can connect to the TCP port: ::
     Connected to ::1.
     Escape character is '^]'.
 
+.. tip ::
+
+    To exit telnet, use the escape character combination (Ctrl + ]) to access the ``telnet>`` prompt, and then enter ``quit`` or ``close`` to close the connection. 
+
 Also verify that a target (i.e. available service for RPC) named "hello" exists: ::
 
     $ sipyco_rpctool ::1 3249 list-targets
