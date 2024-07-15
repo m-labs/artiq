@@ -202,7 +202,10 @@ class _DDSWidget(_MoninjWidget):
         self.dds_name = title
         self.cur_frequency = 0
         self.dds_model = _DDSModel(dds_type, ref_clk, cpld, pll, clk_div)
-        self.title = title
+        if self.dds_model.is_urukul:
+            self.title = "{}[{}]".format(cpld, self.channel)
+        else:
+            self.title = title
 
         _MoninjWidget.__init__(self, title)
 
@@ -321,7 +324,7 @@ class _DDSWidget(_MoninjWidget):
         return (1, self.bus_channel, self.channel)
 
     def uid(self):
-        return self.title
+        return self.dds_name
 
     def to_model_path(self):
         return "dds/{}".format(self.title)
