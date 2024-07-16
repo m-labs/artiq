@@ -15,8 +15,8 @@ ARTIQ manual
     installing
     flashing
     configuring
-    developing
-
+    building_developing
+    
 .. toctree::
     :caption: Tutorials
     :maxdepth: 2
