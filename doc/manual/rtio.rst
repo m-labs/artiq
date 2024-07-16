@@ -88,7 +88,7 @@ This sequence is exactly equivalent to::
 
   ttl.pulse(2*us)
 
-This method :meth:`artiq.coredevice.ttl.TTLOut.pulse` advances the timeline cursor (using :func:`~artiq.language.core.delay` internally) by exactly the amount given. Other methods such as :meth:`~artiq.coredevice.ttl.TTLOut.on`, :meth:`~artiq.coredevice.ttl.TTLOut.off`, :meth:`~artiq.coredevice.ad9914.set` do not modify the timeline cursor. The latter are called *zero-duration* methods.
+This method :meth:`artiq.coredevice.ttl.TTLOut.pulse` advances the timeline cursor (using :func:`~artiq.language.core.delay` internally) by exactly the amount given. Other methods such as :meth:`~artiq.coredevice.ttl.TTLOut.on`, :meth:`~artiq.coredevice.ttl.TTLOut.off`, :meth:`~artiq.coredevice.ad9914.AD9914.set` do not modify the timeline cursor. The latter are called *zero-duration* methods.
 
 Output errors and exceptions 
 ----------------------------
