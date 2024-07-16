@@ -28,7 +28,7 @@ def kernel(arg=None, flags={}):
     This decorator marks an object's method for execution on the core
     device.
 
-    When a decorated method is called from the Python interpreter, the :attr:`core`
+    When a decorated method is called from the Python interpreter, the ``core``
     attribute of the object is retrieved and used as core device driver. The
     core device driver will typically compile, transfer and run the method
     (kernel) on the device.
@@ -41,7 +41,7 @@ def kernel(arg=None, flags={}):
         - if the method is a regular Python method (not a kernel), it generates
           a remote procedure call (RPC) for execution on the host.
 
-    The decorator takes an optional parameter that defaults to :attr`core` and
+    The decorator takes an optional parameter that defaults to ``core`` and
     specifies the name of the attribute to use as core device driver.
 
     This decorator must be present in the global namespace of all modules using
@@ -134,7 +134,7 @@ def portable(arg=None, flags={}):
 def rpc(arg=None, flags={}):
     """
     This decorator marks a function for execution on the host interpreter.
-    This is also the default behavior of ARTIQ; however, this decorator allows
+    This is also the default behavior of ARTIQ; however, this decorator allows for
     specifying additional flags.
     """
     if arg is None:
@@ -256,7 +256,7 @@ _time_manager = _DummyTimeManager()
 def set_time_manager(time_manager):
     """Set the time manager used for simulating kernels by running them
     directly inside the Python interpreter. The time manager responds to the
-    entering and leaving of interleave/parallel/sequential blocks, delays, etc. and
+    entering and leaving of parallel/sequential blocks, delays, etc. and
     provides a time-stamped logging facility for events.
     """
     global _time_manager
@@ -280,7 +280,7 @@ class _Parallel:
 
     The execution time of a parallel block is the execution time of its longest
     statement. A parallel block may contain sequential blocks, which themselves
-    may contain interleave blocks, etc.
+    may contain parallel blocks, etc.
     """
     def __enter__(self):
         _time_manager.enter_parallel()
@@ -340,5 +340,5 @@ def watchdog(timeout):
 
 
 class TerminationRequested(Exception):
-    """Raised by ``pause`` when the user has requested termination."""
+    """Raised by :meth:`pause` when the user has requested termination."""
     pass

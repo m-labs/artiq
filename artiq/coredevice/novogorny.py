@@ -16,31 +16,31 @@ SPI_CS_SR = 2
 
 @portable
 def adc_ctrl(channel=1, softspan=0b111, valid=1):
-    """Build a LTC2335-16 control word"""
+    """Build a LTC2335-16 control word."""
     return (valid << 7) | (channel << 3) | softspan
 
 
 @portable
 def adc_softspan(data):
-    """Return the softspan configuration index from a result packet"""
+    """Return the softspan configuration index from a result packet."""
     return data & 0x7
 
 
 @portable
 def adc_channel(data):
-    """Return the channel index from a result packet"""
+    """Return the channel index from a result packet."""
     return (data >> 3) & 0x7
 
 
 @portable
 def adc_data(data):
-    """Return the ADC value from a result packet"""
+    """Return the ADC value from a result packet."""
     return (data >> 8) & 0xffff
 
 
 @portable
 def adc_value(data, v_ref=5.):
-    """Convert a ADC result packet to SI units (Volt)"""
+    """Convert a ADC result packet to SI units (volts)."""
     softspan = adc_softspan(data)
     data = adc_data(data)
     g = 625
@@ -107,7 +107,7 @@ class Novogorny:
     def configure(self, data):
         """Set up the ADC sequencer.
 
-        :param data: List of 8 bit control words to write into the sequencer
+        :param data: List of 8-bit control words to write into the sequencer
             table.
         """
         if len(data) > 1:
@@ -137,12 +137,10 @@ class Novogorny:
 
     @kernel
     def sample(self, next_ctrl=0):
-        """Acquire a sample
-
-        .. seealso:: :meth:`sample_mu`
+        """Acquire a sample. See also :meth:`Novogorny.sample_mu`. 
 
         :param next_ctrl: ADC control word for the next sample
-        :return: The ADC result packet (Volt)
+        :return: The ADC result packet (volts)
         """
         return adc_value(self.sample_mu(), self.v_ref)
 
@@ -151,7 +149,7 @@ class Novogorny:
         """Acquire a burst of samples.
 
         If the burst is too long and the sample rate too high, there will be
-        RTIO input overflows.
+        :exc:RTIOOverflow exceptions.
 
         High sample rates lead to gain errors since the impedance between the
         instrumentation amplifier and the ADC is high.

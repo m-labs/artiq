@@ -96,19 +96,19 @@ When using multiple pipelines it is the responsibility of the user to ensure tha
 Pauses
 ^^^^^^
 
-In the run stage, an experiment may yield to the scheduler by calling the ``pause()`` method of the scheduler.
-If there are other experiments with higher priority (e.g. a high-priority experiment has been newly submitted, or reached its due date and become eligible for execution), the higher-priority experiments are executed first, and then ``pause()`` returns. If there are no such experiments, ``pause()`` returns immediately. To check whether ``pause()`` would in fact *not* return immediately, use :meth:`artiq.master.scheduler.Scheduler.check_pause`.
+In the run stage, an experiment may yield to the scheduler by calling the :meth:`pause` method of the scheduler.
+If there are other experiments with higher priority (e.g. a high-priority experiment has been newly submitted, or reached its due date and become eligible for execution), the higher-priority experiments are executed first, and then :meth:`pause` returns. If there are no such experiments, :meth:`pause` returns immediately. To check whether :meth:`pause` would in fact *not* return immediately, use :meth:`artiq.master.scheduler.Scheduler.check_pause`.
 
-The experiment must place the hardware in a safe state and disconnect from the core device (typically, by calling ``self.core.comm.close()`` from the kernel, which is equivalent to :meth:`artiq.coredevice.core.Core.close`) before calling ``pause()``.
+The experiment must place the hardware in a safe state and disconnect from the core device (typically, by calling ``self.core.comm.close()`` from the kernel, which is equivalent to :meth:`artiq.coredevice.core.Core.close`) before calling :meth:`pause`.
 
-Accessing the ``pause()`` and :meth:`~artiq.master.scheduler.Scheduler.check_pause` methods is done through a virtual device called ``scheduler`` that is accessible to all experiments. The scheduler virtual device is requested like regular devices using :meth:`~artiq.language.environment.HasEnvironment.get_device` (``self.get_device()``) or :meth:`~artiq.language.environment.HasEnvironment.setattr_device` (``self.setattr_device()``).
+Accessing the :meth:`pause` and :meth:`~artiq.master.scheduler.Scheduler.check_pause` methods is done through a virtual device called ``scheduler`` that is accessible to all experiments. The scheduler virtual device is requested like regular devices using :meth:`~artiq.language.environment.HasEnvironment.get_device` (``self.get_device()``) or :meth:`~artiq.language.environment.HasEnvironment.setattr_device` (``self.setattr_device()``).
 
-:meth:`~artiq.master.scheduler.Scheduler.check_pause` can be called (via RPC) from a kernel, but ``pause()`` must not be.
+:meth:`~artiq.master.scheduler.Scheduler.check_pause` can be called (via RPC) from a kernel, but :meth:`pause` must not be.
 
 Scheduler API reference
 -----------------------
 
-The scheduler is exposed to the experiments via a virtual device called ``scheduler``. It can be requested like any regular device, and then the methods below can be called on the returned object.
+The scheduler is exposed to the experiments via a virtual device called ``scheduler``. It can be requested like any regular device, and the methods below, as well as :meth:`pause`, can be called on the returned object.
 
 The scheduler virtual device also contains the attributes ``rid``, ``pipeline_name``, ``priority`` and ``expid``, which contain the corresponding information about the current run.
 
@@ -130,20 +130,17 @@ CCBs are used by experiments to configure applets in the dashboard, for example 
 Applet request interfaces
 -------------------------
 
-Applet request interfaces allow applets to perform actions on the master database and set arguments in the dashboard. Applets may inherit from the ``artiq.applets.simple.SimpleApplet`` and call the methods defined below through the `req` attribute.
+Applet request interfaces allow applets to perform actions on the master database and set arguments in the dashboard. Applets may inherit from ``artiq.applets.simple.SimpleApplet`` and call the methods defined below through the ``req`` attribute.
 
-Embedded applets should use `AppletRequestIPC` while standalone applets use `AppletRequestRPC`. `SimpleApplet` automatically chooses the correct interface on initialization. 
+Embedded applets should use ``AppletRequestIPC`` while standalone applets use ``AppletRequestRPC``. ``SimpleApplet`` automatically chooses the correct interface on initialization. 
 
 .. autoclass:: artiq.applets.simple._AppletRequestInterface
    :members:
 
-
 Applet entry area
 -----------------
 
-Argument widgets can be used in applets through the `EntryArea` class.
-
-Below is a simple example code snippet using the `EntryArea` class: ::
+Argument widgets can be used in applets through the :class:`~artiq.gui.applets.EntryArea` class. Below is a simple example code snippet: :: 
 
    entry_area = EntryArea()
 
@@ -159,7 +156,7 @@ Below is a simple example code snippet using the `EntryArea` class: ::
    # False
    print(entry_area.bl)
 
-The `EntryArea` object can then be added to a layout and integrated with the applet GUI. Multiple `EntryArea` objects can be used in a single applet.
+The :class:`~artiq.gui.applets.EntryArea`  object can then be added to a layout and integrated with the applet GUI. Multiple :class:`~artiq.gui.applets.EntryArea`  objects can be used in a single applet.
 
 .. class:: artiq.gui.applets.EntryArea
    
@@ -169,7 +166,7 @@ The `EntryArea` object can then be added to a layout and integrated with the app
       attribute are the same.
 
       :param name: Argument name
-      :param proc: Argument processor, for example ``NumberValue``
+      :param proc: Argument processor, for example :class:`~artiq.language.environment.NumberValue`
       :param group: Used to group together arguments in the GUI under a common category
       :param tooltip: Tooltip displayed when hovering over the entry widget
 
@@ -181,18 +178,18 @@ The `EntryArea` object can then be added to a layout and integrated with the app
 
    .. method:: get_values()
 
-      Get all values in the ``EntryArea`` as a dictionary. Names are stored as keys, and argument values as values.
+      Get all values in the :class:`~artiq.gui.applets.EntryArea` as a dictionary. Names are stored as keys, and argument values as values.
 
    .. method:: set_value(name, value)
 
       Set the value of an entry widget. The change is temporary and will reset to default when the reset button is clicked.
 
       :param name: Argument name
-      :param value: Object representing the new value of the argument. For ``Scannable`` arguments, this parameter
-          should be a ``ScanObject``. The type of the ``ScanObject`` will be set as the selected type when this function is called. 
+      :param value: Object representing the new value of the argument. For :class:`~artiq.language.scan.Scannable` arguments, this parameter
+          should be a :class:`~artiq.language.scan.ScanObject`. The type of the :class:`~artiq.language.scan.ScanObject` will be set as the selected type when this function is called. 
 
    .. method:: set_values(values)
 
-      Set multiple values from a dictionary input. Calls ``set_value()`` for each key-value pair.
+      Set multiple values from a dictionary input. Calls :meth:`set_value` for each key-value pair.
 
       :param values: Dictionary with names as keys and new argument values as values.
