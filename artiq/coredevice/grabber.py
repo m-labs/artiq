@@ -102,7 +102,7 @@ class Grabber:
         this call or the next.
         
         If the timeout is reached before data is available, the exception
-        GrabberTimeoutException is raised.
+        :exc:`GrabberTimeoutException` is raised.
 
         :param timeout_mu: Timestamp at which a timeout will occur. Set to -1
                            (default) to disable timeout. 
