@@ -416,6 +416,12 @@ def setup_from_ddb(ddb):
                             widget = _WidgetDesc((k, channel), comment, _DACWidget,
                                                  (spi_channel, channel, k, vref, offset_dacs))
                             description.add(widget)
+                    elif (v["module"] == "artiq.coredevice.fastino" and v["class"] == "Fastino"):
+                        bus_channel = v["arguments"]["channel"]
+                        for channel in range(0, 32):
+                            widget = _WidgetDesc((k, channel), comment, _DACWidget,
+                                                 (bus_channel, channel, k, 5, 8192))
+                            description.add(widget)
                 elif v["type"] == "controller" and k == "core_moninj":
                     mi_addr = v["host"]
                     mi_port = v.get("port_proxy", 1383)
