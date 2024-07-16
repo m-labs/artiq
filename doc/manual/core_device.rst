@@ -12,8 +12,6 @@ Flash storage
 
 The core device contains some flash storage space which is used to store configuration data. It is one sector (typically 64 kB) large and organized as a list of key-value records, accessible by using ``artiq_coremgmt`` (see :ref:`core-device-management-tool`). The core device IP and MAC addresses, as well as, if present, the startup and/or idle kernels (see :ref:`miscellaneous_config_core_device`) are stored here. 
 
-.. _board-ports:
-
 FPGA board ports
 ^^^^^^^^^^^^^^^^
 
@@ -151,7 +149,7 @@ The core device generates the RTIO clock using a PLL locked either to an interna
 
 The selected option can be observed in the core device boot logs and accessed using ``artiq_coremgmt config`` with key ``rtio_clock``. 
 
-As of ARTIQ 8, it is now possible for Kasli and Kasli-SoC configurations to enable WRPLL -- a clock recovery method using `DDMTD <http://white-rabbit.web.cern.ch/documents/DDMTD_for_Sub-ns_Synchronization.pdf>`_ and Si549 oscillators -- both to lock the main RTIO clock and (in DRTIO configurations) to lock satellites to master. This is set by the ``enable_wrpll`` option in the JSON description file. Because WRPLL requires slightly different gateware and firmware, it is necessary to re-flash devices to enable or disable it in extant systems. If you would like to obtain the firmware for a different WRPLL setting through ``awfs_client``, write to the helpdesk@ email. 
+As of ARTIQ 8, it is now possible for Kasli and Kasli-SoC configurations to enable WRPLL -- a clock recovery method using `DDMTD <http://white-rabbit.web.cern.ch/documents/DDMTD_for_Sub-ns_Synchronization.pdf>`_ and Si549 oscillators -- both to lock the main RTIO clock and (in DRTIO configurations) to lock satellites to master. This is set by the ``enable_wrpll`` option in the JSON description file. Because WRPLL requires slightly different gateware and firmware, it is necessary to re-flash devices to enable or disable it in extant systems. If you would like to obtain the firmware for a different WRPLL setting through AFWS, write to the helpdesk@ email. 
 
 If phase noise performance is the priority, it is recommended to use ``ext0_synth0_125to125`` over other ``ext0`` options, as this bypasses the (noisy) MMCM.  
 

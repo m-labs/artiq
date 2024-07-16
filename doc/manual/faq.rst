@@ -1,10 +1,10 @@
 .. Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
 
 FAQ
-###
+===
 
 How do I ...
-============
+------------
 
 find ARTIQ examples?
 --------------------
