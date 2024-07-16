@@ -16,13 +16,13 @@ SPI_CS_PGIA = 1  # separate SPI bus, CS used as RCLK
 
 @portable
 def adc_mu_to_volt(data, gain=0, corrected_fs=True):
-    """Convert ADC data in machine units to Volts.
+    """Convert ADC data in machine units to volts.
 
-    :param data: 16 bit signed ADC word
+    :param data: 16-bit signed ADC word
     :param gain: PGIA gain setting (0: 1, ..., 3: 1000)
     :param corrected_fs: use corrected ADC FS reference.
-        Should be True for Samplers' revisions after v2.1. False for v2.1 and earlier.
-    :return: Voltage in Volts
+        Should be ``True`` for Sampler revisions after v2.1. ``False`` for v2.1 and earlier.
+    :return: Voltage in volts
     """
     if gain == 0:
         volt_per_lsb = 20.48 / (1 << 16) if corrected_fs else 20. / (1 << 16)
@@ -40,7 +40,7 @@ def adc_mu_to_volt(data, gain=0, corrected_fs=True):
 class Sampler:
     """Sampler ADC.
 
-    Controls the LTC2320-16 8 channel 16 bit ADC with SPI interface and
+    Controls the LTC2320-16 8-channel 16-bit ADC with SPI interface and
     the switchable gain instrumentation amplifiers.
 
     :param spi_adc_device: ADC SPI bus device name
@@ -119,12 +119,12 @@ class Sampler:
         Perform a conversion and transfer the samples.
 
         This assumes that the input FIFO of the ADC SPI RTIO channel is deep
-        enough to buffer the samples (half the length of `data` deep).
+        enough to buffer the samples (half the length of ``data`` deep).
         If it is not, there will be RTIO input overflows.
 
         :param data: List of data samples to fill. Must have even length.
             Samples are always read from the last channel (channel 7) down.
-            The `data` list will always be filled with the last item
+            The ``data`` list will always be filled with the last item
             holding to the sample from channel 7.
         """
         self.cnv.pulse(30*ns)  # t_CNVH
@@ -142,7 +142,7 @@ class Sampler:
     def sample(self, data):
         """Acquire a set of samples.
 
-        .. seealso:: :meth:`sample_mu`
+        See also :meth:`Sampler.sample_mu`.
 
         :param data: List of floating point data samples to fill.
         """

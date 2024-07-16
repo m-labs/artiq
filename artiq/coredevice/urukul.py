@@ -130,7 +130,7 @@ class CPLD:
     :param spi_device: SPI bus device name
     :param io_update_device: IO update RTIO TTLOut channel name
     :param dds_reset_device: DDS reset RTIO TTLOut channel name
-    :param sync_device: AD9910 SYNC_IN RTIO TTLClockGen channel name
+    :param sync_device: AD9910 ``SYNC_IN`` RTIO TTLClockGen channel name
     :param refclk: Reference clock (SMA, MMCX or on-board 100 MHz oscillator)
         frequency in Hz
     :param clk_sel: Reference clock selection. For hardware revision >= 1.3
@@ -143,9 +143,9 @@ class CPLD:
         1: divide-by-1; 2: divide-by-2; 3: divide-by-4.
         On Urukul boards with CPLD gateware before v1.3.1 only the default
         (0, i.e. variant dependent divider) is valid.
-    :param sync_sel: SYNC (multi-chip synchronisation) signal source selection.
-        0 corresponds to SYNC_IN being supplied by the FPGA via the EEM
-        connector. 1 corresponds to SYNC_OUT from DDS0 being distributed to the
+    :param sync_sel: ``SYNC`` (multi-chip synchronisation) signal source selection.
+        0 corresponds to ``SYNC_IN`` being supplied by the FPGA via the EEM
+        connector. 1 corresponds to ``SYNC_OUT`` from DDS0 being distributed to the
         other chips.
     :param rf_sw: Initial CPLD RF switch register setting (default: 0x0).
         Knowledge of this state is not transferred between experiments.
@@ -153,8 +153,8 @@ class CPLD:
         0x00000000). See also :meth:`get_att_mu` which retrieves the hardware
         state without side effects. Knowledge of this state is not transferred
         between experiments.
-    :param sync_div: SYNC_IN generator divider. The ratio between the coarse
-        RTIO frequency and the SYNC_IN generator frequency (default: 2 if
+    :param sync_div: ``SYNC_IN`` generator divider. The ratio between the coarse
+        RTIO frequency and the ``SYNC_IN`` generator frequency (default: 2 if
         `sync_device` was specified).
     :param core_device: Core device name
 
@@ -204,7 +204,7 @@ class CPLD:
 
         See :func:`urukul_cfg` for possible flags.
 
-        :param cfg: 24 bit data to be written. Will be stored at
+        :param cfg: 24-bit data to be written. Will be stored at
             :attr:`cfg_reg`.
         """
         self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END, 24,
@@ -237,7 +237,7 @@ class CPLD:
 
         Resets the DDS I/O interface and verifies correct CPLD gateware
         version.
-        Does not pulse the DDS MASTER_RESET as that confuses the AD9910.
+        Does not pulse the DDS ``MASTER_RESET`` as that confuses the AD9910.
 
         :param blind: Do not attempt to verify presence and compatibility.
         """
@@ -283,7 +283,7 @@ class CPLD:
     def cfg_switches(self, state: TInt32):
         """Configure all four RF switches through the configuration register.
 
-        :param state: RF switch state as a 4 bit integer.
+        :param state: RF switch state as a 4-bit integer.
         """
         self.cfg_write((self.cfg_reg & ~0xf) | state)
 
@@ -326,11 +326,10 @@ class CPLD:
 
     @kernel
     def set_all_att_mu(self, att_reg: TInt32):
-        """Set all four digital step attenuators (in machine units).
+        """Set all four digital step attenuators (in machine units). 
+        See also :meth:`set_att_mu`.
 
-        .. seealso:: :meth:`set_att_mu`
-
-        :param att_reg: Attenuator setting string (32 bit)
+        :param att_reg: Attenuator setting string (32-bit)
         """
         self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END, 32,
                                SPIT_ATT_WR, CS_ATT)
@@ -342,8 +341,7 @@ class CPLD:
         """Set digital step attenuator in SI units.
 
         This method will write the attenuator settings of all four channels.
-
-        .. seealso:: :meth:`set_att_mu`
+        See also :meth:`set_att_mu`.
 
         :param channel: Attenuator channel (0-3).
         :param att: Attenuation setting in dB. Higher value is more
@@ -359,9 +357,9 @@ class CPLD:
         The result is stored and will be used in future calls of
         :meth:`set_att_mu` and :meth:`set_att`.
 
-        .. seealso:: :meth:`get_channel_att_mu`
+        See also :meth:`get_channel_att_mu`.
 
-        :return: 32 bit attenuator settings
+        :return: 32-bit attenuator settings
         """
         self.bus.set_config_mu(SPI_CONFIG | spi.SPI_INPUT, 32,
                                SPIT_ATT_RD, CS_ATT)
@@ -380,7 +378,7 @@ class CPLD:
         The result is stored and will be used in future calls of
         :meth:`set_att_mu` and :meth:`set_att`.
 
-        .. seealso:: :meth:`get_att_mu`
+        See also :meth:`get_att_mu`.
 
         :param channel: Attenuator channel (0-3).
         :return: 8-bit digital attenuation setting:
@@ -392,7 +390,7 @@ class CPLD:
     def get_channel_att(self, channel: TInt32) -> TFloat:
         """Get digital step attenuator value for a channel in SI units.
 
-        .. seealso:: :meth:`get_channel_att_mu`
+        See also :meth:`get_channel_att_mu`.
 
         :param channel: Attenuator channel (0-3).
         :return: Attenuation setting in dB. Higher value is more
@@ -403,14 +401,14 @@ class CPLD:
 
     @kernel
     def set_sync_div(self, div: TInt32):
-        """Set the SYNC_IN AD9910 pulse generator frequency
+        """Set the ``SYNC_IN`` AD9910 pulse generator frequency
         and align it to the current RTIO timestamp.
 
-        The SYNC_IN signal is derived from the coarse RTIO clock
+        The ``SYNC_IN`` signal is derived from the coarse RTIO clock
         and the divider must be a power of two.
         Configure ``sync_sel == 0``.
 
-        :param div: SYNC_IN frequency divider. Must be a power of two.
+        :param div: ``SYNC_IN`` frequency divider. Must be a power of two.
             Minimum division ratio is 2. Maximum division ratio is 16.
         """
         ftw_max = 1 << 4

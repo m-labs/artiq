@@ -477,16 +477,16 @@ class Scheduler:
         return self.notifier.raw_view
 
     def check_pause(self, rid):
-        """Returns ``True`` if there is a condition that could make ``pause``
+        """Returns ``True`` if there is a condition that could make :meth:`pause`
         not return immediately (termination requested or higher priority run).
 
         The typical purpose of this function is to check from a kernel
         whether returning control to the host and pausing would have an effect,
         in order to avoid the cost of switching kernels in the common case
-        where ``pause`` does nothing.
+        where :meth:`pause` does nothing.
 
         This function does not have side effects, and does not have to be
-        followed by a call to ``pause``.
+        followed by a call to :meth:`pause`.
         """
         for pipeline in self._pipelines.values():
             if rid in pipeline.pool.runs:

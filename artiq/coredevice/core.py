@@ -73,8 +73,8 @@ class Core:
         On platforms that use clock multiplication and SERDES-based PHYs,
         this is the period after multiplication. For example, with a RTIO core
         clocked at 125MHz and a SERDES multiplication factor of 8, the
-        reference period is 1ns.
-        The time machine unit is equal to this period.
+        reference period is ``1 ns``.
+        The machine time unit (``mu``) is equal to this period.
     :param ref_multiplier: ratio between the RTIO fine timestamp frequency
         and the RTIO coarse timestamp frequency (e.g. SERDES multiplication
         factor).
@@ -116,6 +116,8 @@ class Core:
             self.trigger_analyzer_proxy()
 
     def close(self):
+        """Disconnect core device and close sockets. 
+        """
         self.comm.close()
 
     def compile(self, function, args, kwargs, set_result=None,
@@ -241,8 +243,8 @@ class Core:
         Similarly, modified values are not written back, and explicit RPC should be used
         to modify host objects.
         Carefully review the source code of drivers calls used in precompiled kernels, as
-        they may rely on host object attributes being transfered between kernel calls.
-        Examples include code used to control DDS phase, and Urukul RF switch control
+        they may rely on host object attributes being transferred between kernel calls.
+        Examples include code used to control DDS phase and Urukul RF switch control
         via the CPLD register.
 
         The return value of the callable is the return value of the kernel, if any.
@@ -273,7 +275,7 @@ class Core:
     @portable
     def seconds_to_mu(self, seconds):
         """Convert seconds to the corresponding number of machine units
-        (RTIO cycles).
+        (fine RTIO cycles).
 
         :param seconds: time (in seconds) to convert.
         """
@@ -281,7 +283,7 @@ class Core:
 
     @portable
     def mu_to_seconds(self, mu):
-        """Convert machine units (RTIO cycles) to seconds.
+        """Convert machine units (fine RTIO cycles) to seconds.
 
         :param mu: cycle count to convert.
         """
@@ -296,7 +298,7 @@ class Core:
         for the actual value of the hardware register at the instant when
         execution resumes in the caller.
 
-        For a more detailed description of these concepts, see :doc:`/rtio`.
+        For a more detailed description of these concepts, see :doc:`rtio`.
         """
         return rtio_get_counter()
 
@@ -315,7 +317,7 @@ class Core:
     def get_rtio_destination_status(self, destination):
         """Returns whether the specified RTIO destination is up.
         This is particularly useful in startup kernels to delay
-        startup until certain DRTIO destinations are up."""
+        startup until certain DRTIO destinations are available."""
         return rtio_get_destination_status(destination)
 
     @kernel
@@ -343,7 +345,7 @@ class Core:
 
         Returns only after the dump has been retrieved from the device.
 
-        Raises IOError if no analyzer proxy has been configured, or if the
+        Raises :exc:`IOError` if no analyzer proxy has been configured, or if the
         analyzer proxy fails. In the latter case, more details would be
         available in the proxy log.
         """

@@ -49,7 +49,7 @@ class AD9914:
     The time cursor is not modified by any function in this class.
 
     Output event replacement is not supported and issuing commands at the same
-    time is an error.
+    time results in collision errors.
 
     :param sysclk: DDS system frequency. The DDS system clock must be a
         phase-locked multiple of the RTIO clock.
@@ -134,7 +134,7 @@ class AD9914:
         timing margin.
 
         :param sync_delay: integer from 0 to 0x3f that sets the value of
-            SYNC_OUT (bits 3-5) and SYNC_IN (bits 0-2) delay ADJ bits.
+            ``SYNC_OUT`` (bits 3-5) and ``SYNC_IN`` (bits 0-2) delay ADJ bits.
         """
         delay_mu(-self.init_sync_duration_mu)
         self.write(AD9914_GPIO,      (1 << self.channel) << 1)

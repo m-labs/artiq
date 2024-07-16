@@ -1,20 +1,6 @@
 """
 Implementation and management of scan objects.
 
-A scan object (e.g. :class:`artiq.language.scan.RangeScan`) represents a
-one-dimensional sweep of a numerical range. Multi-dimensional scans are
-constructed by combining several scan objects, for example using
-:class:`artiq.language.scan.MultiScanManager`.
-
-Iterate on a scan object to scan it, e.g. ::
-
-    for variable in self.scan:
-        do_something(variable)
-
-Iterating multiple times on the same scan object is possible, with the scan
-yielding the same values each time. Iterating concurrently on the
-same scan object (e.g. via nested loops) is also supported, and the
-iterators are independent from each other.
 """
 
 import random
@@ -32,6 +18,21 @@ __all__ = ["ScanObject",
 
 
 class ScanObject:
+    """
+    Represents a one-dimensional sweep of a numerical range. Multi-dimensional scans are
+    constructed by combining several scan objects, for example using
+    :class:`MultiScanManager`.
+
+    Iterate on a scan object to scan it, e.g. ::
+
+        for variable in self.scan:
+            do_something(variable)
+
+    Iterating multiple times on the same scan object is possible, with the scan
+    yielding the same values each time. Iterating concurrently on the
+    same scan object (e.g. via nested loops) is also supported, and the
+    iterators are independent from each other.
+    """
     def __iter__(self):
         raise NotImplementedError
 
@@ -163,7 +164,7 @@ class Scannable:
     takes a scan object.
 
     When ``scale`` is not specified, and the unit is a common one (i.e.
-    defined in ``artiq.language.units``), then the scale is obtained from
+    defined in :class:`artiq.language.units`), then the scale is obtained from
     the unit using a simple string match. For example, milliseconds (``"ms"``)
     units set the scale to 0.001. No unit (default) corresponds to a scale of
     1.0.

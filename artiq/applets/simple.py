@@ -24,21 +24,21 @@ class _AppletRequestInterface:
     def set_dataset(self, key, value, unit=None, scale=None, precision=None, persist=None):
         """
         Set a dataset.
-        See documentation of ``artiq.language.environment.set_dataset``.
+        See documentation of :meth:`~artiq.language.environment.HasEnvironment.set_dataset`.
         """
         raise NotImplementedError
 
     def mutate_dataset(self, key, index, value):
         """
         Mutate a dataset.
-        See documentation of ``artiq.language.environment.mutate_dataset``.
+        See documentation of :meth:`~artiq.language.environment.HasEnvironment.mutate_dataset`.
         """
         raise NotImplementedError
 
     def append_to_dataset(self, key, value):
         """
         Append to a dataset.
-        See documentation of ``artiq.language.environment.append_to_dataset``.
+        See documentation of :meth:`~artiq.language.environment.HasEnvironment.append_to_dataset`.
         """
         raise NotImplementedError
 
@@ -49,8 +49,9 @@ class _AppletRequestInterface:
 
         :param expurl: Experiment URL identifying the experiment in the dashboard. Example: 'repo:ArgumentsDemo'.
         :param key: Name of the argument in the experiment.
-        :param value: Object representing the new temporary value of the argument. For ``Scannable`` arguments, this parameter
-            should be a ``ScanObject``. The type of the ``ScanObject`` will be set as the selected type when this function is called. 
+        :param value: Object representing the new temporary value of the argument. For :class:`~artiq.language.scan.Scannable` arguments, 
+            this parameter should be a :class:`~artiq.language.scan.ScanObject`. The type of the :class:`~artiq.language.scan.ScanObject` 
+            will be set as the selected type when this function is called. 
         """
         raise NotImplementedError
 
