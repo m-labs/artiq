@@ -240,7 +240,7 @@ Non-RTIO devices and the controller manager
 
 As described in :ref:`artiq-real-time-i-o-concepts`, there are two classes of equipment a laboratory typically finds itself needing to operate. So far, we have largely discussed ARTIQ in terms of one only: the kind of specialized hardware that requires the very high-resolution timing control ARTIQ provides. The other class comprises the broad range of regular, "slow" laboratory devices, which do *not* require nanosecond precision and can generally be operated perfectly well from a regular PC over a non-realtime channel such as USB. 
 
-To handle these "slow" devices, ARTIQ uses *controllers*, intermediate pieces of software which are responsible for the direct I/O to these devices and offer RPC interfaces to the network. Controllers can be started and run standalone, but are generally handled through the *controller manager*, :mod:`~artiq_comtools.artiq_ctlmgr`, available through the ``artiq-comtools`` package (normally automatically installed together with ARTIQ.) The controller manager in turn communicates with the ARTIQ master, and through it with clients or the GUI. 
+To handle these "slow" devices, ARTIQ uses *controllers*, intermediate pieces of software which are responsible for the direct I/O to these devices and offer RPC interfaces to the network. Controllers can be started and run standalone, but are generally handled through the *controller manager*, available through the ``artiq-comtools`` package (normally automatically installed together with ARTIQ.) The controller manager in turn communicates with the ARTIQ master, and through it with clients or the GUI. 
 
 To start the controller manager (the master must already be running), the only command necessary is: :: 
 
