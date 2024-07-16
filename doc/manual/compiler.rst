@@ -92,7 +92,7 @@ User-defined classes are supported, provided their attributes are of other suppo
 Basic ARTIQ Python
 ^^^^^^^^^^^^^^^^^^
 
-Basic Python features can broadly be used inside kernels without further compunctions. This includes loops (``for`` / ``while`` / ``break`` / ``continue``), conditionals (``if``, ``else``, ``elif``), functions, exceptions, ``try`` / ``except`` / ``else`` blocks,  and statically typed variables of any supported types.
+Basic Python features can broadly be used inside kernels without further compunctions. This includes loops (``for`` / ``while`` / ``break`` / ``continue``), conditionals (``if`` / ``else`` / ``elif``), functions, exceptions, ``try`` / ``except`` / ``else`` blocks,  and statically typed variables of any supported types.
 
 Kernel code can call host functions without any additional ceremony. However, such functions are assumed to return ``None``, and if a value other than ``None`` is returned, an exception is raised. To call a host function returning a value other than ``None`` its return type must be annotated, using the standard Python syntax, e.g.: ::
 
@@ -148,7 +148,7 @@ ARTIQ makes various useful built-in and mathematical functions from Python, NumP
             - ``arcsinh()``, ``arccosh()``, ``arctanh()`` 
             - ``hypot()``, ``arctan2()``
     +   * `NumPy floating point routines <https://numpy.org/doc/stable/reference/routines.math.html#floating-point-routines>`_
-        *   - ``copysign``, ``nextafter()``
+        *   - ``copysign()``, ``nextafter()``
     +   * `SciPy special functions <https://docs.scipy.org/doc/scipy/reference/special.html>`_ 
         *   - ``erf()``, ``erfc()``
             - ``gamma()``, ``gammaln()``
