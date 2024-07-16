@@ -101,3 +101,26 @@ For KC705:
     The SW13 switches need to be set to 00001.
 
 Flashing over network is also possible for Kasli and KC705, assuming IP networking has already been set up. In this case, the ``-H HOSTNAME`` option is used; see the entry for ``artiq_flash`` in the :ref:`Utilities <flashing-loading-tool>` reference.  
+
+.. _connecting-uart: 
+
+Connecting to the UART log 
+--------------------------
+
+A UART is a peripheral device for asynchronous serial communication; in the case of core device boards, it allows the reading of the UART log, which is used for debugging, especially when problems with booting or networking disallow checking core logs with ``artiq_coremgmt log``. If you had no issues flashing your board you can proceed directly to :doc:`configuring`. 
+
+Otherwise, ensure your core device is connected to your PC with a data micro-USB cable, as above, and wait at least fifteen seconds after startup to try to connect. To help find the correct port to connect to, you can list your system's serial devices by running: :: 
+
+  $ python -m serial.tools.list_ports -v 
+
+This will give you the list of ``/dev/ttyUSBxx`` or ``COMxx`` device names (on Linux and Windows respectively). Most commonly, the correct option is the third, i.e. index number 2, but it can vary. 
+
+On Linux, you can read the log using the ``flterm`` tool, which is part of `MiSoC <https://github.com/m-labs/misoc/>`_. The easiest way to gain access to MiSoC is to add ``ps.misoc`` to your flake, as described at the beginning of :doc:`installing` (and re-running ``nix shell`` for the changes to apply). Alternatively, you can use the ARTIQ development environment, entered with ``nix develop git+https://github.com/m-labs/artiq.git\?ref=release-[number]``. Try the command: ::
+
+    $ flterm /dev/ttyUSBxx 
+
+When you restart or reflash the core device you should see the startup logs in the terminal. If you encounter problems, try other ``ttyUSBxx`` names, and make certain that your user is part of the ``dialout`` group (run ``groups`` in a terminal to check). 
+
+On Windows, use a program such as PuTTY. It may be necessary to install the `FTDI drivers <https://ftdichip.com/drivers/>`_ first. Connect to every available COM port, restart the core device, see which COM port produces meaningful output, and close any others.
+
+Regardless of operating system, note that the correct parameters for the serial port are 115200bps 8-N-1 for every core device. 
