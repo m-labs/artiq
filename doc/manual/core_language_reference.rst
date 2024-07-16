@@ -7,18 +7,21 @@ The most commonly used features from the ARTIQ language modules and from the cor
 ---------------------------------
 
 .. automodule:: artiq.language.core
+    :member-order: bysource
     :members:
 
 :mod:`artiq.language.environment` module
 ----------------------------------------
 
 .. automodule:: artiq.language.environment
+    :member-order: bysource
     :members:
 
 :mod:`artiq.language.scan` module
 ----------------------------------------
 
 .. automodule:: artiq.language.scan
+    :member-order: bysource
     :members:
 
 :mod:`artiq.language.units` module
