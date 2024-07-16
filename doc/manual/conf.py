@@ -48,7 +48,6 @@ mock_modules = ["artiq.gui.waitingspinnerwidget",
 for module in mock_modules:
     sys.modules[module] = Mock()
 
-
 # https://stackoverflow.com/questions/29992444/sphinx-autodoc-skips-classes-inherited-from-mock
 class MockApplets:
     class AppletsDock:
@@ -147,6 +146,25 @@ pygments_style = 'sphinx'
 # If true, keep warnings as "system message" paragraphs in the built documents.
 #keep_warnings = False
 
+# If true, Sphinx will warn about *all* references where the target cannot be found. 
+nitpicky = True 
+
+# (type, target) regex tuples to ignore when generating warnings in 'nitpicky' mode 
+nitpick_ignore_regex = [
+    (r'py:.*', r'numpy..*'),
+    (r'py:.*', r'sipyco..*'),
+    ('py:const', r'.*'), # no constants are documented anyway 
+    ('py.attr', r'.*'), # nor attributes
+    (r'py:.*', r'artiq.gateware.*'), 
+    ('py:mod', r'artiq.frontend.*'),
+    ('py:mod', r'artiq.test.*'),
+    ('py:mod', 'artiq.experiment'), 
+    ('py:class', 'dac34H84'),
+    ('py:class', 'trf372017'),
+    ('py:class', r'list(.*)'),
+    ('py.class', 'NoneType'),
+    ('py:meth', 'pause')
+]
 
 # -- Options for HTML output ----------------------------------------------
 
