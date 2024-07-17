@@ -6,15 +6,15 @@ Setting up core device networking
 
 For Kasli, insert a SFP/RJ45 transceiver (normally included with purchases from M-Labs and QUARTIQ) into the SFP0 port and connect it to an Ethernet port in your network. If the port is 10Mbps or 100Mbps and not 1000Mbps, make sure that the SFP/RJ45 transceiver supports the lower rate. Many SFP/RJ45 transceivers only support the 1000Mbps rate. If you do not have a SFP/RJ45 transceiver that supports 10Mbps and 100Mbps rates, you may instead use a gigabit Ethernet switch in the middle to perform rate conversion. 
 
-You can also insert other types of SFP transceivers into Kasli if you wish to use it directly in e.g. an optical fiber Ethernet network. Kasli-SoC already directly features RJ45 10/100/1000T Ethernet.
+You can also insert other types of SFP transceivers into Kasli if you wish to use it directly in e.g. an optical fiber Ethernet network. Kasli-SoC already directly features RJ45 10/100/1000 Ethernet.
 
-If you purchased a Kasli or Kasli-SoC device from M-Labs, it usually comes with the IP address ``192.168.1.75``. Once you can reach this IP, it can be changed by running: ::
+If you purchased a Kasli or Kasli-SoC device from M-Labs, it will arrive with an IP address already set, normally the one requested in the web shop at time of purchase. Otherwise, if you chose not to make a request, the default IP M-Labs uses is ``192.168.1.75``. Once you can reach your core device, the IP can be changed at any time by running: ::
 
-  $ artiq_coremgmt -D 192.168.1.75 config write -s ip [new IP]
+  $ artiq_coremgmt -D [old IP] config write -s ip [new IP]
 
 and then rebooting the device: ::
 
-  $ artiq_coremgmt reboot 
+  $ artiq_coremgmt -D [old IP] reboot 
 
 For Kasli-SoC: 
     If the ``ip`` config is not set, Kasli-SoC firmware defaults to using the IP address ``192.168.1.56``. It can then be changed with the procedure above. 
@@ -36,7 +36,11 @@ Check that you can ping the device. If ping fails, check that the Ethernet LED i
 Configuring the core device
 ---------------------------
 
-The following steps are optional, and you only need to execute them if they are necessary for your specific system. To learn more about how ARTIQ works and how to use it first, you might skip to the next page, :doc:`rtio`. For all configuration options, the core device generally needs to be restarted for changes to take effect.
+The following steps are optional, and you only need to execute them if they are necessary for your specific system. To learn more about how ARTIQ works and how to use it first, you might skip to the next page, :doc:`rtio`.
+
+.. note:: 
+
+  For every use of ``artiq_coremgmt``, the target IP address must be specified either with ``-D`` or in a correctly formatted :ref:`device database <device-db>` in the same directory. The core device generally needs to be restarted for changes to take effect. 
 
 Flash idle and/or startup kernel
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -77,8 +81,8 @@ This feature allows you to print the channels' respective names alongside with t
 
 More information on the ``artiq_rtiomap`` utility can be found on the :ref:`Utilities <rtiomap-tool>` page.
 
-Enabling event spreading 
-------------------------
+Enable event spreading 
+^^^^^^^^^^^^^^^^^^^^^^
 
 This feature changes the logic used for queueing RTIO output events in the core device for a more efficient use of FPGA resources, at the cost of introducing nondeterminism and potential unpredictability in certain timing errors (specifically gateware :ref:`sequence errors<sequence-errors>`). It can be enabled with the config key ``sed_spread_enable``. See :ref:`sed-event-spreading`.
 

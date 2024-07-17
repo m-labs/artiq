@@ -113,14 +113,17 @@ Otherwise, ensure your core device is connected to your PC with a data micro-USB
 
   $ python -m serial.tools.list_ports -v 
 
-This will give you the list of ``/dev/ttyUSBxx`` or ``COMxx`` device names (on Linux and Windows respectively). Most commonly, the correct option is the third, i.e. index number 2, but it can vary. 
+This will give you the list of ``/dev/ttyUSBx`` or ``COMx`` device names (on Linux and Windows respectively). Most commonly, the correct option is the third, i.e. index number 2, but it can vary. 
 
-On Linux, you can read the log using the ``flterm`` tool, which is part of `MiSoC <https://github.com/m-labs/misoc/>`_. The easiest way to gain access to MiSoC is to add ``ps.misoc`` to your flake, as described at the beginning of :doc:`installing` (and re-running ``nix shell`` for the changes to apply). Alternatively, you can use the ARTIQ development environment, entered with ``nix develop git+https://github.com/m-labs/artiq.git\?ref=release-[number]``. Try the command: ::
+On Linux: 
+  Run the commands: :: 
 
-    $ flterm /dev/ttyUSBxx 
+    stty 115200 < /dev/ttyUSBx
+    cat /dev/ttyUSBx 
 
-When you restart or reflash the core device you should see the startup logs in the terminal. If you encounter problems, try other ``ttyUSBxx`` names, and make certain that your user is part of the ``dialout`` group (run ``groups`` in a terminal to check). 
+  When you restart or reflash the core device you should see the startup logs in the terminal. If you encounter issues, try other ``ttyUSBx`` names, and make certain that your user is part of the ``dialout`` group (run ``groups`` in a terminal to check). 
 
-On Windows, use a program such as PuTTY. It may be necessary to install the `FTDI drivers <https://ftdichip.com/drivers/>`_ first. Connect to every available COM port, restart the core device, see which COM port produces meaningful output, and close any others.
+On Windows: 
+  Use a program such as PuTTY to connect to the COM port. Connect to every available COM port at first, restart the core device, see which port produces meaningful output, and close the others. It may be necessary to install the `FTDI drivers <https://ftdichip.com/drivers/>`_ first.
 
-Regardless of operating system, note that the correct parameters for the serial port are 115200bps 8-N-1 for every core device. 
+Note that the correct parameters for the serial port are 115200bps 8-N-1 for every core device. 

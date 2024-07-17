@@ -11,7 +11,7 @@ First install the Nix package manager. Some distributions provide a package for 
 Once Nix is installed, enable flakes, for example by running: ::
 
   $ mkdir -p ~/.config/nix
-  $ echo "experimental-features = nix-command flakes" > ~/.config/nix/nix.conf
+  $ echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
 
 See also the different options for enabling flakes on `the NixOs wiki <https://nixos.wiki/wiki/flakes>`_. 
 
@@ -21,7 +21,7 @@ The easiest way to obtain ARTIQ is to install it into the user environment with 
   
 Answer "Yes" to the questions about setting Nix configuration options (for more details see 'Troubleshooting' below.) You should now have a minimal installation of ARTIQ, where the usual front-end commands (``artiq_run``, ``artiq_master``, ``artiq_dashboard``, etc.) are all available to you. 
 
-This installation is however quite limited, as Nix creates a dedicated Python environment for the ARTIQ commands alone. This means that other useful Python packages, which ARTIQ is not dependent on but which you may want to use in your experiments (pandas, mathplotlib...), are not available.
+This installation is however quite limited, as Nix creates a dedicated Python environment for the ARTIQ commands alone. This means that other useful Python packages, which ARTIQ is not dependent on but which you may want to use in your experiments (pandas, matplotlib...), are not available.
 
 Installing multiple packages and making them visible to the ARTIQ commands requires using the Nix language. Create an empty directory with a file ``flake.nix`` with the following contents:
 
