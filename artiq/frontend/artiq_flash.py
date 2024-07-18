@@ -30,7 +30,8 @@ Valid actions:
     * firmware: write firmware to flash
     * load: load main gateware bitstream into device (volatile but fast)
     * erase: erase flash memory
-    * start: trigger the target to (re)load its gateware bitstream from flash
+    * start: trigger the target to (re)load its gateware bitstream from flash.
+      If your core device is reachable by network, prefer 'artiq_coremgmt reboot'. 
 
 Prerequisites:
 
