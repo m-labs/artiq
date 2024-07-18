@@ -82,14 +82,14 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
         reset_entry.setToolTip("Reset to default value")
         reset_entry.setIcon(
             QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_BrowserReload))
+                QtWidgets.QStyle.StandardPixmap.SP_BrowserReload))
         reset_entry.clicked.connect(partial(self.reset_entry, key))
 
         disable_other_scans = QtWidgets.QToolButton()
         widgets["disable_other_scans"] = disable_other_scans
         disable_other_scans.setIcon(
             QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_DialogResetButton))
+                QtWidgets.QStyle.StandardPixmap.SP_DialogResetButton))
         disable_other_scans.setToolTip("Disable other scans")
         disable_other_scans.clicked.connect(
             partial(self._disable_other_scans, key))

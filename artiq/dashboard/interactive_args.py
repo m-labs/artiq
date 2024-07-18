@@ -1,7 +1,7 @@
 import logging
 import asyncio
 
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt6 import QtCore, QtWidgets, QtGui
 
 from artiq.gui.models import DictSyncModel
 from artiq.gui.entries import EntryTreeWidget, procdesc_to_entry
@@ -44,11 +44,11 @@ class _InteractiveArgsRequest(EntryTreeWidget):
         self.quickStyleClicked.connect(self.supply)
         cancel_btn = QtWidgets.QPushButton("Cancel")
         cancel_btn.setIcon(QtWidgets.QApplication.style().standardIcon(
-            QtWidgets.QStyle.SP_DialogCancelButton))
+            QtWidgets.QStyle.StandardPixmap.SP_DialogCancelButton))
         cancel_btn.clicked.connect(self.cancel)
         supply_btn = QtWidgets.QPushButton("Supply")
         supply_btn.setIcon(QtWidgets.QApplication.style().standardIcon(
-            QtWidgets.QStyle.SP_DialogOkButton))
+            QtWidgets.QStyle.StandardPixmap.SP_DialogOkButton))
         supply_btn.clicked.connect(self.supply)
         buttons = LayoutWidget()
         buttons.addWidget(cancel_btn, 1, 1)
@@ -78,7 +78,7 @@ class _InteractiveArgsView(QtWidgets.QStackedWidget):
         QtWidgets.QStackedWidget.__init__(self)
         self.tabs = QtWidgets.QTabWidget()
         self.default_label = QtWidgets.QLabel("No pending interactive arguments requests.")
-        self.default_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.default_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         font = QtGui.QFont(self.default_label.font())
         font.setItalic(True)
         self.default_label.setFont(font)
@@ -99,9 +99,12 @@ class _InteractiveArgsView(QtWidgets.QStackedWidget):
             self._insert_widget(i)
 
     def _insert_widget(self, row):
-        rid = self.model.data(self.model.index(row, 0), QtCore.Qt.DisplayRole)
-        title = self.model.data(self.model.index(row, 1), QtCore.Qt.DisplayRole)
-        arglist_desc = self.model.data(self.model.index(row, 2), QtCore.Qt.DisplayRole)
+        rid = self.model.data(self.model.index(row, 0),
+                              QtCore.Qt.ItemDataRole.DisplayRole)
+        title = self.model.data(self.model.index(row, 1),
+                                QtCore.Qt.ItemDataRole.DisplayRole)
+        arglist_desc = self.model.data(self.model.index(row, 2),
+                                       QtCore.Qt.ItemDataRole.DisplayRole)
         inter_args_request = _InteractiveArgsRequest(rid, arglist_desc)
         inter_args_request.supplied.connect(self.supplied)
         inter_args_request.cancelled.connect(self.cancelled)
@@ -126,7 +129,7 @@ class InteractiveArgsDock(QtWidgets.QDockWidget):
         QtWidgets.QDockWidget.__init__(self, "Interactive Args")
         self.setObjectName("Interactive Args")
         self.setFeatures(
-            QtWidgets.QDockWidget.DockWidgetMovable | QtWidgets.QDockWidget.DockWidgetFloatable)
+            self.DockWidgetFeature.DockWidgetMovable | self.DockWidgetFeature.DockWidgetFloatable)
         self.interactive_args_rpc = interactive_args_rpc
         self.request_view = _InteractiveArgsView()
         self.request_view.supplied.connect(self.supply)

@@ -95,14 +95,15 @@ class MdiArea(QtWidgets.QMdiArea):
         self.pixmap = QtGui.QPixmap(os.path.join(
             artiq_dir, "gui", "logo_ver.svg"))
 
-        self.setActivationOrder(self.ActivationHistoryOrder)
+        self.setActivationOrder(
+            QtWidgets.QMdiArea.WindowOrder.ActivationHistoryOrder)
 
-        self.tile = QtWidgets.QShortcut(
+        self.tile = QtGui.QShortcut(
             QtGui.QKeySequence('Ctrl+Shift+T'), self)
         self.tile.activated.connect(
             lambda: self.tileSubWindows())
 
-        self.cascade = QtWidgets.QShortcut(
+        self.cascade = QtGui.QShortcut(
             QtGui.QKeySequence('Ctrl+Shift+C'), self)
         self.cascade.activated.connect(
             lambda: self.cascadeSubWindows())
@@ -255,7 +256,7 @@ def main():
     right_docks = [
         d_explorer, d_shortcuts,
         d_datasets, d_applets,
-        d_waveform, d_interactive_args
+        # d_waveform, d_interactive_args
     ]
     main_window.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, right_docks[0])
     for d1, d2 in zip(right_docks, right_docks[1:]):

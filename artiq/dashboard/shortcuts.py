@@ -11,8 +11,8 @@ class ShortcutsDock(QtWidgets.QDockWidget):
     def __init__(self, main_window, exp_manager):
         QtWidgets.QDockWidget.__init__(self, "Shortcuts")
         self.setObjectName("Shortcuts")
-        self.setFeatures(QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable |
-                         QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetFloatable)
+        self.setFeatures(self.DockWidgetFeature.DockWidgetMovable |
+                         self.DockWidgetFeature.DockWidgetFloatable)
 
         layout = QtWidgets.QGridLayout()
         top_widget = QtWidgets.QWidget()
