@@ -29,7 +29,7 @@ class _CancellableLineEdit(QtWidgets.QLineEdit):
 
 
 class _MoninjWidget(QtWidgets.QFrame):
-    def __init__(self, title, channel=None):
+    def __init__(self, title):
         QtWidgets.QFrame.__init__(self)
         self.setFrameShape(QtWidgets.QFrame.Box)
         self.setFrameShape(QtWidgets.QFrame.Box)
@@ -41,8 +41,7 @@ class _MoninjWidget(QtWidgets.QFrame):
         self.grid.setHorizontalSpacing(0)
         self.grid.setVerticalSpacing(0)
         self.setLayout(self.grid)
-        title = elide(title, 17)
-        title += "" if channel is None else "[{}]".format(channel) 
+        title = elide(title, 20)
         label = QtWidgets.QLabel(title)
         label.setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignTop)
         self.grid.addWidget(label, 1, 1)
@@ -329,7 +328,7 @@ class _DDSWidget(_MoninjWidget):
 
 class _DACWidget(_MoninjWidget):
     def __init__(self, dm, spi_channel, channel, title, vref, offset_dacs):
-        _MoninjWidget.__init__(self, title, channel)
+        _MoninjWidget.__init__(self, "{}_ch{}".format(title, channel))
         self.spi_channel = spi_channel
         self.channel = channel
         self.cur_value = 0x8000
@@ -360,7 +359,7 @@ class _DACWidget(_MoninjWidget):
         return (self.title, self.channel)
 
     def to_model_path(self):
-        return "dac/{}[{}]".format(self.title, self.channel)
+        return "dac/{}_ch{}".format(self.title, self.channel)
 
 
 _WidgetDesc = namedtuple("_WidgetDesc", "uid comment cls arguments")
