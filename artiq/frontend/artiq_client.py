@@ -40,10 +40,10 @@ def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ CLI client")
     parser.add_argument(
         "-s", "--server", default="::1",
-        help="hostname or IP of the master to connect to")
+        help="hostname or IP of the master to connect to (default: %(default)s)")
     parser.add_argument(
         "--port", default=None, type=int,
-        help="TCP port to use to connect to the master")
+        help="TCP port to use to connect to the master (default: %(default)s)")
     parser.add_argument("--version", action="version",
                         version="ARTIQ v{}".format(artiq_version),
                         help="print the ARTIQ version number")
@@ -59,7 +59,8 @@ def get_argparser():
                             help="priority (higher value means sooner "
                                  "scheduling, default: %(default)s)")
     parser_add.add_argument("-t", "--timed", default=None, type=str,
-                            help="set a due date for the experiment")
+                            help="set a due date for the experiment "
+                            "(default: %(default)s)")
     parser_add.add_argument("-f", "--flush", default=False,
                             action="store_true",
                             help="flush the pipeline before preparing "

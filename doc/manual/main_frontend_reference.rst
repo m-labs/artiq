@@ -9,6 +9,7 @@ These are the top-level commands used to run and manage ARTIQ experiments. Not a
 .. argparse::
    :ref: artiq.frontend.artiq_run.get_argparser
    :prog: artiq_run
+   :nodefault: 
 
 .. _frontend-artiq-master:
 
@@ -18,6 +19,7 @@ These are the top-level commands used to run and manage ARTIQ experiments. Not a
 .. argparse::
    :ref: artiq.frontend.artiq_master.get_argparser
    :prog: artiq_master
+   :nodefault:
    
 .. _frontend-artiq-client:
 
@@ -27,6 +29,7 @@ These are the top-level commands used to run and manage ARTIQ experiments. Not a
 .. argparse::
    :ref: artiq.frontend.artiq_client.get_argparser
    :prog: artiq_client
+   :nodefault: 
 
 
 .. _frontend-artiq-dashboard:
@@ -37,7 +40,7 @@ These are the top-level commands used to run and manage ARTIQ experiments. Not a
 .. argparse::
    :ref: artiq.frontend.artiq_dashboard.get_argparser
    :prog: artiq_dashboard
-
+   :nodefault:
 
 :mod:`artiq.frontend.artiq_session`
 -----------------------------------
@@ -45,3 +48,4 @@ These are the top-level commands used to run and manage ARTIQ experiments. Not a
 .. argparse::
    :ref: artiq.frontend.artiq_session.get_argparser
    :prog: artiq_session
+   :nodefault:

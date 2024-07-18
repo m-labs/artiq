@@ -40,21 +40,21 @@ def get_argparser():
 
     group = parser.add_argument_group("databases")
     group.add_argument("--device-db", default="device_db.py",
-                       help="device database file (default: '%(default)s')")
+                       help="device database file (default: %(default)s)")
     group.add_argument("--dataset-db", default="dataset_db.mdb",
-                       help="dataset file (default: '%(default)s')")
+                       help="dataset file (default: %(default)s)")
 
     group = parser.add_argument_group("repository")
     group.add_argument(
         "-g", "--git", default=False, action="store_true",
-        help="use the Git repository backend")
+        help="use the Git repository backend (default: %(default)s)")
     group.add_argument(
         "-r", "--repository", default="repository",
-        help="path to the repository (default: '%(default)s')")
+        help="path to the repository (default: %(default)s)")
     group.add_argument(
         "--experiment-subdir", default="",
         help=("path to the experiment folder from the repository root "
-              "(default: '%(default)s')"))
+              "(default: %(default)s)"))
     log_args(parser)
 
     parser.add_argument("--name",
