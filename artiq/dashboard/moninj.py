@@ -761,7 +761,7 @@ class Model(DictSyncTreeSepModel):
 class _AddChannelDialog(QtWidgets.QDialog):
     def __init__(self, parent, model):
         QtWidgets.QDialog.__init__(self, parent=parent)
-        self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
         self.setWindowTitle("Add channels")
 
         layout = QtWidgets.QVBoxLayout()
@@ -771,14 +771,15 @@ class _AddChannelDialog(QtWidgets.QDialog):
         self._tree_view = QtWidgets.QTreeView()
         self._tree_view.setHeaderHidden(True)
         self._tree_view.setSelectionBehavior(
-            QtWidgets.QAbstractItemView.SelectItems)
+            QtWidgets.QAbstractItemView.SelectionBehavior.SelectItems)
         self._tree_view.setSelectionMode(
-            QtWidgets.QAbstractItemView.ExtendedSelection)
+            QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection)
         self._tree_view.setModel(self._model)
         layout.addWidget(self._tree_view)
 
         self._button_box = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+            QtWidgets.QDialogButtonBox.StandardButton.Ok | \
+            QtWidgets.QDialogButtonBox.StandardButton.Cancel
         )
         self._button_box.setCenterButtons(True)
         self._button_box.accepted.connect(self.add_channels)
@@ -800,8 +801,8 @@ class _MonInjDock(QDockWidgetCloseDetect):
     def __init__(self, name, manager):
         QtWidgets.QDockWidget.__init__(self, "MonInj")
         self.setObjectName(name)
-        self.setFeatures(QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable |
-                         QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetFloatable)
+        self.setFeatures(self.DockWidgetFeature.DockWidgetMovable |
+                         self.DockWidgetFeature.DockWidgetFloatable)
         grid = LayoutWidget()
         self.setWidget(grid)
         self.manager = manager
@@ -810,7 +811,7 @@ class _MonInjDock(QDockWidgetCloseDetect):
         newdock = QtWidgets.QToolButton()
         newdock.setToolTip("Create new moninj dock")
         newdock.setIcon(QtWidgets.QApplication.style().standardIcon(
-            QtWidgets.QStyle.SP_FileDialogNewFolder))
+            QtWidgets.QStyle.StandardPixmap.SP_FileDialogNewFolder))
         newdock.clicked.connect(lambda: self.manager.create_new_dock())
         grid.addWidget(newdock, 0, 0)
 
@@ -821,7 +822,7 @@ class _MonInjDock(QDockWidgetCloseDetect):
         dialog_btn.setToolTip("Add channels")
         dialog_btn.setIcon(
             QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_FileDialogListView))
+                QtWidgets.QStyle.StandardPixmap.SP_FileDialogListView))
         dialog_btn.clicked.connect(self.channel_dialog.open)
         grid.addWidget(dialog_btn, 0, 1)
 
@@ -834,7 +835,8 @@ class _MonInjDock(QDockWidgetCloseDetect):
         self.flow = DragDropFlowLayoutWidget()
         scroll_area.setWidgetResizable(True)
         scroll_area.setWidget(self.flow)
-        self.flow.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.flow.setContextMenuPolicy(
+            QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
         self.flow.customContextMenuRequested.connect(self.custom_context_menu)
 
     def custom_context_menu(self, pos):
@@ -842,7 +844,7 @@ class _MonInjDock(QDockWidgetCloseDetect):
         if index == -1:
             return
         menu = QtWidgets.QMenu()
-        delete_action = QtWidgets.QAction("Delete widget", menu)
+        delete_action = QtGui.QAction("Delete widget", menu)
         delete_action.triggered.connect(partial(self.delete_widget, index))
         menu.addAction(delete_action)
         menu.exec_(self.flow.mapToGlobal(pos))
@@ -931,7 +933,7 @@ class MonInj:
         dock = _MonInjDock(name, self)
         self.docks[name] = dock
         if add_to_area:
-            self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
+            self.main_window.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, dock)
             dock.setFloating(True)
         dock.sigClosed.connect(partial(self.on_dock_closed, name))
         self.update_closable()
@@ -945,10 +947,10 @@ class MonInj:
         dock.deleteLater()
 
     def update_closable(self):
-        flags = (QtWidgets.QDockWidget.DockWidgetMovable |
-                 QtWidgets.QDockWidget.DockWidgetFloatable)
+        flags = (QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable |
+                 QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetFloatable)
         if len(self.docks) > 1:
-            flags |= QtWidgets.QDockWidget.DockWidgetClosable
+            flags |= QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetClosable
         for dock in self.docks.values():
             dock.setFeatures(flags)
 
@@ -968,7 +970,8 @@ class MonInj:
             dock = _MonInjDock(name, self)
             self.docks[name] = dock
             dock.restore_state(dock_state)
-            self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
+            self.main_window.addDockWidget(
+                QtCore.Qt.DockWidgetArea.RightDockWidgetArea, dock)
             dock.sigClosed.connect(partial(self.on_dock_closed, name))
         self.update_closable()
 

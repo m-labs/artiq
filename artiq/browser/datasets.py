@@ -62,8 +62,8 @@ class DatasetsDock(QtWidgets.QDockWidget):
     def __init__(self, dataset_sub, dataset_ctl):
         QtWidgets.QDockWidget.__init__(self, "Datasets")
         self.setObjectName("Datasets")
-        self.setFeatures(QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable |
-                         QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetFloatable)
+        self.setFeatures(self.DockWidgetFeature.DockWidgetMovable |
+                         self.DockWidgetFeature.DockWidgetFloatable)
 
         grid = LayoutWidget()
         self.setWidget(grid)

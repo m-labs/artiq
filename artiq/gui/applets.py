@@ -29,7 +29,7 @@ class EntryArea(EntryTreeWidget):
         reset_all_button.setToolTip("Reset all to default values")
         reset_all_button.setIcon(
             QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_BrowserReload))
+                QtWidgets.QStyle.StandardPixmap.SP_BrowserReload))
         reset_all_button.clicked.connect(self.reset_all)
         buttons = LayoutWidget()
         buttons.layout.setColumnStretch(0, 1)
