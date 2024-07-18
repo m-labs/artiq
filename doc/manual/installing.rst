@@ -13,7 +13,7 @@ Once Nix is installed, enable flakes, for example by running: ::
   $ mkdir -p ~/.config/nix
   $ echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
 
-See also the different options for enabling flakes on `the NixOs wiki <https://nixos.wiki/wiki/flakes>`_. 
+See also the different options for enabling flakes on `the NixOS wiki <https://nixos.wiki/wiki/flakes>`_. 
 
 The easiest way to obtain ARTIQ is to install it into the user environment with ::
   

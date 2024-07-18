@@ -11,7 +11,7 @@ You can also insert other types of SFP transceivers into Kasli if you wish to us
 IP address and ping 
 ^^^^^^^^^^^^^^^^^^^
 
-If you purchased a Kasli or Kasli-SoC device from M-Labs, it will arrive with an IP address already set, normally the address requested in the web shop at time of purchase. If you did not specify an address at purchase, the default IP M-Labs uses is ``192.168.1.74``. If you did not obtain your hardware from M-Labs, or if you have just reflashed your core device, see :ref:`networking-tips` below. 
+If you purchased a Kasli or Kasli-SoC device from M-Labs, it will arrive with an IP address already set, normally the address requested in the web shop at time of purchase. If you did not specify an address at purchase, the default IP M-Labs uses is ``192.168.1.75``. If you did not obtain your hardware from M-Labs, or if you have just reflashed your core device, see :ref:`networking-tips` below. 
 
 Once you know the IP, check that you can ping your device: :: 
 
