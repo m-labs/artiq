@@ -1,4 +1,5 @@
 import os, sys, tempfile, subprocess, io
+from functools import wraps
 from numpy import int32, int64
 
 import nac3artiq
@@ -117,6 +118,9 @@ class Core:
         embedding_map = EmbeddingMap()
         kernel_library = self.compile(function, args, kwargs, embedding_map)
 
+        self._run_compiled(kernel_library, embedding_map)
+
+    def _run_compiled(self, kernel_library, embedding_map):
         if self.first_run:
             self.comm.check_system_info()
             self.first_run = False
@@ -126,6 +130,44 @@ class Core:
         self.comm.load(kernel_library)
         self.comm.run()
         self.comm.serve(embedding_map, symbolizer)
+
+    def precompile(self, function, *args, **kwargs):
+        """Precompile a kernel and return a callable that executes it on the core device
+        at a later time.
+
+        Arguments to the kernel are set at compilation time and passed to this function,
+        as additional positional and keyword arguments.
+        The returned callable accepts no arguments.
+
+        Precompiled kernels may use RPCs and subkernels.
+
+        Object attributes at the beginning of a precompiled kernel execution have the
+        values they had at precompilation time. If up-to-date values are required,
+        use RPC to read them.
+        Similarly, modified values are not written back, and explicit RPC should be used
+        to modify host objects.
+        Carefully review the source code of drivers calls used in precompiled kernels, as
+        they may rely on host object attributes being transfered between kernel calls.
+        Examples include code used to control DDS phase, and Urukul RF switch control
+        via the CPLD register.
+
+        The return value of the callable is the return value of the kernel, if any.
+
+        The callable may be called several times.
+        """
+        if not getattr(function, "__artiq_kernel__"):
+            raise ValueError("Argument is not a kernel")
+
+        embedding_map = EmbeddingMap()
+        kernel_library = self.compile(function, args, kwargs, embedding_map)
+
+        @wraps(function)
+        def run_precompiled():
+            # NAC3TODO: support returning values
+            # https://git.m-labs.hk/M-Labs/nac3/issues/101
+            self._run_compiled(kernel_library, embedding_map)
+
+        return run_precompiled
 
     @portable
     def seconds_to_mu(self, seconds: float) -> int64:
