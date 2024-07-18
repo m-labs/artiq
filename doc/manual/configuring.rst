@@ -8,39 +8,70 @@ For Kasli, insert a SFP/RJ45 transceiver (normally included with purchases from 
 
 You can also insert other types of SFP transceivers into Kasli if you wish to use it directly in e.g. an optical fiber Ethernet network. Kasli-SoC already directly features RJ45 10/100/1000 Ethernet.
 
-If you purchased a Kasli or Kasli-SoC device from M-Labs, it will arrive with an IP address already set, normally the one requested in the web shop at time of purchase. Otherwise, if you chose not to make a request, the default IP M-Labs uses is ``192.168.1.75``. Once you can reach your core device, the IP can be changed at any time by running: ::
+IP address and ping 
+^^^^^^^^^^^^^^^^^^^
 
-  $ artiq_coremgmt -D [old IP] config write -s ip [new IP]
+If you purchased a Kasli or Kasli-SoC device from M-Labs, it will arrive with an IP address already set, normally the address requested in the web shop at time of purchase. If you did not specify an address at purchase, the default IP M-Labs uses is ``192.168.1.74``. If you did not obtain your hardware from M-Labs, or if you have just reflashed your core device, see :ref:`networking-tips` below. 
+
+Once you know the IP, check that you can ping your device: :: 
+
+  $ ping <IP_address>
+
+If ping fails, check that the Ethernet LED is ON; on Kasli, it is the LED next to the SFP0 connector. As a next step, try connecting to the serial port to read the UART log. See :ref:`connecting-UART`.  
+
+Core management tool 
+^^^^^^^^^^^^^^^^^^^^
+
+The tool used to configure the core device is the command-line utility ``artiq_coremgmt``. In order for it to connect to your core device, it is necessary to supply it somehow with the correct IP address for your core device. This can be done directly through use of the ``-D`` option, for example in: :: 
+
+    $ artiq_coremgmt -D <IP_address> log
+
+.. note:: 
+  This command reads and displays the core log. If you have recently rebooted or reflashed your core device, you should see the startup logs in your terminal.
+
+Normally, however, the core device IP is supplied through the *device database* for your system, which comes in the form of a Python script called ``device_db.py`` (see also :ref:`device-db`). If you purchased a system from M-Labs, the ``device_db.py`` for your system will have been provided for you, either on the USB stick, inside ``~/artiq`` on your NUC, or sent by email. 
+
+Make sure the field ``core_addr`` at the top of the file is set to your core device's correct IP address, and always execute ``artiq_coremgmt`` from the same directory the device database is placed in. 
+
+Once you can reach your core device, the IP can be changed at any time by running: ::
+
+  $ artiq_coremgmt [-D old_IP] config write -s ip <new_IP>
 
 and then rebooting the device: ::
 
-  $ artiq_coremgmt -D [old IP] reboot 
+  $ artiq_coremgmt [-D old_IP] reboot 
 
+Make sure to correspondingly edit your ``device_db.py`` after rebooting. 
+
+.. _networking-tips:
+
+Tips and troubleshooting 
+^^^^^^^^^^^^^^^^^^^^^^^^
 For Kasli-SoC: 
-    If the ``ip`` config is not set, Kasli-SoC firmware defaults to using the IP address ``192.168.1.56``. It can then be changed with the procedure above. 
+    If the ``ip`` config is not set, Kasli-SoC firmware defaults to using the IP address ``192.168.1.56``. 
+
+For ZC706: 
+    If the ``ip`` config is not set, ZC706 firmware defaults to using the IP address ``192.168.1.52``. 
 
 For Kasli or KC705: 
-    If the ``ip`` config field is not set or set to ``use_dhcp``, the device will attempt to obtain an IP address and default gateway using DHCP. The chosen IP address will be in log output, which can be accessed via the :ref:`UART log <connecting-UART>`. If a static IP address is preferred, it can be flashed directly (OpenOCD must be installed and configured, as in :doc:`flashing`), along with, as necessary, default gateway, IPv6, and/or MAC address: ::
+    If the ``ip`` config field is not set or set to ``use_dhcp``, the device will attempt to obtain an IP address and default gateway using DHCP. The chosen IP address will be in log output, which can be accessed via the :ref:`UART log <connecting-UART>`. 
+    
+    If a static IP address is preferred, it can be flashed directly (OpenOCD must be installed and configured, as in :doc:`flashing`), along with, as necessary, default gateway, IPv6, and/or MAC address: ::
 
         $ artiq_mkfs flash_storage.img [-s mac xx:xx:xx:xx:xx:xx] [-s ip xx.xx.xx.xx/xx] [-s ipv4_default_route xx.xx.xx.xx] [-s ip6 xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx/xx] [-s ipv6_default_route xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx]
         $ artiq_flash -t [board] -V [variant] -f flash_storage.img storage start
 
-On Kasli or Kasli SoC devices, specifying the MAC address is unnecessary, as they can obtain it from their EEPROM. If you only want to access the core device from the same subnet, default gateway and IPv4 prefix length may also be ommitted. Regardless of board, once a device is reachable by ``artiq_coremgmt``, any of these fields can be accessed using ``artiq_coremgmt config write`` and ``artiq_coremgt config read``; see also :ref:`Utilities <core-device-management-tool>`.  
+On Kasli or Kasli-SoC devices, specifying the MAC address is unnecessary, as they can obtain it from their EEPROM. If you only want to access the core device from the same subnet, default gateway and IPv4 prefix length may also be ommitted. On any board, once a device can be reached by ``artiq_coremgmt``, these values can be set and edited at any time, following the procedure for IP above.  
 
 Regarding IPv6, note that the device also has a link-local address that corresponds to its EUI-64, which can be used simultaneously to the (potentially unrelated) IPv6 address defined by using the ``ip6`` configuration key.
-
-Check that you can ping the device. If ping fails, check that the Ethernet LED is ON; on Kasli, it is the LED next to the SFP0 connector. As a next step, try connecting to the serial port to read the UART log; see :ref:`connecting-UART`.  
 
 .. _core-device-config: 
 
 Configuring the core device
 ---------------------------
 
-The following steps are optional, and you only need to execute them if they are necessary for your specific system. To learn more about how ARTIQ works and how to use it first, you might skip to the next page, :doc:`rtio`.
-
 .. note:: 
-
-  For every use of ``artiq_coremgmt``, the target IP address must be specified either with ``-D`` or in a correctly formatted :ref:`device database <device-db>` in the same directory. The core device generally needs to be restarted for changes to take effect. 
+  The following steps are optional, and you only need to execute them if they are necessary for your specific system. To learn more about how ARTIQ works and how to use it first, you might skip to the next page, :doc:`rtio`. For all configuration options, the core device generally must be restarted for changes to take effect.
 
 Flash idle and/or startup kernel
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
