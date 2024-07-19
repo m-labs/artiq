@@ -48,15 +48,9 @@ By default, DRTIO assumes a routing table for a star topology (i.e. all satellit
 
     $ artiq_coremgmt config write -f routing_table rt.bin
 
-<<<<<<< HEAD
-The local RTIO core of the master device is considered a destination like any other; it must be explicitly listed in the routing table to be accessible to kernels.
+Destination numbers must correspond to the ones used in the :ref:`device database <device-db>`, listed in the ``satellite_cpu_targets`` field. If unsure which destination number corresponds to which physical satellite device, check the channel numbers of the peripherals associated with that device; in DRTIO systems bits 16-24 of the RTIO channel number correspond to the destination number of the core device they are bound to. See also the :doc:`drtio` page.
 
-All routes must end with the local RTIO core of the destination device. Incorrect routing tables will cause ``RTIODestinationUnreachable`` exceptions.
-=======
-Destination numbers must correspond to the ones used in the :ref:`device database <device-db>`, listed in the ``satellite_cpu_targets`` field. If unsure which destination number corresponds to which physical satellite device, check the channel numbers of the peripherals associated with that device; in DRTIO systems bits 16-24 of the RTIO channel number correspond to the destination number of the core device they are bound to. See also the :doc:`drtio` page. 
-
-All routes must end with the local RTIO core of the destination device. Incorrect routing tables will cause ``RTIODestinationUnreachable`` exceptions. The local RTIO core of the master device is considered a destination like any other; it must be explicitly listed in the routing table to be accessible to kernels. 
->>>>>>> 268ae23ea (doc: 'Developing' associated link additions)
+All routes must end with the local RTIO core of the destination device. Incorrect routing tables will cause ``RTIODestinationUnreachable`` exceptions. The local RTIO core of the master device is considered a destination like any other; it must be explicitly listed in the routing table to be accessible to kernels.
 
 As with other configuration changes, the core device should be restarted (``artiq_coremgmt reboot``, power cycle, etc.) for changes to take effect.
 
