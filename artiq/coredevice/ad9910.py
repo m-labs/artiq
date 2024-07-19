@@ -622,7 +622,7 @@ class AD9910:
         :param start: Profile start address in RAM (10-bit).
         :param end: Profile end address in RAM, inclusive (10-bit).
         :param step: Profile time step, counted in DDS sample clock
-            cycles, normally 4 ns (16-bit, default: 1)
+            cycles, typically 4 ns (16-bit, default: 1)
         :param profile: Profile index (0 to 7) (default: 0).
         :param nodwell_high: No-dwell high bit (default: 0,
             see AD9910 documentation).
