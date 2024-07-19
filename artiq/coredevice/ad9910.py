@@ -390,7 +390,7 @@ class AD9910:
                  manual_osk_external: TInt32 = 0,
                  osk_enable: TInt32 = 0,
                  select_auto_osk: TInt32 = 0):
-        """Set CFR1. See the AD9910 datasheet for parameter meanings.
+        """Set CFR1. See the AD9910 datasheet for parameter meanings and sizes.
 
         This method does not pulse ``IO_UPDATE.``
 
@@ -429,7 +429,7 @@ class AD9910:
                  effective_ftw: TInt32 = 1,
                  sync_validation_disable: TInt32 = 0, 
                  matched_latency_enable: TInt32 = 0):
-        """Set CFR2. See the AD9910 datasheet for parameter meanings.
+        """Set CFR2. See the AD9910 datasheet for parameter meanings and sizes.
 
         This method does not pulse ``IO_UPDATE``.
 
@@ -617,12 +617,12 @@ class AD9910:
                         profile: TInt32 = _DEFAULT_PROFILE_RAM,
                         nodwell_high: TInt32 = 0, zero_crossing: TInt32 = 0,
                         mode: TInt32 = 1):
-        """Set the RAM profile settings.
+        """Set the RAM profile settings. See also AD9910 datasheet.
 
-        :param start: Profile start address in RAM.
-        :param end: Profile end address in RAM (last address).
-        :param step: Profile time step in units of t_DDS, typically 4 ns
-            (default: 1).
+        :param start: Profile start address in RAM (10-bit).
+        :param end: Profile end address in RAM, inclusive (10-bit).
+        :param step: Profile time step, counted in DDS sample clock
+            cycles, normally 4 ns (16-bit, default: 1)
         :param profile: Profile index (0 to 7) (default: 0).
         :param nodwell_high: No-dwell high bit (default: 0,
             see AD9910 documentation).
