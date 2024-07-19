@@ -43,7 +43,6 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
             (pkgs.python3.withPackages(ps: [
               # List desired Python packages here.
               artiq.artiq
-              #ps.misoc # to access UART logs 
               #ps.paramiko  # needed if and only if flashing boards remotely (artiq_flash -H)
               #artiq.flake8-artiq
               #artiq.dax

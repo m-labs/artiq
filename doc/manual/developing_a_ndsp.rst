@@ -1,21 +1,21 @@
 Developing a Network Device Support Package (NDSP)
 ==================================================
 
-Besides the kind of specialized real-time hardware most of ARTIQ is concerned with the control and management of, ARTIQ also easily handles more conventional 'slow' devices. This is done through *controllers*, based on `SiPyCo <https://github.com/m-labs/sipyco>`_ (manual hosted `here <https://m-labs.hk/artiq/sipyco-manual/>`_), which expose remote procedure call (RPC) interfaces to the network. This allows experiments to issue RPCs to the controllers as necessary, without needing to do direct I/O to the devices. Some advantages of this architecture include: 
+Besides the kind of specialized real-time hardware most of ARTIQ is concerned with the control and management of, ARTIQ also easily handles more conventional 'slow' devices. This is done through *controllers*, based on `SiPyCo <https://github.com/m-labs/sipyco>`_ (manual hosted `here <https://m-labs.hk/artiq/sipyco-manual/>`_), which expose remote procedure call (RPC) interfaces to the network. This allows experiments to issue RPCs to the controllers as necessary, without needing to do direct I/O to the devices. Some advantages of this architecture include:
 
-* Controllers/drivers can be run on different machines, alleviating cabling issues and OS compatibility problems. 
-* Reduces the impact of driver crashes. 
-* Reduces the impact of driver memory leaks. 
+* Controllers/drivers can be run on different machines, alleviating cabling issues and OS compatibility problems.
+* Reduces the impact of driver crashes.
+* Reduces the impact of driver memory leaks.
 
 Certain devices (such as the PDQ2) may still perform real-time operations by having certain controls physically connected to the core device (for example, the trigger and frame selection signals on the PDQ2). For handling such cases, parts of the support infrastructure may be kernels executed on the core device.
 
 .. seealso::
-    Some NDSPs for particular devices have already been written and made available to the public. A (non-exhaustive) list can be found on the page :doc:`list_of_ndsps`. 
+    Some NDSPs for particular devices have already been written and made available to the public. A (non-exhaustive) list can be found on the page :doc:`list_of_ndsps`.
 
 Components of a NDSP
 --------------------
 
-Full support for a specific device, called a network device support package or NDSP, requires several parts: 
+Full support for a specific device, called a network device support package or NDSP, requires several parts:
 
 1. The `driver`, which contains the Python API functions to be called over the network and performs the I/O to the device. The top-level module of the driver should be called ``artiq.devices.XXX.driver``.
 2. The `controller`, which instantiates, initializes and terminates the driver, and sets up the RPC server. The controller is a front-end command-line tool to the user and should be called ``artiq.frontend.aqctl_XXX``. A ``setup.py`` entry must also be created to install it.
@@ -25,7 +25,7 @@ Full support for a specific device, called a network device support package or N
 The driver and controller
 -------------------------
 
-As an example, we will develop a controller for a "device" that is very easy to work with: the console from which the controller is run. The operation that the driver will implement (and offer as an RPC) is writing a message to that console. 
+As an example, we will develop a controller for a "device" that is very easy to work with: the console from which the controller is run. The operation that the driver will implement (and offer as an RPC) is writing a message to that console.
 
 To use RPCs, the functions that a driver provides must be the methods of a single object. We will thus define a class that provides our message-printing method: ::
 
@@ -33,10 +33,10 @@ To use RPCs, the functions that a driver provides must be the methods of a singl
         def message(self, msg):
             print("message: " + msg)
 
-For a more complex driver, we would place this class definition into a separate Python module called ``driver``. In this example, for simplicity, we can include it in the controller module. 
+For a more complex driver, we would place this class definition into a separate Python module called ``driver``. In this example, for simplicity, we can include it in the controller module.
 
-For the controller itself, we will turn this method into a server using ``sipyco.pc_rpc``. Import the function we will use: :: 
-    
+For the controller itself, we will turn this method into a server using ``sipyco.pc_rpc``. Import the function we will use: ::
+
     from sipyco.pc_rpc import simple_server_loop
 
 and add a ``main`` function that is run when the program is executed: ::
@@ -71,7 +71,7 @@ In a different console, verify that you can connect to the TCP port: ::
 
 .. tip ::
 
-    To exit telnet, use the escape character combination (Ctrl + ]) to access the ``telnet>`` prompt, and then enter ``quit`` or ``close`` to close the connection. 
+    To exit telnet, use the escape character combination (Ctrl + ]) to access the ``telnet>`` prompt, and then enter ``quit`` or ``close`` to close the connection.
 
 Also verify that a target (i.e. available service for RPC) named "hello" exists: ::
 
@@ -81,7 +81,7 @@ Also verify that a target (i.e. available service for RPC) named "hello" exists:
 The client
 ----------
 
-Clients are small command-line utilities that expose certain functionalities of the drivers. The ``sipyco_rpctool`` utility contains a generic client that can be used in most cases, and developing a custom client is not required. You have already used it above in the form of ``list-targets``. Try these commands: :: 
+Clients are small command-line utilities that expose certain functionalities of the drivers. The ``sipyco_rpctool`` utility contains a generic client that can be used in most cases, and developing a custom client is not required. You have already used it above in the form of ``list-targets``. Try these commands: ::
 
     $ sipyco_rpctool ::1 3249 list-methods
     $ sipyco_rpctool ::1 3249 call message test
@@ -108,39 +108,39 @@ Run it as before, making sure the controller is running first. You should see th
     $ ./aqctl_hello.py
     message: Hello World!
 
-We see that the client has made a request to the server, which has, through the driver, performed the requisite I/O with the "device" (its console), resulting in the operation we wanted. Success! 
+We see that the client has made a request to the server, which has, through the driver, performed the requisite I/O with the "device" (its console), resulting in the operation we wanted. Success!
 
-.. warning:: 
+.. warning::
     Note that RPC servers operate on copies of objects provided by the client, and modifications to mutable types are not written back. For example, if the client passes a list as a parameter of an RPC method, and that method ``append()s`` an element to the list, the element is not appended to the client's list.
 
-To access this driver in an experiment, we can retrieve the ``Client`` instance with the ``get_device`` and ``set_device`` methods of :class:`artiq.language.environment.HasEnvironment`, and then use it like any other device (provided the controller is running and accessible at the time). 
+To access this driver in an experiment, we can retrieve the ``Client`` instance with the ``get_device`` and ``set_device`` methods of :class:`artiq.language.environment.HasEnvironment`, and then use it like any other device (provided the controller is running and accessible at the time).
 
 .. _ndsp-integration:
 
 Integration with ARTIQ experiments
 ----------------------------------
 
-Generally we will want to add the device to our :ref:`device database <device-db>` so that we can add it to an experiment with ``self.setattr_device`` and so the controller can be started and stopped automatically by a controller manager (the ``artiq_ctlmgr`` utility from ``artiq-comtools``). To do so, add an entry to your device database in this format: :: 
+Generally we will want to add the device to our :ref:`device database <device-db>` so that we can add it to an experiment with ``self.setattr_device`` and so the controller can be started and stopped automatically by a controller manager (the ``artiq_ctlmgr`` utility from ``artiq-comtools``). To do so, add an entry to your device database in this format: ::
 
 	device_db.update({
             "hello": {
         	"type": "controller",
         	"host": "::1",
         	"port": 3249,
-        	"command": "python /abs/path/to/aqctl_hello.py -p {port}" 
+        	"command": "python /abs/path/to/aqctl_hello.py -p {port}"
     	    },
 	})
-	
+
 Now it can be added using ``self.setattr_device("hello")`` in the ``build()`` phase of the experiment, and its methods accessed via: ::
-	
+
 	self.hello.message("Hello world!")
 
-.. note:: 
-    In order to be correctly started and stopped by a controller manager, your controller must additionally implement a ``ping()`` method, which should simply return true, e.g. :: 
-        
+.. note::
+    In order to be correctly started and stopped by a controller manager, your controller must additionally implement a ``ping()`` method, which should simply return true, e.g. ::
+
         def ping(self):
             return True
-            
+
 
 Remote execution support
 ------------------------
@@ -209,14 +209,14 @@ The program below exemplifies how to use logging: ::
 Additional guidelines
 ---------------------
 
-Command line and options 
+Command line and options
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 * Controllers should be able to operate in "simulation" mode, specified with ``--simulation``, where they behave properly even if the associated hardware is not connected. For example, they can print the data to the console instead of sending it to the device, or dump it into a file.
 * The device identification (e.g. serial number, or entry in ``/dev``) to attach to must be passed as a command-line parameter to the controller. We suggest using ``-d`` and ``--device`` as parameter name.
 * Keep command line parameters consistent across clients/controllers. When adding new command line options, look for a client/controller that does a similar thing and follow its use of ``argparse``. If the original client/controller could use ``argparse`` in a better way, improve it.
 
-Style 
+Style
 ^^^^^
 
 * Do not use ``__del__`` to implement the cleanup code of your driver. Instead, define a ``close`` method, and call it using a ``try...finally...`` block in the controller.
