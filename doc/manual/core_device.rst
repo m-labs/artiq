@@ -13,9 +13,9 @@ Flash storage
 The core device contains some flash storage space which is used to store configuration data. It is one sector (typically 64 kB) large and organized as a list of key-value records, accessible either through ``artiq_mkfs`` and ``artiq_flash`` or, preferably in most cases, the ``config`` option of the ``artiq_coremgmt`` core management tool (see below). Information can be stored to keys of any name, but the specific keys currently used and referenced by ARTIQ are summarized below:
 
 ``idle_kernel``
-  Stores (compiled ``.tar`` or ``.elf`` binary of) idle kernel. See :ref:`miscellaneous_config_core_device`.
+  Stores (compiled ``.tar`` or ``.elf`` binary of) idle kernel. See :ref:`core-device-config`.
 ``startup_kernel``
-  Stores (compiled ``.tar`` or ``.elf`` binary of) startup kernel. See :ref:`miscellaneous_config_core_device`.
+  Stores (compiled ``.tar`` or ``.elf`` binary of) startup kernel. See :ref:`core-device-config`.
 ``ip``
   Sets IP address of core device. For this and other networking options see also :ref:`core-device-networking`.
 ``mac``
