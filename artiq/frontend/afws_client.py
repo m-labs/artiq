@@ -189,7 +189,6 @@ def get_argparser():
     act_get_json.add_argument("variant", nargs="?", default=None, help="variant to get (can be omitted if user is authorised to build only one)")
     act_get_json.add_argument("-o", "--out", default=None, help="output JSON file")
     act_get_json.add_argument("-f", "--force", action="store_true", help="overwrite file if it already exists")
-    args = parser.parse_args()
     return parser
 
 
