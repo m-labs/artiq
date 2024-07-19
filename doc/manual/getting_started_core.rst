@@ -23,14 +23,14 @@ As a very first step, we will turn on a LED on the core device. Create a file ``
 
 The central part of our code is our ``LED`` class, which derives from :class:`~artiq.language.environment.EnvExperiment`. Almost all experiments should derive from this class, which provides access to the environment as well as including the necessary experiment framework from the base-level :class:`~artiq.language.environment.Experiment`. It will call our :meth:`~artiq.language.environment.HasEnvironment.build` at the right time and provides the :meth:`~artiq.language.environment.HasEnvironment.setattr_device` we use to gain access to our devices ``core`` and ``led``. The :func:`~artiq.language.core.kernel` decorator (``@kernel``) tells the system that the :meth:`~artiq.language.environment.Experiment.run` method is a kernel and must be compiled for and executed on the core device (instead of being interpreted and executed as regular Python code on the host).
 
-Before you can run the example experiment, you need to supply ARTIQ with the device database for your system. This comes in the form of a Python script typically called ``device_db.py`` (see also the page :ref:`device-db`). If you purchased a system from M-Labs, the ``device_db.py`` for your system will normally already have been provided to you (either on the USB stick, inside ``~/artiq`` on the NUC, or by email). If you have the system description file for your configuration on hand, you can use the ARTIQ front-end tool ``artiq_ddb_template`` to generate a matching device database file. Otherwise, examples are available in the ``examples`` folder of ARTIQ, sorted into corresponding subfolders by core device, which you can edit to match your system.
+Before you can run the example experiment, you will need to supply ARTIQ with the device database for your system, just as you did when configuring the core device. Make sure ``device_db.py`` is in the same directory as ``led.py``. Check once again that the field ``core_addr``, placed at the top of the file, matches the current IP address of your core device. 
+
+If you don't have a ``device_db.py`` for your system, consult :ref:`device-db` to find out how to construct one. You can also find example device databases in the ``examples`` folder of ARTIQ, sorted into corresponding subfolders by core device, which you can edit to match your system. 
 
 .. note::
-    To access the examples, you can find where the ARTIQ package is installed on your machine with: ::
+    To access the examples, find where the ARTIQ package is installed on your machine with: ::
 
         python3 -c "import artiq; print(artiq.__path__[0])"
-
-Make sure ``device_db.py`` is in the same directory as ``led.py``. The field ``core_addr``, placed at the top of the file, needs to match the current IP address of your core device in order for your host machine to contact it. If you purchased a pre-assembled system and haven't changed the IP address it is normally already set correctly.
 
 Run your code using ``artiq_run``, which is one of the ARTIQ front-end tools: ::
 
