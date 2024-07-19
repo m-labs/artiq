@@ -2,23 +2,23 @@ ARTIQ manual
 ============
 
 .. toctree::
-    :caption: Overview  
+    :caption: Overview
     :maxdepth: 2
-    
+
     introduction
     releases
 
 .. toctree::
-    :caption: Setting up ARTIQ 
+    :caption: Setting up ARTIQ
     :maxdepth: 2
 
     installing
-    flashing 
+    flashing
     configuring
     developing
-    
+
 .. toctree::
-    :caption: Tutorials   
+    :caption: Tutorials
     :maxdepth: 2
 
     rtio
@@ -27,17 +27,17 @@ ARTIQ manual
     using_drtio_subkernels
 
 .. toctree::
-    :caption: ARTIQ components  
-    :maxdepth: 2    
+    :caption: ARTIQ components
+    :maxdepth: 2
 
     environment
     compiler
     management_system
-    drtio 
+    drtio
     core_device
 
 .. toctree::
-    :caption: Network devices  
+    :caption: Network devices
     :maxdepth: 2
 
     developing_a_ndsp
@@ -45,16 +45,16 @@ ARTIQ manual
     default_network_ports
 
 .. toctree::
-    :caption: References  
+    :caption: References
     :maxdepth: 2
 
     main_frontend_reference
     core_language_reference
-    core_drivers_reference 
+    core_drivers_reference
     utilities
 
 .. toctree::
-    :caption: Addenda 
+    :caption: Addenda
     :maxdepth: 2
-    
+
     faq

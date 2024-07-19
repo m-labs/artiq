@@ -64,7 +64,7 @@ create and use variable lengths arrays in kernels?
 Don't. Preallocate everything. Or chunk it and e.g. read 100 events per
 function call, push them upstream and retry until the gate time closes.
 
-execute multiple slow controller RPCs in parallel without losing time? 
+execute multiple slow controller RPCs in parallel without losing time?
 ----------------------------------------------------------------------
 
 Use ``threading.Thread``: portable, fast, simple for one-shot calls.
