@@ -1,7 +1,7 @@
 Core device
 ===========
 
-The core device is a FPGA-based hardware component that contains a softcore or hardcore CPU tightly coupled with the so-called RTIO core, which runs in gateware and provides precision timing. The CPU executes Python code that is statically compiled by the ARTIQ compiler and communicates with peripherals (TTL, DDS, etc.) through the RTIO core, as described in :ref:`artiq-real-time-i-o-concepts`. This architecture provides high timing resolution, low latency, low jitter, high-level programming capabilities, and good integration with the rest of the Python experiment code. 
+The core device is a FPGA-based hardware component that contains a softcore or hardcore CPU tightly coupled with the so-called RTIO core, which runs in gateware and provides precision timing. The CPU executes Python code that is statically compiled by the ARTIQ compiler and communicates with peripherals (TTL, DDS, etc.) through the RTIO core, as described in :ref:`artiq-real-time-i-o-concepts`. This architecture provides high timing resolution, low latency, low jitter, high-level programming capabilities, and good integration with the rest of the Python experiment code.
 
 While it is possible to use the other parts of ARTIQ (controllers, master, GUI, dataset management, etc.) without a core device, many experiments require it.
 
@@ -13,15 +13,15 @@ Flash storage
 The core device contains some flash storage space which is used to store configuration data. It is one sector (typically 64 kB) large and organized as a list of key-value records, accessible either through ``artiq_mkfs`` and ``artiq_flash`` or, preferably in most cases, the ``config`` option of the ``artiq_coremgmt`` core management tool (see below). Information can be stored to keys of any name, but the specific keys currently used and referenced by ARTIQ are summarized below:
 
 ``idle_kernel``
-  Stores (compiled ``.tar`` or ``.elf`` binary of) idle kernel. See :ref:`miscellaneous_config_core_device`. 
+  Stores (compiled ``.tar`` or ``.elf`` binary of) idle kernel. See :ref:`miscellaneous_config_core_device`.
 ``startup_kernel``
   Stores (compiled ``.tar`` or ``.elf`` binary of) startup kernel. See :ref:`miscellaneous_config_core_device`.
-``ip`` 
+``ip``
   Sets IP address of core device. For this and other networking options see also :ref:`core-device-networking`.
 ``mac``
-  Sets MAC address of core device. Unnecessary on Kasli or Kasli-SoC, which can obtain it from EEPROM. 
+  Sets MAC address of core device. Unnecessary on Kasli or Kasli-SoC, which can obtain it from EEPROM.
 ``ipv4_default_route``
-  Sets IPv4 default route. 
+  Sets IPv4 default route.
 ``ip6``
   Sets IPv6 address of core device. Can be set irrespective of and used simultaneously as IPv4 address above.
 ``ipv6_default_route``
@@ -31,7 +31,7 @@ The core device contains some flash storage space which is used to store configu
 ``log_level``
   Sets core device log level. Possible levels are ``TRACE``, ``DEBUG``, ``INFO``, ``WARN``, ``ERROR``, and ``OFF``. Note that enabling higher log levels will produce some core device slowdown.
 ``uart_log_level``
-  Sets UART log level, with same options. Printing a large number of messages to UART log will produce a significant slowdown. 
+  Sets UART log level, with same options. Printing a large number of messages to UART log will produce a significant slowdown.
 ``rtio_clock``
   Sets the RTIO clock; see :ref:`core-device-clocking`.
 ``routing_table``
@@ -40,13 +40,13 @@ The core device contains some flash storage space which is used to store configu
   If set, allows the core log to connect RTIO channels to device names and use device names as well as channel numbers in log output. A correctly formatted table can be automatically generated with ``artiq_rtiomap``, see :ref:`Utilities<rtiomap-tool>`.
 ``net_trace``
   If set to ``1``, will activate net trace (print all packets sent and received to UART and core log). This will considerably slow down all network response from the core. Not applicable for ARTIQ-Zynq (Kasli-SoC, ZC706).
-``panic_reset`` 
+``panic_reset``
   If set to ``1``, core device will restart automatically.  Not applicable for ARTIQ-Zynq.
 ``no_flash_boot``
   If set to ``1``, will disable flash boot. Network boot is attempted if possible. Not applicable for ARTIQ-Zynq.
 ``boot``
   Allows full firmware/gateware (``boot.bin``) to be written with ``artiq_coremgmt``, on ARTIQ-Zynq systems only.
-    
+
 Common configuration commands
 -----------------------------
 
@@ -73,11 +73,11 @@ You can also write entire files in a record using the ``-f`` option. This is use
     $ artiq_coremgmt config read idle_kernel | head -c9
     b'\x7fELF
 
-The same option is used to write ``boot.bin`` in ARTIQ-Zynq. Note that the ``boot`` key is write-only. 
+The same option is used to write ``boot.bin`` in ARTIQ-Zynq. Note that the ``boot`` key is write-only.
 
 See also the full reference of ``artiq_coremgmt`` in :ref:`Utilities <core-device-management-tool>`.
 
-Board details 
+Board details
 -------------
 
 FPGA board ports
@@ -88,11 +88,11 @@ All boards have a serial interface running at 115200bps 8-N-1 that can be used f
 Kasli and Kasli SoC
 ^^^^^^^^^^^^^^^^^^^
 
-`Kasli <https://github.com/sinara-hw/Kasli/wiki>`_ and `Kasli-SoC <https://github.com/sinara-hw/Kasli-SOC/wiki>`_ are versatile core devices designed for ARTIQ as part of the open-source `Sinara <https://github.com/sinara-hw/meta/wiki>`_ family of boards. All support interfacing to various EEM daughterboards (TTL, DDS, ADC, DAC...) through twelve onboard EEM ports. Kasli-SoC, which runs on a separate `Zynq port <https://git.m-labs.hk/M-Labs/artiq-zynq>`_ of the ARTIQ firmware, is architecturally separate, among other things being capable of performing much heavier software computations quickly locally to the board, but provides generally similar features to Kasli. Kasli itself exists in two versions, of which the improved Kasli v2.0 is now in more common use, but the original Kasli v1.0 remains supported by ARTIQ. 
+`Kasli <https://github.com/sinara-hw/Kasli/wiki>`_ and `Kasli-SoC <https://github.com/sinara-hw/Kasli-SOC/wiki>`_ are versatile core devices designed for ARTIQ as part of the open-source `Sinara <https://github.com/sinara-hw/meta/wiki>`_ family of boards. All support interfacing to various EEM daughterboards (TTL, DDS, ADC, DAC...) through twelve onboard EEM ports. Kasli-SoC, which runs on a separate `Zynq port <https://git.m-labs.hk/M-Labs/artiq-zynq>`_ of the ARTIQ firmware, is architecturally separate, among other things being capable of performing much heavier software computations quickly locally to the board, but provides generally similar features to Kasli. Kasli itself exists in two versions, of which the improved Kasli v2.0 is now in more common use, but the original Kasli v1.0 remains supported by ARTIQ.
 
-Kasli can be connected to the network using a 10000Base-X SFP module, installed into the SFP0 cage. Kasli-SoC features a built-in Ethernet port to use instead. If configured as a DRTIO satellite, both boards instead reserve SFP0 for the upstream DRTIO connection; remaining SFP cages are available for downstream connections. Equally, if used as a DRTIO master, all free SFP cages are available for downstream connections (i.e. all but SFP0 on Kasli, all four on Kasli-SoC). 
+Kasli can be connected to the network using a 10000Base-X SFP module, installed into the SFP0 cage. Kasli-SoC features a built-in Ethernet port to use instead. If configured as a DRTIO satellite, both boards instead reserve SFP0 for the upstream DRTIO connection; remaining SFP cages are available for downstream connections. Equally, if used as a DRTIO master, all free SFP cages are available for downstream connections (i.e. all but SFP0 on Kasli, all four on Kasli-SoC).
 
-The DRTIO line rate depends upon the RTIO clock frequency running, e.g., at 125MHz the line rate is 2.5Gbps, at 150MHz 3.0Gbps, etc. See below for information on RTIO clocks. 
+The DRTIO line rate depends upon the RTIO clock frequency running, e.g., at 125MHz the line rate is 2.5Gbps, at 150MHz 3.0Gbps, etc. See below for information on RTIO clocks.
 
 KC705
 ^^^^^
@@ -205,23 +205,23 @@ See :mod:`artiq.coredevice.i2c` for more details.
 Clocking
 --------
 
-The core device generates the RTIO clock using a PLL locked either to an internal crystal or to an external frequency reference. If choosing the latter, external reference must be provided (via front panel SMA input on Kasli boards). Valid configuration options include: 
+The core device generates the RTIO clock using a PLL locked either to an internal crystal or to an external frequency reference. If choosing the latter, external reference must be provided (via front panel SMA input on Kasli boards). Valid configuration options include:
 
   * ``int_100`` - internal crystal reference is used to synthesize a 100MHz RTIO clock,
-  * ``int_125`` - internal crystal reference is used to synthesize a 125MHz RTIO clock (default option), 
+  * ``int_125`` - internal crystal reference is used to synthesize a 125MHz RTIO clock (default option),
   * ``int_150`` - internal crystal reference is used to synthesize a 150MHz RTIO clock.
   * ``ext0_synth0_10to125`` - external 10MHz reference clock used to synthesize a 125MHz RTIO clock,
   * ``ext0_synth0_80to125`` - external 80MHz reference clock used to synthesize a 125MHz RTIO clock,
   * ``ext0_synth0_100to125`` - external 100MHz reference clock used to synthesize a 125MHz RTIO clock,
-  * ``ext0_synth0_125to125`` - external 125MHz reference clock used to synthesize a 125MHz RTIO clock. 
+  * ``ext0_synth0_125to125`` - external 125MHz reference clock used to synthesize a 125MHz RTIO clock.
 
-The selected option can be observed in the core device boot logs and accessed using ``artiq_coremgmt config`` with key ``rtio_clock``. 
+The selected option can be observed in the core device boot logs and accessed using ``artiq_coremgmt config`` with key ``rtio_clock``.
 
-As of ARTIQ 8, it is now possible for Kasli and Kasli-SoC configurations to enable WRPLL -- a clock recovery method using `DDMTD <http://white-rabbit.web.cern.ch/documents/DDMTD_for_Sub-ns_Synchronization.pdf>`_ and Si549 oscillators -- both to lock the main RTIO clock and (in DRTIO configurations) to lock satellites to master. This is set by the ``enable_wrpll`` option in the JSON description file. Because WRPLL requires slightly different gateware and firmware, it is necessary to re-flash devices to enable or disable it in extant systems. If you would like to obtain the firmware for a different WRPLL setting through AFWS, write to the helpdesk@ email. 
+As of ARTIQ 8, it is now possible for Kasli and Kasli-SoC configurations to enable WRPLL -- a clock recovery method using `DDMTD <http://white-rabbit.web.cern.ch/documents/DDMTD_for_Sub-ns_Synchronization.pdf>`_ and Si549 oscillators -- both to lock the main RTIO clock and (in DRTIO configurations) to lock satellites to master. This is set by the ``enable_wrpll`` option in the JSON description file. Because WRPLL requires slightly different gateware and firmware, it is necessary to re-flash devices to enable or disable it in extant systems. If you would like to obtain the firmware for a different WRPLL setting through AFWS, write to the helpdesk@ email.
 
-If phase noise performance is the priority, it is recommended to use ``ext0_synth0_125to125`` over other ``ext0`` options, as this bypasses the (noisy) MMCM.  
+If phase noise performance is the priority, it is recommended to use ``ext0_synth0_125to125`` over other ``ext0`` options, as this bypasses the (noisy) MMCM.
 
-If not using WRPLL, PLL can also be bypassed entirely with the options 
+If not using WRPLL, PLL can also be bypassed entirely with the options
 
     * ``ext0_bypass`` (input clock used directly)
     * ``ext0_bypass_125`` (explicit alias)

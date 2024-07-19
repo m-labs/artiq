@@ -1,8 +1,8 @@
 Management system
 =================
 
-.. note:: 
-   The ARTIQ management system as described here is optional. Experiments can be run one-by-one using :mod:`~artiq.frontend.artiq_run`, and controllers can be run without a controller manager. For their very first steps with ARTIQ or in simple or particular cases, users do not need to deploy the management system. For an introduction to the system and how to use it, see :doc:`getting_started_mgmt`. 
+.. note::
+   The ARTIQ management system as described here is optional. Experiments can be run one-by-one using :mod:`~artiq.frontend.artiq_run`, and controllers can be run without a controller manager. For their very first steps with ARTIQ or in simple or particular cases, users do not need to deploy the management system. For an introduction to the system and how to use it, see :doc:`getting_started_mgmt`.
 
 Components
 ----------
@@ -12,7 +12,7 @@ Master
 
 The :ref:`ARTIQ master <frontend-artiq-master>` is responsible for managing the parameter and device databases, the experiment repository, scheduling and running experiments, archiving results, and distributing real-time results. It is a headless component, and one or several clients (command-line or GUI) use the network to interact with it.
 
-It should not be confused with the 'master' device in a DRTIO system, which is only a designation for the particular core device acting as central node in a distributed configuration of ARTIQ. The two concepts are otherwise unrelated. 
+It should not be confused with the 'master' device in a DRTIO system, which is only a designation for the particular core device acting as central node in a distributed configuration of ARTIQ. The two concepts are otherwise unrelated.
 
 Command-line client
 ^^^^^^^^^^^^^^^^^^^
@@ -22,14 +22,14 @@ The :ref:`command-line client <frontend-artiq-client>` connects to the master an
 Dashboard
 ^^^^^^^^^
 
-The :ref:`dashboard <frontend-artiq-dashboard>` connects to the master and is the main method of interacting with it. The main features of the dashboard are scheduling of experiments, setting of their arguments, examining the schedule, displaying real-time results, and debugging TTL and DDS channels in real time. 
+The :ref:`dashboard <frontend-artiq-dashboard>` connects to the master and is the main method of interacting with it. The main features of the dashboard are scheduling of experiments, setting of their arguments, examining the schedule, displaying real-time results, and debugging TTL and DDS channels in real time.
 
-The dashboard remembers and restores GUI state (window/dock positions, last values entered by the user, etc.) in between instances. This information is stored in a file called ``artiq_dashboard_{server}_{port}.pyon`` in the configuration directory (e.g. generally ``~/.config/artiq`` for Unix, same as data directory for Windows), distinguished in subfolders by ARTIQ version. 
+The dashboard remembers and restores GUI state (window/dock positions, last values entered by the user, etc.) in between instances. This information is stored in a file called ``artiq_dashboard_{server}_{port}.pyon`` in the configuration directory (e.g. generally ``~/.config/artiq`` for Unix, same as data directory for Windows), distinguished in subfolders by ARTIQ version.
 
 Controller manager
 ^^^^^^^^^^^^^^^^^^
 
-The controller manager is provided in the ``artiq-comtools`` package (which is also made available separately from mainline ARTIQ, to allow independent use with minimal dependencies) and started with the ``artiq_ctlmgr`` command. It is responsible for running and stopping controllers on a machine. One controller manager must be run by each network node that runs controllers. 
+The controller manager is provided in the ``artiq-comtools`` package (which is also made available separately from mainline ARTIQ, to allow independent use with minimal dependencies) and started with the ``artiq_ctlmgr`` command. It is responsible for running and stopping controllers on a machine. One controller manager must be run by each network node that runs controllers.
 
 A controller manager connects to the master and accesses the device database through it to determine what controllers need to be run. The local network address of the connection is used to filter for only those controllers allocated to the current node. Hostname resolution is supported. Changes to the device database are tracked and controllers will be stopped and started accordingly.
 
@@ -37,18 +37,18 @@ A controller manager connects to the master and accesses the device database thr
 Git integration
 ---------------
 
-The master may use a Git repository to store experiment source code. Using Git has many advantages. For example, each result file (HDF5) contains the commit ID corresponding to the exact source code it was produced by, which helps reproducibility. 
+The master may use a Git repository to store experiment source code. Using Git has many advantages. For example, each result file (HDF5) contains the commit ID corresponding to the exact source code it was produced by, which helps reproducibility.
 
-Although the master also supports non-bare repositories, it is recommended to use a bare repository (e.g. ``git init --bare``) to easily support push transactions from clients. 
+Although the master also supports non-bare repositories, it is recommended to use a bare repository (e.g. ``git init --bare``) to easily support push transactions from clients.
 
-You will want Git to notify the master every time the repository is pushed to (e.g. updated), so that the master knows to rescan the repository for new or changed experiments. This is easiest done with the ``post-receive`` hook, as described in :ref:`master-setting-up-git`.  
+You will want Git to notify the master every time the repository is pushed to (e.g. updated), so that the master knows to rescan the repository for new or changed experiments. This is easiest done with the ``post-receive`` hook, as described in :ref:`master-setting-up-git`.
 
-.. note:: 
+.. note::
    If you plan to run the ARTIQ system entirely on a single machine, you may also consider using a non-bare repository and the ``post-commit`` hook to trigger repository scans every time you commit changes (locally). In this case, note that the ARTIQ master never uses the repository's working directory, but only what is committed. More precisely, when scanning the repository, it fetches the last (atomically) completed commit at that time of repository scan and checks it out in a temporary folder. This commit ID is used by default when subsequently submitting experiments. There is one temporary folder by commit ID currently referenced in the system, so concurrently running experiments from different repository revisions is fully supported by the master.
 
-By default, the dashboard runs experiments from the repository, whereas the command-line client (``artiq_client submit``) runs experiments from the raw filesystem (which is useful for iterating rapidly without creating many disorganized commits). In order to run from the raw filesystem when using the dashboard, right-click in the Explorer window and select the option "Open file outside repository"; in order to run from the repository when using the command-line client, simply pass the ``-R`` flag. 
+By default, the dashboard runs experiments from the repository, whereas the command-line client (``artiq_client submit``) runs experiments from the raw filesystem (which is useful for iterating rapidly without creating many disorganized commits). In order to run from the raw filesystem when using the dashboard, right-click in the Explorer window and select the option "Open file outside repository"; in order to run from the repository when using the command-line client, simply pass the ``-R`` flag.
 
-.. _experiment-scheduling: 
+.. _experiment-scheduling:
 
 Experiment scheduling
 ---------------------
@@ -58,10 +58,10 @@ Basics
 
 To make more efficient use of hardware resources, experiments are generally split into three phases and pipelined, such that potentially compute-intensive pre-computation or analysis phases may be executed in parallel with the bodies of other experiments, which access hardware.
 
-.. seealso:: 
+.. seealso::
    These steps are implemented in :class:`~artiq.language.environment.Experiment`. However, user-written experiments should usually derive from (sub-class) :class:`artiq.language.environment.EnvExperiment`.
 
-There are three stages of a standard experiment users may write code in: 
+There are three stages of a standard experiment users may write code in:
 
 1. The **preparation** stage, which pre-fetches and pre-computes any data that necessary to run the experiment. Users may implement this stage by overloading the :meth:`~artiq.language.environment.Experiment.prepare` method. It is not permitted to access hardware in this stage, as doing so may conflict with other experiments using the same devices.
 2. The **run** stage, which corresponds to the body of the experiment and generally accesses hardware. Users must implement this stage and overload the :meth:`~artiq.language.environment.Experiment.run` method.
@@ -81,9 +81,9 @@ Priorities and timed runs
 
 When determining what experiment should begin executing next (i.e. enter the preparation stage), the scheduling looks at the following factors, by decreasing order of precedence:
 
-1. Experiments may be scheduled with a due date. This is considered the *earliest possible* time of their execution (rather than a deadline, or latest possible -- ARTIQ makes no guarantees about experiments being started or completed before any specified time). If a due date is set and it has not yet been reached, the experiment is not eligible for preparation.  
+1. Experiments may be scheduled with a due date. This is considered the *earliest possible* time of their execution (rather than a deadline, or latest possible -- ARTIQ makes no guarantees about experiments being started or completed before any specified time). If a due date is set and it has not yet been reached, the experiment is not eligible for preparation.
 2. The integer priority value specified by the user.
-3. The due date itself. The earliest (reached) due date will be scheduled first. 
+3. The due date itself. The earliest (reached) due date will be scheduled first.
 4. The run identifier (RID), an integer that is incremented at each experiment submission. This ensures that, all else being equal, experiments are scheduled in the same order as they are submitted.
 
 Multiple pipelines
@@ -91,7 +91,7 @@ Multiple pipelines
 
 Experiments must be placed into a pipeline at submission time, set by the "Pipeline" field. The master supports multiple simultaneous pipelines, which will operate in parallel. Pipelines are identified by their names, and are automatically created (when an experiment is scheduled with a pipeline name that does not yet exist) and destroyed (when they run empty). By default, all experiments are submitted into the same pipeline, ``main``.
 
-When using multiple pipelines it is the responsibility of the user to ensure that experiments scheduled in parallel will never conflict with those of another pipeline over resources (e.g. attempt to use the same devices simultaneously). 
+When using multiple pipelines it is the responsibility of the user to ensure that experiments scheduled in parallel will never conflict with those of another pipeline over resources (e.g. attempt to use the same devices simultaneously).
 
 Pauses
 ^^^^^^
@@ -125,14 +125,14 @@ CCBs are used by experiments to configure applets in the dashboard, for example 
 .. autoclass:: artiq.dashboard.applets_ccb.AppletsCCBDock
    :members:
 
-.. _applet-references: 
+.. _applet-references:
 
 Applet request interfaces
 -------------------------
 
 Applet request interfaces allow applets to perform actions on the master database and set arguments in the dashboard. Applets may inherit from ``artiq.applets.simple.SimpleApplet`` and call the methods defined below through the ``req`` attribute.
 
-Embedded applets should use ``AppletRequestIPC`` while standalone applets use ``AppletRequestRPC``. ``SimpleApplet`` automatically chooses the correct interface on initialization. 
+Embedded applets should use ``AppletRequestIPC`` while standalone applets use ``AppletRequestRPC``. ``SimpleApplet`` automatically chooses the correct interface on initialization.
 
 .. autoclass:: artiq.applets.simple._AppletRequestInterface
    :members:
@@ -140,7 +140,7 @@ Embedded applets should use ``AppletRequestIPC`` while standalone applets use ``
 Applet entry area
 -----------------
 
-Argument widgets can be used in applets through the :class:`~artiq.gui.applets.EntryArea` class. Below is a simple example code snippet: :: 
+Argument widgets can be used in applets through the :class:`~artiq.gui.applets.EntryArea` class. Below is a simple example code snippet: ::
 
    entry_area = EntryArea()
 
@@ -148,7 +148,7 @@ Argument widgets can be used in applets through the :class:`~artiq.gui.applets.E
    entry_area.setattr_argument("bl", BooleanValue(True))
 
    # Get the value of the widget (output: True)
-   print(entry_area.bl) 
+   print(entry_area.bl)
 
    # Set the value
    entry_area.set_value("bl", False)
@@ -159,7 +159,7 @@ Argument widgets can be used in applets through the :class:`~artiq.gui.applets.E
 The :class:`~artiq.gui.applets.EntryArea`  object can then be added to a layout and integrated with the applet GUI. Multiple :class:`~artiq.gui.applets.EntryArea`  objects can be used in a single applet.
 
 .. class:: artiq.gui.applets.EntryArea
-   
+
    .. method:: setattr_argument(name, proc, group=None, tooltip=None)
 
       Sets an argument as attribute. The names of the argument and of the
@@ -186,7 +186,7 @@ The :class:`~artiq.gui.applets.EntryArea`  object can then be added to a layout 
 
       :param name: Argument name
       :param value: Object representing the new value of the argument. For :class:`~artiq.language.scan.Scannable` arguments, this parameter
-          should be a :class:`~artiq.language.scan.ScanObject`. The type of the :class:`~artiq.language.scan.ScanObject` will be set as the selected type when this function is called. 
+          should be a :class:`~artiq.language.scan.ScanObject`. The type of the :class:`~artiq.language.scan.ScanObject` will be set as the selected type when this function is called.
 
    .. method:: set_values(values)
 
