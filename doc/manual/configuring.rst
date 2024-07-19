@@ -1,6 +1,8 @@
 Networking and configuration
 ============================
 
+.. _core-device-networking: 
+
 Setting up core device networking
 ---------------------------------
 
