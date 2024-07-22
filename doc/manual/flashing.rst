@@ -15,7 +15,7 @@ Run the command::
 
   $ afws_client <username> build <afws_director> <variant>
 
-Replace ``<username>`` with the login name that was given to you with the subscription, ``<variant>`` with the name of your system variant, and ``<afws_directory>`` with the name of an empty directory, which will be created by the command if it does not exist. Enter your password when prompted and wait for the build (if applicable) and download to finish. If you experience issues with the AFWS client, write to the helpdesk@ email.
+Replace ``<username>`` with the login name that was given to you with the subscription, ``<variant>`` with the name of your system variant, and ``<afws_directory>`` with the name of an empty directory, which will be created by the command if it does not exist. Enter your password when prompted and wait for the build (if applicable) and download to finish. If you experience issues with the AFWS client, write to the helpdesk@ email. For more information about ``afws_client`` see also the corresponding entry on the :ref:`Utilities <afws-client>` page.
 
 For certain configurations (KC705 or ZC706 only) it is also possible to source firmware from `the M-Labs Hydra server <https://nixbld.m-labs.hk/project/artiq>`_ (in ``main`` and ``zynq`` respectively).
 
