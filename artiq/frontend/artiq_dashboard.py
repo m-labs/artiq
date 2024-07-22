@@ -34,6 +34,9 @@ def get_argparser():
         "-s", "--server", default="::1",
         help="hostname or IP of the master to connect to (default: %(default)s)")
     parser.add_argument(
+        "--port-notify", default=3250, type=int,
+        help="TCP port to connect to for notifications (default: %(default)s)")
+    parser.add_argument(
         "--port-control", default=3251, type=int,
         help="TCP port to connect to for control (default: %(default)s)")
     parser.add_argument(
