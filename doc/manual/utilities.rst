@@ -4,6 +4,8 @@ Utilities
 .. Sort these tool by some subjective combination of their
    typical sequence and expected frequency of use.
 
+.. _afws-client:
+
 ARTIQ Firmware Service (AFWS) client
 ------------------------------------
 
@@ -73,6 +75,8 @@ Core device logging controller
    :ref: artiq.frontend.aqctl_corelog.get_argparser
    :prog: aqctl_corelog
    :nodefault:
+
+.. _ddb-template-tool:
 
 Device database template generator
 ----------------------------------
