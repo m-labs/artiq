@@ -37,7 +37,7 @@ ARTIQ gateware and firmware binaries are dependent on the system configuration. 
 
 .. warning::
 
-    System configuration files are only used with Kasli and Kasli-SoC boards. KC705 and ZC706 ARTIQ configurations, due to their relative rarity and specialization, are handled on a case-by-case basis and selected through a variant name such as ``nist_clock``, with no system description file necessary. See below in :ref:`building` to find out what variants are supported. Writing new KC705 or ZC706 variants is not a trivial task, and not particularly recommended, unless you are an FPGA developer and know what you're doing.
+    System configuration files are only used with Kasli and Kasli-SoC boards. KC705 and ZC706 ARTIQ configurations, due to their relative rarity and specialization, are handled on a case-by-case basis and selected through a variant name such as ``nist_clock``, with no system description file necessary. See below in :ref:`building` for where to find the list of supported variants. Writing new KC705 or ZC706 variants is not a trivial task, and not particularly recommended, unless you are an FPGA developer and know what you're doing.
 
 If you already have your system configuration file on hand, you can edit it to reflect any changes in configuration. If you purchased your original system from M-Labs, or recently purchased new hardware to add to it, you can obtain your up-to-date system configuration file through AFWS at any time using the command ``$ afws_client get_json`` (see :ref:`AFWS client<afws-client>`). If you are starting from scratch, a close reading of ``coredevice_generic.schema.json`` in ``artiq/coredevice`` will be helpful.
 
@@ -56,7 +56,7 @@ System descriptions do not need to be very complex. At its most basic, a system 
         ]
     }
 
-Only these five fields are required, and the ``peripherals`` list can in principle be empty. A limited number of more extensive examples can currently be found in `the ARTIQ-Zynq repository <https://git.m-labs.hk/M-Labs/artiq-zynq/src/branch/master>`_, as well as one in the main repository under ``artiq/examples/kasli_shuttler``. Once your system description file is complete, you can use ``artiq_ddb_template`` (see also :ref:`Utilities <ddb-template-tool>`) to test it and to generate a template for the corresponding :ref:`device database <device-db>`.
+Only these five fields are required, and the ``peripherals`` list can in principle be empty. A limited number of more extensive examples can currently be found in `the ARTIQ-Zynq repository <https://git.m-labs.hk/M-Labs/artiq-zynq/src/branch/master>`_, as well as in the main repository under ``artiq/examples/kasli_shuttler``. Once your system description file is complete, you can use ``artiq_ddb_template`` (see also :ref:`Utilities <ddb-template-tool>`) to test it and to generate a template for the corresponding :ref:`device database <device-db>`.
 
 DRTIO descriptions
 ^^^^^^^^^^^^^^^^^^
@@ -109,9 +109,9 @@ The parallel command does exist for ARTIQ-Zynq: ::
 
     $ nix develop git+https://git.m-labs.hk/m-labs/artiq-zynq\?ref=release-[number]
 
-but if you are building ARTIQ-Zynq without intention to change the source, it is not actually necessary to enter the development environment at all; Nix is capable of accessing the official flake remotely for the build itself, eliminating the requirement for any particular environment. This is equally possible for original ARTIQ, but not as useful, as the development environment (specifically the ``#boards`` shell) is still the easiest way to access the necessary tools for flashing the board.
+but if you are building ARTIQ-Zynq without intention to change the source, it is not actually necessary to enter the development environment at all; Nix is capable of accessing the official flake remotely for the build itself, eliminating the requirement for any particular environment.
 
-On the other hand, with Zynq, it is normally recommended to boot from SD card, which requires no further special tools. As long as you have a functioning Nix installation with flakes enabled, you can progress directly to the building instructions below.
+This is possible for original ARTIQ, but not as useful, as the development environment (specifically the ``#boards`` shell) is still the easiest way to access the necessary tools for flashing the board. On the other hand, with Zynq, it is normally recommended to boot from SD card, which requires no further special tools. As long as you have a functioning Nix installation with flakes enabled, you can progress directly to the building instructions below.
 
 .. _building:
 
@@ -123,7 +123,7 @@ For general troubleshooting and debugging, especially with a 'fresh' board, see 
 Kasli or KC705 (ARTIQ original)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-For Kasli, if you have your system description file on-hand, you can at this point build both firmware and gate with a command of the form: ::
+For Kasli, if you have your system description file on-hand, you can at this point build both firmware and gateware with a command of the form: ::
 
     $ python -m artiq.gateware.targets.kasli <description>.json
 
@@ -151,7 +151,7 @@ For Kasli-SoC, run: ::
 
     $ nix build --print-build-logs --impure --expr 'let fl = builtins.getFlake "git+https://git.m-labs.hk/m-labs/artiq-zynq?ref=release-[number]"; in (fl.makeArtiqZynqPackage {target="kasli_soc"; variant="<variant>"; json=<path/to/description.json>;}).kasli_soc-<variant>-sd'
 
-Replace ``<variant>`` with ``master``, ``satellite``, or ``standalone``, depending on your targeted DRTIO role. Remove ``?ref=release-[number]`` to use the current beta version rather than a numbered release. If you have cloned the repository and prefer to use your local copy of the flake, replace the corresponding clause with ``builtins.getFlake "absolute/path/to/your/artiq-zynq"``.
+Replace ``<variant>`` with ``master``, ``satellite``, or ``standalone``, depending on your targeted DRTIO role. Remove ``?ref=release-[number]`` to use the current beta version rather than a numbered release. If you have cloned the repository and prefer to use your local copy of the flake, replace the corresponding clause with ``builtins.getFlake "/absolute/path/to/your/artiq-zynq"``.
 
 For ZC706, you can use a command of the same form: ::
 
@@ -185,23 +185,23 @@ Optionally, the SD card may also be loaded at the same time with an additional f
 
 After a successful boot, the "FPGA DONE" light should be illuminated and the board should respond to ping when plugged into Ethernet.
 
+.. _zynq-jtag-boot :
+
 Booting over JTAG/Ethernet
 """"""""""""""""""""""""""
 
-It is also possible to flash/boot Zynq devices over USB and Ethernet. Flip the DIP switches to JTAG. The scripts ``remote_run.sh`` and ``local_run.sh`` in the ARTIQ-Zynq repository, intended for use with a remote JTAG server or a local connection to the core device respectively, were written at M-Labs to accomplish this. Both make use of the netboot tool ``artiq_netboot``, see also its source `here <https://git.m-labs.hk/M-Labs/artiq-netboot>`__, which is included in the ARTIQ-Zynq development environment. Adapt the relevant script to your system or read it closely to understand the options and the commands being run; note for example that ``remote_run.sh`` as written only supports ZC706.
+It is also possible to boot Zynq devices over USB and Ethernet. Flip the DIP switches to JTAG. The scripts ``remote_run.sh`` and ``local_run.sh`` in the ARTIQ-Zynq repository, intended for use with a remote JTAG server or a local connection to the core device respectively, are used at M-Labs to accomplish this. Both make use of the netboot tool ``artiq_netboot``, see also its source `here <https://git.m-labs.hk/M-Labs/artiq-netboot>`__, which is included in the ARTIQ-Zynq development environment. Adapt the relevant script to your system or read it closely to understand the options and the commands being run; note for example that ``remote_run.sh`` as written only supports ZC706.
 
-You will need to generate the gateware and firmware first, either through ``nix build`` or incrementally as below. For an incremental build add the option ``-i`` when running either of the scripts.
+You will need to generate the gateware, firmware and bootloader first, either through ``nix build`` or incrementally as below. After an incremental build add the option ``-i`` when running either of the scripts. If using ``nix build``, note that target names of the form ``<board>-<variant>-jtag`` (run ``nix flake show`` to see all targets) will output the three necessary files without combining them into ``boot.bin``.
 
 .. warning::
 
-    A known Xilinx hardware bug on Zynq prevents repeatedly loading the SZL bootloader over JTAG (i.e. repeated calls of the ``*_run.sh`` scripts) without a POR reset. If necessary, physically set a jumper on the ``PS_POR_B`` pins of your board and use the M-Labs `POR reset script <https://git.m-labs.hk/M-Labs/zynq-rs/src/branch/master/kasli_soc_por.py>`_.
-
-.. _zynq-jtag-boot :
+    A known Xilinx hardware bug on Zynq prevents repeatedly loading the SZL bootloader over JTAG (i.e. repeated calls of the ``*_run.sh`` scripts) without a POR reset. On Kasli-SoC, you can physically set a jumper on the ``PS_POR_B`` pins of your board and use the M-Labs `POR reset script <https://git.m-labs.hk/M-Labs/zynq-rs/src/branch/master/kasli_soc_por.py>`_.
 
 Zynq incremental build
 ^^^^^^^^^^^^^^^^^^^^^^
 
-In some circumstances, especially if you are developing ARTIQ, you may prefer to construct ``boot.bin`` manually. This is a little more involved, as ``boot.bin`` is the combination of several files, specifically ``szl.elf`` (an open-source bootloader for Zynq `written by M-Labs <https://git.m-labs.hk/M-Labs/zynq-rs/src/branch/master/szl>`_, used rather than Xilinx's FSBL), ``runtime`` or ``satman`` (the firmware) and ``top.bit`` (the gateware).
+The ``boot.bin`` file used in a Zynq SD card boot is in practice the combination of several files, normally ``top.bit`` (the gateware), ``runtime`` or ``satman`` (the firmware) and ``szl.elf`` (an open-source bootloader for Zynq `written by M-Labs <https://git.m-labs.hk/M-Labs/zynq-rs/src/branch/master/szl>`_, used in ARTIQ in place of Xilinx's FSBL). In some circumstances, especially if you are developing ARTIQ, you may prefer to construct these components separately. Be sure that you have cloned the repository and entered the development environment as described above.
 
 To compile the gateware and firmware, enter the ``src`` directory and run two commands as follows:
 
@@ -217,13 +217,16 @@ For ZC706:
     $ gateware/zc706.py -g ../build/gateware -V <variant>
     $ make TARGET=zc706 GWARGS="-V <variant>" <fw-type>
 
-where ``fw-type`` is ``runtime`` for standalone or DRTIO master builds and ``satman`` for DRTIO satellites. Both the gateware and the firmware will generate into the ``../build`` destination directory.
+where ``fw-type`` is ``runtime`` for standalone or DRTIO master builds and ``satman`` for DRTIO satellites. Both the gateware and the firmware will generate into the ``../build`` destination directory. At this stage you can :ref:`boot from JTAG <zynq-jtag-boot>`; either of the ``*_run.sh`` scripts will expect the gateware and firmware files at their default locations, and the ``szl.elf`` bootloader is retrieved automatically.
 
-At this stage you can :ref:`boot from JTAG <zynq-jtag-boot>`; either of the ``*_run.sh`` scripts will expect the gateware and firmware files at their default locations. If you are aiming to construct ``boot.bin``, you will also need ``szl.elf``. To build it from source, run a command of the form: ::
+.. warning::
+    Note that in between runs of ``make`` it is necessary to manually clear ``build``, even for different targets, or ``make`` will do nothing.
+
+If you prefer to boot from SD card, you will need to construct your own ``boot.bin``. Build ``szl.elf`` from source by running a command of the form: ::
 
     $ nix build git+https://git.m-labs.hk/m-labs/zynq-rs#<board>-szl
 
-For easiest access run the command in the ``build`` directory. The ``szl.elf`` file will be in the subdirectory ``result``. To combine all three files into the boot image, create a file called ``boot.bif`` in ``build`` with the following contents: ::
+For easiest access run this command in the ``build`` directory. The ``szl.elf`` file will be in the subdirectory ``result``. To combine all three files into the boot image, create a file called ``boot.bif`` in ``build`` with the following contents: ::
 
     the_ROM_image:
         {
