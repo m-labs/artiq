@@ -137,9 +137,8 @@ class AppletIPCClient(AsyncioChildComm):
             logger.error("unexpected action reply to embed request: %s",
                          reply["action"])
             self.close_cb()
-
-    def fix_initial_size(self):
-        self.write_pyon({"action": "fix_initial_size"})
+        else:
+            return reply["size_w"], reply["size_h"]
 
     async def listen(self):
         data = None
@@ -286,12 +285,13 @@ class SimpleApplet:
                 # 2. applet creates native window without showing it, and
                 #    gets its ID
                 # 3. applet sends the ID to host, host embeds the widget
-                # 4. applet shows the widget
-                # 5. parent resizes the widget
+                #    and returns embedded size
+                # 4. applet is resized to that given size
+                # 5. applet shows the widget
                 win_id = int(self.main_widget.winId())
-                self.loop.run_until_complete(self.ipc.embed(win_id))
+                size_w, size_h = self.loop.run_until_complete(self.ipc.embed(win_id))
+                self.main_widget.resize(size_w, size_h)
                 self.main_widget.show()
-                self.ipc.fix_initial_size()
         else:
             self.main_widget.show()
 

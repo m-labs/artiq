@@ -137,7 +137,7 @@ class AppletIPCServer(AsyncioParentComm):
                     return
         self.write_pyon({"action": "mod", "mod": mod})
 
-    async def serve(self, embed_cb, fix_initial_size_cb):
+    async def serve(self, embed_cb):
         self.dataset_sub.notify_cbs.append(self._on_mod)
         try:
             while True:
@@ -145,10 +145,11 @@ class AppletIPCServer(AsyncioParentComm):
                 try:
                     action = obj["action"]
                     if action == "embed":
-                        embed_cb(obj["win_id"])
-                        self.write_pyon({"action": "embed_done"})
-                    elif action == "fix_initial_size":
-                        fix_initial_size_cb()
+                        size = embed_cb(obj["win_id"])
+                        if size is None:
+                            self.write_pyon({"action": "embed_done"})
+                        else:
+                            self.write_pyon({"action": "embed_done", "size_h": size.height(), "size_w": size.width()})
                     elif action == "subscribe":
                         self.datasets = obj["datasets"]
                         self.dataset_prefixes = obj["dataset_prefixes"]
@@ -176,9 +177,9 @@ class AppletIPCServer(AsyncioParentComm):
         finally:
             self.dataset_sub.notify_cbs.remove(self._on_mod)
 
-    def start_server(self, embed_cb, fix_initial_size_cb, *, loop=None):
+    def start_server(self, embed_cb, *, loop=None):
         self.server_task = asyncio.ensure_future(
-            self.serve(embed_cb, fix_initial_size_cb), loop=loop)
+            self.serve(embed_cb), loop=loop)
 
     async def stop_server(self):
         if hasattr(self, "server_task"):
@@ -239,7 +240,7 @@ class _AppletDock(QDockWidgetCloseDetect):
             asyncio.ensure_future(
                 LogParser(self._get_log_source).stream_task(
                     self.ipc.process.stderr))
-            self.ipc.start_server(self.embed, self.fix_initial_size)
+            self.ipc.start_server(self.embed)
         finally:
             self.starting_stopping = False
 
@@ -268,11 +269,9 @@ class _AppletDock(QDockWidgetCloseDetect):
         self.embed_widget = QtWidgets.QWidget.createWindowContainer(
             self.embed_window)
         self.setWidget(self.embed_widget)
-
-    # HACK: This function would not be needed if Qt window embedding
-    # worked correctly.
-    def fix_initial_size(self):
-        self.embed_window.resize(self.embed_widget.size())
+        # return the size after embedding. Applet must resize to that,
+        # otherwise the applet may not fit within the dock properly.
+        return self.embed_widget.size()
 
     async def terminate(self, delete_self=True):
         if self.starting_stopping:
