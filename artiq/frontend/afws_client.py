@@ -85,7 +85,7 @@ class Client:
         return (await self.reader.readline()).decode("ascii").split()
 
     async def read_json(self):
-        return json.loads(await self.reader.readline().decode("ascii"))
+        return json.loads((await self.reader.readline()).decode("ascii"))
 
     async def login(self, username, password):
         await self.send_command("LOGIN", username, password)
