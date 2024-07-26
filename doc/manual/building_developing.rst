@@ -93,6 +93,13 @@ Nix development environment
 
 Once you have run ``nix develop`` you are in the ARTIQ development environment. All ARTIQ commands and utilities -- ``artiq_run``, ``artiq_master``, etc. -- should be available, as well as all the packages necessary to build or run ARTIQ itself. You can exit the environment at any time using Control+D or the ``exit`` command and re-enter it by re-running ``nix develop`` again in the same location.
 
+.. tip::
+    If you are developing for Zynq, you will have noted that the ARTIQ-Zynq repository consists largely of firmware. The firmware for Zynq (NAR3) is more modern than that used for current mainline ARTIQ, and is intended to eventually replace it; for now it constitutes most of the difference between the two ARTIQ variants. The gateware for Zynq, on the other hand, is largely imported from mainline ARTIQ. If you intend to modify the gateware housed in the original ARTIQ repository, but build and test the results on a Zynq device, clone both repositories and set your ``PYTHONPATH`` after entering the ARTIQ-Zynq development shell: ::
+
+        $ export PYTHONPATH=/absolute/path/to/your/artiq:$PYTHONPATH
+
+    Note that this only applies for incremental builds. If you want to use ``nix build``, look into changing the inputs of the ``flake.nix`` instead. You can do this by replacing the URL of the GitHub ARTIQ repository with ``path:/absolute/path/to/your/artiq``; remember that Nix caches dependencies, so to incorporate new changes you will need to exit the development shell, update the Nix cache with ``nix flake update``, and re-run ``nix develop``.
+
 Building only standard binaries
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -111,7 +118,7 @@ The parallel command does exist for ARTIQ-Zynq: ::
 
 but if you are building ARTIQ-Zynq without intention to change the source, it is not actually necessary to enter the development environment at all; Nix is capable of accessing the official flake remotely for the build itself, eliminating the requirement for any particular environment.
 
-This is possible for original ARTIQ, but not as useful, as the development environment (specifically the ``#boards`` shell) is still the easiest way to access the necessary tools for flashing the board. On the other hand, with Zynq, it is normally recommended to boot from SD card, which requires no further special tools. As long as you have a functioning Nix installation with flakes enabled, you can progress directly to the building instructions below.
+This is equally possible for original ARTIQ, but not as useful, as the development environment (specifically the ``#boards`` shell) is still the easiest way to access the necessary tools for flashing the board. On the other hand, with Zynq, it is normally recommended to boot from SD card, which requires no further special tools. As long as you have a functioning Nix installation with flakes enabled, you can progress directly to the building instructions below.
 
 .. _building:
 
