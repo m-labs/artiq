@@ -160,7 +160,7 @@ Other notes:
 * Whether a particular sequence of timestamps causes a sequence error or not is fully deterministic (starting from a known RTIO state, e.g. after a reset). Adding a constant offset to the sequence will not affect the result.
 
 .. note::
-  To change the number of SED lanes, it is necessary to recompile the gateware and reflash your core device. Use the ``sed_lanes`` field in your system description file to set the value, then follow the instructions in :doc:`developing`. Alternatively, if you have an active firmware subscription with M-Labs, contact helpdesk@ for edited binaries.
+  To change the number of SED lanes, it is necessary to recompile the gateware and reflash your core device. Use the ``sed_lanes`` field in your system description file to set the value, then follow the instructions in :doc:`building_developing`. Alternatively, if you have an active firmware subscription with M-Labs, contact helpdesk@ for edited binaries.
 
 .. _collisions-busy-errors:
 
