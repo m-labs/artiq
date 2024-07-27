@@ -75,6 +75,11 @@ impl Repeater {
                 if rep_link_rx_up(self.repno) {
                     if let Ok(Some(drtioaux::Packet::EchoReply)) = drtioaux::recv(self.auxno) {
                         info!("[REP#{}] remote replied after {} packets", self.repno, ping_count);
+                        // clear the aux buffer
+                        let max_time = clock::get_ms() + 200;
+                        while clock::get_ms() < max_time {
+                            let _ = drtioaux::recv(self.auxno);
+                        }
                         self.state = RepeaterState::Up;
                         if let Err(e) = self.sync_tsc() {
                             error!("[REP#{}] failed to sync TSC ({})", self.repno, e);
@@ -181,10 +186,31 @@ impl Repeater {
         }
     }
 
-    pub fn aux_forward(&self, request: &drtioaux::Packet) -> Result<(), drtioaux::Error<!>> {
+    pub fn aux_forward(&self, request: &drtioaux::Packet, router: &mut Router, 
+        routing_table: &drtio_routing::RoutingTable, rank: u8,
+        self_destination: u8) -> Result<(), drtioaux::Error<!>> {
         self.aux_send(request)?;
-        let reply = self.recv_aux_timeout(200)?;
-        drtioaux::send(0, &reply).unwrap();
+        loop {
+            let reply = self.recv_aux_timeout(200)?;
+            match reply {
+                // async/locally requested packets to be consumed or routed
+                // these may come while a packet would be forwarded
+                drtioaux::Packet::DmaPlaybackStatus { .. } |
+                drtioaux::Packet::SubkernelFinished { .. } |
+                drtioaux::Packet::SubkernelMessage  { .. } | 
+                drtioaux::Packet::SubkernelMessageAck { .. } | 
+                drtioaux::Packet::SubkernelLoadRunReply { .. } |
+                drtioaux::Packet::SubkernelException { .. } |
+                drtioaux::Packet::DmaAddTraceReply { .. } |
+                drtioaux::Packet::DmaPlaybackReply { .. } => {
+                    router.route(reply, routing_table, rank, self_destination);
+                }
+                _ => {
+                    drtioaux::send(0, &reply).unwrap();
+                    break;
+                }
+            }
+        }
         Ok(())
     }
 

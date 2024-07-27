@@ -24,21 +24,21 @@ class _AppletRequestInterface:
     def set_dataset(self, key, value, unit=None, scale=None, precision=None, persist=None):
         """
         Set a dataset.
-        See documentation of ``artiq.language.environment.set_dataset``.
+        See documentation of :meth:`~artiq.language.environment.HasEnvironment.set_dataset`.
         """
         raise NotImplementedError
 
     def mutate_dataset(self, key, index, value):
         """
         Mutate a dataset.
-        See documentation of ``artiq.language.environment.mutate_dataset``.
+        See documentation of :meth:`~artiq.language.environment.HasEnvironment.mutate_dataset`.
         """
         raise NotImplementedError
 
     def append_to_dataset(self, key, value):
         """
         Append to a dataset.
-        See documentation of ``artiq.language.environment.append_to_dataset``.
+        See documentation of :meth:`~artiq.language.environment.HasEnvironment.append_to_dataset`.
         """
         raise NotImplementedError
 
@@ -49,8 +49,9 @@ class _AppletRequestInterface:
 
         :param expurl: Experiment URL identifying the experiment in the dashboard. Example: 'repo:ArgumentsDemo'.
         :param key: Name of the argument in the experiment.
-        :param value: Object representing the new temporary value of the argument. For ``Scannable`` arguments, this parameter
-            should be a ``ScanObject``. The type of the ``ScanObject`` will be set as the selected type when this function is called. 
+        :param value: Object representing the new temporary value of the argument. For :class:`~artiq.language.scan.Scannable` arguments, 
+            this parameter should be a :class:`~artiq.language.scan.ScanObject`. The type of the :class:`~artiq.language.scan.ScanObject` 
+            will be set as the selected type when this function is called. 
         """
         raise NotImplementedError
 
@@ -136,9 +137,8 @@ class AppletIPCClient(AsyncioChildComm):
             logger.error("unexpected action reply to embed request: %s",
                          reply["action"])
             self.close_cb()
-
-    def fix_initial_size(self):
-        self.write_pyon({"action": "fix_initial_size"})
+        else:
+            return reply["size_w"], reply["size_h"]
 
     async def listen(self):
         data = None
@@ -272,7 +272,7 @@ class SimpleApplet:
                 # HACK: if the window has a frame, there will be garbage
                 # (usually white) displayed at its right and bottom borders
                 #  after it is embedded.
-                self.main_widget.setWindowFlags(QtCore.Qt.FramelessWindowHint)
+                self.main_widget.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
                 self.main_widget.show()
                 win_id = int(self.main_widget.winId())
                 self.loop.run_until_complete(self.ipc.embed(win_id))
@@ -285,12 +285,13 @@ class SimpleApplet:
                 # 2. applet creates native window without showing it, and
                 #    gets its ID
                 # 3. applet sends the ID to host, host embeds the widget
-                # 4. applet shows the widget
-                # 5. parent resizes the widget
+                #    and returns embedded size
+                # 4. applet is resized to that given size
+                # 5. applet shows the widget
                 win_id = int(self.main_widget.winId())
-                self.loop.run_until_complete(self.ipc.embed(win_id))
+                size_w, size_h = self.loop.run_until_complete(self.ipc.embed(win_id))
+                self.main_widget.resize(size_w, size_h)
                 self.main_widget.show()
-                self.ipc.fix_initial_size()
         else:
             self.main_widget.show()
 

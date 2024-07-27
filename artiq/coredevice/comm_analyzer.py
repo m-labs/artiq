@@ -181,25 +181,25 @@ class AnalyzerProxyReceiver:
     async def _receive_cr(self):
         try:
             while True:
-                endian_byte = await self.reader.read(1)
-                if endian_byte == b"E":
-                    endian = '>'
-                elif endian_byte == b"e":
-                    endian = '<'
-                elif endian_byte == b"":
+                data = bytearray()
+                data.extend(await self.reader.read(1))
+                if len(data) == 0:
                     # EOF reached, connection lost
                     return
+                if data[0] == ord("E"):
+                    endian = '>'
+                elif data[0] == ord("e"):
+                    endian = '<'
                 else:
                     raise ValueError
-                payload_length_word = await self.reader.readexactly(4)
-                payload_length = struct.unpack(endian + "I", payload_length_word)[0]
+                data.extend(await self.reader.readexactly(4))
+                payload_length = struct.unpack(endian + "I", data[1:5])[0]
                 if payload_length > 10 * 512 * 1024:
                     # 10x buffer size of firmware
                     raise ValueError
 
                 # The remaining header length is 11 bytes.
-                remaining_data = await self.reader.readexactly(payload_length + 11)
-                data = endian_byte + payload_length_word + remaining_data
+                data.extend(await self.reader.readexactly(payload_length + 11))
                 self.receive_cb(data)
         except Exception:
             logger.error("analyzer receiver connection terminating with exception", exc_info=True)

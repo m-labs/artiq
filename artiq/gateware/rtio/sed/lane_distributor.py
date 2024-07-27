@@ -10,7 +10,7 @@ __all__ = ["LaneDistributor"]
 class LaneDistributor(Module):
     def __init__(self, lane_count, seqn_width, layout_payload,
                  compensation, glbl_fine_ts_width,
-                 enable_spread=True, quash_channels=[], interface=None):
+                 quash_channels=[], interface=None):
         if lane_count & (lane_count - 1):
             raise NotImplementedError("lane count must be a power of 2")
 
@@ -27,6 +27,8 @@ class LaneDistributor(Module):
         self.minimum_coarse_timestamp = Signal(us_timestamp_width)
         self.output = [Record(layouts.fifo_ingress(seqn_width, layout_payload))
                        for _ in range(lane_count)]
+
+        self.enable_spread = Signal()
 
         # # #
 
@@ -173,12 +175,11 @@ class LaneDistributor(Module):
         ]
 
         # current lane has reached high watermark, spread events by switching to the next.
-        if enable_spread:
-            self.sync += [
-                If(current_lane_high_watermark | ~current_lane_writable,
-                    force_laneB.eq(1)
-                ),
-                If(do_write,
-                    force_laneB.eq(0)
-                )
-            ]
+        self.sync += [
+            If(self.enable_spread & (current_lane_high_watermark | ~current_lane_writable),
+                force_laneB.eq(1)
+            ),
+            If(do_write,
+                force_laneB.eq(0)
+            )
+        ]

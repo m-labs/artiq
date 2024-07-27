@@ -4,7 +4,7 @@ import os
 from functools import partial
 from collections import OrderedDict
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 import h5py
 
 from sipyco import pyon
@@ -44,12 +44,12 @@ class _ArgumentEditor(EntryTreeWidget):
         recompute_arguments = QtWidgets.QPushButton("Recompute all arguments")
         recompute_arguments.setIcon(
             QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_BrowserReload))
+                QtWidgets.QStyle.StandardPixmap.SP_BrowserReload))
         recompute_arguments.clicked.connect(dock._recompute_arguments_clicked)
 
         load_hdf5 = QtWidgets.QPushButton("Load HDF5")
         load_hdf5.setIcon(QtWidgets.QApplication.style().standardIcon(
-            QtWidgets.QStyle.SP_DialogOpenButton))
+            QtWidgets.QStyle.StandardPixmap.SP_DialogOpenButton))
         load_hdf5.clicked.connect(dock._load_hdf5_clicked)
 
         buttons = LayoutWidget()
@@ -101,7 +101,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.resize(100 * qfm.averageCharWidth(), 30 * qfm.lineSpacing())
         self.setWindowTitle(expurl)
         self.setWindowIcon(QtWidgets.QApplication.style().standardIcon(
-            QtWidgets.QStyle.SP_FileDialogContentsView))
+            QtWidgets.QStyle.StandardPixmap.SP_FileDialogContentsView))
 
         self.layout = QtWidgets.QGridLayout()
         top_widget = QtWidgets.QWidget()
@@ -237,21 +237,21 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
         submit = QtWidgets.QPushButton("Submit")
         submit.setIcon(QtWidgets.QApplication.style().standardIcon(
-                       QtWidgets.QStyle.SP_DialogOkButton))
+                QtWidgets.QStyle.StandardPixmap.SP_DialogOkButton))
         submit.setToolTip("Schedule the experiment (Ctrl+Return)")
         submit.setShortcut("CTRL+RETURN")
-        submit.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
-                             QtWidgets.QSizePolicy.Expanding)
+        submit.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
+                             QtWidgets.QSizePolicy.Policy.Expanding)
         self.layout.addWidget(submit, 1, 4, 2, 1)
         submit.clicked.connect(self.submit_clicked)
 
         reqterm = QtWidgets.QPushButton("Terminate instances")
         reqterm.setIcon(QtWidgets.QApplication.style().standardIcon(
-                        QtWidgets.QStyle.SP_DialogCancelButton))
+                QtWidgets.QStyle.StandardPixmap.SP_DialogCancelButton))
         reqterm.setToolTip("Request termination of instances (Ctrl+Backspace)")
         reqterm.setShortcut("CTRL+BACKSPACE")
-        reqterm.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
-                              QtWidgets.QSizePolicy.Expanding)
+        reqterm.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
+                              QtWidgets.QSizePolicy.Policy.Expanding)
         self.layout.addWidget(reqterm, 3, 4)
         reqterm.clicked.connect(self.reqterm_clicked)
 
@@ -306,7 +306,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
     def contextMenuEvent(self, event):
         menu = QtWidgets.QMenu(self)
         reset_sched = menu.addAction("Reset scheduler settings")
-        action = menu.exec_(self.mapToGlobal(event.pos()))
+        action = menu.exec(self.mapToGlobal(event.pos()))
         if action == reset_sched:
             asyncio.ensure_future(self._recompute_sched_options_task())
 
@@ -423,7 +423,7 @@ class _QuickOpenDialog(QtWidgets.QDialog):
         QtWidgets.QDialog.done(self, r)
 
     def _open_experiment(self, exp_name, modifiers):
-        if modifiers & QtCore.Qt.ControlModifier:
+        if modifiers & QtCore.Qt.KeyboardModifier.ControlModifier:
             try:
                 self.manager.submit(exp_name)
             except:
@@ -467,10 +467,10 @@ class ExperimentManager:
         self.open_experiments = dict()
 
         self.is_quick_open_shown = False
-        quick_open_shortcut = QtWidgets.QShortcut(
-            QtCore.Qt.CTRL + QtCore.Qt.Key_P,
+        quick_open_shortcut = QtGui.QShortcut(
+            QtGui.QKeySequence("Ctrl+P"),
             main_window)
-        quick_open_shortcut.setContext(QtCore.Qt.ApplicationShortcut)
+        quick_open_shortcut.setContext(QtCore.Qt.ShortcutContext.ApplicationShortcut)
         quick_open_shortcut.activated.connect(self.show_quick_open)
 
     def set_dataset_model(self, model):
@@ -589,7 +589,7 @@ class ExperimentManager:
             del self.submission_arguments[expurl]
             dock = _ExperimentDock(self, expurl)
         self.open_experiments[expurl] = dock
-        dock.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        dock.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
         self.main_window.centralWidget().addSubWindow(dock)
         dock.show()
         dock.sigClosed.connect(partial(self.on_dock_closed, expurl))

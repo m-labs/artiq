@@ -19,8 +19,8 @@ def shuttler_volt_to_mu(volt: float) -> int32:
 class Config:
     """Shuttler configuration registers interface.
 
-    The configuration registers control waveform phase auto-clear, and pre-DAC
-    gain & offset values for calibration with ADC on the Shuttler AFE card.
+    The configuration registers control waveform phase auto-clear, pre-DAC
+    gain and offset values for calibration with ADC on the Shuttler AFE card.
 
     To find the calibrated DAC code, the Shuttler Core first multiplies the
     output data with pre-DAC gain, then adds the offset.
@@ -90,8 +90,7 @@ class Config:
     def set_offset(self, channel: int32, offset: int32):
         """Set the 16-bits pre-DAC offset register of a Shuttler Core channel.
 
-        .. seealso::
-            :meth:`shuttler_volt_to_mu`
+        See also :meth:`shuttler_volt_to_mu`.
 
         :param channel: Shuttler Core channel to be configured.
         :param offset: Shuttler Core channel offset.
@@ -121,13 +120,13 @@ class DCBias:
     .. math::
         w(t) = a(t) + b(t) * cos(c(t))
     
-    And `t` corresponds to time in seconds.
+    and `t` corresponds to time in seconds.
     This class controls the cubic spline `a(t)`, in which
 
     .. math::
         a(t) = p_0 + p_1t + \\frac{p_2t^2}{2} + \\frac{p_3t^3}{6}
     
-    And `a(t)` is in Volt.
+    and `a(t)` is measured in volts. 
 
     :param channel: RTIO channel number of this DC-bias spline interface.
     :param core_device: Core device name.
@@ -146,7 +145,7 @@ class DCBias:
         """Set the DC-bias spline waveform.
 
         Given `a(t)` as defined in :class:`DCBias`, the coefficients should be
-        configured by the following formulae.
+        configured by the following formulae:
 
         .. math::
             T &= 8*10^{-9}
@@ -163,8 +162,10 @@ class DCBias:
         and 48 bits in width respectively. See :meth:`shuttler_volt_to_mu` for
         machine unit conversion.
 
-        Note: The waveform is not updated to the Shuttler Core until
-        triggered. See :class:`Trigger` for the update triggering mechanism.
+        .. note:: 
+            The waveform is not updated to the Shuttler Core until
+            triggered. See :class:`Trigger` for the update triggering 
+            mechanism.
 
         :param a0: The :math:`a_0` coefficient in machine unit.
         :param a1: The :math:`a_1` coefficient in machine unit.
@@ -199,7 +200,7 @@ class DDS:
     .. math::
         w(t) = a(t) + b(t) * cos(c(t))
     
-    And `t` corresponds to time in seconds.
+    and `t` corresponds to time in seconds.
     This class controls the cubic spline `b(t)` and quadratic spline `c(t)`,
     in which
 
@@ -208,7 +209,7 @@ class DDS:
 
         c(t) &= r_0 + r_1t + \\frac{r_2t^2}{2}
     
-    And `b(t)` is in Volt, `c(t)` is in number of turns. Note that `b(t)`
+    `b(t)` is in volts, `c(t)` is in number of turns. Note that `b(t)`
     contributes to a constant gain of :math:`g=1.64676`.
 
     :param channel: RTIO channel number of this DC-bias spline interface.
@@ -256,13 +257,13 @@ class DDS:
         Note: The waveform is not updated to the Shuttler Core until
         triggered. See :class:`Trigger` for the update triggering mechanism.
 
-        :param b0: The :math:`b_0` coefficient in machine unit.
-        :param b1: The :math:`b_1` coefficient in machine unit.
-        :param b2: The :math:`b_2` coefficient in machine unit.
-        :param b3: The :math:`b_3` coefficient in machine unit.
-        :param c0: The :math:`c_0` coefficient in machine unit.
-        :param c1: The :math:`c_1` coefficient in machine unit.
-        :param c2: The :math:`c_2` coefficient in machine unit.
+        :param b0: The :math:`b_0` coefficient in machine units.
+        :param b1: The :math:`b_1` coefficient in machine units.
+        :param b2: The :math:`b_2` coefficient in machine units.
+        :param b3: The :math:`b_3` coefficient in machine units.
+        :param c0: The :math:`c_0` coefficient in machine units.
+        :param c1: The :math:`c_1` coefficient in machine units.
+        :param c2: The :math:`c_2` coefficient in machine units.
         """
         coef_words = [
             b0,
@@ -307,8 +308,8 @@ class Trigger:
         """Triggers coefficient update of (a) Shuttler Core channel(s).
 
         Each bit corresponds to a Shuttler waveform generator core. Setting
-        `trig_out` bits commits the pending coefficient update (from
-        `set_waveform` in :class:`DCBias` and :class:`DDS`) to the Shuttler Core
+        ``trig_out`` bits commits the pending coefficient update (from
+        ``set_waveform`` in :class:`DCBias` and :class:`DDS`) to the Shuttler Core
         synchronously.
 
         :param trig_out: Coefficient update trigger bits. The MSB corresponds
@@ -352,8 +353,8 @@ _AD4115_REG_SETUPCON0 = 0x20
 class Relay:
     """Shuttler AFE relay switches.
 
-    It controls the AFE relay switches and the LEDs. Switch on the relay to
-    enable AFE output; And off to disable the output. The LEDs indicates the
+    This class controls the AFE relay switches and the LEDs. Switch the relay on to
+    enable AFE output; off to disable the output. The LEDs indicate the
     relay status.
 
     .. note::
@@ -374,7 +375,7 @@ class Relay:
     def init(self):
         """Initialize SPI device.
 
-        Configures the SPI bus to 16-bits, write-only, simultaneous relay
+        Configures the SPI bus to 16 bits, write-only, simultaneous relay
         switches and LED control.
         """
         self.bus.set_config_mu(
@@ -382,10 +383,10 @@ class Relay:
 
     @kernel
     def enable(self, en: int32):
-        """Enable/Disable relay switches of corresponding channels.
+        """Enable/disable relay switches of corresponding channels.
 
         Each bit corresponds to the relay switch of a channel. Asserting a bit
-        turns on the corresponding relay switch; Deasserting the same bit
+        turns on the corresponding relay switch; deasserting the same bit
         turns off the switch instead.
 
         :param en: Switch enable bits. The MSB corresponds to Channel 15, LSB
@@ -422,12 +423,12 @@ class ADC:
     def reset(self):
         """AD4115 reset procedure.
 
-        This performs a write operation of 96 serial clock cycles with DIN
-        held at high. It resets the entire device, including the register
+        Performs a write operation of 96 serial clock cycles with DIN
+        held at high. This resets the entire device, including the register
         contents.
 
         .. note::
-            The datasheet only requires 64 cycles, but reasserting `CS_n` right
+            The datasheet only requires 64 cycles, but reasserting ``CS_n`` right
             after the transfer appears to interrupt the start-up sequence.
         """
         self.bus.set_config_mu(ADC_SPI_CONFIG, 32, SPIT_ADC_WR, CS_ADC)
@@ -439,7 +440,7 @@ class ADC:
 
     @kernel
     def read8(self, addr: int32) -> int32:
-        """Read from 8 bit register.
+        """Read from 8-bit register.
 
         :param addr: Register address.
         :return: Read-back register content.
@@ -452,7 +453,7 @@ class ADC:
 
     @kernel
     def read16(self, addr: int32) -> int32:
-        """Read from 16 bit register.
+        """Read from 16-bit register.
 
         :param addr: Register address.
         :return: Read-back register content.
@@ -465,7 +466,7 @@ class ADC:
 
     @kernel
     def read24(self, addr: int32) -> int32:
-        """Read from 24 bit register.
+        """Read from 24-bit register.
 
         :param addr: Register address.
         :return: Read-back register content.
@@ -478,7 +479,7 @@ class ADC:
 
     @kernel
     def write8(self, addr: int32, data: int32):
-        """Write to 8 bit register.
+        """Write to 8-bit register.
 
         :param addr: Register address.
         :param data: Data to be written.
@@ -489,7 +490,7 @@ class ADC:
 
     @kernel
     def write16(self, addr: int32, data: int32):
-        """Write to 16 bit register.
+        """Write to 16-bit register.
 
         :param addr: Register address.
         :param data: Data to be written.
@@ -500,7 +501,7 @@ class ADC:
 
     @kernel
     def write24(self, addr: int32, data: int32):
-        """Write to 24 bit register.
+        """Write to 24-bit register.
 
         :param addr: Register address.
         :param data: Data to be written.
@@ -513,11 +514,11 @@ class ADC:
     def read_ch(self, channel: int32) -> float:
         """Sample a Shuttler channel on the AFE.
 
-        It performs a single conversion using profile 0 and setup 0, on the
-        selected channel. The sample is then recovered and converted to volt.
+        Performs a single conversion using profile 0 and setup 0 on the
+        selected channel. The sample is then recovered and converted to volts.
 
         :param channel: Shuttler channel to be sampled.
-        :return: Voltage sample in volt.
+        :return: Voltage sample in volts.
         """
         # Always configure Profile 0 for single conversion
         self.write16(_AD4115_REG_CH0, 0x8000 | ((channel * 2 + 1) << 4))
@@ -538,7 +539,7 @@ class ADC:
 
     @kernel
     def standby(self):
-        """Place the ADC in standby mode and disables power down the clock.
+        """Place the ADC in standby mode and disable power down the clock.
 
         The ADC can be returned to single conversion mode by calling
         :meth:`single_conversion`.
@@ -555,13 +556,7 @@ class ADC:
         .. note::
             The AD4115 datasheet suggests placing the ADC in standby mode
             before power-down. This is to prevent accidental entry into the
-            power-down mode.
-
-        .. seealso::
-            :meth:`standby`
-
-            :meth:`power_up`
-
+            power-down mode. See also :meth:`standby` and :meth:`power_up`.
         """
         self.write16(_AD4115_REG_ADCMODE, 0x8030)
 
@@ -571,8 +566,7 @@ class ADC:
         
         The ADC should be in power-down mode before calling this method.
 
-        .. seealso::
-            :meth:`power_down`
+        See also :meth:`power_down`.
         """
         self.reset()
         # Although the datasheet claims 500 us reset wait time, only waiting
@@ -583,22 +577,18 @@ class ADC:
     def calibrate(self, volts: list[DCBias], trigger: Trigger, config: Config, samples: Option[list[float]] = none):
         """Calibrate the Shuttler waveform generator using the ADC on the AFE.
 
-        It finds the average slope rate and average offset by samples, and
-        compensate by writing the pre-DAC gain and offset registers in the
+        Finds the average slope rate and average offset by samples, and
+        compensates by writing the pre-DAC gain and offset registers in the
         configuration registers.
 
         .. note::
-            If the pre-calibration slope rate < 1, the calibration procedure
-            will introduce a pre-DAC gain compensation. However, this may
-            saturate the pre-DAC voltage code. (See :class:`Config` notes).
+            If the pre-calibration slope rate is less than 1, the calibration 
+            procedure will introduce a pre-DAC gain compensation. However, this 
+            may saturate the pre-DAC voltage code (see :class:`Config` notes).
             Shuttler cannot cover the entire +/- 10 V range in this case.
+            See also :meth:`Config.set_gain` and :meth:`Config.set_offset`.
 
-        .. seealso::
-            :meth:`Config.set_gain`
-
-            :meth:`Config.set_offset`
-
-        :param volts: A list of all 16 cubic DC-bias spline.
+        :param volts: A list of all 16 cubic DC-bias splines.
             (See :class:`DCBias`)
         :param trigger: The Shuttler spline coefficient update trigger.
         :param config: The Shuttler Core configuration registers.

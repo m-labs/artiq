@@ -1,10 +1,13 @@
 {
   description = "A leading-edge control system for quantum information experiments";
 
-  inputs.mozilla-overlay = { url = github:mozilla/nixpkgs-mozilla; flake = false; };
+  inputs.nac3 = { type = "git"; url = "https://git.m-labs.hk/m-labs/nac3.git"; };
+  inputs.rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nac3/nixpkgs";
+  };
   inputs.sipyco.url = github:m-labs/sipyco;
   inputs.sipyco.inputs.nixpkgs.follows = "nac3/nixpkgs";
-  inputs.nac3 = { type = "git"; url = "https://git.m-labs.hk/m-labs/nac3.git"; };
   inputs.artiq-comtools.url = github:m-labs/artiq-comtools;
   inputs.artiq-comtools.inputs.nixpkgs.follows = "nac3/nixpkgs";
   inputs.artiq-comtools.inputs.sipyco.follows = "sipyco";
@@ -12,9 +15,9 @@
   inputs.src-migen = { url = github:m-labs/migen; flake = false; };
   inputs.src-misoc = { type = "git"; url = "https://github.com/m-labs/misoc.git"; submodules = true; flake = false; };
 
-  outputs = { self, mozilla-overlay, sipyco, nac3, artiq-comtools, src-migen, src-misoc }:
+  outputs = { self, rust-overlay, sipyco, nac3, artiq-comtools, src-migen, src-misoc }:
     let
-      pkgs = import nac3.inputs.nixpkgs { system = "x86_64-linux"; overlays = [ (import mozilla-overlay) ]; };
+      pkgs = import nac3.inputs.nixpkgs { system = "x86_64-linux"; overlays = [ (import rust-overlay) ]; };
       pkgs-aarch64 = import nac3.inputs.nixpkgs { system = "aarch64-linux"; };
 
       artiqVersionMajor = 10;
@@ -23,24 +26,14 @@
       artiqVersion = (builtins.toString artiqVersionMajor) + "." + (builtins.toString artiqVersionMinor) + "+" + artiqVersionId + ".beta";
       artiqRev = self.sourceInfo.rev or "unknown";
 
-      rustManifest = pkgs.fetchurl {
-        url = "https://static.rust-lang.org/dist/2021-09-01/channel-rust-nightly.toml";
-        sha256 = "sha256-KYLZHfOkotnM6BZd7CU+vBA3w/VtiWxth3ngJlmA41U=";
+      rust = pkgs.rust-bin.nightly."2021-09-01".default.override {
+        extensions = [ "rust-src" ];
+        targets = [ ];
       };
-
-      targets = [];
-      rustChannelOfTargets = _channel: _date: targets:
-        (pkgs.lib.rustLib.fromManifestFile rustManifest {
-          inherit (pkgs) stdenv lib fetchurl patchelf;
-        }).rust.override {
-          inherit targets;
-          extensions = ["rust-src"];
-        };
-      rust = rustChannelOfTargets "nightly" null targets;
-      rustPlatform = pkgs.recurseIntoAttrs (pkgs.makeRustPlatform {
+      rustPlatform = pkgs.makeRustPlatform {
         rustc = rust;
         cargo = rust;
-      });
+      };
 
       vivadoDeps = pkgs: with pkgs; let
         # Apply patch from https://github.com/nix-community/nix-environments/pull/54
@@ -67,14 +60,14 @@
 
       qasync = pkgs.python3Packages.buildPythonPackage rec {
         pname = "qasync";
-        version = "0.24.1";
+        version = "0.25.0";
         src = pkgs.fetchFromGitHub {
           owner = "CabbageDevelopment";
           repo = "qasync";
           rev = "v${version}";
-          sha256 = "sha256-DAzmobw+c29Pt/URGO3bWXHBxgu9bDHhdTUBE9QJDe4=";
+          sha256 = "sha256-lfH8FNA8cP7dmxR+ihoe2Gr8uOxXHdqn1AhNLIkX5ko=";
         };
-        propagatedBuildInputs = [ pkgs.python3Packages.pyqt5 ];
+        propagatedBuildInputs = [ pkgs.python3Packages.pyqt6 ];
         nativeCheckInputs = [ pkgs.python3Packages.pytest-runner pkgs.python3Packages.pytestCheckHook ];
         disabledTestPaths = [ "tests/test_qeventloop.py" ];
       };
@@ -90,11 +83,11 @@
           export VERSIONEER_REV=${artiqRev}
           '';
 
-        nativeBuildInputs = [ pkgs.qt5.wrapQtAppsHook ];
+        nativeBuildInputs = [ pkgs.qt6.wrapQtAppsHook ];
 
         # keep llvm_x in sync with nac3
-        propagatedBuildInputs = [ pkgs.llvm_14 nac3.packages.x86_64-linux.nac3artiq-pgo sipyco.packages.x86_64-linux.sipyco pkgs.qt5.qtsvg artiq-comtools.packages.x86_64-linux.artiq-comtools ]
-          ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial h5py pyqt5 qasync tqdm lmdb jsonschema ]);
+        propagatedBuildInputs = [ pkgs.llvm_14 nac3.packages.x86_64-linux.nac3artiq-pgo sipyco.packages.x86_64-linux.sipyco pkgs.qt6.qtsvg artiq-comtools.packages.x86_64-linux.artiq-comtools ]
+          ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial h5py pyqt6 qasync tqdm lmdb jsonschema ]);
 
         dontWrapQtApps = true;
         postFixup = ''
@@ -200,7 +193,7 @@
             vivado
             rustPlatform.cargoSetupHook
           ];
-          buildPhase = 
+          buildPhase =
             ''
             ARTIQ_PATH=`python -c "import artiq; print(artiq.__path__[0])"`
             ln -s $ARTIQ_PATH/firmware/Cargo.lock .
@@ -255,27 +248,9 @@
           cp $src/*.bit $out/share/bscan-spi-bitstreams
           '';
         };
-        # https://docs.lambdaconcept.com/screamer/troubleshooting.html#error-contents-differ
-        openocd-fixed = pkgs.openocd.overrideAttrs(oa: {
-          version = "unstable-2021-09-15";
-          src = pkgs.fetchFromGitHub {
-            owner = "openocd-org";
-            repo = "openocd";
-            rev = "a0bd3c9924870c3b8f428648410181040dabc33c";
-            sha256 = "sha256-YgUsl4/FohfsOncM4uiz/3c6g2ZN4oZ0y5vV/2Skwqg=";
-            fetchSubmodules = true;
-          };
-          patches = [
-            (pkgs.fetchurl {
-              url = "https://git.m-labs.hk/M-Labs/nix-scripts/raw/commit/575ef05cd554c239e4cc8cb97ae4611db458a80d/artiq-fast/pkgs/openocd-jtagspi.diff";
-              sha256 = "0g3crk8gby42gm661yxdcgapdi8sp050l5pb2d0yjfic7ns9cw81";
-            })
-          ];
-          nativeBuildInputs = oa.nativeBuildInputs or [] ++ [ pkgs.autoreconfHook269 ];
-        });
       in pkgs.buildEnv {
         name = "openocd-bscanspi";
-        paths = [ openocd-fixed bscan_spi_bitstreams-pkg ];
+        paths = [ pkgs.openocd bscan_spi_bitstreams-pkg ];
       };
 
       latex-artiq-manual = pkgs.texlive.combine {
@@ -384,8 +359,8 @@
           pkgs.python3Packages.sphinx-argparse pkgs.python3Packages.sphinxcontrib-wavedrom latex-artiq-manual
         ];
         shellHook = ''
-          export QT_PLUGIN_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}:${pkgs.qt5.qtsvg.bin}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}
-          export QML2_IMPORT_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtQmlPrefix}
+          export QT_PLUGIN_PATH=${pkgs.qt6.qtbase}/${pkgs.qt6.qtbase.dev.qtPluginPrefix}:${pkgs.qt6.qtsvg}/${pkgs.qt6.qtbase.dev.qtPluginPrefix}
+          export QML2_IMPORT_PATH=${pkgs.qt6.qtbase}/${pkgs.qt6.qtbase.dev.qtQmlPrefix}
           export PYTHONPATH=`git rev-parse --show-toplevel`:$PYTHONPATH
         '';
       };

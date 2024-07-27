@@ -2,11 +2,11 @@ import asyncio
 import logging
 
 import numpy as np
-from PyQt5 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 from sipyco import pyon
 
 from artiq.tools import scale_from_metadata, short_format, exc_to_warning
-from artiq.gui.tools import LayoutWidget, QRecursiveFilterProxyModel
+from artiq.gui.tools import LayoutWidget
 from artiq.gui.models import DictSyncTreeSepModel
 
 
@@ -63,11 +63,11 @@ class CreateEditDialog(QtWidgets.QDialog):
         self.cancel = QtWidgets.QPushButton('&Cancel')
         self.buttons = QtWidgets.QDialogButtonBox(self)
         self.buttons.addButton(
-            self.ok, QtWidgets.QDialogButtonBox.AcceptRole)
+            self.ok, QtWidgets.QDialogButtonBox.ButtonRole.AcceptRole)
         self.buttons.addButton(
-            self.cancel, QtWidgets.QDialogButtonBox.RejectRole)
+            self.cancel, QtWidgets.QDialogButtonBox.ButtonRole.RejectRole)
         grid.setRowStretch(6, 1)
-        grid.addWidget(self.buttons, 7, 0, 1, 3, alignment=QtCore.Qt.AlignHCenter)
+        grid.addWidget(self.buttons, 7, 0, 1, 3, alignment=QtCore.Qt.AlignmentFlag.AlignHCenter)
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
 
@@ -125,7 +125,7 @@ class CreateEditDialog(QtWidgets.QDialog):
             pyon.encode(result)
         except:
             pixmap = self.style().standardPixmap(
-                QtWidgets.QStyle.SP_MessageBoxWarning)
+                QtWidgets.QStyle.StandardPixmap.SP_MessageBoxWarning)
             self.data_type.setPixmap(pixmap)
             self.ok.setEnabled(False)
         else:
@@ -181,8 +181,8 @@ class DatasetsDock(QtWidgets.QDockWidget):
     def __init__(self, dataset_sub, dataset_ctl):
         QtWidgets.QDockWidget.__init__(self, "Datasets")
         self.setObjectName("Datasets")
-        self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
-                         QtWidgets.QDockWidget.DockWidgetFloatable)
+        self.setFeatures(QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable |
+                         QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetFloatable)
         self.dataset_ctl = dataset_ctl
 
         grid = LayoutWidget()
@@ -194,27 +194,27 @@ class DatasetsDock(QtWidgets.QDockWidget):
         grid.addWidget(self.search, 0, 0)
 
         self.table = QtWidgets.QTreeView()
-        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(
-            QtWidgets.QAbstractItemView.SingleSelection)
+            QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
         grid.addWidget(self.table, 1, 0)
 
-        self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        create_action = QtWidgets.QAction("New dataset", self.table)
+        self.table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
+        create_action = QtGui.QAction("New dataset", self.table)
         create_action.triggered.connect(self.create_clicked)
         create_action.setShortcut("CTRL+N")
-        create_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        create_action.setShortcutContext(QtCore.Qt.ShortcutContext.WidgetShortcut)
         self.table.addAction(create_action)
-        edit_action = QtWidgets.QAction("Edit dataset", self.table)
+        edit_action = QtGui.QAction("Edit dataset", self.table)
         edit_action.triggered.connect(self.edit_clicked)
         edit_action.setShortcut("RETURN")
-        edit_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        edit_action.setShortcutContext(QtCore.Qt.ShortcutContext.WidgetShortcut)
         self.table.doubleClicked.connect(self.edit_clicked)
         self.table.addAction(edit_action)
-        delete_action = QtWidgets.QAction("Delete dataset", self.table)
+        delete_action = QtGui.QAction("Delete dataset", self.table)
         delete_action.triggered.connect(self.delete_clicked)
         delete_action.setShortcut("DELETE")
-        delete_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        delete_action.setShortcutContext(QtCore.Qt.ShortcutContext.WidgetShortcut)
         self.table.addAction(delete_action)
 
         self.table_model = Model(dict())
@@ -227,7 +227,8 @@ class DatasetsDock(QtWidgets.QDockWidget):
 
     def set_model(self, model):
         self.table_model = model
-        self.table_model_filter = QRecursiveFilterProxyModel()
+        self.table_model_filter = QtCore.QSortFilterProxyModel()
+        self.table_model_filter.setRecursiveFilteringEnabled(True)
         self.table_model_filter.setSourceModel(self.table_model)
         self.table.setModel(self.table_model_filter)
 

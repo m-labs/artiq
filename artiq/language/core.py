@@ -41,7 +41,6 @@ class _ConstGenericMarker:
 def ConstGeneric(name, constraint):
     return TypeVar(name, _ConstGenericMarker, constraint)
 
-
 def round64(x):
     return round(x)
 
@@ -177,7 +176,7 @@ _time_manager = _DummyTimeManager()
 def set_time_manager(time_manager):
     """Set the time manager used for simulating kernels by running them
     directly inside the Python interpreter. The time manager responds to the
-    entering and leaving of interleave/parallel/sequential blocks, delays, etc. and
+    entering and leaving of parallel/sequential blocks, delays, etc. and
     provides a time-stamped logging facility for events.
     """
     global _time_manager
@@ -265,5 +264,5 @@ def watchdog(timeout):
 
 
 class TerminationRequested(Exception):
-    """Raised by ``pause`` when the user has requested termination."""
+    """Raised by :meth:`pause` when the user has requested termination."""
     pass

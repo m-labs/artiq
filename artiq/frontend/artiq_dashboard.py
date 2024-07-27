@@ -7,7 +7,7 @@ import importlib
 import os
 import logging
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 from qasync import QEventLoop
 
 from sipyco.pc_rpc import AsyncioClient, Client
@@ -32,31 +32,31 @@ def get_argparser():
                         help="print the ARTIQ version number")
     parser.add_argument(
         "-s", "--server", default="::1",
-        help="hostname or IP of the master to connect to")
+        help="hostname or IP of the master to connect to (default: %(default)s)")
     parser.add_argument(
         "--port-notify", default=3250, type=int,
-        help="TCP port to connect to for notifications")
+        help="TCP port to connect to for notifications (default: %(default)s)")
     parser.add_argument(
         "--port-control", default=3251, type=int,
-        help="TCP port to connect to for control")
+        help="TCP port to connect to for control (default: %(default)s)")
     parser.add_argument(
         "--port-broadcast", default=1067, type=int,
-        help="TCP port to connect to for broadcasts")
+        help="TCP port to connect to for broadcasts (default: %(default)s)")
     parser.add_argument(
         "--db-file", default=None,
-        help="database file for local GUI settings")
+        help="database file for local GUI settings (default: %(default)s)")
     parser.add_argument(
         "-p", "--load-plugin", dest="plugin_modules", action="append",
         help="Python module to load on startup")
     parser.add_argument(
         "--analyzer-proxy-timeout", default=5, type=float,
-        help="connection timeout to core analyzer proxy")
+        help="connection timeout to core analyzer proxy (default: %(default)s)")
     parser.add_argument(
         "--analyzer-proxy-timer", default=5, type=float,
-        help="retry timer to core analyzer proxy")
+        help="retry timer to core analyzer proxy (default: %(default)s)")
     parser.add_argument(
         "--analyzer-proxy-timer-backoff", default=1.1, type=float,
-        help="retry timer backoff multiplier to core analyzer proxy")
+        help="retry timer backoff multiplier to core analyzer proxy, (default: %(default)s)")
     common_args.verbosity_args(parser)
     return parser
 
@@ -95,14 +95,15 @@ class MdiArea(QtWidgets.QMdiArea):
         self.pixmap = QtGui.QPixmap(os.path.join(
             artiq_dir, "gui", "logo_ver.svg"))
 
-        self.setActivationOrder(self.ActivationHistoryOrder)
+        self.setActivationOrder(
+            QtWidgets.QMdiArea.WindowOrder.ActivationHistoryOrder)
 
-        self.tile = QtWidgets.QShortcut(
+        self.tile = QtGui.QShortcut(
             QtGui.QKeySequence('Ctrl+Shift+T'), self)
         self.tile.activated.connect(
             lambda: self.tileSubWindows())
 
-        self.cascade = QtWidgets.QShortcut(
+        self.cascade = QtGui.QShortcut(
             QtGui.QKeySequence('Ctrl+Shift+C'), self)
         self.cascade.activated.connect(
             lambda: self.cascadeSubWindows())
@@ -186,8 +187,8 @@ def main():
     main_window = MainWindow(args.server if server_name is None else server_name)
     smgr.register(main_window)
     mdi_area = MdiArea()
-    mdi_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-    mdi_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+    mdi_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+    mdi_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
     main_window.setCentralWidget(mdi_area)
 
     # create UI components
@@ -255,12 +256,12 @@ def main():
     right_docks = [
         d_explorer, d_shortcuts,
         d_datasets, d_applets,
-        d_waveform, d_interactive_args
+        # d_waveform, d_interactive_args
     ]
-    main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, right_docks[0])
+    main_window.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, right_docks[0])
     for d1, d2 in zip(right_docks, right_docks[1:]):
         main_window.tabifyDockWidget(d1, d2)
-    main_window.addDockWidget(QtCore.Qt.BottomDockWidgetArea, d_schedule)
+    main_window.addDockWidget(QtCore.Qt.DockWidgetArea.BottomDockWidgetArea, d_schedule)
 
     # load/initialize state
     if os.name == "nt":

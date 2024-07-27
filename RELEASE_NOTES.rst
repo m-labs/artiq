@@ -3,8 +3,19 @@
 Release notes
 =============
 
-ARTIQ-8 (Unreleased)
+ARTIQ-9 (Unreleased)
 --------------------
+
+* Zotino monitoring in the dashboard now displays the values in volts.
+* afws_client now uses the "happy eyeballs" algorithm (RFC 6555) for a faster and more
+  reliable connection to the server.
+* The Zadig driver installer was added to the MSYS2 offline installer.
+* Fastino monitoring with Moninj is now supported.
+* Qt6 support.
+* Python 3.12 support.
+
+ARTIQ-8
+-------
 
 Highlights:
 

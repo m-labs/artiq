@@ -122,7 +122,7 @@ class ADF5356:
 
         This method will write the attenuator settings of the channel.
 
-        .. seealso:: :meth:`artiq.coredevice.mirny.Mirny.set_att`
+        See also :meth:`Mirny.set_att<artiq.coredevice.mirny.Mirny.set_att>`.
 
         :param att: Attenuation in dB.
         """
@@ -132,7 +132,7 @@ class ADF5356:
     def set_att_mu(self, att: int32):
         """Set digital step attenuator in machine units.
 
-        :param att: Attenuation setting, 8 bit digital.
+        :param att: Attenuation setting, 8-bit digital.
         """
         self.cpld.set_att_mu(self.channel, att)
 
@@ -541,14 +541,14 @@ class ADF5356:
     @portable
     def _compute_pfd_frequency(self, r: int32, d: int32, t: int32) -> int64:
         """
-        Calculate the PFD frequency from the given reference path parameters
+        Calculate the PFD frequency from the given reference path parameters.
         """
         return round64(self.sysclk * (float(1 + d) / float(r * (1 + t))))
 
     @portable
     def _compute_reference_counter(self) -> int32:
         """
-        Determine the reference counter R that maximizes the PFD frequency
+        Determine the reference counter R that maximizes the PFD frequency.
         """
         d = ADF5356_REG4_R_DOUBLER_GET(self.regs[4])
         t = ADF5356_REG4_R_DIVIDER_GET(self.regs[4])
@@ -575,14 +575,15 @@ def calculate_pll(f_vco: int64, f_pfd: int64) -> tuple[int32, int32, tuple[int32
     """
     Calculate fractional-N PLL parameters such that
 
-    ``f_vco`` = ``f_pfd`` * (``n`` + (``frac1`` + ``frac2``/``mod2``) / ``mod1``)
+    ``f_vco = f_pfd * (n + (frac1 + frac2/mod2) / mod1)``
 
     where
-        ``mod1 = 2**24`` and ``mod2 <= 2**28``
+        
+    ``mod1 = 2**24`` and ``mod2 <= 2**28``
 
     :param f_vco: target VCO frequency
     :param f_pfd: PFD frequency
-    :return: ``(n, frac1, (frac2_msb, frac2_lsb), (mod2_msb, mod2_lsb))``
+    :return: (``n``, ``frac1``, ``(frac2_msb, frac2_lsb)``, ``(mod2_msb, mod2_lsb)``)
     """
 
     # integral part

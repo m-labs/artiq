@@ -1,4 +1,4 @@
-"""RTIO driver for Mirny (4 channel GHz PLLs)
+"""RTIO driver for Mirny (4-channel GHz PLLs)
 """
 
 from artiq.language.core import nac3, Kernel, KernelInvariant, kernel, portable
@@ -88,7 +88,7 @@ class Mirny:
 
     @kernel
     def read_reg(self, addr: int32) -> int32:
-        """Read a register"""
+        """Read a register."""
         self.bus.set_config_mu(
             SPI_CONFIG | SPI_INPUT | SPI_END, 24, SPIT_RD, SPI_CS
         )
@@ -97,7 +97,7 @@ class Mirny:
 
     @kernel
     def write_reg(self, addr: int32, data: int32):
-        """Write a register"""
+        """Write a register."""
         self.bus.set_config_mu(SPI_CONFIG | SPI_END, 24, SPIT_WR, SPI_CS)
         self.bus.write((addr << 25) | WE | ((data & 0xFFFF) << 8))
 
@@ -107,9 +107,9 @@ class Mirny:
         Initialize and detect Mirny.
 
         Select the clock source based the board's hardware revision.
-        Raise ValueError if the board's hardware revision is not supported.
+        Raise :exc:`ValueError` if the board's hardware revision is not supported.
 
-        :param blind: Verify presence and protocol compatibility. Raise ValueError on failure.
+        :param blind: Verify presence and protocol compatibility. Raise :exc:`ValueError` on failure.
         """
         reg0 = self.read_reg(0)
         self.hw_rev = reg0 & 0x3
@@ -144,7 +144,7 @@ class Mirny:
     def set_att_mu(self, channel: int32, att: int32):
         """Set digital step attenuator in machine units.
 
-        :param att: Attenuation setting, 8 bit digital.
+        :param att: Attenuation setting, 8-bit digital.
         """
         self.bus.set_config_mu(SPI_CONFIG | SPI_END, 16, SPIT_WR, SPI_CS)
         self.bus.write(((channel | 8) << 25) | (att << 16))
@@ -155,7 +155,7 @@ class Mirny:
 
         This method will write the attenuator settings of the selected channel.
 
-        .. seealso:: :meth:`set_att_mu`
+        See also :meth:`Mirny.set_att_mu`.
 
         :param channel: Attenuator channel (0-3).
         :param att: Attenuation setting in dB. Higher value is more
@@ -166,7 +166,7 @@ class Mirny:
 
     @kernel
     def write_ext(self, addr: int32, length: int32, data: int32, ext_div: int32 = SPIT_WR):
-        """Perform SPI write to a prefixed address"""
+        """Perform SPI write to a prefixed address."""
         self.bus.set_config_mu(SPI_CONFIG, 8, SPIT_WR, SPI_CS)
         self.bus.write(addr << 25)
         self.bus.set_config_mu(SPI_CONFIG | SPI_END, length, ext_div, SPI_CS)

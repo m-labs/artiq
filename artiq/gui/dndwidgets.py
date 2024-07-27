@@ -1,4 +1,4 @@
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt6 import QtCore, QtWidgets, QtGui
 
 from artiq.gui.flowlayout import FlowLayout
 
@@ -10,7 +10,7 @@ class VDragDropSplitter(QtWidgets.QSplitter):
         QtWidgets.QSplitter.__init__(self, parent=parent)
         self.setAcceptDrops(True)
         self.setContentsMargins(0, 0, 0, 0)
-        self.setOrientation(QtCore.Qt.Vertical)
+        self.setOrientation(QtCore.Qt.Orientation.Vertical)
         self.setChildrenCollapsible(False)
 
     def resetSizes(self):
@@ -78,7 +78,7 @@ class VDragScrollArea(QtWidgets.QScrollArea):
         self._speed = speed
 
     def eventFilter(self, obj, e):
-        if e.type() == QtCore.QEvent.DragMove:
+        if e.type() == QtCore.QEvent.Type.DragMove:
             val = self.verticalScrollBar().value()
             height = self.viewport().height()
             y = e.pos().y()
@@ -89,7 +89,7 @@ class VDragScrollArea(QtWidgets.QScrollArea):
                 self._direction = 1
             if not self._timer.isActive():
                 self._timer.start()
-        elif e.type() in (QtCore.QEvent.Drop, QtCore.QEvent.DragLeave):
+        elif e.type() in (QtCore.QEvent.Type.Drop, QtCore.QEvent.Type.DragLeave):
             self._timer.stop()
         return False
 
@@ -117,8 +117,8 @@ class DragDropFlowLayoutWidget(QtWidgets.QWidget):
         return -1
 
     def mousePressEvent(self, event):
-        if event.buttons() == QtCore.Qt.LeftButton \
-           and event.modifiers() == QtCore.Qt.ShiftModifier:
+        if event.buttons() == QtCore.Qt.MouseButton.LeftButton \
+           and event.modifiers() == QtCore.Qt.KeyboardModifier.ShiftModifier:
             index = self._get_index(event.pos())
             if index == -1:
                 return
@@ -127,7 +127,7 @@ class DragDropFlowLayoutWidget(QtWidgets.QWidget):
             mime.setData("index", str(index).encode())
             drag.setMimeData(mime)
             pixmapi = QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_FileIcon)
+                QtWidgets.QStyle.StandardPixmap.SP_FileIcon)
             drag.setPixmap(pixmapi.pixmap(32))
             drag.exec_(QtCore.Qt.MoveAction)
         event.accept()

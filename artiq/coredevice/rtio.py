@@ -26,7 +26,7 @@ def rtio_input_data(channel: int32) -> int32:
 @extern
 def rtio_input_timestamped_data(timeout_mu: int64,
                                 channel: int32) -> tuple[int64, int32]:
-    """Wait for an input event up to timeout_mu on the given channel, and
+    """Wait for an input event up to ``timeout_mu`` on the given channel, and
     return a tuple of timestamp and attached data, or (-1, 0) if the timeout is
     reached."""
     raise NotImplementedError("syscall not simulated")

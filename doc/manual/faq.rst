@@ -1,10 +1,10 @@
 .. Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
 
 FAQ
-###
+===
 
 How do I ...
-============
+------------
 
 find ARTIQ examples?
 --------------------
@@ -64,7 +64,7 @@ create and use variable lengths arrays in kernels?
 Don't. Preallocate everything. Or chunk it and e.g. read 100 events per
 function call, push them upstream and retry until the gate time closes.
 
-execute multiple slow controller RPCs in parallel without losing time? 
+execute multiple slow controller RPCs in parallel without losing time?
 ----------------------------------------------------------------------
 
 Use ``threading.Thread``: portable, fast, simple for one-shot calls.
@@ -91,7 +91,7 @@ It will give you the ``/dev/ttyUSBxx`` (or the ``COMxx`` for Windows) device
 names.
 The ``hwid:`` field gives you the string you can pass via the ``hwgrep://``
 feature of pyserial
-`serial_for_url() <http://pyserial.sourceforge.net/pyserial_api.html#serial.serial_for_url>`_
+`serial_for_url() <https://pythonhosted.org/pyserial/pyserial_api.html#serial.serial_for_url>`_
 in order to open a serial device.
 
 The preferred way to specify a serial device is to make use of the ``hwgrep://``

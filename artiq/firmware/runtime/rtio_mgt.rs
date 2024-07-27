@@ -710,11 +710,30 @@ fn read_device_map() -> DeviceMap {
     device_map
 }
 
+fn toggle_sed_spread(val: u8) {
+    unsafe { csr::rtio_core::sed_spread_enable_write(val); }
+}
+
+fn setup_sed_spread() {
+    config::read_str("sed_spread_enable", |r| {
+        match r {
+            Ok("1") => { info!("SED spreading enabled"); toggle_sed_spread(1); },
+            Ok("0") => { info!("SED spreading disabled"); toggle_sed_spread(0); },
+            Ok(_) => { 
+                warn!("sed_spread_enable value not supported (only 1, 0 allowed), disabling by default");
+                toggle_sed_spread(0);
+            },
+            Err(_) => { info!("SED spreading disabled by default"); toggle_sed_spread(0) },
+        }
+    });
+}
+
 pub fn startup(io: &Io, aux_mutex: &Mutex,
         routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
         ddma_mutex: &Mutex, subkernel_mutex: &Mutex) {
     set_device_map(read_device_map());
+    setup_sed_spread();
     drtio::startup(io, aux_mutex, routing_table, up_destinations, ddma_mutex, subkernel_mutex);
     unsafe {
         csr::rtio_core::reset_phy_write(1);

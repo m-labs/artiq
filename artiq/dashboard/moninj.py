@@ -4,13 +4,14 @@ import textwrap
 from collections import namedtuple
 from functools import partial
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtWidgets, QtGui
 
 from artiq.coredevice.comm_moninj import CommMonInj, TTLOverride, TTLProbe
 from artiq.coredevice.ad9912_reg import AD9912_SER_CONF
 from artiq.gui.tools import LayoutWidget, QDockWidgetCloseDetect, DoubleClickLineEdit
 from artiq.gui.dndwidgets import VDragScrollArea, DragDropFlowLayoutWidget
 from artiq.gui.models import DictSyncTreeSepModel
+from artiq.tools import elide
 
 
 logger = logging.getLogger(__name__)
@@ -22,39 +23,45 @@ class _CancellableLineEdit(QtWidgets.QLineEdit):
 
     def keyPressEvent(self, event):
         key = event.key()
-        if key == QtCore.Qt.Key_Escape:
+        if key == QtCore.Qt.Key.Key_Escape:
             self.esc_cb(event)
         QtWidgets.QLineEdit.keyPressEvent(self, event)
 
 
-class _TTLWidget(QtWidgets.QFrame):
-    def __init__(self, dm, channel, force_out, title):
+class _MoninjWidget(QtWidgets.QFrame):
+    def __init__(self, title):
         QtWidgets.QFrame.__init__(self)
+        self.setFrameShape(QtWidgets.QFrame.Shape.Box)
+        self.setFrameShadow(QtWidgets.QFrame.Shadow.Raised)
+        self.setFixedHeight(100)
+        self.setFixedWidth(150)
+        self.grid = QtWidgets.QGridLayout()
+        self.grid.setContentsMargins(0, 0, 0, 0)
+        self.grid.setHorizontalSpacing(0)
+        self.grid.setVerticalSpacing(0)
+        self.setLayout(self.grid)
+        title = elide(title, 20)
+        label = QtWidgets.QLabel(title)
+        label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Ignored,
+                            QtWidgets.QSizePolicy.Policy.Preferred)
+        self.grid.addWidget(label, 1, 1)
+
+
+class _TTLWidget(_MoninjWidget):
+    def __init__(self, dm, channel, force_out, title):
+        _MoninjWidget.__init__(self, title)
 
         self.channel = channel
         self.set_mode = dm.ttl_set_mode
         self.force_out = force_out
         self.title = title
 
-        self.setFrameShape(QtWidgets.QFrame.Box)
-        self.setFrameShadow(QtWidgets.QFrame.Raised)
-
-        grid = QtWidgets.QGridLayout()
-        grid.setContentsMargins(0, 0, 0, 0)
-        grid.setHorizontalSpacing(0)
-        grid.setVerticalSpacing(0)
-        self.setLayout(grid)
-        label = QtWidgets.QLabel(title)
-        label.setAlignment(QtCore.Qt.AlignCenter)
-        label.setSizePolicy(QtWidgets.QSizePolicy.Ignored,
-                            QtWidgets.QSizePolicy.Preferred)
-        grid.addWidget(label, 1, 1)
-
         self.stack = QtWidgets.QStackedWidget()
-        grid.addWidget(self.stack, 2, 1)
+        self.grid.addWidget(self.stack, 2, 1)
 
         self.direction = QtWidgets.QLabel()
-        self.direction.setAlignment(QtCore.Qt.AlignCenter)
+        self.direction.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         self.stack.addWidget(self.direction)
 
         grid_cb = LayoutWidget()
@@ -74,13 +81,13 @@ class _TTLWidget(QtWidgets.QFrame):
         self.stack.addWidget(grid_cb)
 
         self.value = QtWidgets.QLabel()
-        self.value.setAlignment(QtCore.Qt.AlignCenter)
-        grid.addWidget(self.value, 3, 1)
+        self.value.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        self.grid.addWidget(self.value, 3, 1)
 
-        grid.setRowStretch(1, 1)
-        grid.setRowStretch(2, 0)
-        grid.setRowStretch(3, 0)
-        grid.setRowStretch(4, 1)
+        self.grid.setRowStretch(1, 1)
+        self.grid.setRowStretch(2, 0)
+        self.grid.setRowStretch(3, 0)
+        self.grid.setRowStretch(4, 1)
 
         self.programmatic_change = False
         self.override.clicked.connect(self.override_toggled)
@@ -186,7 +193,7 @@ class _DDSModel:
         return ftw / self.ftw_per_hz
 
 
-class _DDSWidget(QtWidgets.QFrame):
+class _DDSWidget(_MoninjWidget):
     def __init__(self, dm, title, bus_channel, channel,
                  dds_type, ref_clk, cpld=None, pll=1, clk_div=0):
         self.dm = dm
@@ -197,19 +204,7 @@ class _DDSWidget(QtWidgets.QFrame):
         self.dds_model = _DDSModel(dds_type, ref_clk, cpld, pll, clk_div)
         self.title = title
 
-        QtWidgets.QFrame.__init__(self)
-
-        self.setFrameShape(QtWidgets.QFrame.Box)
-        self.setFrameShadow(QtWidgets.QFrame.Raised)
-
-        grid = QtWidgets.QGridLayout()
-        grid.setContentsMargins(0, 0, 0, 0)
-        grid.setHorizontalSpacing(0)
-        grid.setVerticalSpacing(0)
-        self.setLayout(grid)
-        label = QtWidgets.QLabel(title)
-        label.setAlignment(QtCore.Qt.AlignCenter)
-        grid.addWidget(label, 1, 1)
+        _MoninjWidget.__init__(self, title)
 
         # FREQ DATA/EDIT FIELD
         self.data_stack = QtWidgets.QStackedWidget()
@@ -221,11 +216,11 @@ class _DDSWidget(QtWidgets.QFrame):
         grid_disp.layout.setVerticalSpacing(0)
 
         self.value_label = QtWidgets.QLabel()
-        self.value_label.setAlignment(QtCore.Qt.AlignCenter)
+        self.value_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         grid_disp.addWidget(self.value_label, 0, 1, 1, 2)
 
         unit = QtWidgets.QLabel("MHz")
-        unit.setAlignment(QtCore.Qt.AlignCenter)
+        unit.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         grid_disp.addWidget(unit, 0, 3, 1, 1)
 
         self.data_stack.addWidget(grid_disp)
@@ -237,14 +232,14 @@ class _DDSWidget(QtWidgets.QFrame):
         grid_edit.layout.setVerticalSpacing(0)
 
         self.value_edit = _CancellableLineEdit(self)
-        self.value_edit.setAlignment(QtCore.Qt.AlignRight)
+        self.value_edit.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
         grid_edit.addWidget(self.value_edit, 0, 1, 1, 2)
         unit = QtWidgets.QLabel("MHz")
-        unit.setAlignment(QtCore.Qt.AlignCenter)
+        unit.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         grid_edit.addWidget(unit, 0, 3, 1, 1)
         self.data_stack.addWidget(grid_edit)
 
-        grid.addWidget(self.data_stack, 2, 1)
+        self.grid.addWidget(self.data_stack, 2, 1)
 
         # BUTTONS
         self.button_stack = QtWidgets.QStackedWidget()
@@ -277,11 +272,11 @@ class _DDSWidget(QtWidgets.QFrame):
         cancel.setToolTip("Cancel changes")
         apply_grid.addWidget(cancel, 0, 2, 1, 1)
         self.button_stack.addWidget(apply_grid)
-        grid.addWidget(self.button_stack, 3, 1)
+        self.grid.addWidget(self.button_stack, 3, 1)
 
-        grid.setRowStretch(1, 1)
-        grid.setRowStretch(2, 1)
-        grid.setRowStretch(3, 1)
+        self.grid.setRowStretch(1, 1)
+        self.grid.setRowStretch(2, 1)
+        self.grid.setRowStretch(3, 1)
 
         set_btn.clicked.connect(self.set_clicked)
         apply.clicked.connect(self.apply_changes)
@@ -332,39 +327,31 @@ class _DDSWidget(QtWidgets.QFrame):
         return "dds/{}".format(self.title)
 
 
-class _DACWidget(QtWidgets.QFrame):
-    def __init__(self, dm, spi_channel, channel, title):
-        QtWidgets.QFrame.__init__(self)
+class _DACWidget(_MoninjWidget):
+    def __init__(self, dm, spi_channel, channel, title, vref, offset_dacs):
+        _MoninjWidget.__init__(self, "{}_ch{}".format(title, channel))
         self.spi_channel = spi_channel
         self.channel = channel
-        self.cur_value = 0
+        self.cur_value = 0x8000
         self.title = title
-
-        self.setFrameShape(QtWidgets.QFrame.Box)
-        self.setFrameShadow(QtWidgets.QFrame.Raised)
-
-        grid = QtWidgets.QGridLayout()
-        grid.setContentsMargins(0, 0, 0, 0)
-        grid.setHorizontalSpacing(0)
-        grid.setVerticalSpacing(0)
-        self.setLayout(grid)
-        label = QtWidgets.QLabel("{} ch{}".format(title, channel))
-        label.setAlignment(QtCore.Qt.AlignCenter)
-        grid.addWidget(label, 1, 1)
+        self.vref = vref
+        self.offset_dacs = offset_dacs
 
         self.value = QtWidgets.QLabel()
-        self.value.setAlignment(QtCore.Qt.AlignCenter)
-        grid.addWidget(self.value, 2, 1, 6, 1)
+        self.value.setAlignment(QtCore.Qt.AlignHCenter | QtCore.Qt.AlignTop)
+        self.grid.addWidget(self.value, 2, 1, 6, 1)
 
-        grid.setRowStretch(1, 1)
-        grid.setRowStretch(2, 0)
-        grid.setRowStretch(3, 1)
+        self.grid.setRowStretch(1, 1)
+        self.grid.setRowStretch(2, 1)
 
         self.refresh_display()
 
+    def mu_to_voltage(self, code):
+        return ((code - self.offset_dacs * 0x4) / (1 << 16)) * (4. * self.vref)
+
     def refresh_display(self):
-        self.value.setText("<font size=\"4\">{:.3f}</font><font size=\"2\"> %</font>"
-                           .format(self.cur_value * 100 / 2**16))
+        self.value.setText("<font size=\"4\">{:+.3f} V</font>"
+                           .format(self.mu_to_voltage(self.cur_value)))
 
     def sort_key(self):
         return (2, self.spi_channel, self.channel)
@@ -373,7 +360,7 @@ class _DACWidget(QtWidgets.QFrame):
         return (self.title, self.channel)
 
     def to_model_path(self):
-        return "dac/{} ch{}".format(self.title, self.channel)
+        return "dac/{}_ch{}".format(self.title, self.channel)
 
 
 _WidgetDesc = namedtuple("_WidgetDesc", "uid comment cls arguments")
@@ -391,8 +378,6 @@ def setup_from_ddb(ddb):
                 comment = v.get("comment")
                 if v["type"] == "local":
                     if v["module"] == "artiq.coredevice.ttl":
-                        if "ttl_urukul" in k:
-                            continue
                         channel = v["arguments"]["channel"]
                         force_out = v["class"] == "TTLOut"
                         widget = _WidgetDesc(k, comment, _TTLWidget, (channel, force_out, k))
@@ -426,9 +411,17 @@ def setup_from_ddb(ddb):
                         while isinstance(spi_device, str):
                             spi_device = ddb[spi_device]
                         spi_channel = spi_device["arguments"]["channel"]
+                        vref = v["arguments"].get("vref", 5.)
+                        offset_dacs = v["arguments"].get("offset_dacs", 8192)
                         for channel in range(32):
                             widget = _WidgetDesc((k, channel), comment, _DACWidget,
-                                                 (spi_channel, channel, k))
+                                                 (spi_channel, channel, k, vref, offset_dacs))
+                            description.add(widget)
+                    elif (v["module"] == "artiq.coredevice.fastino" and v["class"] == "Fastino"):
+                        bus_channel = v["arguments"]["channel"]
+                        for channel in range(0, 32):
+                            widget = _WidgetDesc((k, channel), comment, _DACWidget,
+                                                 (bus_channel, channel, k, 5, 8192))
                             description.add(widget)
                 elif v["type"] == "controller" and k == "core_moninj":
                     mi_addr = v["host"]
@@ -768,7 +761,7 @@ class Model(DictSyncTreeSepModel):
 class _AddChannelDialog(QtWidgets.QDialog):
     def __init__(self, parent, model):
         QtWidgets.QDialog.__init__(self, parent=parent)
-        self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
         self.setWindowTitle("Add channels")
 
         layout = QtWidgets.QVBoxLayout()
@@ -778,14 +771,15 @@ class _AddChannelDialog(QtWidgets.QDialog):
         self._tree_view = QtWidgets.QTreeView()
         self._tree_view.setHeaderHidden(True)
         self._tree_view.setSelectionBehavior(
-            QtWidgets.QAbstractItemView.SelectItems)
+            QtWidgets.QAbstractItemView.SelectionBehavior.SelectItems)
         self._tree_view.setSelectionMode(
-            QtWidgets.QAbstractItemView.ExtendedSelection)
+            QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection)
         self._tree_view.setModel(self._model)
         layout.addWidget(self._tree_view)
 
         self._button_box = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+            QtWidgets.QDialogButtonBox.StandardButton.Ok | \
+            QtWidgets.QDialogButtonBox.StandardButton.Cancel
         )
         self._button_box.setCenterButtons(True)
         self._button_box.accepted.connect(self.add_channels)
@@ -807,8 +801,8 @@ class _MonInjDock(QDockWidgetCloseDetect):
     def __init__(self, name, manager):
         QtWidgets.QDockWidget.__init__(self, "MonInj")
         self.setObjectName(name)
-        self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
-                         QtWidgets.QDockWidget.DockWidgetFloatable)
+        self.setFeatures(self.DockWidgetFeature.DockWidgetMovable |
+                         self.DockWidgetFeature.DockWidgetFloatable)
         grid = LayoutWidget()
         self.setWidget(grid)
         self.manager = manager
@@ -817,7 +811,7 @@ class _MonInjDock(QDockWidgetCloseDetect):
         newdock = QtWidgets.QToolButton()
         newdock.setToolTip("Create new moninj dock")
         newdock.setIcon(QtWidgets.QApplication.style().standardIcon(
-            QtWidgets.QStyle.SP_FileDialogNewFolder))
+            QtWidgets.QStyle.StandardPixmap.SP_FileDialogNewFolder))
         newdock.clicked.connect(lambda: self.manager.create_new_dock())
         grid.addWidget(newdock, 0, 0)
 
@@ -828,7 +822,7 @@ class _MonInjDock(QDockWidgetCloseDetect):
         dialog_btn.setToolTip("Add channels")
         dialog_btn.setIcon(
             QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_FileDialogListView))
+                QtWidgets.QStyle.StandardPixmap.SP_FileDialogListView))
         dialog_btn.clicked.connect(self.channel_dialog.open)
         grid.addWidget(dialog_btn, 0, 1)
 
@@ -841,7 +835,8 @@ class _MonInjDock(QDockWidgetCloseDetect):
         self.flow = DragDropFlowLayoutWidget()
         scroll_area.setWidgetResizable(True)
         scroll_area.setWidget(self.flow)
-        self.flow.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.flow.setContextMenuPolicy(
+            QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
         self.flow.customContextMenuRequested.connect(self.custom_context_menu)
 
     def custom_context_menu(self, pos):
@@ -849,7 +844,7 @@ class _MonInjDock(QDockWidgetCloseDetect):
         if index == -1:
             return
         menu = QtWidgets.QMenu()
-        delete_action = QtWidgets.QAction("Delete widget", menu)
+        delete_action = QtGui.QAction("Delete widget", menu)
         delete_action.triggered.connect(partial(self.delete_widget, index))
         menu.addAction(delete_action)
         menu.exec_(self.flow.mapToGlobal(pos))
@@ -861,9 +856,10 @@ class _MonInjDock(QDockWidgetCloseDetect):
 
     def delete_widget(self, index, checked):
         widget = self.flow.itemAt(index).widget()
-        widget.hide()
         self.manager.dm.setup_monitoring(False, widget)
         self.flow.layout.takeAt(index)
+        widget.setParent(self.manager.main_window)
+        widget.hide()
 
     def add_channels(self):
         channels = self.channel_dialog.channels
@@ -871,9 +867,9 @@ class _MonInjDock(QDockWidgetCloseDetect):
 
     def layout_widgets(self, widgets):
         for widget in sorted(widgets, key=lambda w: w.sort_key()):
-            widget.show()
             self.manager.dm.setup_monitoring(True, widget)
             self.flow.addWidget(widget)
+            widget.show()
 
     def restore_widgets(self):
         if self.widget_uids is not None:
@@ -937,7 +933,7 @@ class MonInj:
         dock = _MonInjDock(name, self)
         self.docks[name] = dock
         if add_to_area:
-            self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
+            self.main_window.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, dock)
             dock.setFloating(True)
         dock.sigClosed.connect(partial(self.on_dock_closed, name))
         self.update_closable()
@@ -948,13 +944,13 @@ class MonInj:
         del self.docks[name]
         self.update_closable()
         dock.delete_all_widgets()
-        dock.hide()  # dock may be parent, only delete on exit
+        dock.deleteLater()
 
     def update_closable(self):
-        flags = (QtWidgets.QDockWidget.DockWidgetMovable |
-                 QtWidgets.QDockWidget.DockWidgetFloatable)
+        flags = (QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable |
+                 QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetFloatable)
         if len(self.docks) > 1:
-            flags |= QtWidgets.QDockWidget.DockWidgetClosable
+            flags |= QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetClosable
         for dock in self.docks.values():
             dock.setFeatures(flags)
 
@@ -974,7 +970,8 @@ class MonInj:
             dock = _MonInjDock(name, self)
             self.docks[name] = dock
             dock.restore_state(dock_state)
-            self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
+            self.main_window.addDockWidget(
+                QtCore.Qt.DockWidgetArea.RightDockWidgetArea, dock)
             dock.sigClosed.connect(partial(self.on_dock_closed, name))
         self.update_closable()
 

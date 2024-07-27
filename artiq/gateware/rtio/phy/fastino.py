@@ -27,6 +27,7 @@ class Fastino(Module):
 
         # dac data words
         dacs = [Signal(16) for i in range(32)]
+        self.probes = dacs
 
         header = Record([
             ("cfg", 4),

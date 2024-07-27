@@ -9,7 +9,7 @@ from functools import partial
 from itertools import count
 from types import SimpleNamespace
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from sipyco.pipe_ipc import AsyncioParentComm
 from sipyco.logging_tools import LogParser
@@ -29,7 +29,7 @@ class EntryArea(EntryTreeWidget):
         reset_all_button.setToolTip("Reset all to default values")
         reset_all_button.setIcon(
             QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_BrowserReload))
+                QtWidgets.QStyle.StandardPixmap.SP_BrowserReload))
         reset_all_button.clicked.connect(self.reset_all)
         buttons = LayoutWidget()
         buttons.layout.setColumnStretch(0, 1)
@@ -137,7 +137,7 @@ class AppletIPCServer(AsyncioParentComm):
                     return
         self.write_pyon({"action": "mod", "mod": mod})
 
-    async def serve(self, embed_cb, fix_initial_size_cb):
+    async def serve(self, embed_cb):
         self.dataset_sub.notify_cbs.append(self._on_mod)
         try:
             while True:
@@ -145,10 +145,11 @@ class AppletIPCServer(AsyncioParentComm):
                 try:
                     action = obj["action"]
                     if action == "embed":
-                        embed_cb(obj["win_id"])
-                        self.write_pyon({"action": "embed_done"})
-                    elif action == "fix_initial_size":
-                        fix_initial_size_cb()
+                        size = embed_cb(obj["win_id"])
+                        if size is None:
+                            self.write_pyon({"action": "embed_done"})
+                        else:
+                            self.write_pyon({"action": "embed_done", "size_h": size.height(), "size_w": size.width()})
                     elif action == "subscribe":
                         self.datasets = obj["datasets"]
                         self.dataset_prefixes = obj["dataset_prefixes"]
@@ -176,9 +177,9 @@ class AppletIPCServer(AsyncioParentComm):
         finally:
             self.dataset_sub.notify_cbs.remove(self._on_mod)
 
-    def start_server(self, embed_cb, fix_initial_size_cb, *, loop=None):
+    def start_server(self, embed_cb, *, loop=None):
         self.server_task = asyncio.ensure_future(
-            self.serve(embed_cb, fix_initial_size_cb), loop=loop)
+            self.serve(embed_cb), loop=loop)
 
     async def stop_server(self):
         if hasattr(self, "server_task"):
@@ -239,7 +240,7 @@ class _AppletDock(QDockWidgetCloseDetect):
             asyncio.ensure_future(
                 LogParser(self._get_log_source).stream_task(
                     self.ipc.process.stderr))
-            self.ipc.start_server(self.embed, self.fix_initial_size)
+            self.ipc.start_server(self.embed)
         finally:
             self.starting_stopping = False
 
@@ -268,11 +269,9 @@ class _AppletDock(QDockWidgetCloseDetect):
         self.embed_widget = QtWidgets.QWidget.createWindowContainer(
             self.embed_window)
         self.setWidget(self.embed_widget)
-
-    # HACK: This function would not be needed if Qt window embedding
-    # worked correctly.
-    def fix_initial_size(self):
-        self.embed_window.resize(self.embed_widget.size())
+        # return the size after embedding. Applet must resize to that,
+        # otherwise the applet may not fit within the dock properly.
+        return self.embed_widget.size()
 
     async def terminate(self, delete_self=True):
         if self.starting_stopping:
@@ -388,8 +387,8 @@ class _CompleterDelegate(QtWidgets.QStyledItemDelegate):
         completer = QtWidgets.QCompleter()
         completer.splitPath = lambda path: path.replace("/", ".").split(".")
         completer.setModelSorting(
-            QtWidgets.QCompleter.CaseSensitivelySortedModel)
-        completer.setCompletionRole(QtCore.Qt.DisplayRole)
+            QtWidgets.QCompleter.ModelSorting.CaseSensitivelySortedModel)
+        completer.setCompletionRole(QtCore.Qt.ItemDataRole.DisplayRole)
         if hasattr(self, "model"):
             # "TODO: Optimize updates in the source model"
             #    - Qt (qcompleter.cpp), never ceasing to disappoint.
@@ -420,8 +419,8 @@ class AppletsDock(QtWidgets.QDockWidget):
         """
         QtWidgets.QDockWidget.__init__(self, "Applets")
         self.setObjectName("Applets")
-        self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
-                         QtWidgets.QDockWidget.DockWidgetFloatable)
+        self.setFeatures(QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable |
+                         QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetFloatable)
 
         self.main_window = main_window
         self.dataset_sub = dataset_sub
@@ -435,18 +434,18 @@ class AppletsDock(QtWidgets.QDockWidget):
         self.table = QtWidgets.QTreeWidget()
         self.table.setColumnCount(2)
         self.table.setHeaderLabels(["Name", "Command"])
-        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        self.table.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
 
         self.table.header().setStretchLastSection(True)
         self.table.header().setSectionResizeMode(
-            QtWidgets.QHeaderView.ResizeToContents)
-        self.table.setTextElideMode(QtCore.Qt.ElideNone)
+            QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        self.table.setTextElideMode(QtCore.Qt.TextElideMode.ElideNone)
 
         self.table.setDragEnabled(True)
         self.table.viewport().setAcceptDrops(True)
         self.table.setDropIndicatorShown(True)
-        self.table.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
+        self.table.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.InternalMove)
 
         self.setWidget(self.table)
 
@@ -454,44 +453,44 @@ class AppletsDock(QtWidgets.QDockWidget):
         self.table.setItemDelegateForColumn(1, completer_delegate)
         dataset_sub.add_setmodel_callback(completer_delegate.set_model)
 
-        self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        new_action = QtWidgets.QAction("New applet", self.table)
+        self.table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
+        new_action = QtGui.QAction("New applet", self.table)
         new_action.triggered.connect(partial(self.new_with_parent, self.new))
         self.table.addAction(new_action)
-        templates_menu = QtWidgets.QMenu()
+        templates_menu = QtWidgets.QMenu(self.table)
         for name, template in _templates:
             spec = {"ty": "command", "command": template}
-            action = QtWidgets.QAction(name, self.table)
+            action = QtGui.QAction(name, self.table)
             action.triggered.connect(partial(
                 self.new_with_parent, self.new, spec=spec))
             templates_menu.addAction(action)
-        restart_action = QtWidgets.QAction("New applet from template", self.table)
+        restart_action = QtGui.QAction("New applet from template", self.table)
         restart_action.setMenu(templates_menu)
         self.table.addAction(restart_action)
-        restart_action = QtWidgets.QAction("Restart selected applet or group", self.table)
+        restart_action = QtGui.QAction("Restart selected applet or group", self.table)
         restart_action.setShortcut("CTRL+R")
-        restart_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        restart_action.setShortcutContext(QtCore.Qt.ShortcutContext.WidgetShortcut)
         restart_action.triggered.connect(self.restart)
         self.table.addAction(restart_action)
-        delete_action = QtWidgets.QAction("Delete selected applet or group", self.table)
+        delete_action = QtGui.QAction("Delete selected applet or group", self.table)
         delete_action.setShortcut("DELETE")
-        delete_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        delete_action.setShortcutContext(QtCore.Qt.ShortcutContext.WidgetShortcut)
         delete_action.triggered.connect(self.delete)
         self.table.addAction(delete_action)
-        close_nondocked_action = QtWidgets.QAction("Close non-docked applets", self.table)
+        close_nondocked_action = QtGui.QAction("Close non-docked applets", self.table)
         close_nondocked_action.setShortcut("CTRL+ALT+W")
-        close_nondocked_action.setShortcutContext(QtCore.Qt.ApplicationShortcut)
+        close_nondocked_action.setShortcutContext(QtCore.Qt.ShortcutContext.ApplicationShortcut)
         close_nondocked_action.triggered.connect(self.close_nondocked)
         self.table.addAction(close_nondocked_action)
 
-        new_group_action = QtWidgets.QAction("New group", self.table)
+        new_group_action = QtGui.QAction("New group", self.table)
         new_group_action.triggered.connect(partial(self.new_with_parent, self.new_group))
         self.table.addAction(new_group_action)
 
         self.table.itemChanged.connect(self.item_changed)
 
         # HACK
-        self.table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+        self.table.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table.itemDoubleClicked.connect(self.open_editor)
 
     def open_editor(self, item, column):
@@ -518,7 +517,7 @@ class AppletsDock(QtWidgets.QDockWidget):
                     del item.applet_code
             elif spec["ty"] == "code":
                 item.setIcon(1, QtWidgets.QApplication.style().standardIcon(
-                    QtWidgets.QStyle.SP_FileIcon))
+                    QtWidgets.QStyle.StandardPixmap.SP_FileIcon))
                 item.applet_code = spec["code"]
             else:
                 raise ValueError
@@ -530,7 +529,7 @@ class AppletsDock(QtWidgets.QDockWidget):
 
     def create(self, item, name, spec):
         dock = _AppletDock(self.dataset_sub, self.dataset_ctl, self.expmgr, item.applet_uid, name, spec, self.extra_substitutes)
-        self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
+        self.main_window.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, dock)
         dock.setFloating(True)
         asyncio.ensure_future(dock.start(), loop=self._loop)
         dock.sigClosed.connect(partial(self.on_dock_closed, item, dock))
@@ -547,7 +546,7 @@ class AppletsDock(QtWidgets.QDockWidget):
                     dock.spec = self.get_spec(item)
 
             if column == 0:
-                if item.checkState(0) == QtCore.Qt.Checked:
+                if item.checkState(0) == QtCore.Qt.CheckState.Checked:
                     if item.applet_dock is None:
                         name = item.text(0)
                         spec = self.get_spec(item)
@@ -572,7 +571,7 @@ class AppletsDock(QtWidgets.QDockWidget):
     def on_dock_closed(self, item, dock):
         item.applet_geometry = dock.saveGeometry()
         asyncio.ensure_future(dock.terminate(), loop=self._loop)
-        item.setCheckState(0, QtCore.Qt.Unchecked)
+        item.setCheckState(0, QtCore.Qt.CheckState.Unchecked)
 
     def get_untitled(self):
         existing_names = set()
@@ -602,18 +601,18 @@ class AppletsDock(QtWidgets.QDockWidget):
             name = self.get_untitled()
         item = QtWidgets.QTreeWidgetItem([name, ""])
         item.ty = "applet"
-        item.setFlags(QtCore.Qt.ItemIsSelectable |
-                      QtCore.Qt.ItemIsUserCheckable |
-                      QtCore.Qt.ItemIsEditable |
-                      QtCore.Qt.ItemIsDragEnabled |
-                      QtCore.Qt.ItemNeverHasChildren |
-                      QtCore.Qt.ItemIsEnabled)
-        item.setCheckState(0, QtCore.Qt.Unchecked)
+        item.setFlags(QtCore.Qt.ItemFlag.ItemIsSelectable |
+                      QtCore.Qt.ItemFlag.ItemIsUserCheckable |
+                      QtCore.Qt.ItemFlag.ItemIsEditable |
+                      QtCore.Qt.ItemFlag.ItemIsDragEnabled |
+                      QtCore.Qt.ItemFlag.ItemNeverHasChildren |
+                      QtCore.Qt.ItemFlag.ItemIsEnabled)
+        item.setCheckState(0, QtCore.Qt.CheckState.Unchecked)
         item.applet_uid = uid
         item.applet_dock = None
         item.applet_geometry = None
         item.setIcon(0, QtWidgets.QApplication.style().standardIcon(
-            QtWidgets.QStyle.SP_ComputerIcon))
+            QtWidgets.QStyle.StandardPixmap.SP_ComputerIcon))
         self.set_spec(item, spec)
         if parent is None:
             self.table.addTopLevelItem(item)
@@ -626,15 +625,15 @@ class AppletsDock(QtWidgets.QDockWidget):
             name = self.get_untitled()
         item = QtWidgets.QTreeWidgetItem([name, attr])
         item.ty = "group"
-        item.setFlags(QtCore.Qt.ItemIsSelectable |
-            QtCore.Qt.ItemIsEditable |
-            QtCore.Qt.ItemIsUserCheckable |
-            QtCore.Qt.ItemIsTristate |
-            QtCore.Qt.ItemIsDragEnabled |
-            QtCore.Qt.ItemIsDropEnabled |
-            QtCore.Qt.ItemIsEnabled)
+        item.setFlags(QtCore.Qt.ItemFlag.ItemIsSelectable |
+            QtCore.Qt.ItemFlag.ItemIsEditable |
+            QtCore.Qt.ItemFlag.ItemIsUserCheckable |
+            QtCore.Qt.ItemFlag.ItemIsAutoTristate |
+            QtCore.Qt.ItemFlag.ItemIsDragEnabled |
+            QtCore.Qt.ItemFlag.ItemIsDropEnabled |
+            QtCore.Qt.ItemFlag.ItemIsEnabled)
         item.setIcon(0, QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_DirIcon))
+                QtWidgets.QStyle.StandardPixmap.SP_DirIcon))
         if parent is None:
             self.table.addTopLevelItem(item)
         else:
@@ -712,7 +711,7 @@ class AppletsDock(QtWidgets.QDockWidget):
             cwi = wi.child(row)
             if cwi.ty == "applet":
                 uid = cwi.applet_uid
-                enabled = cwi.checkState(0) == QtCore.Qt.Checked
+                enabled = cwi.checkState(0) == QtCore.Qt.CheckState.Checked
                 name = cwi.text(0)
                 spec = self.get_spec(cwi)
                 geometry = cwi.applet_geometry
@@ -744,7 +743,7 @@ class AppletsDock(QtWidgets.QDockWidget):
                     geometry = QtCore.QByteArray(geometry)
                     item.applet_geometry = geometry
                 if enabled:
-                    item.setCheckState(0, QtCore.Qt.Checked)
+                    item.setCheckState(0, QtCore.Qt.CheckState.Checked)
             elif wis[0] == "group":
                 _, name, attr, expanded, state_child = wis
                 item = self.new_group(name, attr, parent=parent)
@@ -761,11 +760,11 @@ class AppletsDock(QtWidgets.QDockWidget):
             for i in range(wi.childCount()):
                 cwi = wi.child(i)
                 if cwi.ty == "applet":
-                    if cwi.checkState(0) == QtCore.Qt.Checked:
+                    if cwi.checkState(0) == QtCore.Qt.CheckState.Checked:
                         if cwi.applet_dock is not None:
                             if not cwi.applet_dock.isFloating():
                                 continue
-                        cwi.setCheckState(0, QtCore.Qt.Unchecked)
+                        cwi.setCheckState(0, QtCore.Qt.CheckState.Unchecked)
                 elif cwi.ty == "group":
                     walk(cwi)
         walk(self.table.invisibleRootItem())
