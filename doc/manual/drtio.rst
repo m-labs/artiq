@@ -35,7 +35,7 @@ It is stored in a binary format that can be generated and manipulated with the :
 Internal details
 ----------------
 
-Bits 16-24 of the RTIO channel number (assigned to a respective device in the initial system description JSON, and specified again for use of the ARTIQ front-end in the device database) define the destination. Bits 0-15 of the RTIO channel number select the channel within the destination.
+Bits 16-24 of the RTIO channel number (assigned to a respective device in the initial :ref:`system description JSON <system-description>`, and specified again for use of the ARTIQ front-end in the device database) define the destination. Bits 0-15 of the RTIO channel number select the channel within the destination.
 
 Real-time and auxiliary packets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
