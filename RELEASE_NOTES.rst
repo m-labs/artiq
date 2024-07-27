@@ -11,6 +11,8 @@ ARTIQ-9 (Unreleased)
   reliable connection to the server.
 * The Zadig driver installer was added to the MSYS2 offline installer.
 * Fastino monitoring with Moninj is now supported.
+* Qt6 support.
+* Python 3.12 support.
 
 ARTIQ-8
 -------
