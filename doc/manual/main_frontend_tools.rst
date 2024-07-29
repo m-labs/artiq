@@ -6,7 +6,7 @@ These are the top-level commands used to run and manage ARTIQ experiments. Not a
 .. Note that ARTIQ frontend has no docstrings and the ..automodule directives display nothing; they are there to make :mod: references function correctly, since sphinx-argparse does not support links to ..argparse directives in the same way.
 
 :mod:`artiq.frontend.artiq_run`
---------------------------------
+-------------------------------
 
 .. automodule:: artiq.frontend.artiq_run
 .. argparse::
@@ -17,7 +17,7 @@ These are the top-level commands used to run and manage ARTIQ experiments. Not a
 .. _frontend-artiq-master:
 
 :mod:`artiq.frontend.artiq_master`
------------------------------------
+----------------------------------
 
 .. automodule:: artiq.frontend.artiq_master
 .. argparse::
@@ -28,7 +28,7 @@ These are the top-level commands used to run and manage ARTIQ experiments. Not a
 .. _frontend-artiq-client:
 
 :mod:`artiq.frontend.artiq_client`
------------------------------------
+----------------------------------
 .. automodule:: artiq.frontend.artiq_client
 .. argparse::
    :ref: artiq.frontend.artiq_client.get_argparser
@@ -47,11 +47,31 @@ These are the top-level commands used to run and manage ARTIQ experiments. Not a
    :nodefault:
 
 :mod:`artiq.frontend.artiq_browser`
-------------------------------------
+-----------------------------------
 
 .. automodule:: artiq.frontend.artiq_browser
 .. argparse::
    :ref: artiq.frontend.artiq_browser.get_argparser
    :prog: artiq_browser
    :nodefault:
-   
+
+:mod:`artiq.frontend.artiq_session`
+-----------------------------------
+
+.. automodule:: artiq.frontend.artiq_session
+.. argparse::
+   :ref: artiq.frontend.artiq_session.get_argparser
+   :prog: artiq_session
+   :nodefault:
+
+:mod:`artiq_comtools.artiq_ctlmgr`
+----------------------------------
+
+ARTIQ controller manager. Supplied in the separate package ``artiq-comtools``, which is included with a standard ARTIQ installation but can also be `installed standalone <https://github.com/m-labs/artiq-comtools>`_, with the intention of making it easier to run controllers and controller managers on machines where a full ARTIQ installation may not be necessary or convenient.
+
+.. automodule:: artiq_comtools.artiq_ctlmgr
+.. argparse::
+   :ref: artiq_comtools.artiq_ctlmgr.get_argparser
+   :prog: artiq_ctlmgr
+   :nodescription:
+   :nodefault:
