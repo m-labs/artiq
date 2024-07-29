@@ -10,7 +10,7 @@ While it is possible to use the other parts of ARTIQ (controllers, master, GUI, 
 Flash storage
 -------------
 
-The core device contains some flash storage space which is used to store configuration data. It is one sector (typically 64 kB) large and organized as a list of key-value records, accessible either through ``artiq_mkfs`` and ``artiq_flash`` or, preferably in most cases, the ``config`` option of the ``artiq_coremgmt`` core management tool (see below). Information can be stored to keys of any name, but the specific keys currently used and referenced by ARTIQ are summarized below:
+The core device contains some flash storage space which is used to store configuration data. It is one sector (typically 64 kB) large and organized as a list of key-value records, accessible either through :mod:`~artiq.frontend.artiq_mkfs` and :mod:`~artiq.frontend.artiq_flash` or, preferably in most cases, the ``config`` option of the :mod:`~artiq.frontend.artiq_coremgmt` core management tool (see below). Information can be stored to keys of any name, but the specific keys currently used and referenced by ARTIQ are summarized below:
 
 ``idle_kernel``
   Stores (compiled ``.tar`` or ``.elf`` binary of) idle kernel. See :ref:`core-device-config`.
@@ -37,7 +37,7 @@ The core device contains some flash storage space which is used to store configu
 ``routing_table``
   Sets the routing table in DRTIO systems; see :ref:`drtio-routing`. If not set, a star topology is assumed.
 ``device_map``
-  If set, allows the core log to connect RTIO channels to device names and use device names as well as channel numbers in log output. A correctly formatted table can be automatically generated with ``artiq_rtiomap``, see :ref:`Utilities<rtiomap-tool>`.
+  If set, allows the core log to connect RTIO channels to device names and use device names as well as channel numbers in log output. A correctly formatted table can be automatically generated with :mod:`~artiq.frontend.artiq_rtiomap`, see :ref:`Utilities<rtiomap-tool>`.
 ``net_trace``
   If set to ``1``, will activate net trace (print all packets sent and received to UART and core log). This will considerably slow down all network response from the core. Not applicable for ARTIQ-Zynq (Kasli-SoC, ZC706).
 ``panic_reset``
@@ -45,7 +45,7 @@ The core device contains some flash storage space which is used to store configu
 ``no_flash_boot``
   If set to ``1``, will disable flash boot. Network boot is attempted if possible. Not applicable for ARTIQ-Zynq.
 ``boot``
-  Allows full firmware/gateware (``boot.bin``) to be written with ``artiq_coremgmt``, on ARTIQ-Zynq systems only.
+  Allows full firmware/gateware (``boot.bin``) to be written with :mod:`~artiq.frontend.artiq_coremgmt`, on ARTIQ-Zynq systems only.
 
 Common configuration commands
 -----------------------------
@@ -65,7 +65,7 @@ You do not need to remove a record in order to change its value. Just overwrite 
 
 You can write several records at once::
 
-  $ artiq_coremgmt config write -s key1 value1 -f key2 filename -s key3 value3
+    $ artiq_coremgmt config write -s key1 value1 -f key2 filename -s key3 value3
 
 You can also write entire files in a record using the ``-f`` option. This is useful for instance to write the startup and idle kernels into the flash storage::
 
@@ -75,7 +75,7 @@ You can also write entire files in a record using the ``-f`` option. This is use
 
 The same option is used to write ``boot.bin`` in ARTIQ-Zynq. Note that the ``boot`` key is write-only.
 
-See also the full reference of ``artiq_coremgmt`` in :ref:`Utilities <core-device-management-tool>`.
+See also the full reference of :mod:`~artiq.frontend.artiq_coremgmt` in :ref:`Utilities <core-device-management-tool>`.
 
 Board details
 -------------

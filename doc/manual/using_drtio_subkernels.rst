@@ -10,10 +10,10 @@ While the components of a system, as well as the distribution of peripherals amo
 Certain peripheral cards with onboard FPGAs of their own (e.g. Shuttler) can be configured as satellites in a DRTIO setting, allowing them to run their own subkernels and make use of DDMA. In these cases, the EEM connection to the core device is used for DRTIO communication (DRTIO-over-EEM).
 
 .. note::
-    As with other configuration changes (e.g. adding new hardware), if you are in possession of a non-distributed ARTIQ system and you'd like to expand it into a DRTIO setup, it's easily possible to do so, but you need to be sure that both master and satellite are (re)flashed with this in mind. As usual, if you obtained your hardware from M-Labs, you will normally be supplied with all the binaries you need, through ``afws_client`` or otherwise.
+    As with other configuration changes (e.g. adding new hardware), if you are in possession of a non-distributed ARTIQ system and you'd like to expand it into a DRTIO setup, it's easily possible to do so, but you need to be sure that both master and satellite are (re)flashed with this in mind. As usual, if you obtained your hardware from M-Labs, you will normally be supplied with all the binaries you need, through :mod:`~artiq.frontend.afws_client` or otherwise.
 
 .. note::
-    Do not confuse the DRTIO *master device* (used to mean the central controlling core device of a distributed system) with the *ARTIQ master* (the central piece of software of ARTIQ's management system, which interacts with ``artiq_client`` and the dashboard.) ``artiq_run`` can be used to run experiments on DRTIO systems just as easily as non-distributed ones, and the ARTIQ master interacts with the central core device regardless of whether it's configured as a DRTIO master or standalone.
+    Do not confuse the DRTIO *master device* (used to mean the central controlling core device of a distributed system) with the *ARTIQ master* (the central piece of software of ARTIQ's management system, which interacts with :mod:`~artiq.frontend.artiq_client` and the dashboard.) :mod:`~artiq.frontend.artiq_run` can be used to run experiments on DRTIO systems just as easily as non-distributed ones, and the ARTIQ master interacts with the central core device regardless of whether it's configured as a DRTIO master or standalone.
 
 Using DRTIO
 -----------
@@ -23,7 +23,7 @@ Using DRTIO
 Configuring the routing table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-By default, DRTIO assumes a routing table for a star topology (i.e. all satellites directly connected to the master), with destination 0 being the master device's local RTIO core and destinations 1 and above corresponding to devices on the master's respective downstream ports. To use any other topology, it is necessary to supply a corresponding routing table in the form of a binary file, written to flash storage under the key ``routing_table``. The binary file is easily generated in the correct format using ``artiq_route``. This example is for a chain of 3 devices: ::
+By default, DRTIO assumes a routing table for a star topology (i.e. all satellites directly connected to the master), with destination 0 being the master device's local RTIO core and destinations 1 and above corresponding to devices on the master's respective downstream ports. To use any other topology, it is necessary to supply a corresponding routing table in the form of a binary file, written to flash storage under the key ``routing_table``. The binary file is easily generated in the correct format using :mod:`~artiq.frontend.artiq_route`. This example is for a chain of 3 devices: ::
 
     # create an empty routing table
     $ artiq_route rt.bin init

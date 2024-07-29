@@ -120,7 +120,7 @@ To access this driver in an experiment, we can retrieve the ``Client`` instance 
 Integration with ARTIQ experiments
 ----------------------------------
 
-Generally we will want to add the device to our :ref:`device database <device-db>` so that we can add it to an experiment with ``self.setattr_device`` and so the controller can be started and stopped automatically by a controller manager (the ``artiq_ctlmgr`` utility from ``artiq-comtools``). To do so, add an entry to your device database in this format: ::
+Generally we will want to add the device to our :ref:`device database <device-db>` so that we can add it to an experiment with ``self.setattr_device`` and so the controller can be started and stopped automatically by a controller manager (the :mod:`~artiq_comtools.artiq_ctlmgr` utility from ``artiq-comtools``). To do so, add an entry to your device database in this format: ::
 
 	device_db.update({
             "hello": {

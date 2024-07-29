@@ -146,19 +146,19 @@ pygments_style = 'sphinx'
 # If true, keep warnings as "system message" paragraphs in the built documents.
 #keep_warnings = False
 
-# If true, Sphinx will warn about *all* references where the target cannot be found. 
-nitpicky = True 
+# If true, Sphinx will warn about *all* references where the target cannot be found.
+nitpicky = True
 
-# (type, target) regex tuples to ignore when generating warnings in 'nitpicky' mode 
+# (type, target) regex tuples to ignore when generating warnings in 'nitpicky' mode
+# i.e. objects that are not documented in this manual and do not need to be
 nitpick_ignore_regex = [
     (r'py:.*', r'numpy..*'),
     (r'py:.*', r'sipyco..*'),
-    ('py:const', r'.*'), # no constants are documented anyway 
+    ('py:const', r'.*'), # no constants are documented anyway
     ('py.attr', r'.*'), # nor attributes
-    (r'py:.*', r'artiq.gateware.*'), 
-    ('py:mod', r'artiq.frontend.*'),
+    (r'py:.*', r'artiq.gateware.*'),
     ('py:mod', r'artiq.test.*'),
-    ('py:mod', 'artiq.experiment'), 
+    ('py:mod', r'artiq.applets.*'),
     ('py:class', 'dac34H84'),
     ('py:class', 'trf372017'),
     ('py:class', r'list(.*)'),
