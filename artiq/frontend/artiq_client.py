@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-"""
-Client to send commands to :mod:`artiq_master` and display results locally.
-
-The client can perform actions such as accessing/setting datasets,
-scanning devices, scheduling experiments, and looking for experiments/devices.
-"""
 
 import argparse
 import logging
