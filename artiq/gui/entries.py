@@ -23,13 +23,13 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
             set_resize_mode = self.header().setSectionResizeMode
         else:
             set_resize_mode = self.header().setResizeMode
-        set_resize_mode(0, QtWidgets.QHeaderView.ResizeToContents)
-        set_resize_mode(1, QtWidgets.QHeaderView.Stretch)
-        set_resize_mode(2, QtWidgets.QHeaderView.ResizeToContents)
+        set_resize_mode(0, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        set_resize_mode(1, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        set_resize_mode(2, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
         self.header().setVisible(False)
-        self.setSelectionMode(self.NoSelection)
-        self.setHorizontalScrollMode(self.ScrollPerPixel)
-        self.setVerticalScrollMode(self.ScrollPerPixel)
+        self.setSelectionMode(self.SelectionMode.NoSelection)
+        self.setHorizontalScrollMode(self.ScrollMode.ScrollPerPixel)
+        self.setVerticalScrollMode(self.ScrollMode.ScrollPerPixel)
 
         self.setStyleSheet("QTreeWidget {background: " +
                            self.palette().midlight().color().name() + " ;}")
@@ -109,7 +109,6 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
         group = QtWidgets.QTreeWidgetItem([key])
         for col in range(3):
             group.setBackground(col, self.palette().mid())
-            group.setForeground(col, self.palette().brightText())
             font = group.font(col)
             font.setBold(True)
             group.setFont(col, font)
