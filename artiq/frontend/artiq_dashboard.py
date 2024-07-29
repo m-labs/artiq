@@ -256,7 +256,7 @@ def main():
     right_docks = [
         d_explorer, d_shortcuts,
         d_datasets, d_applets,
-        # d_waveform, d_interactive_args
+        d_waveform, d_interactive_args
     ]
     main_window.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, right_docks[0])
     for d1, d2 in zip(right_docks, right_docks[1:]):
