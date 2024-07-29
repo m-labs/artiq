@@ -132,7 +132,7 @@ ARTIQ makes various useful built-in and mathematical functions from Python, NumP
         * Functions 
     +   * `Python built-ins <https://docs.python.org/3/library/functions.html>`_
         *   - ``len()``, ``round()``, ``abs()``, ``min()``, ``max()``
-            - ``print()`` (for specifics see warning below)
+            - ``print()`` (with caveats; see below)
             - all basic type conversions (``int()``, ``float()`` etc.)  
     +   * `NumPy mathematic utilities <https://numpy.org/doc/stable/reference/routines.math.html>`_
         *   - ``sqrt()``, ``cbrt``` 
@@ -156,8 +156,12 @@ ARTIQ makes various useful built-in and mathematical functions from Python, NumP
 
 Basic NumPy array handling (``np.array()``, ``numpy.transpose()``, ``numpy.full``, ``@``, element-wise operation, etc.) is also available. NumPy functions are implicitly broadcast when applied to arrays. 
 
-.. warning:: 
-    A kernel ``print`` call normally specifically prints to the host machine, either the terminal of :mod:`~artiq.frontend.artiq_run` or the dashboard log when using :mod:`~artiq.frontend.artiq_dashboard`. This makes it effectively an RPC, with some of the corresponding limitations. In subkernels and whenever compiled through :mod:`~artiq.frontend.artiq_compile`, where RPCs are not supported, it is instead considered a print to the local log (UART only in the case of satellites, UART and core log for master/standalone devices).
+Print and logging functions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+ARTIQ offers two native built-in logging functions: ``rtio_log()``, as presented in :ref:`rtio-analyzer-example`, and ``core_log()``, which allows for printing directly to the core log regardless of context or network connection status, which is useful for debugging purposes (especially in satellites or idle/startup kernels, which have no access to a regular ``print()`` RPC). 
+
+``print()`` itself is in practice an RPC to the regular host Python ``print()``, i.e. with output either in the terminal of :mod:`~artiq.frontend.artiq_run` or in the client logs when using :mod:`~artiq.frontend.artiq_dashboard` or :mod:`~artiq.frontend.artiq_compile`. This means on one hand that it should not be used in idle, startup, or subkernels, and on the other hand that it suffers of some of the timing limitations of any other RPC, especially if the RPC queue is full. Accordingly, it is important to be aware that the timing of ``print()`` outputs can't reliably be used to debug timing in kernels, and especially not the timing of other RPCs.
 
 .. _compiler-pitfalls: 
 
