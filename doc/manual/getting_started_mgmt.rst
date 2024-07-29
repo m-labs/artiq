@@ -1,7 +1,7 @@
 Getting started with the management system
 ==========================================
 
-In practice, rather than managing experiments by executing ``artiq_run`` over and over, most use cases are better served by using the ARTIQ *management system.* This is the high-level part of ARTIQ, which can be used to schedule experiments, distribute and store the results, and manage devices and parameters. It possesses a detailed GUI and can be used on several machines concurrently, allowing them to coordinate with each other and with the specialized hardware over the network. As a result, multiple users on different machines can schedule experiments or retrieve results on the same ARTIQ system, potentially simultaneously.
+In practice, rather than managing experiments by executing :mod:`~artiq.frontend.artiq_run` over and over, most use cases are better served by using the ARTIQ *management system.* This is the high-level part of ARTIQ, which can be used to schedule experiments, distribute and store the results, and manage devices and parameters. It possesses a detailed GUI and can be used on several machines concurrently, allowing them to coordinate with each other and with the specialized hardware over the network. As a result, multiple users on different machines can schedule experiments or retrieve results on the same ARTIQ system, potentially simultaneously.
 
 The management system consists of at least two parts:
 
@@ -17,9 +17,9 @@ In this tutorial, we will explore the basic operation of the management system. 
 Starting your first experiment with the master
 ----------------------------------------------
 
-In the previous tutorial, we used the ``artiq_run`` utility to execute our experiments, which is a simple standalone tool that bypasses the management system. We will now see how to run an experiment using the master and the dashboard.
+In the previous tutorial, we used the :mod:`~artiq.frontend.artiq_run` utility to execute our experiments, which is a simple standalone tool that bypasses the management system. We will now see how to run an experiment using the master and the dashboard.
 
-First, create a folder ``~/artiq-master`` and copy into it the ``device_db.py`` for your system (your device database, exactly as in :ref:`connecting-to-the-core-device`.) The master uses the device database in the same way as ``artiq_run`` when communicating with the core device. Since no devices are actually used in these examples, you can also use the ``device_db.py`` found in ``examples/no_hardware``.
+First, create a folder ``~/artiq-master`` and copy into it the ``device_db.py`` for your system (your device database, exactly as in :ref:`connecting-to-the-core-device`.) The master uses the device database in the same way as :mod:`~artiq.frontend.artiq_run` when communicating with the core device. Since no devices are actually used in these examples, you can also use the ``device_db.py`` found in ``examples/no_hardware``.
 
 Secondly, create a subfolder ``~/artiq-master/repository`` to contain experiments. By default, the master scans for a folder of this name to determine what experiments are available. If you'd prefer to use a different name, this can be changed by running ``artiq_master -r [folder name]`` instead of ``artiq_master`` below.
 
@@ -58,7 +58,7 @@ Now, start the dashboard with the following commands in another terminal: ::
         $ artiq_dashboard -s [hostname or IP of the master]
         $ artiq_client -s [hostname or IP of the master]
 
-    Both IPv4 and IPv6 are supported.
+    Both IPv4 and IPv6 are supported. See also the individual references at :mod:`~artiq.frontend.artiq_master`, :mod:`~artiq.frontend.artiq_dashboard`, and :mod:`~artiq.frontend.artiq_client`.
 
 The dashboard should display the list of experiments from the repository folder in a dock called "Explorer". There should be only the experiment we created. Select it and click "Submit", then look at the "Log" dock for the output from this simple experiment.
 
@@ -80,7 +80,7 @@ Experiments may have arguments whose values can be set in the dashboard and used
             print("Hello World", i)
 
 
-``NumberValue`` represents a floating point numeric argument. There are many other types, see :class:`~artiq.language.environment` and :class:`~artiq.language.scan`.
+:class:`~artiq.language.environment.NumberValue` represents a floating point numeric argument. There are many other types, see :class:`~artiq.language.environment` and :class:`~artiq.language.scan`.
 
 Use the command-line client to trigger a repository rescan: ::
 
@@ -215,12 +215,12 @@ Open the file for your first dataset with HDFView, h5dump, or any similar third-
 Applets
 -------
 
-Often, rather than the HDF dump, we would like to see our result datasets in readable graphical form, preferably immediately. In the ARTIQ dashboard, this is achieved by programs called "applets". Applets are independent programs that add simple GUI features and are run as separate processes (to achieve goals of modularity and resilience against poorly written applets). ARTIQ supplies several applets for basic plotting in the ``artiq.applets`` module, and users may write their own using the provided interfaces.
+Often, rather than the HDF dump, we would like to see our result datasets in readable graphical form, preferably immediately. In the ARTIQ dashboard, this is achieved by programs called "applets". Applets are independent programs that add simple GUI features and are run as separate processes (to achieve goals of modularity and resilience against poorly written applets). ARTIQ supplies several applets for basic plotting in the :mod:`artiq.applets` module, and users may write their own using the provided interfaces.
 
 .. seealso::
     For developing your own applets, see the references provided on the :ref:`management system page<applet-references>` of this manual.
 
-For our ``parabola`` dataset, we will create an XY plot using the provided ``artiq.applets.plot_xy``. Applets are configured with simple command line options; we can find the list of available options using the ``-h`` flag. Try running: ::
+For our ``parabola`` dataset, we will create an XY plot using the provided :mod:`artiq.applets.plot_xy`. Applets are configured with simple command line options; we can find the list of available options using the ``-h`` flag. Try running: ::
 
     $ python3 -m artiq.applets.plot_xy -h
 
@@ -246,11 +246,11 @@ To start the controller manager (the master must already be running), the only c
 
     $ artiq_ctlmgr
 
-Controllers may be run on a different machine from the master, or even on multiple different machines, alleviating cabling issues and OS compatibility problems. In this case, communication with the master happens over the network. If multiple machines are running controllers, they must each run their own controller manager (for which only ``artiq-comtools`` and its few dependencies are necessary, not the full ARTIQ installation.) Use the ``-s`` and ``--bind`` flags of ``artiq_ctlmgr`` to set IP addresses or hostnames to connect and bind to.
+Controllers may be run on a different machine from the master, or even on multiple different machines, alleviating cabling issues and OS compatibility problems. In this case, communication with the master happens over the network. If multiple machines are running controllers, they must each run their own controller manager (for which only ``artiq-comtools`` and its few dependencies are necessary, not the full ARTIQ installation.) Use the ``-s`` and ``--bind`` flags of :mod:`~artiq_comtools.artiq_ctlmgr` to set IP addresses or hostnames to connect and bind to.
 
 Note, however, that the controller for the particular device you are trying to connect to must first exist and be part of a complete Network Device Support Package, or NDSP. :doc:`Some NDSPs are already available <list_of_ndsps>`. If your device is not on this list, the system is designed to make it quite possible to write your own. For this, see the :doc:`developing_a_ndsp` page.
 
-Once a device is correctly listed in ``device_db.py``, it can be added to an experiment using ``self.setattr_device([device_name])`` and the methods its API offers called straightforwardly as ``self.[device_name].[method_name]``. As long as the requisite controllers are running and available, the experiment can then be executed with ``artiq_run`` or through the management system.
+Once a device is correctly listed in ``device_db.py``, it can be added to an experiment using ``self.setattr_device([device_name])`` and the methods its API offers called straightforwardly as ``self.[device_name].[method_name]``. As long as the requisite controllers are running and available, the experiment can then be executed with :mod:`~artiq.frontend.artiq_run` or through the management system.
 
 The ARTIQ session
 -----------------
@@ -259,4 +259,4 @@ If (as is often the case) you intend to mostly operate your ARTIQ system and its
 
     $ artiq_session
 
-Arguments to the individuals (including ``-s`` and ``--bind``) can still be specified using the ``-m``, ``-d`` and ``-c`` options respectively.
+Arguments to the individuals (including ``-s`` and ``--bind``) can still be specified using the ``-m``, ``-d`` and ``-c`` options respectively. See also :mod:`~artiq.frontend.artiq_session`.

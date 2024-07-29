@@ -29,10 +29,9 @@ The dashboard remembers and restores GUI state (window/dock positions, last valu
 Controller manager
 ^^^^^^^^^^^^^^^^^^
 
-The controller manager is provided in the ``artiq-comtools`` package (which is also made available separately from mainline ARTIQ, to allow independent use with minimal dependencies) and started with the ``artiq_ctlmgr`` command. It is responsible for running and stopping controllers on a machine. One controller manager must be run by each network node that runs controllers.
+The controller manager is provided in the ``artiq-comtools`` package (which is also made available separately from mainline ARTIQ, to allow independent use with minimal dependencies) and started with the :mod:`~artiq_comtools.artiq_ctlmgr` command. It is responsible for running and stopping controllers on a machine. One controller manager must be run by each network node that runs controllers.
 
 A controller manager connects to the master and accesses the device database through it to determine what controllers need to be run. The local network address of the connection is used to filter for only those controllers allocated to the current node. Hostname resolution is supported. Changes to the device database are tracked and controllers will be stopped and started accordingly.
-
 
 Git integration
 ---------------

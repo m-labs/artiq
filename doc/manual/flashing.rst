@@ -9,13 +9,13 @@
 Obtaining board binaries
 ------------------------
 
-If you have an active firmware subscription with M-Labs or QUARTIQ, you can obtain firmware for your system that corresponds to your currently installed version of ARTIQ using the ARTIQ firmware service (AFWS). One year of subscription is included with most hardware purchases. You may purchase or extend firmware subscriptions by writing to the sales@ email. The client ``afws_client`` is included in all ARTIQ installations.
+If you have an active firmware subscription with M-Labs or QUARTIQ, you can obtain firmware for your system that corresponds to your currently installed version of ARTIQ using the ARTIQ firmware service (AFWS). One year of subscription is included with most hardware purchases. You may purchase or extend firmware subscriptions by writing to the sales@ email. The client :mod:`~artiq.frontend.afws_client` is included in all ARTIQ installations.
 
 Run the command::
 
   $ afws_client <username> build <afws_director> <variant>
 
-Replace ``<username>`` with the login name that was given to you with the subscription, ``<variant>`` with the name of your system variant, and ``<afws_directory>`` with the name of an empty directory, which will be created by the command if it does not exist. Enter your password when prompted and wait for the build (if applicable) and download to finish. If you experience issues with the AFWS client, write to the helpdesk@ email. For more information about ``afws_client`` see also the corresponding entry on the :ref:`Utilities <afws-client>` page.
+Replace ``<username>`` with the login name that was given to you with the subscription, ``<variant>`` with the name of your system variant, and ``<afws_directory>`` with the name of an empty directory, which will be created by the command if it does not exist. Enter your password when prompted and wait for the build (if applicable) and download to finish. If you experience issues with the AFWS client, write to the helpdesk@ email. For more information about :mod:`~artiq.frontend.afws_client` see also the corresponding entry on the :ref:`Utilities <afws-client>` page.
 
 For certain configurations (KC705 or ZC706 only) it is also possible to source firmware from `the M-Labs Hydra server <https://nixbld.m-labs.hk/project/artiq>`_ (in ``main`` and ``zynq`` respectively).
 
@@ -25,9 +25,9 @@ Installing and configuring OpenOCD
 ----------------------------------
 
 .. warning::
-  These instructions are not applicable to Zynq devices (Kasli-SoC or ZC706), which do not use the utility ``artiq_flash`` to reflash. If your core device is a Zynq device, skip straight to :ref:`writing-flash`.
+  These instructions are not applicable to Zynq devices (Kasli-SoC or ZC706), which do not use the utility :mod:`~artiq.frontend.artiq_flash` to reflash. If your core device is a Zynq device, skip straight to :ref:`writing-flash`.
 
-ARTIQ supplies the utility ``artiq_flash``, which uses OpenOCD to write the binary images into an FPGA board's flash memory. For both Nix and MSYS2, OpenOCD are included with the installation by default. Note that in the case of Nix this is the package ``artiq.openocd-bscanspi`` and not ``pkgs.openocd``; the second is OpenOCD from the Nix package collection, which does not support ARTIQ/Sinara boards.
+ARTIQ supplies the utility :mod:`~artiq.frontend.artiq_flash`, which uses OpenOCD to write the binary images into an FPGA board's flash memory. For both Nix and MSYS2, OpenOCD are included with the installation by default. Note that in the case of Nix this is the package ``artiq.openocd-bscanspi`` and not ``pkgs.openocd``; the second is OpenOCD from the Nix package collection, which does not support ARTIQ/Sinara boards.
 
 .. note::
 
@@ -78,7 +78,7 @@ On Windows
 Writing the flash
 -----------------
 
-First ensure the board is connected to your computer. In the case of Kasli, the JTAG adapter is integrated into the Kasli board; for flashing (and debugging) you can simply connect your computer to the micro-USB connector on the Kasli front panel. For Kasli-SoC, which uses ``artiq_coremgmt`` to flash over network, an Ethernet connection and an IP address, supplied either with the ``-D`` option or in your :ref:`device database <device-db>`, are sufficient.
+First ensure the board is connected to your computer. In the case of Kasli, the JTAG adapter is integrated into the Kasli board; for flashing (and debugging) you can simply connect your computer to the micro-USB connector on the Kasli front panel. For Kasli-SoC, which uses :mod:`~artiq.frontend.artiq_coremgmt` to flash over network, an Ethernet connection and an IP address, supplied either with the ``-D`` option or in your :ref:`device database <device-db>`, are sufficient.
 
 For Kasli-SoC or ZC706:
     ::
@@ -100,7 +100,7 @@ For KC705:
 
     The SW13 switches need to be set to 00001.
 
-Flashing over network is also possible for Kasli and KC705, assuming IP networking has already been set up. In this case, the ``-H HOSTNAME`` option is used; see the entry for ``artiq_flash`` in the :ref:`Utilities <flashing-loading-tool>` reference.
+Flashing over network is also possible for Kasli and KC705, assuming IP networking has already been set up. In this case, the ``-H HOSTNAME`` option is used; see the entry for :mod:`~artiq.frontend.artiq_flash` in the :ref:`Utilities <flashing-loading-tool>` reference.
 
 .. _connecting-uart:
 

@@ -91,7 +91,7 @@ Nix development environment
 .. note::
     You can also target legacy versions of ARTIQ; use Git to checkout older release branches. Note however that older releases of ARTIQ required different processes for developing and building, which you are broadly more likely to figure out by (also) consulting corresponding older versions of the manual.
 
-Once you have run ``nix develop`` you are in the ARTIQ development environment. All ARTIQ commands and utilities -- ``artiq_run``, ``artiq_master``, etc. -- should be available, as well as all the packages necessary to build or run ARTIQ itself. You can exit the environment at any time using Control+D or the ``exit`` command and re-enter it by re-running ``nix develop`` again in the same location.
+Once you have run ``nix develop`` you are in the ARTIQ development environment. All ARTIQ commands and utilities -- :mod:`~artiq.frontend.artiq_run`, :mod:`~artiq.frontend.artiq_master`, etc. -- should be available, as well as all the packages necessary to build or run ARTIQ itself. You can exit the environment at any time using Control+D or the ``exit`` command and re-enter it by re-running ``nix develop`` again in the same location.
 
 .. tip::
     If you are developing for Zynq, you will have noted that the ARTIQ-Zynq repository consists largely of firmware. The firmware for Zynq (NAR3) is more modern than that used for current mainline ARTIQ, and is intended to eventually replace it; for now it constitutes most of the difference between the two ARTIQ variants. The gateware for Zynq, on the other hand, is largely imported from mainline ARTIQ. If you intend to modify the gateware housed in the original ARTIQ repository, but build and test the results on a Zynq device, clone both repositories and set your ``PYTHONPATH`` after entering the ARTIQ-Zynq development shell: ::
@@ -181,14 +181,14 @@ or you can use the more direct version: ::
 
     to see the list of suitable build targets directly.
 
-Any of these commands should produce a directory ``result`` which contains a file ``boot.bin``. As described in :ref:`writing-flash`, if your core device is currently accessible over the network, it can be flashed with ``artiq_coremgmt``. If it is not connected to the network:
+Any of these commands should produce a directory ``result`` which contains a file ``boot.bin``. As described in :ref:`writing-flash`, if your core device is currently accessible over the network, it can be flashed with :mod:`~artiq.frontend.artiq_coremgmt`. If it is not connected to the network:
 
 1. Power off the board, extract the SD card and load ``boot.bin`` onto it manually.
 2. Insert the SD card back into the board.
 3. Ensure that the DIP switches (labeled BOOT MODE) are set correctly, to SD.
 4. Power the board back on.
 
-Optionally, the SD card may also be loaded at the same time with an additional file ``config.txt``, which can contain preset configuration values in the format ``key=value``, one per line. The keys are those used with ``artiq_coremgmt``. This allows e.g. presetting an IP address and any other configuration information.
+Optionally, the SD card may also be loaded at the same time with an additional file ``config.txt``, which can contain preset configuration values in the format ``key=value``, one per line. The keys are those used with :mod:`~artiq.frontend.artiq_coremgmt`. This allows e.g. presetting an IP address and any other configuration information.
 
 After a successful boot, the "FPGA DONE" light should be illuminated and the board should respond to ping when plugged into Ethernet.
 

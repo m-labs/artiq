@@ -19,7 +19,7 @@ The easiest way to obtain ARTIQ is to install it into the user environment with 
   
   $ nix profile install git+https://github.com/m-labs/artiq.git?ref=release-8
   
-Answer "Yes" to the questions about setting Nix configuration options (for more details see 'Troubleshooting' below.) You should now have a minimal installation of ARTIQ, where the usual front-end commands (``artiq_run``, ``artiq_master``, ``artiq_dashboard``, etc.) are all available to you. 
+Answer "Yes" to the questions about setting Nix configuration options (for more details see 'Troubleshooting' below.) You should now have a minimal installation of ARTIQ, where the usual front-end commands (:mod:`~artiq.frontend.artiq_run`, :mod:`~artiq.frontend.artiq_master`, :mod:`~artiq.frontend.artiq_dashboard`, etc.) are all available to you. 
 
 This installation is however quite limited, as Nix creates a dedicated Python environment for the ARTIQ commands alone. This means that other useful Python packages, which ARTIQ is not dependent on but which you may want to use in your experiments (pandas, matplotlib...), are not available.
 
