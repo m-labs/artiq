@@ -30,7 +30,7 @@ The routing table
 
 The routing table defines, for each destination, the list of hops ("route") that must be taken from the root in order to reach it.
 
-It is stored in a binary format that can be generated and manipulated with the :ref:`artiq_route utility <routing-table-tool>`, see :ref:`drtio-routing`. The binary file is programmed into the flash storage of the core device under the ``routing_table`` key. It is automatically distributed to downstream devices when the connections are established. Modifying the routing table requires rebooting the core device for the new table to be taken into account.
+It is stored in a binary format that can be generated and manipulated with the utility :mod:`~artiq.frontend.artiq_route`, see :ref:`drtio-routing`. The binary file is programmed into the flash storage of the core device under the ``routing_table`` key. It is automatically distributed to downstream devices when the connections are established. Modifying the routing table requires rebooting the core device for the new table to be taken into account.
 
 Internal details
 ----------------

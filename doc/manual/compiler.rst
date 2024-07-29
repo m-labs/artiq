@@ -1,7 +1,7 @@
 Compiler
 ========
 
-The ARTIQ compiler transforms the Python code of the kernels into machine code executable on the core device. For limited purposes (normally, obtaining executable binaries of idle and startup kernels), it can be accessed through ``artiq_compile``. Otherwise it is invoked automatically whenever a function with an applicable decorator is called. 
+The ARTIQ compiler transforms the Python code of the kernels into machine code executable on the core device. For limited purposes (normally, obtaining executable binaries of idle and startup kernels), it can be accessed through :mod:`~artiq.frontend.artiq_compile`. Otherwise it is invoked automatically whenever a function with an applicable decorator is called.
 
 ARTIQ kernel code accepts *nearly,* but not quite, a strict subset of Python 3. The necessities of real-time operation impose a harsher set of limitations; as a result, many Python features are necessarily omitted, and there are some specific discrepancies (see also :ref:`compiler-pitfalls`). 
 
@@ -15,7 +15,7 @@ ARTIQ Python code
 
 A variety of short experiments can be found in the subfolders of ``artiq/examples``, especially under ``kc705_nist_clock/repository`` and ``no_hardware/repository``. Reading through these will give you a general idea of what ARTIQ Python is capable of and how to use it. 
 
-Functions and decorators  
+Functions and decorators
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The ARTIQ compiler recognizes several specialized decorators, which determine the way the decorated function will be compiled and handled. 
@@ -157,7 +157,7 @@ ARTIQ makes various useful built-in and mathematical functions from Python, NumP
 Basic NumPy array handling (``np.array()``, ``numpy.transpose()``, ``numpy.full``, ``@``, element-wise operation, etc.) is also available. NumPy functions are implicitly broadcast when applied to arrays. 
 
 .. warning:: 
-    A kernel ``print`` call normally specifically prints to the host machine, either the terminal of ``artiq_run`` or the dashboard log when using ``artiq_dashboard``. This makes it effectively an RPC, with some of the corresponding limitations. In subkernels and whenever compiled through ``artiq_compile``, where RPCs are not supported, it is instead considered a print to the local log (UART only in the case of satellites, UART and core log for master/standalone devices).    
+    A kernel ``print`` call normally specifically prints to the host machine, either the terminal of :mod:`~artiq.frontend.artiq_run` or the dashboard log when using :mod:`~artiq.frontend.artiq_dashboard`. This makes it effectively an RPC, with some of the corresponding limitations. In subkernels and whenever compiled through :mod:`~artiq.frontend.artiq_compile`, where RPCs are not supported, it is instead considered a print to the local log (UART only in the case of satellites, UART and core log for master/standalone devices).
 
 .. _compiler-pitfalls: 
 
