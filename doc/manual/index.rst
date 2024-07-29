@@ -48,7 +48,7 @@ ARTIQ manual
     :caption: References
     :maxdepth: 2
 
-    main_frontend_reference
+    main_frontend_tools 
     core_language_reference
     core_drivers_reference
     utilities
