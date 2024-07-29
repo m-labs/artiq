@@ -11,7 +11,7 @@ def get_argparser():
         description="ARTIQ session manager. "
                     "Automatically runs the master, dashboard and "
                     "local controller manager on the current machine. "
-                    "The latter requires the artiq-comtools package to "
+                    "The latter requires the ``artiq-comtools`` package to "
                     "be installed.")
     parser.add_argument("--version", action="version",
                         version="ARTIQ v{}".format(artiq_version),
