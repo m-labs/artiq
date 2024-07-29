@@ -158,8 +158,8 @@ class Client:
         if reply[0] != "OK":
             return reply[0], None
         length = int(reply[1])
-        json_str = self.fsocket.read(length).decode("ascii")
-        return "OK", json_str
+        json_bytes = self.fsocket.read(length)
+        return "OK", json_bytes
 
 
 def get_argparser():
@@ -259,7 +259,7 @@ def main():
                 variant = args.variant
             else:
                 variant = client.get_single_variant(error_msg="User can get JSON of more than 1 variant - need to specify")
-            result, json_str = client.get_json(variant)
+            result, json_bytes = client.get_json(variant)
             if result != "OK":
                 if result == "UNAUTHORIZED":
                     print(f"You are not authorized to get JSON of variant {variant}. Your firmware subscription may have expired. Contact helpdesk\x40m-labs.hk.")
@@ -268,10 +268,10 @@ def main():
                 if not args.force and os.path.exists(args.out):
                     print(f"File {args.out} already exists. You can use -f to overwrite the existing file.")
                     sys.exit(1)
-                with open(args.out, "w") as f:
-                    f.write(json_str)
+                with open(args.out, "wb") as f:
+                    f.write(json_bytes)
             else:
-                print(json_str)
+                sys.stdout.buffer.write(json_bytes)
         else:
             raise ValueError
     finally:
