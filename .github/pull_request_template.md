@@ -51,7 +51,7 @@ Closes #XXX
 
 ### Documentation Changes
 
-- [ ] Check, test, and update the documentation in [doc/](../doc/). Build documentation (`cd doc/manual/; make html`) to ensure no errors.
+- [ ] Check, test, and update the documentation in [doc/](../doc/). Build documentation (`nix build .#artiq-manual-html; nix build .#artiq-manual-pdf`) to ensure no errors.
 
 ### Git Logistics
 
