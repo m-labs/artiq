@@ -470,8 +470,10 @@
             ''
             export HOME=`mktemp -d`
             mkdir $HOME/.ssh
-            cp --preserve=mode /opt/hydra_id_ed25519 $HOME/.ssh/id_ed25519
-            cp --preserve=mode /opt/hydra_id_ed25519.pub $HOME/.ssh/id_ed25519.pub
+            touch $HOME/.ssh/id_ed25519
+            chmod 600 $HOME/.ssh/id_ed25519
+            cat /opt/hydra_id_ed25519 > $HOME/.ssh/id_ed25519
+            cp /opt/hydra_id_ed25519.pub $HOME/.ssh/id_ed25519.pub
             echo "rpi-1 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIACtBFDVBYoAE4fpJCTANZSE0bcVpTR3uvfNvb80C4i5" > $HOME/.ssh/known_hosts
             LOCKCTL=$(mktemp -d)
             mkfifo $LOCKCTL/lockctl
