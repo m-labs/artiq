@@ -353,7 +353,7 @@
           buildInputs = with pkgs.python3Packages; [
             sphinx sphinx_rtd_theme
             sphinx-argparse sphinxcontrib-wavedrom
-          ];
+          ] ++ [ artiq-comtools.packages.x86_64-linux.artiq-comtools ];
           buildPhase = ''
             export VERSIONEER_OVERRIDE=${artiqVersion}
             export SOURCE_DATE_EPOCH=${builtins.toString self.sourceInfo.lastModified}
@@ -373,7 +373,7 @@
           buildInputs = with pkgs.python3Packages; [
             sphinx sphinx_rtd_theme
             sphinx-argparse sphinxcontrib-wavedrom
-          ] ++ [ latex-artiq-manual ];
+          ] ++ [ latex-artiq-manual artiq-comtools.packages.x86_64-linux.artiq-comtools ];
           buildPhase = ''
             export VERSIONEER_OVERRIDE=${artiq.version}
             export SOURCE_DATE_EPOCH=${builtins.toString self.sourceInfo.lastModified}
