@@ -67,6 +67,8 @@ On Kasli or Kasli-SoC devices, specifying the MAC address is unnecessary, as the
 
 Regarding IPv6, note that the device also has a link-local address that corresponds to its EUI-64, which can be used simultaneously to the (potentially unrelated) IPv6 address defined by using the ``ip6`` configuration key.
 
+If problems persist, see the :ref:`network troubleshooting <faq-networking>` section of the FAQ.
+
 .. _core-device-config:
 
 Configuring the core device

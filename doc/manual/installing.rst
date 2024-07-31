@@ -197,6 +197,8 @@ After the installation, activate the newly created environment by name. ::
 
 This activation has to be performed in every new shell you open to make the ARTIQ tools from that environment available.
 
+.. _installing-upgrading:
+
 Upgrading ARTIQ
 ---------------
 
