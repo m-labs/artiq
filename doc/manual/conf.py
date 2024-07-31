@@ -29,21 +29,13 @@ builtins.__in_sphinx__ = True
 # we cannot use autodoc_mock_imports (does not help with argparse)
 mock_modules = ["artiq.gui.waitingspinnerwidget",
                 "artiq.gui.flowlayout",
-                "artiq.gui.state",
-                "artiq.gui.log",
                 "artiq.gui.models",
                 "artiq.compiler.module",
                 "artiq.compiler.embedding",
                 "artiq.dashboard.waveform",
-                "artiq.dashboard.interactive_args",
-                "qasync", "pyqtgraph", "matplotlib", "lmdb",
-                "numpy", "dateutil", "dateutil.parser", "prettytable", "PyQt6",
-                "h5py", "serial", "scipy", "scipy.interpolate",
-                "llvmlite", "Levenshtein", "pythonparser",
-                "sipyco", "sipyco.pc_rpc", "sipyco.sync_struct",
-                "sipyco.asyncio_tools", "sipyco.logging_tools",
-                "sipyco.broadcast", "sipyco.packed_exceptions",
-                "sipyco.keepalive", "sipyco.pipe_ipc"]
+                "artiq.coredevice.jsondesc",
+                "qasync", "lmdb", "dateutil.parser", "prettytable", "PyQt6",
+                "h5py", "llvmlite", "pythonparser", "tqdm", "jsonschema"]
 
 for module in mock_modules:
     sys.modules[module] = Mock()
