@@ -12,7 +12,7 @@ The content of this manual is arranged in rough reading order. If you start at t
 
 Pages like :doc:`management_system` and :doc:`core_device` describe **specific components of the ARTIQ ecosystem** in more detail. If you want to understand more about device and dataset databases, for example, read the :doc:`environment` page; if you want to understand the ARTIQ Python dialect and everything it does or does not support, read the :doc:`compiler` page.
 
-Reference pages, like :doc:`main_frontend_tools` and :doc:`core_drivers_reference`, contain the detailed documentation of the individual methods and command-line tools ARTIQ provides. They are heavily interlinked throughout the rest of the documentation: whenever a method, tool, or exception is mentioned by name, like :class:`~artiq.frontend.artiq_run`, :meth:`~artiq.language.core.now_mu`, or :exc:`~artiq.coredevice.exceptions.RTIOUnderflow`, it can normally be clicked on to directly access the reference material.
+Reference pages, like :doc:`main_frontend_tools` and :doc:`core_drivers_reference`, contain the detailed documentation of the individual methods and command-line tools ARTIQ provides. They are heavily interlinked throughout the rest of the documentation: whenever a method, tool, or exception is mentioned by name, like :class:`~artiq.frontend.artiq_run`, :meth:`~artiq.language.core.now_mu`, or :exc:`~artiq.coredevice.exceptions.RTIOUnderflow`, it can normally be clicked on to directly access the reference material. Notice also that the online version of this manual is searchable; see the 'Search docs' bar at left.
 
 .. _build-documentation:
 
@@ -25,18 +25,20 @@ To generate this manual from source, you can use ``nix build`` directives, for e
 
 Substitute ``artiq-manual-pdf`` to get the LaTeX PDF version. The results will be in ``result``.
 
-The manual is written in `reStructured Text <https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html>`_; you can find the source files in the ARTIQ repository under ``doc/manual``. If you spot a mistake, a typo, or something that's out of date or missing -- in particular, if you want to add something to this FAQ -- feel free to clone the repository, edit the RST files, and make a pull request with your version of an improvement. (If you're not a fan of or not familiar with command-line Git, both GitHub and Gitea support making edits and pull requests directly in the web interface; tutorial materials are easy to find online.) The second best thing is to open an issue to make M-Labs aware of the problem.
+The manual is written in `reStructured Text <https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html>`_; you can find the source files in the ARTIQ repository under ``doc/manual``. If you spot a mistake, a typo, or something that's out of date or missing -- in particular, if you want to add something to this FAQ -- feel free to clone the repository, edit the source RST files, and make a pull request with your version of an improvement. (If you're not a fan of or not familiar with command-line Git, both GitHub and Gitea support making edits and pull requests directly in the web interface; tutorial materials are easy to find online.) The second best thing is to open an issue to make M-Labs aware of the problem.
 
 .. _faq-find-examples:
 
 find ARTIQ examples?
 --------------------
 
-Examples are stored in the ``examples`` folder of the ARTIQ package. You can find the location of the ARTIQ package on your machine with: ::
+The official examples are stored in the ``examples`` folder of the ARTIQ package. You can find the location of the ARTIQ package on your machine with: ::
 
   python3 -c "import artiq; print(artiq.__path__[0])"
 
 Copy the ``examples`` folder from that path into your home or user directory, and start experimenting!
+
+If you have progressed past this level and would like to see more in-depth code or real-life examples of how other groups have handled running experiments with ARTIQ, see the "Community code" directory on the M-labs `resources page <https://m-labs.hk/experiment-control/resources/>`_.
 
 fix 'no startup kernel found' / 'no idle kernel found' in the UART?
 -------------------------------------------------------------------
@@ -204,6 +206,8 @@ Other related documentation
 - the `Migen manual <https://m-labs.hk/migen/manual/>`_
 - in a pinch, the `M-labs internal docs <https://git.m-labs.hk/sinara-hw/assembly>`_
 
+For more advanced questions, sometimes the `list of publications <https://m-labs.hk/experiment-control/publications/>`_ about experiments performed using ARTIQ may be interesting. See also the official M-Labs `resources <https://m-labs.hk/experiment-control/resources/>`_ page, especially the section on community code.
+
 "Help, I've done my best and I can't get any further!"
 ------------------------------------------------------
 
@@ -214,5 +218,6 @@ Other related documentation
 - Look into the `Mattermost live chat <https://chat.m-labs.hk>`_ or the bridged IRC channel.
 - Read the open source code and its docstrings and figure it out.
 - If you're reasonably certain you've identified a bug, or if you'd like to suggest a feature that should be included in future ARTIQ releases, `file a GitHub issue <https://github.com/m-labs/artiq/issues/new/choose>`_ yourself, following one of the provided templates.
+- In some odd cases, you may want to see the `mailing list archive <https://www.mail-archive.com/artiq@lists.m-labs.hk/>`_; the ARTIQ mailing list was shut down at the end of 2020 and was last regularly used during the time of ARTIQ-2 and 3, but for some older ARTIQ features, or to understand a development thought process, you may still find relevant information there.
 
-In any of these cases, if you found the manual unclear or unhelpful, you might consider following the :ref:`directions for contribution <build-documentation>` and editing it to be more helpful for future readers.
+In any situation, if you found the manual unclear or unhelpful, you might consider following the :ref:`directions for contribution <build-documentation>` and editing it to be more helpful for future readers.
