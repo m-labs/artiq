@@ -91,6 +91,17 @@ You might be interested in creating multiple directories containing different ``
 
 To find more packages you can browse the `Nix package search <https://search.nixos.org/packages>`_ website. If your favorite package is not available with Nix, contact M-Labs using the helpdesk@ email.
 
+.. note::
+  If you find you prefer using flakes to your original ``nix profile`` installation, you can remove it from your system by running: ::
+
+    $ nix profile list
+
+  finding the entry with its ``Original flake URL`` listed as the GitHub ARTIQ repository, noting its index number (in a fresh Nix system it will normally be the only entry, at index 0), and running: ::
+
+    $ nix profile remove [index]
+
+  While using flakes, ARTIQ is not 'installed' as such in any permanent way. However, Nix will preserve independent cached packages in ``/nix/store`` for each flake, which over time or with many different flakes and versions can take up large amounts of storage space. To clear this cache, run ``$ nix-garbage-collect``.
+
 .. _installing-troubleshooting:
 
 Troubleshooting
