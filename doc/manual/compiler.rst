@@ -3,47 +3,47 @@ Compiler
 
 The ARTIQ compiler transforms the Python code of the kernels into machine code executable on the core device. For limited purposes (normally, obtaining executable binaries of idle and startup kernels), it can be accessed through :mod:`~artiq.frontend.artiq_compile`. Otherwise it is invoked automatically whenever a function with an applicable decorator is called.
 
-ARTIQ kernel code accepts *nearly,* but not quite, a strict subset of Python 3. The necessities of real-time operation impose a harsher set of limitations; as a result, many Python features are necessarily omitted, and there are some specific discrepancies (see also :ref:`compiler-pitfalls`). 
+ARTIQ kernel code accepts *nearly,* but not quite, a strict subset of Python 3. The necessities of real-time operation impose a harsher set of limitations; as a result, many Python features are necessarily omitted, and there are some specific discrepancies (see also :ref:`compiler-pitfalls`).
 
-In general, ARTIQ Python supports only statically typed variables; it implements no heap allocation or garbage collection systems, essentially disallowing any heap-based data structures (although lists and arrays remain available in a stack-based form); and it cannot use runtime dispatch, meaning that, for example, all elements of an array must be of the same type. Nonetheless, technical details aside, a basic knowledge of Python is entirely sufficient to write useful and coherent ARTIQ experiments. 
+In general, ARTIQ Python supports only statically typed variables; it implements no heap allocation or garbage collection systems, essentially disallowing any heap-based data structures (although lists and arrays remain available in a stack-based form); and it cannot use runtime dispatch, meaning that, for example, all elements of an array must be of the same type. Nonetheless, technical details aside, a basic knowledge of Python is entirely sufficient to write useful and coherent ARTIQ experiments.
 
-.. note:: 
-    The ARTIQ compiler is now in its second iteration. The third generation, known as NAC3, is `currently in development <https://git.m-labs.hk/M-Labs/nac3>`_, and available for pre-alpha experimental use. NAC3 represents a major overhaul of ARTIQ compilation, and will feature much faster compilation speeds, a greatly improved type system, and more predictable and transparent operation. It is compatible with ARTIQ firmware starting at ARTIQ-7. Instructions for installation and basic usage differences can also be found `on the M-Labs Forum <https://forum.m-labs.hk/d/392-nac3-new-artiq-compiler-3-prealpha-release>`_. While NAC3 is a work in progress and many important features remain unimplemented, installation and feedback is welcomed.  
+.. note::
+    The ARTIQ compiler is now in its second iteration. The third generation, known as NAC3, is `currently in development <https://git.m-labs.hk/M-Labs/nac3>`_, and available for pre-alpha experimental use. NAC3 represents a major overhaul of ARTIQ compilation, and will feature much faster compilation speeds, a greatly improved type system, and more predictable and transparent operation. It is compatible with ARTIQ firmware starting at ARTIQ-7. Instructions for installation and basic usage differences can also be found `on the M-Labs Forum <https://forum.m-labs.hk/d/392-nac3-new-artiq-compiler-3-prealpha-release>`_. While NAC3 is a work in progress and many important features remain unimplemented, installation and feedback is welcomed.
 
-ARTIQ Python code 
+ARTIQ Python code
 -----------------
 
-A variety of short experiments can be found in the subfolders of ``artiq/examples``, especially under ``kc705_nist_clock/repository`` and ``no_hardware/repository``. Reading through these will give you a general idea of what ARTIQ Python is capable of and how to use it. 
+A variety of short experiments can be found in the subfolders of ``artiq/examples``, especially under ``kc705_nist_clock/repository`` and ``no_hardware/repository``. Reading through these will give you a general idea of what ARTIQ Python is capable of and how to use it.
 
 Functions and decorators
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The ARTIQ compiler recognizes several specialized decorators, which determine the way the decorated function will be compiled and handled. 
+The ARTIQ compiler recognizes several specialized decorators, which determine the way the decorated function will be compiled and handled.
 
-``@kernel`` (see :meth:`~artiq.language.core.kernel`) designates kernel functions, which will be compiled for and wholly executed on the core device; the basic setup and background for kernels is detailed on the :doc:`getting_started_core` page. ``@subkernel`` (:meth:`~artiq.language.core.subkernel`) designates subkernel functions, which are largely similar to kernels except that they are executed on satellite devices in a DRTIO setting, with some associated limitations; they are described in more detail on the :doc:`using_drtio_subkernels` page. 
+``@kernel`` (see :meth:`~artiq.language.core.kernel`) designates kernel functions, which will be compiled for and wholly executed on the core device; the basic setup and background for kernels is detailed on the :doc:`getting_started_core` page. ``@subkernel`` (:meth:`~artiq.language.core.subkernel`) designates subkernel functions, which are largely similar to kernels except that they are executed on satellite devices in a DRTIO setting, with some associated limitations; they are described in more detail on the :doc:`using_drtio_subkernels` page.
 
-``@rpc`` (:meth:`~artiq.language.core.rpc`) designates functions to be executed on the host machine, which are compiled and run in regular Python, outside of the core device's real-time limitations. Notably, functions without decorators are assumed to be host-bound by default, and treated identically to an explicitly marked ``@rpc``. As a result, the explicit decorator is only really necessary when specifying additional flags (for example, ``flags={"async"}``, see below).  
+``@rpc`` (:meth:`~artiq.language.core.rpc`) designates functions to be executed on the host machine, which are compiled and run in regular Python, outside of the core device's real-time limitations. Notably, functions without decorators are assumed to be host-bound by default, and treated identically to an explicitly marked ``@rpc``. As a result, the explicit decorator is only really necessary when specifying additional flags (for example, ``flags={"async"}``, see below).
 
-``@portable`` (:meth:`~artiq.language.core.portable`) designates functions to be executed *on the same device they are called.* In other words, when called from a kernel, a portable is executed as a kernel; when called from a subkernel, it is executed as a kernel, on the same satellite device as the calling subkernel; when called from a host function, it is executed on the host machine.  
+``@portable`` (:meth:`~artiq.language.core.portable`) designates functions to be executed *on the same device they are called.* In other words, when called from a kernel, a portable is executed as a kernel; when called from a subkernel, it is executed as a kernel, on the same satellite device as the calling subkernel; when called from a host function, it is executed on the host machine.
 
-``@host_only`` (:meth:`~artiq.language.core.host_only`) functions are executed fully on the host, similarly to ``@rpc``, but calling them from a kernel as an RPC will be refused by the compiler. It can be used to mark functions which should only ever be called by the host. 
+``@host_only`` (:meth:`~artiq.language.core.host_only`) functions are executed fully on the host, similarly to ``@rpc``, but calling them from a kernel as an RPC will be refused by the compiler. It can be used to mark functions which should only ever be called by the host.
 
-.. warning:: 
-    ARTIQ goes to some lengths to cache code used in experiments correctly, so that experiments run according to the state of the code when they were started, even if the source is changed during the run time. Python itself annoyingly fails to implement this (see also `issue #416 <https://github.com/m-labs/artiq/issues/416>`_), necessitating a workaround on ARTIQ's part. One particular downstream limitation is that the ARTIQ compiler is unable to recognize decorators with path prefixes, i.e.: :: 
+.. warning::
+    ARTIQ goes to some lengths to cache code used in experiments correctly, so that experiments run according to the state of the code when they were started, even if the source is changed during the run time. Python itself annoyingly fails to implement this (see also `issue #416 <https://github.com/m-labs/artiq/issues/416>`_), necessitating a workaround on ARTIQ's part. One particular downstream limitation is that the ARTIQ compiler is unable to recognize decorators with path prefixes, i.e.: ::
 
          import artiq.experiment as aq
-         
+
          [...]
 
-            @aq.kernel 
-            def run(self): 
+            @aq.kernel
+            def run(self):
                 pass
-         
-    will fail to compile. As long as ``from artiq.experiment import *`` is used as in the examples, this is never an issue. If prefixes are strongly preferred, a possible workaround is to import decorators separately, as e.g. ``from artiq.language.core import kernel``.  
 
-.. _compiler-types: 
+    will fail to compile. As long as ``from artiq.experiment import *`` is used as in the examples, this is never an issue. If prefixes are strongly preferred, a possible workaround is to import decorators separately, as e.g. ``from artiq.language.core import kernel``.
 
-ARTIQ types 
+.. _compiler-types:
+
+ARTIQ types
 ^^^^^^^^^^^
 
 Python/NumPy types correspond to ARTIQ types as follows:
@@ -76,16 +76,16 @@ Python/NumPy types correspond to ARTIQ types as follows:
 | numpy.int64   | TInt64                  |
 +---------------+-------------------------+
 | numpy.float64 | TFloat                  |
-+---------------+-------------------------+ 
++---------------+-------------------------+
 
-Integers are 32-bit by default but may be converted to 64-bit with ``numpy.int64``. 
+Integers are 32-bit by default but may be converted to 64-bit with ``numpy.int64``.
 
-The ARTIQ compiler can be thought of as overriding all built-in Python types, and types in kernel code cannot always be assumed to behave as they would in host Python. In particular, normally heap-allocated types such as arrays, lists, and strings are very limited in what they support. Strings must be constant and lists and arrays must be of constant size. Methods like ``append``, ``push``, and ``pop`` are unavailable as a matter of principle, and will not compile. Certain types, notably dictionaries, have no ARTIQ implementation and cannot be used in kernels at all. 
+The ARTIQ compiler can be thought of as overriding all built-in Python types, and types in kernel code cannot always be assumed to behave as they would in host Python. In particular, normally heap-allocated types such as arrays, lists, and strings are very limited in what they support. Strings must be constant and lists and arrays must be of constant size. Methods like ``append``, ``push``, and ``pop`` are unavailable as a matter of principle, and will not compile. Certain types, notably dictionaries, have no ARTIQ implementation and cannot be used in kernels at all.
 
-.. tip:: 
-    Instead of pushing or appending, preallocate for the maximum number of elements you expect with a list comprehension, i.e. ``x = [0 for _ in range(1024)]``, and then keep a variable ``n`` noting the last filled element of the array. Afterwards, ``x[0:n]`` will give you a list with that number of elements. 
+.. tip::
+    Instead of pushing or appending, preallocate for the maximum number of elements you expect with a list comprehension, i.e. ``x = [0 for _ in range(1024)]``, and then keep a variable ``n`` noting the last filled element of the array. Afterwards, ``x[0:n]`` will give you a list with that number of elements.
 
-Multidimensional arrays are allowed (using NumPy syntax). Element-wise operations (e.g. ``+``, ``/``), matrix multiplication (``@``) and multidimensional indexing are supported; slices and views (currently) are not. 
+Multidimensional arrays are allowed (using NumPy syntax). Element-wise operations (e.g. ``+``, ``/``), matrix multiplication (``@``) and multidimensional indexing are supported; slices and views (currently) are not.
 
 User-defined classes are supported, provided their attributes are of other supported types (attributes that are not used in the kernel are ignored and thus unrestricted). When several instances of a user-defined class are referenced from the same kernel, every attribute must have the same type in every instance of the class.
 
@@ -99,11 +99,11 @@ Kernel code can call host functions without any additional ceremony. However, su
     def return_four() -> TInt32:
         return 4
 
-Kernels can freely modify attributes of objects shared with the host. However, by necessity, these modifications are actually applied to local copies of the objects, as the latency of immediate writeback would be unsupportable in a real-time environment. Instead, modifications are written back *when the kernel completes;* notably, this means RPCs called by a kernel itself will only have access to the unmodified host version of the object, as the kernel hasn't finished execution yet. In some cases, accessing data on the host is better handled by calling RPCs specifically to make the desired modifications. 
+Kernels can freely modify attributes of objects shared with the host. However, by necessity, these modifications are actually applied to local copies of the objects, as the latency of immediate writeback would be unsupportable in a real-time environment. Instead, modifications are written back *when the kernel completes;* notably, this means RPCs called by a kernel itself will only have access to the unmodified host version of the object, as the kernel hasn't finished execution yet. In some cases, accessing data on the host is better handled by calling RPCs specifically to make the desired modifications.
 
 .. warning::
 
-    Kernels *cannot and should not* return lists, arrays, or strings they have created, or any objects containing them; in the absence of a heap, the way these values are allocated means they cannot outlive the kernels they are created in. Trying to do so will normally be discovered by lifetime tracking and result in compilation errors, but in certain cases lifetime tracking will fail to detect a problem and experiments will encounter memory corruption at runtime. For example: :: 
+    Kernels *cannot and should not* return lists, arrays, or strings they have created, or any objects containing them; in the absence of a heap, the way these values are allocated means they cannot outlive the kernels they are created in. Trying to do so will normally be discovered by lifetime tracking and result in compilation errors, but in certain cases lifetime tracking will fail to detect a problem and experiments will encounter memory corruption at runtime. For example: ::
 
         def func(a):
             return a
@@ -117,44 +117,44 @@ Kernels can freely modify attributes of objects shared with the host. However, b
                 # results in memory corruption
                 return func([1, 2, 3])
 
-    will compile, **but corrupts at runtime.** On the other hand, lists, arrays, or strings can and should be used as inputs for RPCs, and this is the preferred method of returning data to the host. In this way the data is inherently read and sent before the kernel completes and there are no allocation issues. 
+    will compile, **but corrupts at runtime.** On the other hand, lists, arrays, or strings can and should be used as inputs for RPCs, and this is the preferred method of returning data to the host. In this way the data is inherently read and sent before the kernel completes and there are no allocation issues.
 
-Available built-in functions 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+Available built-in functions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-ARTIQ makes various useful built-in and mathematical functions from Python, NumPy, and SciPy available in kernel code. They are not guaranteed to be perfectly equivalent to their host namesakes (for example, ``numpy.rint()`` normally rounds-to-even, but in kernel code rounds toward zero) but their behavior should be basically predictable. 
+ARTIQ makes various useful built-in and mathematical functions from Python, NumPy, and SciPy available in kernel code. They are not guaranteed to be perfectly equivalent to their host namesakes (for example, ``numpy.rint()`` normally rounds-to-even, but in kernel code rounds toward zero) but their behavior should be basically predictable.
 
 
 .. list-table::
     :header-rows: 1
-    
-    +   * Reference 
-        * Functions 
+
+    +   * Reference
+        * Functions
     +   * `Python built-ins <https://docs.python.org/3/library/functions.html>`_
         *   - ``len()``, ``round()``, ``abs()``, ``min()``, ``max()``
             - ``print()`` (with caveats; see below)
-            - all basic type conversions (``int()``, ``float()`` etc.)  
+            - all basic type conversions (``int()``, ``float()`` etc.)
     +   * `NumPy mathematic utilities <https://numpy.org/doc/stable/reference/routines.math.html>`_
-        *   - ``sqrt()``, ``cbrt``` 
+        *   - ``sqrt()``, ``cbrt```
             - ``fabs()``, ``fmax()``, ``fmin()``
             - ``floor()``, ``ceil()``, ``trunc()``, ``rint()``
     +   * `NumPy exponents and logarithms <https://numpy.org/doc/stable/reference/routines.math.html#exponents-and-logarithms>`_
         *   - ``exp()``, ``exp2()``, ``expm1()``
             - ``log()``, ``log2()``, ``log10()``
     +   * `NumPy trigonometric and hyperbolic functions <https://numpy.org/doc/stable/reference/routines.math.html#trigonometric-functions>`_
-        *   - ``sin()``, ``cos()``, ``tan()``, 
-            - ``arcsin()``, ``arccos()``, ``arctan()`` 
-            - ``sinh()``, ``cosh()``, ``tanh()`` 
-            - ``arcsinh()``, ``arccosh()``, ``arctanh()`` 
+        *   - ``sin()``, ``cos()``, ``tan()``,
+            - ``arcsin()``, ``arccos()``, ``arctan()``
+            - ``sinh()``, ``cosh()``, ``tanh()``
+            - ``arcsinh()``, ``arccosh()``, ``arctanh()``
             - ``hypot()``, ``arctan2()``
     +   * `NumPy floating point routines <https://numpy.org/doc/stable/reference/routines.math.html#floating-point-routines>`_
         *   - ``copysign()``, ``nextafter()``
-    +   * `SciPy special functions <https://docs.scipy.org/doc/scipy/reference/special.html>`_ 
+    +   * `SciPy special functions <https://docs.scipy.org/doc/scipy/reference/special.html>`_
         *   - ``erf()``, ``erfc()``
             - ``gamma()``, ``gammaln()``
             - ``j0()``, ``j1()``, ``y0()``, ``y1()``
 
-Basic NumPy array handling (``np.array()``, ``numpy.transpose()``, ``numpy.full``, ``@``, element-wise operation, etc.) is also available. NumPy functions are implicitly broadcast when applied to arrays. 
+Basic NumPy array handling (``np.array()``, ``numpy.transpose()``, ``numpy.full``, ``@``, element-wise operation, etc.) is also available. NumPy functions are implicitly broadcast when applied to arrays.
 
 Print and logging functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -163,7 +163,7 @@ ARTIQ offers two native built-in logging functions: ``rtio_log()``, as presented
 
 ``print()`` itself is in practice an RPC to the regular host Python ``print()``, i.e. with output either in the terminal of :mod:`~artiq.frontend.artiq_run` or in the client logs when using :mod:`~artiq.frontend.artiq_dashboard` or :mod:`~artiq.frontend.artiq_compile`. This means on one hand that it should not be used in idle, startup, or subkernels, and on the other hand that it suffers of some of the timing limitations of any other RPC, especially if the RPC queue is full. Accordingly, it is important to be aware that the timing of ``print()`` outputs can't reliably be used to debug timing in kernels, and especially not the timing of other RPCs.
 
-.. _compiler-pitfalls: 
+.. _compiler-pitfalls:
 
 Pitfalls
 --------
