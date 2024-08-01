@@ -27,41 +27,6 @@ Substitute ``artiq-manual-pdf`` to get the LaTeX PDF version. The results will b
 
 The manual is written in `reStructured Text <https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html>`_; you can find the source files in the ARTIQ repository under ``doc/manual``. If you spot a mistake, a typo, or something that's out of date or missing -- in particular, if you want to add something to this FAQ -- feel free to clone the repository, edit the source RST files, and make a pull request with your version of an improvement. (If you're not a fan of or not familiar with command-line Git, both GitHub and Gitea support making edits and pull requests directly in the web interface; tutorial materials are easy to find online.) The second best thing is to open an issue to make M-Labs aware of the problem.
 
-.. _faq-find-examples:
-
-find ARTIQ examples?
---------------------
-
-The official examples are stored in the ``examples`` folder of the ARTIQ package. You can find the location of the ARTIQ package on your machine with: ::
-
-  python3 -c "import artiq; print(artiq.__path__[0])"
-
-Copy the ``examples`` folder from that path into your home or user directory, and start experimenting!
-
-If you have progressed past this level and would like to see more in-depth code or real-life examples of how other groups have handled running experiments with ARTIQ, see the "Community code" directory on the M-labs `resources page <https://m-labs.hk/experiment-control/resources/>`_.
-
-fix 'no startup kernel found' / 'no idle kernel found' in the UART?
--------------------------------------------------------------------
-
-Don't. Note that these are ``INFO`` messages, and not ``ERROR`` or even ``WARN``. If you haven't flashed an idle or startup kernel yet, this is normal, and will not cause any problems; between experiments the core device will simply do nothing. The same applies to most other messages in the style of 'no configuration found' or 'falling back to default'. Your system will generally run just fine on its defaults until you get around to setting these configurations, though certain features may be limited until properly set up. See :doc:`configuring` and the list of keys in :ref:`core-device-flash-storage`.
-
-fix 'Mismatch between gateware and software versions'?
-------------------------------------------------------
-
-Either reflash your core device with a newer version of ARTIQ (see :doc:`flashing`) or update your software (see :ref:`installing-upgrading`), depending on which is out of date.
-
-.. note::
-    You can check the specific versions you are using at any time by comparing the gateware version given in the core startup log and the output given by adding ``--version`` to any of the standard ARTIQ front-end commands. This is especially useful when e.g. seeking help in the forum or at the helpdesk, where your running ARTIQ version is often crucial information to diagnose a problem.
-
-    Minor version mismatches are common, even in stable ARTIQ versions, but should not cause any issues. The ARTIQ release system ensures breaking changes are strictly limited to new release versions, or to the beta branch (which explicitly makes no promises of stability.) Updates that *are* applied to the stable version are usually bug fixes, documentation improvements, or other quality-of-life changes. As long as gateware and software are using the same stable release version of ARTIQ, even if there is a minor mismatch, no warning will be displayed.
-
-change configuration settings of satellite devices?
----------------------------------------------------
-
-Currently, it is not possible to reach satellites through ``artiq_coremgmt config``, although this is being worked on. On Kasli, use :class:`~artiq.frontend.artiq_mkfs` and :class:`~artiq.frontend.artiq_flash`; on Kasli-SoC, preload the SD card with a ``config.txt``, formatted as a list of ``key=value`` pairs, one per line.
-
-Don't worry about individually flashing idle or startup kernels. If your idle or startup kernel contains subkernels, it will automatically compile as a ``.tar``, which you only need to flash to the master.
-
 .. _faq-networking:
 
 troubleshoot networking problems?
@@ -83,6 +48,41 @@ Some things to consider:
     - Are your PC and your crate in the same subnet?
     - Is some other device in your network already using the configured IP address? Turn off the core device and try pinging the configured IP address; if it responds, you have a culprit. One of the two will need a different networking configuration.
     - Are there restrictions or issues in your router or subnet that are preventing the core device from connecting? It may help to try connecting the core device to your PC directly.
+
+fix 'no startup kernel found' / 'no idle kernel found' in the core log?
+-----------------------------------------------------------------------
+
+Don't. Note that these are ``INFO`` messages, and not ``ERROR`` or even ``WARN``. If you haven't flashed an idle or startup kernel yet, this is normal, and will not cause any problems; between experiments the core device will simply do nothing. The same applies to most other messages in the style of 'no configuration found' or 'falling back to default'. Your system will generally run just fine on its defaults until you get around to setting these configurations, though certain features may be limited until properly set up. See :doc:`configuring` and the list of keys in :ref:`core-device-flash-storage`.
+
+fix 'Mismatch between gateware and software versions'?
+------------------------------------------------------
+
+Either reflash your core device with a newer version of ARTIQ (see :doc:`flashing`) or update your software (see :ref:`installing-upgrading`), depending on which is out of date.
+
+.. note::
+    You can check the specific versions you are using at any time by comparing the gateware version given in the core startup log and the output given by adding ``--version`` to any of the standard ARTIQ front-end commands. This is especially useful when e.g. seeking help in the forum or at the helpdesk, where your running ARTIQ version is often crucial information to diagnose a problem.
+
+    Minor version mismatches are common, even in stable ARTIQ versions, but should not cause any issues. The ARTIQ release system ensures breaking changes are strictly limited to new release versions, or to the beta branch (which explicitly makes no promises of stability.) Updates that *are* applied to the stable version are usually bug fixes, documentation improvements, or other quality-of-life changes. As long as gateware and software are using the same stable release version of ARTIQ, even if there is a minor mismatch, no warning will be displayed.
+
+change configuration settings of satellite devices?
+---------------------------------------------------
+
+Currently, it is not possible to reach satellites through ``artiq_coremgmt config``, although this is being worked on. On Kasli, use :class:`~artiq.frontend.artiq_mkfs` and :class:`~artiq.frontend.artiq_flash`; on Kasli-SoC, preload the SD card with a ``config.txt``, formatted as a list of ``key=value`` pairs, one per line.
+
+Don't worry about individually flashing idle or startup kernels. If your idle or startup kernel contains subkernels, it will automatically compile as a ``.tar``, which you only need to flash to the master.
+
+.. _faq-find-examples:
+
+find ARTIQ examples?
+--------------------
+
+The official examples are stored in the ``examples`` folder of the ARTIQ package. You can find the location of the ARTIQ package on your machine with: ::
+
+  python3 -c "import artiq; print(artiq.__path__[0])"
+
+Copy the ``examples`` folder from that path into your home or user directory, and start experimenting!
+
+If you have progressed past this level and would like to see more in-depth code or real-life examples of how other groups have handled running experiments with ARTIQ, see the "Community code" directory on the M-labs `resources page <https://m-labs.hk/experiment-control/resources/>`_.
 
 diagnose and fix sequence errors?
 ---------------------------------
