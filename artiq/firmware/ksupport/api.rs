@@ -117,6 +117,18 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(y1),
     api!(yn),
 
+    // linalg
+    api!(np_linalg_cholesky = ::linalg::np_linalg_cholesky),
+    api!(np_linalg_qr = ::linalg::np_linalg_qr),
+    api!(np_linalg_svd = ::linalg::np_linalg_svd),
+    api!(np_linalg_inv = ::linalg::np_linalg_inv),
+    api!(np_linalg_pinv = ::linalg::np_linalg_pinv),
+    api!(np_linalg_matrix_power = ::linalg::np_linalg_matrix_power),
+    api!(np_linalg_det = ::linalg::np_linalg_det),
+    api!(sp_linalg_lu = ::linalg::sp_linalg_lu),
+    api!(sp_linalg_schur = ::linalg::sp_linalg_schur),
+    api!(sp_linalg_hessenberg = ::linalg::sp_linalg_hessenberg),
+
     /* exceptions */
     api!(_Unwind_Resume = ::unwind::_Unwind_Resume),
     api!(__nac3_personality = ::eh_artiq::personality),
