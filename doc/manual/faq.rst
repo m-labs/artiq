@@ -51,7 +51,7 @@ fix 'Mismatch between gateware and software versions'?
 Either reflash your core device with a newer version of ARTIQ (see :doc:`flashing`) or update your software (see :ref:`installing-upgrading`), depending on which is out of date.
 
 .. note::
-    You can check the specific versions you are using at any time by comparing the gateware version given in the core startup log and the output given by adding ``--version`` to any of the standard ARTIQ front-end commands. This is especially useful when e.g. seeking help in the forum or helpdesk@, where your running ARTIQ version is often crucial information to diagnose a problem.
+    You can check the specific versions you are using at any time by comparing the gateware version given in the core startup log and the output given by adding ``--version`` to any of the standard ARTIQ front-end commands. This is especially useful when e.g. seeking help in the forum or at the helpdesk, where your running ARTIQ version is often crucial information to diagnose a problem.
 
     Minor version mismatches are common, even in stable ARTIQ versions, but should not cause any issues. The ARTIQ release system ensures breaking changes are strictly limited to new release versions, or to the beta branch (which explicitly makes no promises of stability.) Updates that *are* applied to the stable version are usually bug fixes, documentation improvements, or other quality-of-life changes. As long as gateware and software are using the same stable release version of ARTIQ, even if there is a minor mismatch, no warning will be displayed.
 
@@ -211,7 +211,13 @@ For more advanced questions, sometimes the `list of publications <https://m-labs
 "Help, I've done my best and I can't get any further!"
 ------------------------------------------------------
 
-- If you have an active M-Labs AFWS/support subscription, you can email helpdesk@ at any time for personalized assistance.
+- If you have an active M-Labs AFWS/support subscription, you can email helpdesk@ at any time for personalized assistance. Please include the following information:
+
+    - Your installed ARTIQ version (add ``--version`` to any of the standard ARTIQ commands)
+    - The variant name of your system (refer to the sticker on the crate if you aren't sure)
+    - The recent output of your core log, either through ``artiq_coremgmt`` (if you're able to contact your device by network), or over UART following :ref:`the guide here <connecting-UART>`
+    - How your problem happened, and what you've already tried to fix it
+
 - Compare your materials with the examples; see also :ref:`finding ARTIQ examples <faq-find-examples>` above.
 - Check the list of `active issues <https://github.com/m-labs/artiq/issues>`_ on the ARTIQ GitHub repository for possible known problems with ARTIQ. Search through the closed issues to see if your question or concern has been addressed before.
 - Search the `M-Labs forum <https://forum.m-labs.hk/>`_ for similar problems, or make a post asking for help yourself.
