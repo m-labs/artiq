@@ -165,6 +165,8 @@ class Client:
             return reply[0], None
         length = int(reply[1])
         json_bytes = await self.reader.read(length)
+        if length != len(json_bytes):
+            raise ValueError(f"Received data length ({len(json_bytes)}) doesn't match expected length ({length})")
         return "OK", json_bytes
 
 
