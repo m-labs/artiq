@@ -70,7 +70,8 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinxarg.ext',
     'sphinxcontrib.wavedrom',  # see also below for config
-    "sphinxcontrib.jquery",
+    'sphinxcontrib.jquery',
+    'sphinxcontrib.tikz' # see also below for config
 ]
 
 mathjax_path = "https://m-labs.hk/MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML.js"
@@ -326,3 +327,8 @@ texinfo_documents = [
 offline_skin_js_path = '_static/default.js'
 offline_wavedrom_js_path = '_static/WaveDrom.js'
 render_using_wavedrompy = True
+
+# -- Options for sphinxcontrib-tikz ---------------------------------------
+# tikz_proc_suite = pdf2svg
+# tikz_transparent = True
+# these are the defaults
