@@ -309,7 +309,7 @@
         inherit (pkgs.texlive)
           scheme-basic latexmk cmap collection-fontsrecommended fncychap
           titlesec tabulary varwidth framed fancyvrb float wrapfig parskip
-          upquote capt-of needspace etoolbox booktabs;
+          upquote capt-of needspace etoolbox booktabs pgf pgfplots;
       };
 
       artiq-frontend-dev-wrappers = pkgs.runCommandNoCC "artiq-frontend-dev-wrappers" {}
@@ -344,9 +344,11 @@
           version = artiqVersion;
           src = self;
           buildInputs = with pkgs.python3Packages; [
-            sphinx sphinx_rtd_theme
+            sphinx sphinx_rtd_theme sphinxcontrib-tikz
             sphinx-argparse sphinxcontrib-wavedrom
-          ] ++ [ artiq-comtools.packages.x86_64-linux.artiq-comtools ];
+          ] ++ [ latex-artiq-manual artiq-comtools.packages.x86_64-linux.artiq-comtools
+            pkgs.pdf2svg
+          ];
           buildPhase = ''
             export VERSIONEER_OVERRIDE=${artiqVersion}
             export SOURCE_DATE_EPOCH=${builtins.toString self.sourceInfo.lastModified}
@@ -364,9 +366,11 @@
           version = artiqVersion;
           src = self;
           buildInputs = with pkgs.python3Packages; [
-            sphinx sphinx_rtd_theme
+            sphinx sphinx_rtd_theme sphinxcontrib-tikz
             sphinx-argparse sphinxcontrib-wavedrom
-          ] ++ [ latex-artiq-manual artiq-comtools.packages.x86_64-linux.artiq-comtools ];
+          ] ++ [ latex-artiq-manual artiq-comtools.packages.x86_64-linux.artiq-comtools
+            pkgs.pdf2svg
+          ];
           buildPhase = ''
             export VERSIONEER_OVERRIDE=${artiq.version}
             export SOURCE_DATE_EPOCH=${builtins.toString self.sourceInfo.lastModified}
@@ -408,8 +412,9 @@
           packages.x86_64-linux.vivadoEnv
           packages.x86_64-linux.vivado
           packages.x86_64-linux.openocd-bscanspi
-          pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
+          pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme pkgs.pdf2svg
           pkgs.python3Packages.sphinx-argparse pkgs.python3Packages.sphinxcontrib-wavedrom latex-artiq-manual
+          pkgs.python3Packages.sphinxcontrib-tikz
         ];
         shellHook = ''
           export LIBARTIQ_SUPPORT=`libartiq-support`
