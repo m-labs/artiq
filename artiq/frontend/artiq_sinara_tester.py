@@ -50,6 +50,8 @@ class SinaraTester(EnvExperiment):
         self.leds = dict()
         self.ttl_outs = dict()
         self.ttl_ins = dict()
+        self.ttl_lvds_outs = dict()
+        self.ttl_lvds_ins = dict()
         self.urukul_cplds = dict()
         self.urukuls = dict()
         self.samplers = dict()
@@ -76,7 +78,10 @@ class SinaraTester(EnvExperiment):
                     else:
                         self.ttl_outs[name] = dev
                 elif (module, cls) == ("artiq.coredevice.ttl", "TTLInOut"):
-                    self.ttl_ins[name] = self.get_device(name)
+                    if "board" in desc and desc["board"] == "dio_lvds":
+                        self.ttl_lvds[name] = self.get_device(name)
+                    else:
+                        self.ttl_ins[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.urukul", "CPLD"):
                     self.urukul_cplds[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.ad9910", "AD9910"):
@@ -243,6 +248,47 @@ class SinaraTester(EnvExperiment):
                 print("PASSED")
             else:
                 print("FAILED")
+
+    @kernel
+    def set_ttl_lvds(self, ttl_to_output, ttl_to_input):
+        self.core.break_realtime()
+        ttl_to_input.input()
+        delay(50*ms)
+        ttl_to_output.output()
+        delay(50*ms)
+
+    def test_ttl_lvds_outs(self):
+        print("*** LVDS TTL outputs are tested along with LVDS TTL inputs.")
+
+    def test_ttl_lvds(self):
+        print("*** Testing LVDS TTL.")
+        print("LVDS TTL channels are tested in groups of 4.")
+        print("Insert one end of Ethernet cable into first group (marked as CH 0..3)")
+        print(" of the first LVDS card and press ENTER when done.")
+        input()
+        #print(", ".join(self.ttl_lvds))
+        for i, ttl_chunk in enumerate(chunker(self.ttl_lvds[4:], 4)):
+            print(f"Connect first group (CH 0..3) to group #{i + 2} (LVDS card #{(i + 1) // 4}, CH{((i + 1)  % 4 ) * 4}..{((i + 1)  % 4 ) * 4 + 3}). Press ENTER when done.")
+            input()
+            for x in range(4):
+                ttl_in, ttl_in_dev = self.ttl_lvds[0]
+                ttl_out, ttl_out_dev = ttl_chunk[x]
+                print(f"Testing {ttl_in} with {ttl_out}... ", end="")
+
+                self.set_ttl_lvds(ttl_out_dev, ttl_in_dev)
+                forward_test_result = self.test_ttl_in(ttl_out_dev, ttl_in_dev)
+
+                self.set_ttl_lvds(ttl_in_dev, ttl_out_dev)
+                reverse_test_result = self.test_ttl_in(ttl_in_dev, ttl_out_dev)
+
+                if forward_test_result and reverse_test_result:
+                    print("PASSED")
+                    continue
+                if not forward_test_result:
+                    print(f"FAILED: from {ttl_out} to {ttl_in}")
+                if not reverse_test_result:
+                    print(f"FAILED: from {ttl_in} to {ttl_out}")
+
 
     @kernel
     def init_urukul(self, cpld):
