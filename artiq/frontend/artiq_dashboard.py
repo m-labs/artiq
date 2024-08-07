@@ -133,7 +133,12 @@ def main():
                                     server=args.server.replace(":", "."),
                                     port=args.port_notify))
 
-    app = QtWidgets.QApplication(["ARTIQ Dashboard"])
+    forced_platform = []
+    if (QtGui.QGuiApplication.platformName() == "wayland" and
+            not os.getenv("QT_QPA_PLATFORM")):
+        # force XCB instead of Wayland due to applets not embedding
+        forced_platform = ["-platform", "xcb"]
+    app = QtWidgets.QApplication(["ARTIQ Dashboard"] + forced_platform)
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
     atexit.register(loop.close)
