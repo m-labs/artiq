@@ -75,11 +75,13 @@ class SinaraTester(EnvExperiment):
                     dev = self.get_device(name)
                     if "led" in name:  # guess
                         self.leds[name] = dev
+                    elif "board" in desc and desc["board"] == "dio_lvds":
+                        self.ttl_lvds_outs[name] = self.get_device(name)
                     else:
                         self.ttl_outs[name] = dev
                 elif (module, cls) == ("artiq.coredevice.ttl", "TTLInOut"):
                     if "board" in desc and desc["board"] == "dio_lvds":
-                        self.ttl_lvds[name] = self.get_device(name)
+                        self.ttl_lvds_ins[name] = self.get_device(name)
                     else:
                         self.ttl_ins[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.urukul", "CPLD"):
@@ -160,6 +162,8 @@ class SinaraTester(EnvExperiment):
         self.leds = sorted(self.leds.items(), key=lambda x: x[1].channel)
         self.ttl_outs = sorted(self.ttl_outs.items(), key=lambda x: x[1].channel)
         self.ttl_ins = sorted(self.ttl_ins.items(), key=lambda x: x[1].channel)
+        self.ttl_lvds_ins = sorted(self.ttl_lvds_ins.items(), key=lambda x: x[1].channel)
+        self.ttl_lvds_outs = sorted(self.ttl_lvds_outs.items(), key=lambda x: x[1].channel)
         self.urukuls = sorted(self.urukuls.items(), key=lambda x: (x[1].cpld.bus.channel, x[1].chip_select))
         self.samplers = sorted(self.samplers.items(), key=lambda x: x[1].cnv.channel)
         self.zotinos = sorted(self.zotinos.items(), key=lambda x: x[1].bus.channel)
@@ -249,45 +253,83 @@ class SinaraTester(EnvExperiment):
             else:
                 print("FAILED")
 
-    @kernel
-    def set_ttl_lvds(self, ttl_to_output, ttl_to_input):
-        self.core.break_realtime()
-        ttl_to_input.input()
-        delay(50*ms)
-        ttl_to_output.output()
-        delay(50*ms)
-
     def test_ttl_lvds_outs(self):
-        print("*** LVDS TTL outputs are tested along with LVDS TTL inputs.")
+        print("***  Testing LVDS TTL output channels")
 
-    def test_ttl_lvds(self):
-        print("*** Testing LVDS TTL.")
+        if len(self.ttl_lvds_ins) == 0:
+            print("No available inputs for testing. Skipping...")
+            return
+
+        ttl_index = 0
+        default_ttl_in_name, _ = self.ttl_lvds_ins[ttl_index]
+
+        ttl_in_name = input(f"TTL device to use as an input (default: {default_ttl_in_name}): ")
+
+        if not ttl_in_name:
+            ttl_in_name = default_ttl_in_name
+
+        ttl_index = next(i for i, v in enumerate(self.ttl_lvds_ins) if v[0] == ttl_in_name)
+        ttl_index = ttl_index - (ttl_index % 4)
+
+        ttl_in_chunk = self.ttl_lvds_ins[ttl_index : ttl_index + 4]
+
+        list_of_ins = ', '.join(map(lambda x: x[0], ttl_in_chunk))
         print("LVDS TTL channels are tested in groups of 4.")
-        print("Insert one end of Ethernet cable into first group (marked as CH 0..3)")
-        print(" of the first LVDS card and press ENTER when done.")
-        input()
-        #print(", ".join(self.ttl_lvds))
-        for i, ttl_chunk in enumerate(chunker(self.ttl_lvds[4:], 4)):
-            print(f"Connect first group (CH 0..3) to group #{i + 2} (LVDS card #{(i + 1) // 4}, CH{((i + 1)  % 4 ) * 4}..{((i + 1)  % 4 ) * 4 + 3}). Press ENTER when done.")
+        print(f"Insert one end of Ethernet cable into the group of inputs ({list_of_ins})")
+        print("and press ENTER when done.")
+
+        for i, ttl_out_chunk in enumerate(chunker(self.ttl_lvds_outs, 4)):
+            list_of_outs = ', '.join(map(lambda x: x[0], ttl_out_chunk))
+            print(f"Connect input group ({list_of_ins}) to ({list_of_outs}). Press ENTER when done.")
             input()
             for x in range(4):
-                ttl_in, ttl_in_dev = self.ttl_lvds[0]
-                ttl_out, ttl_out_dev = ttl_chunk[x]
+                ttl_in, ttl_in_dev = ttl_in_chunk[x]
+                ttl_out, ttl_out_dev = ttl_out_chunk[x]
                 print(f"Testing {ttl_in} with {ttl_out}... ", end="")
 
-                self.set_ttl_lvds(ttl_out_dev, ttl_in_dev)
-                forward_test_result = self.test_ttl_in(ttl_out_dev, ttl_in_dev)
-
-                self.set_ttl_lvds(ttl_in_dev, ttl_out_dev)
-                reverse_test_result = self.test_ttl_in(ttl_in_dev, ttl_out_dev)
-
-                if forward_test_result and reverse_test_result:
+                if self.test_ttl_in(ttl_out_dev, ttl_in_dev):
                     print("PASSED")
-                    continue
-                if not forward_test_result:
-                    print(f"FAILED: from {ttl_out} to {ttl_in}")
-                if not reverse_test_result:
-                    print(f"FAILED: from {ttl_in} to {ttl_out}")
+                else:
+                    print("FAILED")
+
+    def test_ttl_lvds_ins(self):
+        print("***  Testing LVDS TTL input channels")
+
+        if len(self.ttl_lvds_outs) == 0:
+            print("No available inputs for testing. Skipping...")
+            return
+
+        ttl_index = 0
+        default_ttl_out_name, _ = self.ttl_lvds_outs[ttl_index]
+
+        ttl_out_name = input("TTL device to use as an output (default: {}): ".format(default_ttl_out_name))
+
+        if not ttl_out_name:
+            ttl_out_name = default_ttl_out_name
+
+        ttl_index = next(i for i, v in enumerate(self.ttl_lvds_outs) if v[0] == ttl_out_name)
+        ttl_index = ttl_index - (ttl_index % 4)
+
+        ttl_out_chunk = self.ttl_lvds_outs[ttl_index : ttl_index + 4]
+
+        list_of_outs = ', '.join(map(lambda x: x[0], ttl_out_chunk))
+        print("LVDS TTL input channels are tested with LVDS TTL output channels in groups of 4.")
+        print(f"Insert one end of Ethernet cable into the group of outputs ({list_of_outs})")
+        print("and press ENTER when done.")
+
+        for i, ttl_in_chunk in enumerate(chunker(self.ttl_lvds_ins, 4)):
+            list_of_ins = ', '.join(map(lambda x: x[0], ttl_in_chunk))
+            print(f"Connect output group ({list_of_outs}) to ({list_of_ins}). Press ENTER when done.")
+            input()
+            for x in range(4):
+                ttl_in, ttl_in_dev = ttl_in_chunk[x]
+                ttl_out, ttl_out_dev = ttl_out_chunk[x]
+                print(f"Testing {ttl_in} with {ttl_out}... ", end="")
+
+                if self.test_ttl_in(ttl_out_dev, ttl_in_dev):
+                    print("PASSED")
+                else:
+                    print("FAILED")
 
 
     @kernel
