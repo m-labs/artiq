@@ -253,84 +253,52 @@ class SinaraTester(EnvExperiment):
             else:
                 print("FAILED")
 
-    def test_ttl_lvds_outs(self):
-        print("***  Testing LVDS TTL output channels")
+    def test_ttl_lvds_generic(self, output):
+        being_tested, bt_list = ('output', self.ttl_lvds_outs) if output else ('input', self.ttl_lvds_ins)
+        tested_with, tw_list = ('output', self.ttl_lvds_outs) if not output else ('input', self.ttl_lvds_ins)
+        print(f"*** Testing LVDS TTL {being_tested} channels")
 
-        if len(self.ttl_lvds_ins) == 0:
-            print("No available inputs for testing. Skipping...")
+        if len(tw_list) == 0:
+            print(f"No available {tested_with} channels for testing. Skipping...")
             return
 
         ttl_index = 0
-        default_ttl_in_name, _ = self.ttl_lvds_ins[ttl_index]
+        default_ttl_tw_name, _ = tw_list[ttl_index]
 
-        ttl_in_name = input(f"TTL device to use as an input (default: {default_ttl_in_name}): ")
+        ttl_tw_name = input(f"TTL device to use as an {tested_with} (default: {default_ttl_tw_name}): ")
 
-        if not ttl_in_name:
-            ttl_in_name = default_ttl_in_name
+        if not ttl_tw_name:
+            ttl_tw_name = default_ttl_tw_name
 
-        ttl_index = next(i for i, v in enumerate(self.ttl_lvds_ins) if v[0] == ttl_in_name)
+        ttl_index = next(i for i, v in enumerate(tw_list) if v[0] == ttl_tw_name)
         ttl_index = ttl_index - (ttl_index % 4)
 
-        ttl_in_chunk = self.ttl_lvds_ins[ttl_index : ttl_index + 4]
+        ttl_tw_chunk = tw_list[ttl_index : ttl_index + 4]
 
-        list_of_ins = ', '.join(map(lambda x: x[0], ttl_in_chunk))
+        list_of_tw = ', '.join(map(lambda x: x[0], ttl_tw_chunk))
         print("LVDS TTL channels are tested in groups of 4.")
-        print(f"Insert one end of Ethernet cable into the group of inputs ({list_of_ins})")
+        print(f"Insert one end of Ethernet cable into the group of {tested_with} channels ({list_of_tw})")
         print("and press ENTER when done.")
 
-        for i, ttl_out_chunk in enumerate(chunker(self.ttl_lvds_outs, 4)):
-            list_of_outs = ', '.join(map(lambda x: x[0], ttl_out_chunk))
-            print(f"Connect input group ({list_of_ins}) to ({list_of_outs}). Press ENTER when done.")
+        for i, bt_chunk in enumerate(chunker(bt_list, 4)):
+            list_of_bt = ', '.join(map(lambda x: x[0], bt_chunk))
+            print(f"Connect {tested_with} group ({list_of_tw}) to {being_tested} group ({list_of_bt}). Press ENTER when done.")
             input()
             for x in range(4):
-                ttl_in, ttl_in_dev = ttl_in_chunk[x]
-                ttl_out, ttl_out_dev = ttl_out_chunk[x]
+                ttl_in, ttl_in_dev = ttl_tw_chunk[x] if output else bt_chunk[x]
+                ttl_out, ttl_out_dev = ttl_tw_chunk[x] if not output else bt_chunk[x]
                 print(f"Testing {ttl_in} with {ttl_out}... ", end="")
 
                 if self.test_ttl_in(ttl_out_dev, ttl_in_dev):
                     print("PASSED")
                 else:
                     print("FAILED")
+
+    def test_ttl_lvds_outs(self):
+        self.test_ttl_lvds_generic(True)
 
     def test_ttl_lvds_ins(self):
-        print("***  Testing LVDS TTL input channels")
-
-        if len(self.ttl_lvds_outs) == 0:
-            print("No available inputs for testing. Skipping...")
-            return
-
-        ttl_index = 0
-        default_ttl_out_name, _ = self.ttl_lvds_outs[ttl_index]
-
-        ttl_out_name = input("TTL device to use as an output (default: {}): ".format(default_ttl_out_name))
-
-        if not ttl_out_name:
-            ttl_out_name = default_ttl_out_name
-
-        ttl_index = next(i for i, v in enumerate(self.ttl_lvds_outs) if v[0] == ttl_out_name)
-        ttl_index = ttl_index - (ttl_index % 4)
-
-        ttl_out_chunk = self.ttl_lvds_outs[ttl_index : ttl_index + 4]
-
-        list_of_outs = ', '.join(map(lambda x: x[0], ttl_out_chunk))
-        print("LVDS TTL input channels are tested with LVDS TTL output channels in groups of 4.")
-        print(f"Insert one end of Ethernet cable into the group of outputs ({list_of_outs})")
-        print("and press ENTER when done.")
-
-        for i, ttl_in_chunk in enumerate(chunker(self.ttl_lvds_ins, 4)):
-            list_of_ins = ', '.join(map(lambda x: x[0], ttl_in_chunk))
-            print(f"Connect output group ({list_of_outs}) to ({list_of_ins}). Press ENTER when done.")
-            input()
-            for x in range(4):
-                ttl_in, ttl_in_dev = ttl_in_chunk[x]
-                ttl_out, ttl_out_dev = ttl_out_chunk[x]
-                print(f"Testing {ttl_in} with {ttl_out}... ", end="")
-
-                if self.test_ttl_in(ttl_out_dev, ttl_in_dev):
-                    print("PASSED")
-                else:
-                    print("FAILED")
-
+        self.test_ttl_lvds_generic(False)
 
     @kernel
     def init_urukul(self, cpld):
