@@ -253,52 +253,60 @@ class SinaraTester(EnvExperiment):
             else:
                 print("FAILED")
 
-    def test_ttl_lvds_generic(self, output):
-        being_tested, bt_list = ('output', self.ttl_lvds_outs) if output else ('input', self.ttl_lvds_ins)
-        tested_with, tw_list = ('output', self.ttl_lvds_outs) if not output else ('input', self.ttl_lvds_ins)
-        print(f"*** Testing LVDS TTL {being_tested} channels")
+    def test_lvds_group(self, ttl_out_chunk, ttl_in_chunk):
+        def devices_to_string(chunk):
+            return ', '.join(map(lambda x: x[0], chunk))
 
-        if len(tw_list) == 0:
-            print(f"No available {tested_with} channels for testing. Skipping...")
-            return
+        input(f"\nConnect ({devices_to_string(ttl_out_chunk)}) group to ({devices_to_string(ttl_in_chunk)}) group . Press ENTER when done.")
+        for x in range(4):
+            ttl_in, ttl_in_dev = ttl_in_chunk[x]
+            ttl_out, ttl_out_dev = ttl_out_chunk[x]
+            print(f"Testing {ttl_in} with {ttl_out}... ", end="")
 
-        ttl_index = 0
-        default_ttl_tw_name, _ = tw_list[ttl_index]
-
-        ttl_tw_name = input(f"TTL device to use as an {tested_with} (default: {default_ttl_tw_name}): ")
-
-        if not ttl_tw_name:
-            ttl_tw_name = default_ttl_tw_name
-
-        ttl_index = next(i for i, v in enumerate(tw_list) if v[0] == ttl_tw_name)
-        ttl_index = ttl_index - (ttl_index % 4)
-
-        ttl_tw_chunk = tw_list[ttl_index : ttl_index + 4]
-
-        list_of_tw = ', '.join(map(lambda x: x[0], ttl_tw_chunk))
-        print("LVDS TTL channels are tested in groups of 4.")
-        print(f"Insert one end of Ethernet cable into the group of {tested_with} channels ({list_of_tw})")
-        print("and press ENTER when done.")
-
-        for i, bt_chunk in enumerate(chunker(bt_list, 4)):
-            list_of_bt = ', '.join(map(lambda x: x[0], bt_chunk))
-            print(f"Connect {tested_with} group ({list_of_tw}) to {being_tested} group ({list_of_bt}). Press ENTER when done.")
-            input()
-            for x in range(4):
-                ttl_in, ttl_in_dev = ttl_tw_chunk[x] if output else bt_chunk[x]
-                ttl_out, ttl_out_dev = ttl_tw_chunk[x] if not output else bt_chunk[x]
-                print(f"Testing {ttl_in} with {ttl_out}... ", end="")
-
-                if self.test_ttl_in(ttl_out_dev, ttl_in_dev):
-                    print("PASSED")
-                else:
-                    print("FAILED")
+            if self.test_ttl_in(ttl_out_dev, ttl_in_dev):
+                print("PASSED")
+            else:
+                print("FAILED")
 
     def test_ttl_lvds_outs(self):
-        self.test_ttl_lvds_generic(True)
+        def lower_bound_of_device_chunk(dev_list, dev_name, N):
+            dev_index = next(i for i, v in enumerate(dev_list) if v[0] == dev_name)
+            return dev_index - (dev_index % N)
 
-    def test_ttl_lvds_ins(self):
-        self.test_ttl_lvds_generic(False)
+        print(f"*** Testing LVDS TTL")
+
+        if len(self.ttl_lvds_ins) == 0:
+            print(f"No available input channels for testing. Skipping...")
+            return
+
+        ttl_in_index, ttl_out_index = 0, 0
+        default_ttl_in_name, _ = self.ttl_lvds_ins[ttl_in_index]
+        default_ttl_out_name, _ = self.ttl_lvds_outs[ttl_out_index]
+
+        ttl_in_name = input(f"TTL device to use as an input (default: {default_ttl_in_name}): ")
+        ttl_out_name = input(f"TTL device to use as an output (default: {default_ttl_out_name}): ")
+
+        if not ttl_in_name:
+            ttl_in_name = default_ttl_in_name
+        if not ttl_out_name:
+            ttl_out_name = default_ttl_out_name
+
+        ttl_in_index = lower_bound_of_device_chunk(self.ttl_lvds_ins, ttl_in_name, 4)
+        ttl_out_index = lower_bound_of_device_chunk(self.ttl_lvds_outs, ttl_out_name, 4)
+        ttl_in_static_chunk = self.ttl_lvds_ins[ttl_in_index: ttl_in_index + 4]
+        ttl_out_static_chunk = self.ttl_lvds_outs[ttl_out_index: ttl_out_index + 4]
+
+        print("LVDS TTL channels are tested in groups of 4.")
+        print("\nTesting output channels. Keep input group connected in the same slot, and cycle through all outputs.")
+
+        for ttl_out_moving_chunk in chunker(self.ttl_lvds_outs, 4):
+            self.test_lvds_group(ttl_out_moving_chunk, ttl_in_static_chunk)
+
+        print("\nTesting input channels. Keep output group connected in the same slot, and cycle through all inputs.")
+
+        for ttl_in_moving_chunk in chunker(self.ttl_lvds_ins, 4):
+            if not ttl_in_moving_chunk == ttl_in_static_chunk:
+                self.test_lvds_group(ttl_out_static_chunk, ttl_in_moving_chunk)
 
     @kernel
     def init_urukul(self, cpld):
