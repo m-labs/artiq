@@ -140,7 +140,7 @@ class PeripheralManager:
             class_names[peripheral["bank_direction_high"]]
         ]
         channel = count(0)
-        board = peripheral["board"].lower() if "board" in peripheral else ""
+        board = peripheral["board"] if "board" in peripheral else ""
         name = [self.get_name("ttl") for _ in range(num_channels)]
         for i in range(num_channels):
             self.gen("""
