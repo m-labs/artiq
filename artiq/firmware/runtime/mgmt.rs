@@ -1,10 +1,12 @@
 use log::{self, LevelFilter};
+use core::cell::Cell;
 
 use io::{Write, ProtoWrite, Error as IoError};
 use board_misoc::{config, spiflash};
 use logger_artiq::BufferLogger;
 use mgmt_proto::*;
 use sched::{Io, TcpListener, TcpStream, Error as SchedError};
+use urc::Urc;
 
 impl From<SchedError> for Error<SchedError> {
     fn from(value: SchedError) -> Error<SchedError> {
@@ -12,7 +14,7 @@ impl From<SchedError> for Error<SchedError> {
     }
 }
 
-fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
+fn worker(io: &Io, stream: &mut TcpStream, restart_idle: &Urc<Cell<bool>>) -> Result<(), Error<SchedError>> {
     read_magic(stream)?;
     Write::write_all(stream, "e".as_bytes())?;
     info!("new connection from {}", stream.remote_endpoint());
@@ -84,20 +86,36 @@ fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
             }
             Request::ConfigWrite { ref key, ref value } => {
                 match config::write(key, value) {
-                    Ok(_)  => Reply::Success.write_to(stream),
+                    Ok(_)  => { 
+                        if key == "idle_kernel" {
+                            io.until(|| !restart_idle.get())?;
+                            restart_idle.set(true);
+                        }
+                        Reply::Success.write_to(stream)
+                    },
                     Err(_) => Reply::Error.write_to(stream)
                 }?;
             }
             Request::ConfigRemove { ref key } => {
                 match config::remove(key) {
-                    Ok(()) => Reply::Success.write_to(stream),
+                    Ok(()) => {
+                        if key == "idle_kernel" {
+                            io.until(|| !restart_idle.get())?;
+                            restart_idle.set(true);
+                        }
+                        Reply::Success.write_to(stream)
+                    },
                     Err(_) => Reply::Error.write_to(stream)
                 }?;
 
             }
             Request::ConfigErase => {
                 match config::erase() {
-                    Ok(()) => Reply::Success.write_to(stream),
+                    Ok(()) => {
+                        io.until(|| !restart_idle.get())?;
+                        restart_idle.set(true);
+                        Reply::Success.write_to(stream)
+                    },
                     Err(_) => Reply::Error.write_to(stream)
                 }?;
             }
@@ -117,16 +135,17 @@ fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
     }
 }
 
-pub fn thread(io: Io) {
+pub fn thread(io: Io, restart_idle: &Urc<Cell<bool>>) {
     let listener = TcpListener::new(&io, 8192);
     listener.listen(1380).expect("mgmt: cannot listen");
     info!("management interface active");
 
     loop {
         let stream = listener.accept().expect("mgmt: cannot accept").into_handle();
+        let restart_idle = restart_idle.clone();
         io.spawn(4096, move |io| {
             let mut stream = TcpStream::from_handle(&io, stream);
-            match worker(&io, &mut stream) {
+            match worker(&io, &mut stream, &restart_idle) {
                 Ok(()) => (),
                 Err(Error::Io(IoError::UnexpectedEnd)) => (),
                 Err(err) => error!("aborted: {}", err)
