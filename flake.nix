@@ -492,11 +492,15 @@
               # Read "Ok" line when remote successfully locked
               read LOCK_OK
 
+              export ARTIQ_ROOT=`python -c "import artiq; print(artiq.__path__[0])"`/examples/kc705_nist_clock
+              export ARTIQ_LOW_LATENCY=1
+
+              artiq_rtiomap --device-db $ARTIQ_ROOT/device_db.py device_map.bin
+              artiq_mkfs -s ip `python -c "import artiq.examples.kc705_nist_clock.device_db as ddb; print(ddb.core_addr)"`/24 -f device_map device_map.bin kc705_nist_clock.config
+              artiq_flash -t kc705 -H rpi-1 storage -f kc705_nist_clock.config
               artiq_flash -t kc705 -H rpi-1 -d ${packages.x86_64-linux.artiq-board-kc705-nist_clock}
               sleep 30
 
-              export ARTIQ_ROOT=`python -c "import artiq; print(artiq.__path__[0])"`/examples/kc705_nist_clock
-              export ARTIQ_LOW_LATENCY=1
               python -m unittest discover -v artiq.test.coredevice
             )
 
