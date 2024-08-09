@@ -57,4 +57,5 @@ ARTIQ manual
     :caption: Addenda
     :maxdepth: 2
 
+    extending_rtio
     faq
