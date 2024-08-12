@@ -328,7 +328,7 @@ extern fn stop_fn(_version: c_int,
     }
 }
 
-// Must be kept in sync with `artq.compiler.embedding`
+// Must be kept in sync with `artiq.compiler.embedding`
 static EXCEPTION_ID_LOOKUP: [(&str, u32); 20] = [
     ("RTIOUnderflow", 0),
     ("RTIOOverflow", 1),
@@ -359,5 +359,26 @@ pub fn get_exception_id(name: &str) -> u32 {
         }
     }
     unimplemented!("unallocated internal exception id")
+}
+
+// Performs a reverse lookup on `EXCEPTION_ID_LOOKUP` 
+// Unconditionally raises an exception given its id
+#[no_mangle]
+pub extern "C-unwind" fn test_exception_id_sync(exn_id: u32) {
+    let message = EXCEPTION_ID_LOOKUP
+        .iter()
+        .find_map(|&(name, id)| if id == exn_id { Some(name) } else { None })
+        .unwrap_or("Unknown exception ID");
+    
+    let exn = Exception {
+        id:       exn_id,
+        file:     file!().as_c_slice(),
+        line:     0,
+        column:   0,
+        function: "test_exception_id_sync".as_c_slice(),
+        message:  message.as_c_slice(),
+        param:    [0, 0, 0]
+    };
+    unsafe { raise(&exn) };
 }
 
