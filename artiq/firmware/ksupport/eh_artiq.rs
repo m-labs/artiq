@@ -361,14 +361,19 @@ pub fn get_exception_id(name: &str) -> u32 {
     unimplemented!("unallocated internal exception id")
 }
 
-// Performs a reverse lookup on `EXCEPTION_ID_LOOKUP` 
-// Unconditionally raises an exception given its id
+/// Takes as input exception id from host
+/// Generates a new exception with:
+///   * `id` set to `exn_id`
+///   * `message` set to corresponding exception name from `EXCEPTION_ID_LOOKUP`
+///
+/// The message is matched on host to ensure correct exception is being referred 
+/// This test checks the synchronization of exception ids for runtime errors
 #[no_mangle]
 pub extern "C-unwind" fn test_exception_id_sync(exn_id: u32) {
     let message = EXCEPTION_ID_LOOKUP
         .iter()
         .find_map(|&(name, id)| if id == exn_id { Some(name) } else { None })
-        .unwrap_or("Unknown exception ID");
+        .unwrap_or("unallocated internal exception id");
     
     let exn = Exception {
         id:       exn_id,
