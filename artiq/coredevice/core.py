@@ -53,6 +53,9 @@ def rtio_get_destination_status(linkno: TInt32) -> TBool:
 def rtio_get_counter() -> TInt64:
     raise NotImplementedError("syscall not simulated")
 
+@syscall
+def raise_exception(id: TInt32) -> TNone:
+    raise NotImplementedError("syscall not simulated")
 
 def get_target_cls(target):
     if target == "rv32g":
