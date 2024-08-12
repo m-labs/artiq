@@ -4,16 +4,16 @@ import artiq.coredevice.exceptions as exceptions
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 from artiq.compiler.embedding import EmbeddingMap
-from artiq.coredevice.core import raise_exception
+from artiq.coredevice.core import test_exception_id_sync
 
 """
 Test sync in exceptions raised between host and kernel
-Check artiq.compiler.embedding and artiq.frontend.ksupport.eh_artiq
+Check `artiq.compiler.embedding` and `artiq::firmware::ksupport::eh_artiq`
 
 Considers the following two cases:
     1) Exception raised on kernel and passed to host
-    2) Exception raised in host function called from kernel
-Ensures integirty of exceptions is maintained as it passes between kernel and host
+    2) Exception raised in a host function called from kernel
+Ensures same exception is raised on both kernel and host in either case
 """
 
 exception_names = EmbeddingMap().str_reverse_map
@@ -35,7 +35,7 @@ class _TestExceptionSync(EnvExperiment):
 
     @kernel
     def raise_exception_kernel(self, id):
-        raise_exception(id)
+        test_exception_id_sync(id)
 
     
 class ExceptionTest(ExperimentCase):
