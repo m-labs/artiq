@@ -57,9 +57,9 @@ class EmbeddingMap:
         self.str_forward_map = {}
         self.str_reverse_map = {}
 
-        # Keep this list of exceptions in sync with `EXCEPTION_ID_LOOKUP` in `artiq.firmware.ksupport.eh_artiq``
-        # The exceptions declared here should be defined in `artiq.coredeive.exceptions``
-        # Without sync, test cases in artiq.test.coredevice.test_exceptions would fail
+        # Keep this list of exceptions in sync with `EXCEPTION_ID_LOOKUP` in `artiq::firmware::ksupport::eh_artiq`
+        # The exceptions declared here must be defined in `artiq.coredevice.exceptions`
+        # Verify synchronization by running the test cases in `artiq.test.coredevice.test_exceptions`
         self.preallocate_runtime_exception_names([
             "RTIOUnderflow",
             "RTIOOverflow",
