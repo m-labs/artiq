@@ -19,7 +19,7 @@ Starting your first experiment with the master
 
 In the previous tutorial, we used the :mod:`~artiq.frontend.artiq_run` utility to execute our experiments, which is a simple standalone tool that bypasses the management system. We will now see how to run an experiment using the master and the dashboard.
 
-First, create a folder ``~/artiq-master`` and copy into it the ``device_db.py`` for your system (your device database, exactly as in :ref:`connecting-to-the-core-device`.) The master uses the device database in the same way as :mod:`~artiq.frontend.artiq_run` when communicating with the core device. Since no devices are actually used in these examples, you can also use the ``device_db.py`` found in ``examples/no_hardware``.
+First, create a folder ``~/artiq-master`` and copy into it the ``device_db.py`` for your system (your device database, exactly as in :doc:`getting_started_core`.) The master uses the device database in the same way as :mod:`~artiq.frontend.artiq_run` when communicating with the core device. Since no devices are actually used in these examples, you can also use the ``device_db.py`` found in ``examples/no_hardware``.
 
 Secondly, create a subfolder ``~/artiq-master/repository`` to contain experiments. By default, the master scans for a folder of this name to determine what experiments are available. If you'd prefer to use a different name, this can be changed by running ``artiq_master -r [folder name]`` instead of ``artiq_master`` below.
 
@@ -238,7 +238,7 @@ The :ref:`rtio-analyzer-example` is fully integrated into the dashboard. Navigat
 Non-RTIO devices and the controller manager
 -------------------------------------------
 
-As described in :ref:`artiq-real-time-i-o-concepts`, there are two classes of equipment a laboratory typically finds itself needing to operate. So far, we have largely discussed ARTIQ in terms of one only: the kind of specialized hardware that requires the very high-resolution timing control ARTIQ provides. The other class comprises the broad range of regular, "slow" laboratory devices, which do *not* require nanosecond precision and can generally be operated perfectly well from a regular PC over a non-realtime channel such as USB.
+As described in :doc:`rtio`, there are two classes of equipment a laboratory typically finds itself needing to operate. So far, we have largely discussed ARTIQ in terms of one only: the kind of specialized hardware that requires the very high-resolution timing control ARTIQ provides. The other class comprises the broad range of regular, "slow" laboratory devices, which do *not* require nanosecond precision and can generally be operated perfectly well from a regular PC over a non-realtime channel such as USB.
 
 To handle these "slow" devices, ARTIQ uses *controllers*, intermediate pieces of software which are responsible for the direct I/O to these devices and offer RPC interfaces to the network. Controllers can be started and run standalone, but are generally handled through the *controller manager*, available through the ``artiq-comtools`` package (normally automatically installed together with ARTIQ.) The controller manager in turn communicates with the ARTIQ master, and through it with clients or the GUI.
 

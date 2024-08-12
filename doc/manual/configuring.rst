@@ -75,12 +75,12 @@ Configuring the core device
 ---------------------------
 
 .. note::
-  The following steps are optional, and you only need to execute them if they are necessary for your specific system. To learn more about how ARTIQ works and how to use it first, you might skip to the next page, :doc:`rtio`. For all configuration options, the core device generally must be restarted for changes to take effect.
+  The following steps are optional, and you only need to execute them if they are necessary for your specific system. To learn more about how ARTIQ works and how to use it first, you might skip to the first tutorial page, :doc:`rtio`. For all configuration options, the core device generally must be restarted for changes to take effect.
 
 Flash idle and/or startup kernel
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The *idle kernel* is the kernel (that is, a piece of code running on the core device; see :doc:`the next page <rtio>` for further explanation) which the core device runs in between experiments and whenever not connected to the host. It is saved directly to the core device's flash storage in compiled form. Potential uses include cleanup of the environment between experiments, state maintenance for certain hardware, or anything else that should run continuously whenever the system is not otherwise occupied.
+The *idle kernel* is the kernel (that is, a piece of code running on the core device; see :doc:`rtio` for further explanation) which the core device runs in between experiments and whenever not connected to the host. It is saved directly to the core device's flash storage in compiled form. Potential uses include cleanup of the environment between experiments, state maintenance for certain hardware, or anything else that should run continuously whenever the system is not otherwise occupied.
 
 To flash an idle kernel, first write an idle experiment. Note that since the idle kernel runs regardless of whether the core device is connected to the host, remote procedure calls or RPCs (functions called by a kernel to run on the host) are forbidden and the ``run()`` method must be a kernel marked with ``@kernel``. Once written, you can compile and flash your idle experiment: ::
 
