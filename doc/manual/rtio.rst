@@ -1,6 +1,4 @@
-.. _artiq-real-time-i-o-concepts:
-
-ARTIQ Real-Time I/O Concepts
+ARTIQ Real-Time I/O concepts
 ============================
 
 The ARTIQ Real-Time I/O design employs several concepts to achieve its goals of high timing resolution on the nanosecond scale and low latency on the microsecond scale while still not sacrificing a readable and extensible language.

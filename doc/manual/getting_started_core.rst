@@ -1,11 +1,6 @@
 Getting started with the core language
 ======================================
 
-.. _connecting-to-the-core-device:
-
-Connecting to the core device
------------------------------
-
 As a very first step, we will turn on a LED on the core device. Create a file ``led.py`` containing the following: ::
 
     from artiq.experiment import *
@@ -75,7 +70,7 @@ What happens is that the ARTIQ compiler notices that the ``input_led_state`` fun
 
 The return type of all RPC functions must be known in advance. If the return value is not ``None``, the compiler requires a type annotation, like ``-> TBool`` in the example above. See also :ref:`compiler-types`.
 
-Without the :meth:`~artiq.coredevice.core.Core.break_realtime` call, the RTIO events emitted by :meth:`self.led.on() <artiq.coredevice.ttl.TTLInOut.on>` or :meth:`self.led.off() <artiq.coredevice.ttl.TTLInOut.off>` would be scheduled at a fixed and very short delay after entering :meth:`~artiq.language.environment.Experiment.run()`. These events would fail because the RPC to ``input_led_state()`` can take an arbitrarily long amount of time, and therefore the deadline for the submission of RTIO events would have long passed when :meth:`self.led.on() <artiq.coredevice.ttl.TTLInOut.on>` or :meth:`self.led.off() <artiq.coredevice.ttl.TTLInOut.off>` are called (that is, the ``rtio_counter_mu`` wall clock will have advanced far ahead of the timeline cursor ``now_mu``, and an :exc:`~artiq.coredevice.exceptions.RTIOUnderflow` would result; see :ref:`artiq-real-time-i-o-concepts` for the full explanation of wall clock vs. timeline.) The :meth:`~artiq.coredevice.core.Core.break_realtime` call is necessary to waive the real-time requirements of the LED state change. Rather than delaying by any particular time interval, it reads ``rtio_counter_mu`` and moves up the ``now_mu`` cursor far enough to ensure it's once again safely ahead of the wall clock.
+Without the :meth:`~artiq.coredevice.core.Core.break_realtime` call, the RTIO events emitted by :meth:`self.led.on() <artiq.coredevice.ttl.TTLInOut.on>` or :meth:`self.led.off() <artiq.coredevice.ttl.TTLInOut.off>` would be scheduled at a fixed and very short delay after entering :meth:`~artiq.language.environment.Experiment.run()`. These events would fail because the RPC to ``input_led_state()`` can take an arbitrarily long amount of time, and therefore the deadline for the submission of RTIO events would have long passed when :meth:`self.led.on() <artiq.coredevice.ttl.TTLInOut.on>` or :meth:`self.led.off() <artiq.coredevice.ttl.TTLInOut.off>` are called (that is, the ``rtio_counter_mu`` wall clock will have advanced far ahead of the timeline cursor ``now_mu``, and an :exc:`~artiq.coredevice.exceptions.RTIOUnderflow` would result; see :doc:`rtio` for the full explanation of wall clock vs. timeline.) The :meth:`~artiq.coredevice.core.Core.break_realtime` call is necessary to waive the real-time requirements of the LED state change. Rather than delaying by any particular time interval, it reads ``rtio_counter_mu`` and moves up the ``now_mu`` cursor far enough to ensure it's once again safely ahead of the wall clock.
 
 Real-time Input/Output (RTIO)
 -----------------------------
@@ -198,7 +193,6 @@ RTIO analyzer
 The core device records the real-time I/O waveforms into a circular buffer. It is possible to dump any Python object so that it appears alongside the waveforms using the ``rtio_log`` function, which accepts a channel name (i.e. a log target) as the first argument: ::
 
     from artiq.experiment import *
-
 
     class Tutorial(EnvExperiment):
         def build(self):
