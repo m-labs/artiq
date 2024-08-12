@@ -1,5 +1,3 @@
-.. _drtio-and-subkernels:
-
 Using DRTIO and subkernels
 ==========================
 
