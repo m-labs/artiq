@@ -173,4 +173,11 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(spi_set_config = ::nrt_bus::spi::set_config),
     api!(spi_write = ::nrt_bus::spi::write),
     api!(spi_read = ::nrt_bus::spi::read),
+
+    /*
+     * syscall for unit tests
+     * Used in `artiq.tests.coredevice.test_exceptions.ExceptionTest.test_raise_exceptions_kernel`
+     * `EmbeddingMap` (`artiq.compiler.embedding`) and `EXCEPTION_ID_LOOKUP` (`artiq.firmware.ksupport.eh_artiq`)
+     */
+    api!(test_exception_id_sync = ::eh_artiq::test_exception_id_sync)
 ];
