@@ -177,7 +177,8 @@ static mut API: &'static [(&'static str, *const ())] = &[
     /*
      * syscall for unit tests
      * Used in `artiq.tests.coredevice.test_exceptions.ExceptionTest.test_raise_exceptions_kernel`
-     * `EmbeddingMap` (`artiq.compiler.embedding`) and `EXCEPTION_ID_LOOKUP` (`artiq.firmware.ksupport.eh_artiq`)
+     * This syscall checks that the exception IDs used in the Python `EmbeddingMap` (in `artiq.compiler.embedding`)
+     * match the `EXCEPTION_ID_LOOKUP` defined in the firmware (`artiq::firmware::ksupport::eh_artiq`)
      */
     api!(test_exception_id_sync = ::eh_artiq::test_exception_id_sync)
 ];

@@ -54,7 +54,7 @@ def rtio_get_counter() -> TInt64:
     raise NotImplementedError("syscall not simulated")
 
 @syscall
-def raise_exception(id: TInt32) -> TNone:
+def test_exception_id_sync(id: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 def get_target_cls(target):
