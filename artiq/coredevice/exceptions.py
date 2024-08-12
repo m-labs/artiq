@@ -7,10 +7,10 @@ from artiq import __artiq_dir__ as artiq_dir
 from artiq.coredevice.runtime import source_loader
 
 """
-This file should provide class definition for all the exceptions declared in `EmbeddingMap` in artiq.compiler.embedding
+This file provides class definition for all the exceptions declared in `EmbeddingMap` in `artiq.compiler.embedding`
 
-For python builtin exceptions, use the `builtins` module
-For artiq specific exceptions, inherit from `Exception` class
+For Python builtin exceptions, use the `builtins` module
+For ARTIQ specific exceptions, inherit from `Exception` class
 """
 
 AssertionError = builtins.AssertionError
