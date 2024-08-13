@@ -59,6 +59,9 @@ In our case, we only need to supply our dataset to the applet to be plotted. Nav
 
 Run the experiment again, and observe how the points are added as they are generated to the plot in the applet window.
 
+.. tip::
+    Datasets and applets can both be arranged in groups for organizational purposes. (In fact, so can arguments; see the reference of :meth:`~artiq.language.environment.HasEnvironment.setattr_argument`). For datasets, use a dot (``.``) in names to separate folders. For applets, left-click in the applet list to see the option 'Create Group'. You can drag and drop to move applets in and out of groups, or select a particular group with a click to create new applets in that group. Deselect applets or groups with CTRL+click.
+
 The ARTIQ browser
 ^^^^^^^^^^^^^^^^^
 
