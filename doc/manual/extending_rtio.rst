@@ -30,20 +30,20 @@ Introduction to the ARTIQ internal stack
     \node[draw=primary, fill=white] (hardware) at (0, 2) {Hardware: \it{Sinara ecosystem}};
 
     \begin{pgfonlayer}{bg}
-        \draw[primary, -{Stealth}, dotted, thick] (frontend.south) to [out=-180, in=-180] (firmware.west);
-        \draw[primary, -{Stealth}, dotted, thick] (frontend) to (software);
+        \draw[primary, ->, dotted, thick] (frontend.south) to [out=-180, in=-180] (firmware.west);
+        \draw[primary, ->, dotted, thick] (frontend) to (software);
     \end{pgfonlayer}
-    \draw[primary, -{Stealth}] (firmware) to (software);
-    \draw[primary, -{Stealth}] (gateware) to (firmware);
-    \draw[primary, -{Stealth}] (hardware) to (gateware);
+    \draw[primary, ->] (firmware) to (software);
+    \draw[primary, ->] (gateware) to (firmware);
+    \draw[primary, ->] (hardware) to (gateware);
 
 Like any other modern piece of software, kernel code running on an ARTIQ core device rests upon a layered infrastructure, starting with the hardware: the physical carrier board and its peripherals. Generally, though not exclusively, this is the `Sinara device family <https://m-labs.hk/experiment-control/sinara-core/>`_, which is designed to work with ARTIQ. Other carrier boards, such as the Xilinx KC705 and ZC706, are also supported.
 
-All ARTIQ of the ore device carrier boards necessarily center around a physical field-programmable gate array, or FPGA. If you have never worked with FPGAs before, it is easiest to understand them as 'rearrangeable' circuits. Ideally, they are capable of the tremendous speed and reliability advantages of custom-designed, application-specific hardware, while still being reprogrammable, allowing development and revision to continue after manufacturing.
+All of the ARTIQ core device carrier boards necessarily center around a physical field-programmable gate array, or FPGA. If you have never worked with FPGAs before, it is easiest to understand them as 'rearrangeable' circuits. Ideally, they are capable of approaching the tremendous speed and timing precision advantages of custom-designed, application-specific hardware, while still being reprogrammable, allowing development and revision to continue after manufacturing.
 
-The 'configuration' of an FPGA, the circuit design it is programmed with, is its *gateware*. Gateware is not software, and is not written in programming languges. Rather, it is written in a *hardware description language,* of which the most common are VHDL and Verilog. The ARTIQ codebase uses a set of tools called `Migen <https://m-labs.hk/gateware/migen/>`_ to write hardware description in a subset of Python, which is later translated to Verilog behind the scenes. This has the advantage of preserving much of the flexibility and convenience of Python as a programming language, but shouldn't be mistaken for it *being* Python, or functioning like Python. (MiSoC, built on Migen, is used to implement softcore -- i.e. 'programmed', on-FPGA, not hardwired -- CPUs on Kasli and KC75. Zynq devices contain 'hardcore' ARM CPUs already and correspondingly make less intensive use of MiSoC.)
+The 'configuration' of an FPGA, the circuit design it is programmed with, is its *gateware*. Gateware is not software, and is not written in programming languges. Rather, it is written in a *hardware description language,* of which the most common are VHDL and Verilog. The ARTIQ codebase uses a set of tools called `Migen <https://m-labs.hk/gateware/migen/>`_ to write hardware description in a subset of Python, which is later translated to Verilog behind the scenes. This has the advantage of preserving much of the flexibility and convenience of Python as a programming language, but shouldn't be mistaken for it *being* Python, or functioning like Python. (MiSoC, built on Migen, is used to implement softcore -- i.e. 'programmed', on-FPGA, not hardwired -- CPUs on Kasli and KC705. Zynq devices contain 'hardcore' ARM CPUs already and correspondingly make relatively less intensive use of MiSoC.)
 
-The low-level software that runs directly on the core device's CPU, softcore or hardcore, is its *firmware.* This is the 'operating system' of the core device. The firmware is tasked, among other things, with handling the low-level communication between core devices, as well as between the core device and the host machine. It is written in bare-metal `Rust <https://www.rust-lang.org/>`__. There are currently two active versions of the ARTIQ firmware (the form used for ARTIQ-Zynq, NAR3, is more modern than that used on Kasli and KC705, and will eventually replace it) but they are largely equivalent except for internal details.
+The low-level software that runs directly on the core device's CPU, softcore or hardcore, is its *firmware.* This is the 'operating system' of the core device. The firmware is tasked, among other things, with handling the low-level communication between the core device and the host machine, as well as between the core devices in a DRTIO setting. It is written in bare-metal `Rust <https://www.rust-lang.org/>`__. There are currently two active versions of the ARTIQ firmware (the version used for ARTIQ-Zynq, NAR3, is more modern than that used on Kasli and KC705, and will likely eventually replace it) but they are functionally equivalent except for internal details.
 
 Experiment kernels themselves -- ARTIQ Python, processed by the ARTIQ compiler and loaded from the host machine -- rest on top of and are framed and supported by the firmware, in the same sense way that application software on your PC rests on top of an operating system. All together, software kernels communicate with the firmware to set parameters for the gateware, which passes signals directly to the hardware.
 
@@ -55,7 +55,7 @@ Extending gateware logic
 As briefly explained in :doc:`rtio`, when we talk about RTIO infrastructure, we are primarily speaking of structures implemented in gateware. The FIFO banks which hold scheduled output events or recorded input events, for example, are in gateware. Sequence errors, overflow exceptions, event spreading, and so on, happen in the gateware. In some cases, you may want to make relatively simple, parametric changes to existing RTIO, like changing the sizes of certain queues. In this case, it can be as simple as tracking down the part of the code where this parameter is set, changing it, and :doc:`rebuilding the binaries <building_developing>`.
 
 .. warning::
-    Note that FPGA resources are finite, and buffer sizes, lane counts, etc., are generally chosen to maximize available resources already, with different values depending on the core device in use. Blanket increases will likely quickly outstrip the capacity of your FPGA and fail to build. Increasing the depth of a particular channel you know to be heavily used is more likely to succeed; the easiest way to find out is to attempt the build and observe what results.
+    Note that FPGA resources are finite, and buffer sizes, lane counts, etc., are generally chosen to maximize available resources already, with different values depending on the core device in use. Depending on the peripherals you include (some are more resource-intensive than others) blanket increases will likely quickly outstrip the capacity of your FPGA and fail to build. Increasing the depth of a particular channel you know to be heavily used is more likely to succeed; the easiest way to find out is to attempt the build and observe what results.
 
 Gateware in ARTIQ is housed in ``artiq/gateware`` on the main ARTIQ repository and (for Zynq-specific additions) in ``artiq-zynq/src/gateware`` on ARTIQ-Zynq. The starting point for figuring out your changes will often be the *target file*, which is core device-specific and which you may recognize as the primary module called when building gateware. Depending on your core device, simply track down the file named after it, as in ``kasli.py``, ``kasli_soc.py``, and so on. Note that the Kasli and Kasli-SoC targets are designed to take JSON description files as input, whereas their KC705 and ZC706 equivalents work with hardcoded variants instead.
 
@@ -72,9 +72,9 @@ To demonstrate how RTIO can be *extended,* on the other hand, we will develop a 
 .. warning::
     If you have never worked with a hardware description language before, it is important to understand that hardware description is fundamentally different to programming in a language like Python or Rust. At its most basic, a program is a set of instructions: a step-by-step guide to a task you want to see performed, where each step is written, and executed, principally in sequence. In contrast, hardware description is *a description*. It specifies the static state of a piece of hardware. There are no 'steps', and no chronological execution, only stated facts about how the system should be built.
 
-    The examples we will handle in this tutorial are simple, and Migen makes for a much more manageable syntax than traditional languages like VHDL and Verilog, but keep in mind that we are describing how a system connects and interlocks its signals, *not* operations it should perform.
+    The examples we will handle in this tutorial are simple, and you will likely find Migen much more readable than traditional languages like VHDL and Verilog, but keep in mind that we are describing how a system connects and interlocks its signals, *not* operations it should perform.
 
-Normally, the PHY module used for LEDs is the ``Output`` of ``ttl_simple.py``. Take a look at its source code. Note that values like ``override`` and ``probes`` exist to support RTIO MonInj -- ``probes`` for monitoring, ``override`` for injection -- and are not involved with normal control of the output. Note also that ``pad``, among  engineers, refers to an input/output pad, i.e. a physical connection through which signals are sent. ``pad_n`` is its negative pair, necessary only for certain kinds of TTLs and not applicable to LEDs.
+Normally, the PHY module used for LEDs is the ``Output`` of ``ttl_simple.py``. Take a look at its source code. Note that values like ``override`` and ``probes`` exist to support RTIO MonInj -- ``probes`` for monitoring, ``override`` for injection -- and are not involved with normal control of the output. Note also that ``pad``, among FPGA engineers, refers to an input/output pad, i.e. a physical connection through which signals are sent. ``pad_n`` is its negative pair, necessary only for certain kinds of TTLs and not applicable to LEDs.
 
 Interface and signals
 """""""""""""""""""""
@@ -97,12 +97,12 @@ To get started, create a new file in ``gateware/rtio/phy``. Call it ``linked_led
         def __init__(self, pad0, pad1):
             self.rtlink = rtlink.Interface(rtlink.OInterface(2))
 
-In our example, rather than controlling both LEDs manually using ``on`` and ``off``, which is the functionality ``ttl_simple.py`` provides, we will control one LED manually and have the gateware determine the value of the other based on the first. This same logic would be easy (in fact, much easier) to implement in ARTIQ Python; the advantage of placing it in gateware is that logic in gateware is *extremely fast,* in effect 'instant', i.e., completed within a single clock cycle. Rather than waiting for a CPU to process and respond to instructions, a response can happen at the speed of electronics.
+In our example, rather than controlling both LEDs manually using ``on`` and ``off``, which is the functionality ``ttl_simple.py`` provides, we will control one LED manually and have the gateware determine the value of the other based on the first. This same logic would be easy (in fact, much easier) to implement in ARTIQ Python; the advantage of placing it in gateware is that logic in gateware is *extremely fast,* in effect 'instant', i.e., completed within a single clock cycle. Rather than waiting for a CPU to process and respond to instructions, a response can happen at the speed of a dedicated logic circuit.
 
 .. note::
-    The truth is naturally more complicated, and it depends how complex the logic in question is. An overlong chain of gateware logic will fail to settle within a single RTIO clock cycle, causing a wide array of potential problems that are difficult to diagnose and difficult to fix; the only solutions are to simplify the logic, deliberately split it across multiple clock cycles (correspondingly increasing latency), or to decrease the speed of the clock (increasing latency for *everything* the device does).
+    Naturally, the truth is more complicated, and depends heavily on how complex the logic in question is. An overlong chain of gateware logic will fail to settle within a single RTIO clock cycle, causing a wide array of potential problems that are difficult to diagnose and difficult to fix; the only solutions are to simplify the logic, deliberately split it across multiple clock cycles (correspondingly increasing latency), or to decrease the speed of the clock (increasing latency for *everything* the device does).
 
-    Suffice to say that you are unlikely to encounter timing failures with the kind of simple logic demonstrated in this tutorial, and that designing gateware logic to run in as few cycles as possible without 'failing timing' is an engineering discipline in itself, and indeed much of what FPGA developers spend their time on.
+    For now, it's enough to say that you are unlikely to encounter timing failures with the kind of simple logic demonstrated in this tutorial. Indeed, designing gateware logic to run in as few cycles as possible without 'failing timing' is an engineering discipline in itself, and much of what FPGA developers spend their time on.
 
 In practice, of course, since ARTIQ explicitly allows scheduling simultaneous output events to different channels, there's still no reason to make gateware modifications to accomplish this. After all, leveraging the real-time capabilities of customized gateware without making it necessary to *write* it is much of the point of ARTIQ as a system. Only in more complex cases, such as directly binding inputs to outputs without feeding back through the CPU, might gateware-level additions become necessary.
 
@@ -110,53 +110,54 @@ For now, add two intermediate signals for our logic, instances of the Migen ``Si
 
     def __init__(self, pad0, pad1):
         self.rtlink = rtlink.Interface(rtlink.OInterface(2))
-        sync = Signal()
+        reg = Signal()
         pad0_o = Signal()
 
 .. note::
-    Note that a gateware 'signal' is not a signal in the sense of being a piece of transmitted information. Rather, it represents a channel, which bits of information can be held in. To conceptualize a Migen ``Signal``, take it as a kind of register: a box that holds a certain number of bits, and can update those bits from an input, or broadcast them to an output connection. The number of bits is arbitrary, e.g., a ``Signal(2)`` will be two bits wide, but in our example we handle only single-bit registers.
+    A gateware 'signal' is not a signal in the sense of being a piece of transmitted information. Rather, it represents a channel, which bits of information can be held in. To conceptualize a Migen ``Signal``, take it as a kind of register: a box that holds a certain number of bits, and can update those bits from an input, or broadcast them to an output connection. The number of bits is arbitrary, e.g., a ``Signal(2)`` will be two bits wide, but in our example we handle only single-bit registers.
 
 These are our inputs, outputs, and intermediate signals. By convention, in Migen, these definitions are all made at the beginning of a module, and separated from the logic that interconnects them with a line containing the three symbols ``###``. See also ``ttl_simple.py`` and other modules.
 
-Since hardware description is not linear or chronological, nothing strictly prevents us from making these statements in any other order -- in fact, except for syntax, nothing particularly prevents us from defining the connections between the signals before we define the signals themselves -- but for readable and maintainable code, this format is vastly preferrable.
+Since hardware description is not linear or chronological, nothing conceptually prevents us from making these statements in any other order -- in fact, except for the practicalities of code execution, nothing particularly prevents us from defining the connections between the signals before we define the signals themselves -- but for readable and maintainable code, this format is vastly preferrable.
 
 Combinatorial and synchronous statements
 """"""""""""""""""""""""""""""""""""""""
 
-After the ``###`` separator, we will set the connecting logic. A Migen ``Module`` has several special attributes, to which different logical statements can be assigned. We will be using ``self.sync``, for synchronous statements, and ``self.comb``, for combinatorial statements. If a statement is *synchronous*, it is only updated once per clock cycle, i.e. at the next tick of the clock. If a statement is *combinatorial*, it is updated whenever one of its inputs change, i.e. 'instantly'.
+After the ``###`` separator, we will set the connecting logic. A Migen ``Module`` has several special attributes, to which different logical statements can be assigned. We will be using ``self.sync``, for synchronous statements, and ``self.comb``, for combinatorial statements. If a statement is *synchronous*, it is only updated once per clock cycle, i.e. when the clock ticks. If a statement is *combinatorial*, it is updated whenever one of its inputs change, i.e. 'instantly'.
 
 Add a synchronous block as follows: ::
 
     self.sync.rio_phy += [
         If(self.rtlink.o.stb,
             pad0_o.eq(self.rtlink.o.data[0] ^ pad0_o),
-            sync.eq(self.rtlink.o.data[1])
+            reg.eq(self.rtlink.o.data[1])
         )
     ]
 
-In other words, at every tick of the ``rtio_phy`` clock, if the ``rtlink`` strobe signal (which is set to high when the data is valid, i.e., when an output event has just reached the PHY) is high, the ``pad0_o`` and ``sync`` registers are updated according to the input data on ``rtlink``.
+In other words, at every tick of the ``rtio_phy`` clock, if the ``rtlink`` strobe signal (which is set to high when the data is valid, i.e., when an output event has just reached the PHY) is high, the ``pad0_o`` and ``reg`` registers are updated according to the input data on ``rtlink``.
 
-``sync`` is simply set equal to the incoming bit. ``pad0_o``, on the other hand, flips its old value if the input is ``1``, and keeps it if the input is ``0``. Note that ``^``, which you may know as the Python notation for a bitwise XOR operation, here simply represents a XOR gate. In summary, we can flip the value of ``pad0`` with the first bit of the interface, and set the value of ``sync`` with the other.
+.. note::
+    Notice that, in a standard synchronous block, it makes no difference how or how many times the inputs to an ``.eq()`` statement change or fluctuate. The output is updated *exactly once* per cycle, at the tick, according to the instantaneous state of the inputs in that moment. In between ticks and during the clock cycle, it remains stable at the last updated level, no matter the state of the inputs. This stability is vital for the broader functioning of synchronous circuits, even though 'waiting for the tick' adds latency to the update.
+
+``reg`` is simply set equal to the incoming bit. ``pad0_o``, on the other hand, flips its old value if the input is ``1``, and keeps it if the input is ``0``. Note that ``^``, which you may know as the Python notation for a bitwise XOR operation, here simply represents a XOR gate. In summary, we can flip the value of ``pad0`` with the first bit of the interface, and set the value of ``reg`` with the other.
 
 Add the combinatorial block as follows: ::
 
     self.comb += [
         pad0.eq(pad0_o),
-        If(sync,
+        If(reg,
             pad1.eq(pad0_k)
         )
     ]
 
-The output ``pad0`` is continuously connected to the value of the ``pad0_o`` register. The output of ``pad1`` is set equal to that of ``pad0``, but only if the ``sync`` register is high, or ``1``.
+The output ``pad0`` is continuously connected to the value of the ``pad0_o`` register. The output of ``pad1`` is set equal to that of ``pad0``, but only if the ``reg`` register is high, or ``1``.
 
-The module is now capable of accepting RTIO output events and applying them to the hardware outputs. What we can't yet do is generate these output events in an ARTIQ kernel. To do that, we need to a core device driver.
+The module is now capable of accepting RTIO output events and applying them to the hardware outputs. What we can't yet do is generate these output events in an ARTIQ kernel. To do that, we need to add a core device driver.
 
 Adding a core device driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If you have been writing ARTIQ experiments for any length of time, you will already be familiar with the core device drivers. Their reference is kept in this manual on the page :doc:`core_drivers_reference`; their methods are commonly used to manipulate the core device and its close peripherals.
-
-Source code for these drivers is kept in the directory ``artiq/coredevice``. Create a new file, again called ``linked_led.py``, in this directory.
+If you have been writing ARTIQ experiments for any length of time, you will already be familiar with the core device drivers. Their reference is kept in this manual on the page :doc:`core_drivers_reference`; their methods are commonly used to manipulate the core device and its close peripherals. Source code for these drivers is kept in the directory ``artiq/coredevice``. Create a new file, again called ``linked_led.py``, in this directory.
 
 The drivers are software, not gateware, and they are written in regular ARTIQ Python. They use methods given in ``coredevice/rtio.py`` to queue input and output events to RTIO channels. We will start with its ``__init__``, the method ``get_rtio_channels`` (which is formulaic, and exists only to be used by :meth:`~artiq.frontend.artiq_rtiomap`), and a output set method ``set_o``: ::
 
@@ -179,22 +180,26 @@ The drivers are software, not gateware, and they are written in regular ARTIQ Py
         def set_o(self, o):
             rtio_output(self.target_o, o)
 
+.. note::
+
+    ``rtio_output()`` is one of four methods given in ``coredevice/rtio.py``, which provides an interface with lower layers of the system. You can think of it ultimately as representing the other side of the ``Interface`` we requested in our Migen module.
+
 Now we can write the kernel API. In the gateware, bit 0 flips the value of the first pad: ::
 
         @kernel
         def flip_led(self):
             self.set_o(0b01)
 
-and bit 1 synchronizes the second pad to the first: ::
+and bit 1 connects the second pad to the first: ::
 
         @kernel
-        def set_sync(self):
+        def link_up(self):
             self.set_o(0b10)
 
 There's no reason we can't do both at the same time: ::
 
         @kernel
-        def flip_and_sync(self):
+        def flip_together(self):
             self.set_o(0b11)
 
 Target and device database
@@ -210,13 +215,14 @@ Our ``linked_led`` PHY module exists, but in order for it to be generated as par
 
 Edit the code so that, rather than assigning a separate PHY and channel to each LED, two of the LEDs are grouped together in ``linked_led``. You might use something like: ::
 
+    print("Linked LEDs at:", len(rtio_channels))
     phy = linked_led.Output(self.platform.request("user_led", 0), self.platform.request("user_led", 1))
     self.submodules += phy
     self.rtio_channels.append(rtio.Channel.from_phy(phy))
 
-Save the target file, under a different name if you prefer. Follow the instructions in :doc:`building_developing` to build the gateware, being sure to use your edited target file for the gateware, and flash your core device, for simplicity preferably a standalone configuration without peripherals.
+Save the target file, under a different name if you prefer. Follow the instructions in :doc:`building_developing` to build a set of binaries, being sure to use your edited target file for the gateware, and flash your core device, for simplicity preferably in a standalone configuration without peripherals.
 
-Correspondingly, before you can access your new core device driver from a kernel, it must be added to your device database. Find your ``device_db.py``. Delete the entries dedicated to the user LEDs that you have repurposed; if you tried to control those LEDs using the standard TTL interfaces now, the corresponding gateware would be missing anyway. Add an entry with your new driver, as in: ::
+Now, before you can access your new core device driver from a kernel, it must be added to your device database. Find your ``device_db.py``. Delete the entries dedicated to the user LEDs that you have repurposed; if you tried to control those LEDs using the standard TTL interfaces now, the corresponding gateware would be missing anyway. Add an entry with your new driver, as in: ::
 
     device_db["leds"] = {
         "type": "local",
@@ -226,7 +232,7 @@ Correspondingly, before you can access your new core device driver from a kernel
     }
 
 .. warning::
-    Channel numbers are assigned sequentially in each time ``rtio_channels.append()`` is called. Since we assigned the channel for our linked LEDs in the same location as the old user LEDs, we can trust that the correct channel number will be that previously used for the first LED -- check the unedited device database first to make certain.
+    Channel numbers are assigned sequentially each time ``rtio_channels.append()`` is called. Since we assigned the channel for our linked LEDs in the same location as the old user LEDs, the correct channel number is likely simply the one previously used in your device database for the first LED. In any other case, however, the ``print()`` statement we added to the target file should tell us the exact canonical channel. Search through the console logs produced when generating the gateware to find the line starting with ``Linked LEDs at:``.
 
     Depending on how your device database was written, note that the channel numbers for other peripherals, if they are present, *will have changed*, and :meth:`~artiq.frontend.artiq_ddb_template` will not generate their numbers correctly unless it is edited to match the new assignments of the user LEDs. For a longer-term gateware change, especially the addition of a new EEM card, ``artiq/frontend/artiq_ddb_template.py`` and ``artiq/coredevice/coredevice_generic.schema`` should be edited accordingly, so that system descriptions and device databases can continue to be parsed and generated correctly.
 
@@ -247,7 +253,7 @@ Now the device ``leds`` can be called from your device database, and its corresp
             self.core.reset()
             self.leds.flip_led()
 
-and ``sync.py``: ::
+and ``linkup.py``: ::
 
     from artiq.experiment import *
 
@@ -259,7 +265,7 @@ and ``sync.py``: ::
         @kernel
         def run(self):
             self.core.reset()
-            self.leds.set_sync()
+            self.leds.link_up()
 
 Run these and observe the results. Congratulations! You have successfully constructed an extension to the ARTIQ RTIO.
 
