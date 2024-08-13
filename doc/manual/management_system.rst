@@ -12,19 +12,30 @@ Master
 
 The :ref:`ARTIQ master <frontend-artiq-master>` is responsible for managing the parameter and device databases, the experiment repository, scheduling and running experiments, archiving results, and distributing real-time results. It is a headless component, and one or several clients (command-line or GUI) use the network to interact with it.
 
-It should not be confused with the 'master' device in a DRTIO system, which is only a designation for the particular core device acting as central node in a distributed configuration of ARTIQ. The two concepts are otherwise unrelated.
+The master expects to be given a directory on startup, the experiment repository, containing these experiments which are automatically tracked and communicated to clients. By default, it simply looks for a directory called ``repository``. The ``-r`` flag can be used to substitute an alternate location.
 
-Command-line client
-^^^^^^^^^^^^^^^^^^^
+It also expects access to a ``device_db.py``, with a corresponding flag ``--device-db`` to substitute a different file name. Additionally, it will reference or create certain files in the directory it is run in, among them ``dataset_db.mdb``, the LMDB database containing persistent datasets, ``last_rid.pyon``, which simply contains the last used RID, and the ``results`` directory.
 
-The :ref:`command-line client <frontend-artiq-client>` connects to the master and permits modification and monitoring of the databases, monitoring the experiment schedule and log, and submitting experiments.
+.. note::
+   Because the other parts of the management system all seem to be able to access the information stored in these files, confusion can sometimes result about where it is really stored and how it is distributed. Device databases, datasets, results, and experiments are all solely kept and administered by the master, which communicates information to dashboards, browsers, and clients over the network whenever necessary.
 
-Dashboard
-^^^^^^^^^
+   Notably, clients and dashboards do not send in experiments to the master; they request them from the array of experiments the master knows about, primarily those in ``repository``, but also in the master's local file system, if 'Open file outside repository' is selected. This is true even if ``repository`` is configured as a Git repository and cloned on other machines.
 
-The :ref:`dashboard <frontend-artiq-dashboard>` connects to the master and is the main method of interacting with it. The main features of the dashboard are scheduling of experiments, setting of their arguments, examining the schedule, displaying real-time results, and debugging TTL and DDS channels in real time.
+The ARTIQ master should not be confused with the 'master' device in a DRTIO system, which is only a designation for the particular core device acting as central node in a distributed configuration of ARTIQ. The two concepts are otherwise unrelated.
+
+Clients
+^^^^^^^
+
+The :ref:`command-line client <frontend-artiq-client>` connects to the master and permits modification and monitoring of the databases, reading the experiment schedule and log, and submitting experiments.
+
+The :ref:`dashboard <frontend-artiq-dashboard>` connects to the master and is the main method of interacting with it. The main roles of the dashboard are scheduling of experiments, setting of their arguments, examining the schedule, displaying real-time results, and debugging TTL and DDS channels in real time.
 
 The dashboard remembers and restores GUI state (window/dock positions, last values entered by the user, etc.) in between instances. This information is stored in a file called ``artiq_dashboard_{server}_{port}.pyon`` in the configuration directory (e.g. generally ``~/.config/artiq`` for Unix, same as data directory for Windows), distinguished in subfolders by ARTIQ version.
+
+Browser
+^^^^^^^
+
+The :ref:`browser <frontend-artiq-browser>` is used to read ARTIQ ``results`` HDF5 files and run experiment :meth:`~artiq.language.environment.Experiment.analyze` functions, in particular to retrieve previous result databases, process them, and display them in ARTIQ applets. The browser also remembers and restores its GUI state; this is stored in a file called simply ``artiq_browser``, kept in the same configuration directory as the dashboard.
 
 Controller manager
 ^^^^^^^^^^^^^^^^^^
@@ -36,16 +47,14 @@ A controller manager connects to the master and accesses the device database thr
 Git integration
 ---------------
 
-The master may use a Git repository to store experiment source code. Using Git has many advantages. For example, each result file (HDF5) contains the commit ID corresponding to the exact source code it was produced by, which helps reproducibility.
-
-Although the master also supports non-bare repositories, it is recommended to use a bare repository (e.g. ``git init --bare``) to easily support push transactions from clients.
+The master may use a Git repository to store experiment source code. Using Git has many advantages. For example, each result file (HDF5) contains the commit ID corresponding to the exact source code it was produced by, which helps reproducibility. Although the master also supports non-bare repositories, it is recommended to use a bare repository (e.g. ``git init --bare``) to easily support push transactions from clients.
 
 You will want Git to notify the master every time the repository is pushed to (e.g. updated), so that the master knows to rescan the repository for new or changed experiments. This is easiest done with the ``post-receive`` hook, as described in :ref:`master-setting-up-git`.
 
 .. note::
    If you plan to run the ARTIQ system entirely on a single machine, you may also consider using a non-bare repository and the ``post-commit`` hook to trigger repository scans every time you commit changes (locally). In this case, note that the ARTIQ master never uses the repository's working directory, but only what is committed. More precisely, when scanning the repository, it fetches the last (atomically) completed commit at that time of repository scan and checks it out in a temporary folder. This commit ID is used by default when subsequently submitting experiments. There is one temporary folder by commit ID currently referenced in the system, so concurrently running experiments from different repository revisions is fully supported by the master.
 
-By default, the dashboard runs experiments from the repository, whereas the command-line client (``artiq_client submit``) runs experiments from the raw filesystem (which is useful for iterating rapidly without creating many disorganized commits). In order to run from the raw filesystem when using the dashboard, right-click in the Explorer window and select the option "Open file outside repository"; in order to run from the repository when using the command-line client, simply pass the ``-R`` flag.
+By default, the dashboard runs experiments from the repository, whereas the command-line client (``artiq_client submit``) runs experiments from the raw filesystem (which is useful for iterating rapidly without creating many disorganized commits). In order to run from the raw filesystem when using the dashboard, right-click in the Explorer window and select the option 'Open file outside repository'. In order to run from the repository when using the command-line client, simply pass the ``-R`` flag.
 
 .. _experiment-scheduling:
 

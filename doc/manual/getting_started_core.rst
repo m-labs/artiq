@@ -1,5 +1,5 @@
-Getting started with the core language
-======================================
+Getting started with the core device
+====================================
 
 As a very first step, we will turn on a LED on the core device. Create a file ``led.py`` containing the following: ::
 
@@ -207,7 +207,7 @@ The core device records the real-time I/O waveforms into a circular buffer. It i
                 rtio_log("ttl0", "i", i)
                 delay(...)
 
-When using :mod:`~artiq.frontend.artiq_run`, the recorded data can be extracted using :mod:`~artiq.frontend.artiq_coreanalyzer`. To export it to VCD, which can be viewed using third-party tools such as GtkWave, use the command ``artiq_coreanalyzer -w rtio.vcd``. Recorded data can also be viewed directly with the ARTIQ dashboard, which will be presented later in :doc:`getting_started_mgmt`.
+When using :mod:`~artiq.frontend.artiq_run`, the recorded data can be extracted using :mod:`~artiq.frontend.artiq_coreanalyzer`. To export it to VCD, which can be viewed using third-party tools such as GtkWave, use a command in the form of ``artiq_coreanalyzer -w <file_name>.vcd``. Recorded data can also be viewed directly with the ARTIQ dashboard, which will be presented later in :doc:`getting_started_mgmt`.
 
 .. _getting-started-dma:
 
