@@ -1,27 +1,31 @@
-Getting started with the management system
-==========================================
+Using the management system
+===========================
 
-In practice, rather than managing experiments by executing :mod:`~artiq.frontend.artiq_run` over and over, most use cases are better served by using the ARTIQ *management system.* This is the high-level part of ARTIQ, which can be used to schedule experiments, distribute and store the results, and manage devices and parameters. It possesses a detailed GUI and can be used on several machines concurrently, allowing them to coordinate with each other and with the specialized hardware over the network. As a result, multiple users on different machines can schedule experiments or retrieve results on the same ARTIQ system, potentially simultaneously.
+In practice, rather than managing experiments by executing :mod:`~artiq.frontend.artiq_run` over and over, most use cases are better served by using the ARTIQ *management system*. This is the high-level application part of ARTIQ, which can be used to schedule experiments, manage devices and parameters, and distribute and store results. It also allows for distributed use of ARTIQ, with a single master coordinating demands on the system issued over the network by multiple clients. Using this system, multiple users on different machines can schedule experiments or analyze results on the same ARTIQ system, potentially simultaneously, without interfering with each other.
 
 The management system consists of at least two parts:
 
     a. the **ARTIQ master,** which runs on a single machine, facilitates communication with the core device and peripherals, and is responsible for most of the actual duties of the system,
-    b. one or more **ARTIQ clients,** which may be local or remote and which communicate only with the master. Both a GUI (the **dashboard**) and a straightforward command line client are provided, with many of the same capabilities.
+    b. one or more **ARTIQ clients,** which may be local or remote and which communicate only with the master. Both a GUI (the **dashboard**) and a straightforward **command line client** are provided, with many of the same capabilities.
 
 as well as, optionally,
 
-    c. one or more **controller managers**, which help coordinate the operation of certain (generally, non-realtime) classes of device.
+    c. one or more **controller managers**, which coordinate the operation of certain (generally, non-realtime) classes of device and provide certain services to the clients,
+    d. and one or more instances of the **ARTIQ browser**, a GUI application designed to facilitate the analysis of experiment results and datasets.
 
-In this tutorial, we will explore the basic operation of the management system. Because the various components of the management system run wholly on the host machine, and not on the core device (in other words, they do not inherently involve any kernel functions), it is not necessary to have a core device or any special hardware set up to use it. The examples in this tutorial can all be carried out using only your computer.
+In this tutorial, we will explore the basic operation of the management system. Because the various components of the management system run wholly on the host machine, and not on the core device (in other words, they do not inherently involve any kernel functions), it is not necessary to have a core device or any specialized hardware set up to use it. The examples in this tutorial can all be carried out using only your host computer.
 
-Starting your first experiment with the master
-----------------------------------------------
+Running your first experiment with the master
+---------------------------------------------
 
-In the previous tutorial, we used the :mod:`~artiq.frontend.artiq_run` utility to execute our experiments, which is a simple standalone tool that bypasses the management system. We will now see how to run an experiment using the master and the dashboard.
+Until now, we have executed experiments using :mod:`~artiq.frontend.artiq_run`, which is a simple standalone tool that bypasses the management system. We will now see how to run an experiment using a master and a client. In this arrangement, the master is responsible for communicating with the core device, scheduling and keeping track of experiments, and carrying out RPCs the core device may call for. Clients submit experiments to the master to be scheduled and, if necessary, query the master about the state of experiments and their results.
 
-First, create a folder ``~/artiq-master`` and copy into it the ``device_db.py`` for your system (your device database, exactly as in :doc:`getting_started_core`.) The master uses the device database in the same way as :mod:`~artiq.frontend.artiq_run` when communicating with the core device. Since no devices are actually used in these examples, you can also use the ``device_db.py`` found in ``examples/no_hardware``.
+First, create a folder called ``~/artiq-master``. Copy into it the ``device_db.py`` for your system (your device database, exactly as in :doc:`getting_started_core`); the master uses the device database in the same way as :mod:`~artiq.frontend.artiq_run` when communicating with the core device.
 
-Secondly, create a subfolder ``~/artiq-master/repository`` to contain experiments. By default, the master scans for a folder of this name to determine what experiments are available. If you'd prefer to use a different name, this can be changed by running ``artiq_master -r [folder name]`` instead of ``artiq_master`` below.
+.. tip::
+    Since no devices are actually used in these examples, you can also use a device database in the model of the ``device_db.py`` from ``examples/no_hardware``, which uses resources from ``artiq/sim`` instead of referencing or requiring any real local hardware.
+
+Secondly, create a subfolder ``~/artiq-master/repository`` to contain experiments. By default, the master scans for a folder of this name to determine what experiments are available; if you'd prefer to use a different name, this can be changed by running ``artiq_master -r [folder name]`` instead of ``artiq_master`` below. Experiments don't have to be in the repository to be submitted to the master, but the repository contains those experiments the master is automatically aware of.
 
 Create a very simple experiment in ``~/artiq-master/repository`` and save it as ``mgmt_tutorial.py``: ::
 
@@ -35,141 +39,160 @@ Create a very simple experiment in ``~/artiq-master/repository`` and save it as 
         def run(self):
             print("Hello World")
 
-
 Start the master with: ::
 
     $ cd ~/artiq-master
     $ artiq_master
 
-This last command should not return, as the master keeps running.
+This command should display ``ARTIQ master is now ready`` and not return, as the master keeps running. In another terminal, use the client to request this experiment: ::
 
-Now, start the dashboard with the following commands in another terminal: ::
+    $ artiq_client submit repository/mgmt_tutorial.py
 
-    $ cd ~
-    $ artiq_dashboard
+This command should print a message in the format ``RID: 0``, telling you the scheduling ID assigned to the experiment by the master, and exit. Note that it doesn't matter *where* the client is run; the client does not require direct access to ``device_db.py`` or the repository folder, and only directly communicates with the master. Relatedly, the path to an experiment a client submits is given relative to the location of the *master*, not the client.
 
-.. note::
-    In order to connect to a master over the network, start it with the command ::
+Return to the terminal where the master is running. You should see an output similar to: ::
 
-        $ artiq_master --bind [hostname or IP]
+    INFO:worker(0,mgmt_tutorial.py):print:Hello World
+
+In other words, a worker created by the master has executed the experiment, and carried out the print instruction. Congratulations!
+
+.. tip::
+
+    In order to run the master and the clients on different PCs, start the master with a ``--bind`` flag: ::
+
+        $ artiq_master --bind [hostname or IP to bind to]
 
     and then use the option ``--server`` or ``-s`` for clients, as in: ::
 
-        $ artiq_dashboard -s [hostname or IP of the master]
         $ artiq_client -s [hostname or IP of the master]
+        $ artiq_dashboard -s [hostname or IP of the master]
 
-    Both IPv4 and IPv6 are supported. See also the individual references at :mod:`~artiq.frontend.artiq_master`, :mod:`~artiq.frontend.artiq_dashboard`, and :mod:`~artiq.frontend.artiq_client`.
+    Both IPv4 and IPv6 are supported. See also the individual references :mod:`~artiq.frontend.artiq_master`, :mod:`~artiq.frontend.artiq_dashboard`, and :mod:`~artiq.frontend.artiq_client` for more details.
 
-The dashboard should display the list of experiments from the repository folder in a dock called "Explorer". There should be only the experiment we created. Select it and click "Submit", then look at the "Log" dock for the output from this simple experiment.
+You may also notice that the master has created some other organizational files in its home directory, notably a folder ``results``, where a HDF5 record is preserved of every experiment that is submitted and run. The files in ``results`` will be discussed in greater detail in :doc:`using_interactivity`.
 
-.. seealso::
-    You may note that experiments may be submitted with a due date, a priority level, a pipeline identifier, and other specific settings. Some of these are self-explanatory. Many are scheduling-related. For more information on experiment scheduling, especially when submitting longer experiments or submitting across multiple users, see :ref:`experiment-scheduling`.
+Running the dashboard and controller manager
+--------------------------------------------
 
-.. _mgmt-arguments:
+Submitting experiments with :mod:`~artiq.frontend.artiq_client` has some interesting qualities: for instance, experiments can be requested simultaneously by different clients and be relied upon to execute neatly in sequence, which is useful in a distributed context. On the other hand, on an local level, it doesn't necessarily carry many practical advantages over using :mod:`~artiq.frontend.artiq_run`. The real convenience of the management system lies in its GUI, the dashboard. We will now try submitting an experiment using the dashboard.
 
-Adding an argument
-------------------
+First, start the controller manager: ::
 
-Experiments may have arguments whose values can be set in the dashboard and used in the experiment's code. Modify the experiment as follows: ::
+    $ artiq_ctlmgr
 
-    def build(self):
-        self.setattr_argument("count", NumberValue(precision=0, step=1))
+Like the master, this command should not return, as the controller manager keeps running. Note that the controller manager requires access to the device database, but not in the local directory -- it gets that access automatically by connecting to the master.
 
-    def run(self):
-        for i in range(self.count):
-            print("Hello World", i)
+.. note::
+    We will not be using controllers in this part of the tutorial. Nonetheless, the dashboard will expect to be able to contact certain controllers given in the device database, and print error messages if this isn't the case (e.g. ``Is aqctl_moninj_proxy running?``). It is equally possible to check your device database and start the requisite controllers manually, or to temporarily delete their entries from ``device_db.py``, but it's normally quite convenient to let the controller manager handle things. The role and use of controller managers will be covered in more detail in :doc:`using_interactivity`.
 
+In a third terminal, start the dashboard: ::
 
-:class:`~artiq.language.environment.NumberValue` represents a floating point numeric argument. There are many other types, see :class:`~artiq.language.environment` and :class:`~artiq.language.scan`.
+    $ artiq_dashboard
 
-Use the command-line client to trigger a repository rescan: ::
+Like :mod:`~artiq.frontend.artiq_client`, the dashboard requires no direct access to the device database or the repository. It communicates with the master to receive information about available experiments and the state of the system.
 
-    artiq_client scan-repository
+You should see the list of experiments from the ``repository`` in the dock called 'Explorer'. In our case, this will only be the single experiment we created, listed by the name we gave it in the docstring inside the triple quotes, "Management tutorial". Select it, and in the window that opens, click 'Submit'.
 
-The dashboard should now display a spin box that allows you to set the value of the ``count`` argument. Try submitting the experiment as before.
+This time you will find the output displayed directly in the dock called 'Log'. The dashboard log combines the master's console output, the dashboard's own logs, and the device logs of the core device itself (if there is one in use); normally, this is the only log it's necessary to check.
 
-Interactive arguments
----------------------
+Adding a new experiment
+-----------------------
 
-It is also possible to use interactive arguments, which may be requested and supplied while the experiment is running. This time modify the experiment as follows: ::
+Create a new file in your ``repository`` folder, called ``timed_tutorial.py``: ::
 
-    def build(self):
-        pass
+    from artiq.experiment import *
+    import time
 
-    def run(self):
-        repeat = True
-        while repeat:
+    class TimedTutorial(EnvExperiment):
+        """Timed tutorial"""
+        def build(self):
+            pass  # no devices used
+
+        def run(self):
             print("Hello World")
-            with self.interactive(title="Repeat?") as interactive:
-                interactive.setattr_argument("repeat", BooleanValue(True))
-            repeat = interactive.repeat
+            time.sleep(10)
+            print("Goodnight World")
 
+Save it. You will notice that it does not immediately appear in the 'Explorer' dock. For stability reasons, the master operates with a cached idea of the repository, and changes in the file system will often not be reflected until a *repository rescan* is triggered.
 
-Trigger a repository rescan and click the button labeled "Recompute all arguments". Now submit the experiment. It should print once, then wait; in the same dock as "Explorer", find and navigate to the tab "Interactive Args". You can now choose and supply a value for the argument mid-experiment. Every time an argument is requested, the experiment pauses until the input is supplied. If you choose to "Cancel" instead, an :exc:`~artiq.language.environment.CancelledArgsError` will be raised (which the experiment can choose to catch, rather than halting.)
+You can ask it to do this through the command-line client: ::
 
-While regular arguments are all requested simultaneously before submitting, interactive arguments can be requested at any point. In order to request multiple interactive arguments at once, place them within the same ``with`` block; see also the example ``interactive.py`` in the ``examples/no_hardware`` folder.
+    $ artiq_client scan-repository
+
+or you can right-click in the Explorer and select 'Scan repository HEAD'. Now you should be able to select and submit the new experiment.
+
+If you switch the 'Log' dock to its 'Schedule' tab while the experiment is still running, you will see the experiment appear, displaying its RID, status, priority, and other information. Click 'Submit' again while the first experiment is progress, and a second iteration of the experiment will appear in the Schedule, queued up to execute next in line.
+
+.. note::
+    You may have noted that experiments can be submitted with a due date, a priority level, a pipeline identifier, and other specific settings. Some of these are self-explanatory. Many are scheduling-related. For more information on experiment scheduling, see :ref:`experiment-scheduling`.
+
+    In the meantime, you can try out submitting either of the two experiments with different priority levels and take a look at the queues that ensue. If you are interested, you can try submitting experiments through the command line client at the same time, or even open a second dashboard in a different terminal. Observe that no matter the source, all submitted experiments will be accounted for and handled by the scheduler in an orderly way.
 
 .. _master-setting-up-git:
 
 Setting up Git integration
 --------------------------
 
-So far, we have used the bare filesystem for the experiment repository, without any version control. Using Git to host the experiment repository helps with the tracking of modifications to experiments and with the traceability of a result to a particular version of an experiment.
+So far, we have used the bare filesystem for the experiment repository, without any version control. Using Git to host the experiment repository helps with tracking modifications to experiments and with the traceability to a particular version of an experiment.
 
 .. note::
-    The workflow we will describe in this tutorial corresponds to a situation where the ARTIQ master machine is also used as a Git server where multiple users may push and pull code. The Git setup can be customized according to your needs; the main point to remember is that when scanning or submitting, the ARTIQ master uses the internal Git data (*not* any working directory that may be present) to fetch the latest *fully completed commit* at the repository's head.
+    The workflow we will describe in this tutorial corresponds to a situation where the computer running the ARTIQ master is also used as a Git server to which multiple users may contribute code. The Git setup can be customized according to your needs; the main point to remember is that when scanning or submitting, the ARTIQ master uses the internal Git data (*not* any working directory that may be present) to fetch the latest *fully completed commit* at the repository's head. See the :doc:`management_system` page for notes on alternate workflows.
 
-We will use the current ``repository`` folder as working directory for making local modifications to the experiments, move it away from the master data directory, and create a new ``repository`` folder that holds the Git data used by the master. Stop the master with Ctrl-C and enter the following commands: ::
+We will use our current ``repository`` folder as the working directory for making local modifications to the experiments, move it away from the master's data directory, and replace it with a new ``repository`` folder, which will hold only the Git data used by the master. Stop the master with Ctrl+C and enter the following commands: ::
 
     $ cd ~/artiq-master
     $ mv repository ~/artiq-work
     $ mkdir repository
     $ cd repository
-    $ git init --bare
+    $ git init bare
 
-Now, push data to into the bare repository. Initialize a regular (non-bare) Git repository into our working directory: ::
+Now initialize a regular (non-bare) Git repository in our working directory: ::
 
     $ cd ~/artiq-work
     $ git init
 
-Then commit our experiment: ::
+Then add and commit our experiments: ::
 
     $ git add mgmt_tutorial.py
-    $ git commit -m "First version of the tutorial experiment"
+    $ git add timed_tutorial.py
+    $ git commit -m "First version of the tutorial experiments"
 
-and finally, push the commit into the master's bare repository: ::
+and finally, connect the two repositories and push the commit upstream to the master's repository: ::
 
     $ git remote add origin ~/artiq-master/repository
     $ git push -u origin master
 
-Start the master again with the ``-g`` flag, telling it to treat the contents of the ``repository`` folder (not ``artiq-work``) as a bare Git repository: ::
+.. tip::
+    If you are not familiar with command-line Git and would like to understand these commands in more detail, search for some tutorials in basic use of Git; there are many available online.
+
+Start the master again with the ``-g`` flag, which tells it to treat its ``repository`` folder as a bare Git repository: ::
 
     $ cd ~/artiq-master
     $ artiq_master -g
 
 .. note::
-    You need at least one commit in the repository before you can start the master.
+    Note that you need at least one commit in the repository before the master can be started.
 
-There should be no errors displayed, and if you start the GUI again, you will find the experiment there.
+Now you should be able to restart the dashboard and see your experiments there.
 
-To complete the master configuration, we must tell Git to make the master rescan the repository when new data is added to it. Create a file ``~/artiq-master/repository/hooks/post-receive`` with the following contents: ::
+To make things more convenient, we will make Git tell the master to rescan the repository whenever new data is pushed from downstream. Create a file ``~/artiq-master/repository/hooks/post-receive`` with the following contents: ::
 
    #!/bin/sh
    artiq_client scan-repository --async
 
-Then set the execution permission on it: ::
+Then set its execution permissions: ::
 
-   $ chmod 755 ~/artiq-master/repository/hooks/post-receive
+   $ chmod 755 repository/hooks/post-receive
 
 .. note::
-    Remote machines may also push and pull into the master's bare repository using e.g. Git over SSH.
+    Remote client machines may also push and pull into the master repository, using e.g. Git over SSH.
 
-Let's now make a modification to the experiment. In the source present in the working directory, add an exclamation mark at the end of "Hello World". Before committing it, check that the experiment can still be executed correctly by running it directly from the filesystem using: ::
+Let's now make a modification to the experiments. In the working directory ``artiq-work``, open ``mgmt_tutorial.py`` again and add an exclamation mark to the end of "Hello World". Before committing it, check that the experiment can still be executed correctly by submitting it directly from the working directory, using the command-line client: ::
 
     $ artiq_client submit ~/artiq-work/mgmt_tutorial.py
 
 .. note::
-    You may also use the "Open file outside repository" feature of the GUI, by right-clicking on the explorer.
+    Alternatively, right-click in the Explorer dock and select the 'Open file outside repository' option for the same effect.
 
 Verify the log in the GUI. If you are happy with the result, commit the new version and push it into the master's repository: ::
 
@@ -177,86 +200,17 @@ Verify the log in the GUI. If you are happy with the result, commit the new vers
     $ git commit -a -m "More enthusiasm"
     $ git push
 
-.. note::
-    Notice that commands other than ``git push`` are no longer necessary.
-
-The master should now run the new version from its repository.
-
-As an exercise, add another experiment to the repository, commit and push the result, and verify that it appears in the GUI.
-
-.. _getting-started-datasets:
-
-Datasets
---------
-
-ARTIQ uses the concept of *datasets* to manage the data exchanged with experiments, both supplied *to* experiments (generally, from other experiments) and saved *from* experiments (i.e. results or records).
-
-Modify the experiment as follows, once again using a single non-interactive argument: ::
-
-    def build(self):
-        self.setattr_argument("count", NumberValue(precision=0, step=1))
-
-    def run(self):
-        self.set_dataset("parabola", np.full(self.count, np.nan), broadcast=True)
-        for i in range(self.count):
-            self.mutate_dataset("parabola", i, i*i)
-            time.sleep(0.5)
-
-.. tip::
-    You need to import the ``time`` module, and the ``numpy`` module as ``np``.
-
-Commit, push and submit the experiment as before. Go to the "Datasets" dock of the GUI and observe that a new dataset has been created. Once the experiment has finished executing, navigate to ``~/artiq-master/`` in a terminal or file manager and see that a new directory has been created called ``results``. Your dataset should be stored as an HD5 dump file in ``results`` under ``<date>/<hour>``.
-
-.. note::
-    By default, datasets are primarily attributes of the experiments that run them, and are not shared with the master or the dashboard. The ``broadcast=True`` argument specifies that an argument should be shared in real-time with the master, which is responsible for dispatching it to the clients. A more detailed description of dataset methods and their arguments can be found under :mod:`artiq.language.environment.HasEnvironment`.
-
-Open the file for your first dataset with HDFView, h5dump, or any similar third-party tool, and observe the data we just generated as well as the Git commit ID of the experiment (a hexadecimal hash such as ``947acb1f90ae1b8862efb489a9cc29f7d4e0c645`` which represents a particular state of the Git repository). A list of Git commit IDs can be found by running the ``git log`` command in ``~/artiq-master/``.
-
-Applets
--------
-
-Often, rather than the HDF dump, we would like to see our result datasets in readable graphical form, preferably immediately. In the ARTIQ dashboard, this is achieved by programs called "applets". Applets are independent programs that add simple GUI features and are run as separate processes (to achieve goals of modularity and resilience against poorly written applets). ARTIQ supplies several applets for basic plotting in the :mod:`artiq.applets` module, and users may write their own using the provided interfaces.
-
-.. seealso::
-    For developing your own applets, see the references provided on the :ref:`management system page<applet-references>` of this manual.
-
-For our ``parabola`` dataset, we will create an XY plot using the provided :mod:`artiq.applets.plot_xy`. Applets are configured with simple command line options; we can find the list of available options using the ``-h`` flag. Try running: ::
-
-    $ python3 -m artiq.applets.plot_xy -h
-
-In our case, we only need to supply our dataset as the y-values to be plotted. Navigate to the "Applet" dock in the dashboard. Right-click in the empty list and select "New applet from template" and "XY". This will generate a version of the applet command that shows all applicable options; edit the command so that it retrieves the ``parabola`` dataset and erase the unused options. The line should now be: ::
-
-    ${artiq_applet}plot_xy parabola
-
-Run the experiment again, and observe how the points are added one by one to the plot.
-
-RTIO analyzer and the dashboard
--------------------------------
-
-The :ref:`rtio-analyzer-example` is fully integrated into the dashboard. Navigate to the "Waveform" tab in the dashboard. After running the example experiment in that section, or any other experiment producing an analyzer trace, the waveform results will be directly displayed in this tab. It is also possible to save a trace, reopen it, or export it to VCD directly from the GUI.
-
-Non-RTIO devices and the controller manager
--------------------------------------------
-
-As described in :doc:`rtio`, there are two classes of equipment a laboratory typically finds itself needing to operate. So far, we have largely discussed ARTIQ in terms of one only: the kind of specialized hardware that requires the very high-resolution timing control ARTIQ provides. The other class comprises the broad range of regular, "slow" laboratory devices, which do *not* require nanosecond precision and can generally be operated perfectly well from a regular PC over a non-realtime channel such as USB.
-
-To handle these "slow" devices, ARTIQ uses *controllers*, intermediate pieces of software which are responsible for the direct I/O to these devices and offer RPC interfaces to the network. Controllers can be started and run standalone, but are generally handled through the *controller manager*, available through the ``artiq-comtools`` package (normally automatically installed together with ARTIQ.) The controller manager in turn communicates with the ARTIQ master, and through it with clients or the GUI.
-
-To start the controller manager (the master must already be running), the only command necessary is: ::
-
-    $ artiq_ctlmgr
-
-Controllers may be run on a different machine from the master, or even on multiple different machines, alleviating cabling issues and OS compatibility problems. In this case, communication with the master happens over the network. If multiple machines are running controllers, they must each run their own controller manager (for which only ``artiq-comtools`` and its few dependencies are necessary, not the full ARTIQ installation.) Use the ``-s`` and ``--bind`` flags of :mod:`~artiq_comtools.artiq_ctlmgr` to set IP addresses or hostnames to connect and bind to.
-
-Note, however, that the controller for the particular device you are trying to connect to must first exist and be part of a complete Network Device Support Package, or NDSP. :doc:`Some NDSPs are already available <list_of_ndsps>`. If your device is not on this list, the system is designed to make it quite possible to write your own. For this, see the :doc:`developing_a_ndsp` page.
-
-Once a device is correctly listed in ``device_db.py``, it can be added to an experiment using ``self.setattr_device([device_name])`` and the methods its API offers called straightforwardly as ``self.[device_name].[method_name]``. As long as the requisite controllers are running and available, the experiment can then be executed with :mod:`~artiq.frontend.artiq_run` or through the management system.
+Notice that commands other than ``git commit`` and ``git push`` are no longer necessary. The Git hook should cause a repository rescan automatically, and submitting the experiment in the dashboard should run the new version, with enthusiasm included.
 
 The ARTIQ session
 -----------------
 
-If (as is often the case) you intend to mostly operate your ARTIQ system and its devices from a single machine, i.e., the networked aspects of the management system are largely unnecessary and you will be running master, dashboard, and controller manager on one computer, they can all be started simultaneously with the single command: ::
+Often, you will want to run an instance of the controller manager and dashboard along with the ARTIQ master, whether or not you also intend to allow other clients to connect remotely. For convenience, all three can be started simultaneously with a single command: ::
 
     $ artiq_session
 
-Arguments to the individuals (including ``-s`` and ``--bind``) can still be specified using the ``-m``, ``-d`` and ``-c`` options respectively. See also :mod:`~artiq.frontend.artiq_session`.
+Arguments to the individual tools (including ``-s`` and ``--bind``) can still be specified using the ``-m``, ``-d`` and ``-c`` options for master, dashboard and manager respectively. Use an equals sign to avoid confusion in parsing, for example: ::
+
+    $ artiq_session -m=-g
+
+to start the session with the master in Git mode. See also :mod:`~artiq.frontend.artiq_session`.

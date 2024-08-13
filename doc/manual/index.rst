@@ -24,6 +24,7 @@ ARTIQ manual
     rtio
     getting_started_core
     getting_started_mgmt
+    using_data_interfaces
     using_drtio_subkernels
 
 .. toctree::
