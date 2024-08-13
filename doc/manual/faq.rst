@@ -42,7 +42,8 @@ Diagnosis aids:
 Some things to consider:
 
     - Is the ``core_addr`` field of your ``device_db.py`` set correctly?
-    - Are your core device's IP address and networking configurations definitely set correctly? Check the UART log for evidence of this, and talk to your network administrator about what the correct choices are.
+    - Did your device flash and boot successfully? Were the binaries generated for the correct board hardware version?
+    - Are your core device's IP address and networking configurations definitely set correctly? Check the UART log to confirm, and talk to your network administrator about what the correct choices are.
     - Is your core device configured for an external reference clock? If so, it cannot function correctly without one. Is the external reference clock plugged in?
     - Are Ethernet and (on Kasli only) SFP0 plugged in all the way? Are they working? Try different cables and SFP adapters; M-Labs tests with CAT6 cables, but lower categories should be supported too.
     - Are your PC and your crate in the same subnet?
@@ -71,6 +72,27 @@ Currently, it is not possible to reach satellites through ``artiq_coremgmt confi
 
 Don't worry about individually flashing idle or startup kernels. If your idle or startup kernel contains subkernels, it will automatically compile as a ``.tar``, which you only need to flash to the master.
 
+fix unreliable DRTIO master-satellite links?
+--------------------------------------------
+
+Inconsistent DRTIO connections, especially with odd or absent errors in the core logs, are often a symptom of overheating either in the master or satellite boards. Check the core device fans for failure or defects. Improve air circulation around the crate or attach additional fans to see if that improves or resolves the issue. In the long term, fan trays to be rack-mounted together with the crate are a clean solution to these kinds of problems.
+
+add or remove EEM peripherals or DRTIO satellites?
+--------------------------------------------------
+
+Adding new real-time hardware to an ARTIQ system almost always means reflashing the core device; if you are adding new satellite core devices, they will have to be flashed as well. If you have obtained your upgrades directly from M-Labs or QUARTIQ, updated binaries and reflashing support will normally be offered to you directly. In any other case, track down your JSON system description file(s), bring them up to date with the updated state of your system, and see :doc:`building_developing`.
+
+Once you have an updated set of binaries, reflash the core device, following the instructions in :doc:`flashing`. Be sure to update your device database before starting experimentation; run :mod:`~artiq.frontend.artiq_ddb_template` on your system description(s) to update the local devices, and copy over any aliases or entries for NDSP controllers you may have been using. Note that the device database is a Python file, and the generated file of local devices can also simply be imported into the final version, allowing for dynamic modifications, especially for complex systems that may have multiple device databases in use.
+
+see command-line help?
+----------------------
+
+Like most if not almost all terminal utilities, ARTIQ commands, tools and applets print their help messages directly into the terminal and exit when run with the flag ``-h``: ::
+
+    $ artiq_run -h
+
+This is the simplest and most direct way of accessing the same usage and reference material that is replicated in this manual on the pages :doc:`main_frontend_tools` and :doc:`utilities`.
+
 .. _faq-find-examples:
 
 find ARTIQ examples?
@@ -82,7 +104,7 @@ The official examples are stored in the ``examples`` folder of the ARTIQ package
 
 Copy the ``examples`` folder from that path into your home or user directory, and start experimenting!
 
-If you have progressed past this level and would like to see more in-depth code or real-life examples of how other groups have handled running experiments with ARTIQ, see the "Community code" directory on the M-labs `resources page <https://m-labs.hk/experiment-control/resources/>`_.
+On the other hand, if you have progressed past this level and would like to see more in-depth code or real-life examples of how other groups have handled running experiments with ARTIQ, see the "Community code" directory on the M-labs `resources page <https://m-labs.hk/experiment-control/resources/>`_.
 
 diagnose and fix sequence errors?
 ---------------------------------
@@ -129,6 +151,15 @@ In most cases, as in this one, it's relatively easy to rearrange the generation 
 
 In this case, the :meth:`~artiq.coredevice.ttl.TTLInOut.pulse` is split up into its component :meth:`~artiq.coredevice.ttl.TTLInOut.on` and  :meth:`~artiq.coredevice.ttl.TTLInOut.off` so that events can be generated more linearly. It can also be worth keeping in mind that delaying by even a single coarse RTIO cycle between events avoids switching SED lanes at all; in contexts where perfect simultaneity is not a priority, this is an easy way to avoid sequencing issues. See again :ref:`sequence-errors`.
 
+understand applet commands?
+---------------------------
+
+The 'Command' field contains the exact terminal command used to open and operate the applet. The default ``${artiq_applet}`` prefix simply translates to something to the effect of ``python -m artiq.applets.``, intended to be immediately followed by the applet module name. The options suffixed after the module name are the same used in the command line, and a list of them can be shown by using the standard command line ``-h`` help flag: ::
+
+    $ python -m artiq.applets.plot_xy -h
+
+in any terminal.
+
 organize datasets in folders?
 -----------------------------
 
@@ -143,6 +174,11 @@ Experiment windows can be organized by using the following hotkeys:
 * CTRL+SHIFT+C to cascade experiment windows
 
 The windows will be organized in the order they were last interacted with.
+
+fix errors when restarting management system after a crash?
+-----------------------------------------------------------
+
+On Windows in particular, abnormal shutdowns such as power outages or bluescreens sometimes corrupt the organizational files used by the management system, resulting in errors to the tune of ``ValueError: source code string cannot contain null bytes`` when restarting. The easiest way to handle these problems is to delete the corrupted files and start from scratch. Note that GUI configuration ``.pyon`` files are kept in the user configuration directory, see below at :ref:`gui-config-files`
 
 create and use variable-length arrays in kernels?
 -------------------------------------------------
@@ -187,6 +223,8 @@ The core device tests require the following TTL devices and connections:
 * ``loop_clock_in``: any input-capable TTL. Must be physically connected to ``loop_clock_out``.
 
 If TTL devices are missing, the corresponding tests are skipped.
+
+.. _gui-config-files:
 
 find the dashboard and browser configuration files?
 ---------------------------------------------------
