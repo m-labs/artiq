@@ -8,7 +8,7 @@ The content of this manual is arranged in rough reading order. If you start at t
 
 **If you are just starting out,** and would like to get ARTIQ set up on your computer and your core device, start with :doc:`installing`, :doc:`flashing`, and :doc:`configuring`, in that order.
 
-**If you have a working ARTIQ setup** (or someone else has set it up for you), start with the tutorials: read :doc:`rtio`, then progress to :doc:`getting_started_core` and :doc:`getting_started_mgmt`. If your system is in a DRTIO configuration, :doc:`DRTIO and subkernels <using_drtio_subkernels>` will also be helpful.
+**If you have a working ARTIQ setup** (or someone else has set it up for you), start with the tutorials: read :doc:`rtio`, then progress to :doc:`getting_started_core`, :doc:`getting_started_mgmt`, and :doc:`using_data_interfaces`. If your system is in a DRTIO configuration, :doc:`DRTIO and subkernels <using_drtio_subkernels>` will also be helpful.
 
 Pages like :doc:`management_system` and :doc:`core_device` describe **specific components of the ARTIQ ecosystem** in more detail. If you want to understand more about device and dataset databases, for example, read the :doc:`environment` page; if you want to understand the ARTIQ Python dialect and everything it does or does not support, read the :doc:`compiler` page.
 
@@ -105,6 +105,15 @@ The official examples are stored in the ``examples`` folder of the ARTIQ package
 Copy the ``examples`` folder from that path into your home or user directory, and start experimenting!
 
 On the other hand, if you have progressed past this level and would like to see more in-depth code or real-life examples of how other groups have handled running experiments with ARTIQ, see the "Community code" directory on the M-labs `resources page <https://m-labs.hk/experiment-control/resources/>`_.
+
+fix ``failed to connect to moninj`` in the dashboard?
+-----------------------------------------------------
+
+This and other similar messages almost always indicate that your device database lists controllers (for example, ``aqctl_moninj_proxy``) that either haven't been started or aren't reachable at the given host and port. See :ref:`mgmt-ctlmgr`, or navigate to the directory containing your ``device_db.py`` and run: ::
+
+    $ artiq_ctlgmr
+
+to let the controller manager start the necessary controllers automatically.
 
 diagnose and fix sequence errors?
 ---------------------------------

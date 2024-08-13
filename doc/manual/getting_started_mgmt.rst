@@ -69,7 +69,7 @@ In other words, a worker created by the master has executed the experiment, and 
 
     Both IPv4 and IPv6 are supported. See also the individual references :mod:`~artiq.frontend.artiq_master`, :mod:`~artiq.frontend.artiq_dashboard`, and :mod:`~artiq.frontend.artiq_client` for more details.
 
-You may also notice that the master has created some other organizational files in its home directory, notably a folder ``results``, where a HDF5 record is preserved of every experiment that is submitted and run. The files in ``results`` will be discussed in greater detail in :doc:`using_interactivity`.
+You may also notice that the master has created some other organizational files in its home directory, notably a folder ``results``, where a HDF5 record is preserved of every experiment that is submitted and run. The files in ``results`` will be discussed in greater detail in :doc:`using_data_interfaces`.
 
 Running the dashboard and controller manager
 --------------------------------------------
@@ -83,7 +83,7 @@ First, start the controller manager: ::
 Like the master, this command should not return, as the controller manager keeps running. Note that the controller manager requires access to the device database, but not in the local directory -- it gets that access automatically by connecting to the master.
 
 .. note::
-    We will not be using controllers in this part of the tutorial. Nonetheless, the dashboard will expect to be able to contact certain controllers given in the device database, and print error messages if this isn't the case (e.g. ``Is aqctl_moninj_proxy running?``). It is equally possible to check your device database and start the requisite controllers manually, or to temporarily delete their entries from ``device_db.py``, but it's normally quite convenient to let the controller manager handle things. The role and use of controller managers will be covered in more detail in :doc:`using_interactivity`.
+    We will not be using controllers in this part of the tutorial. Nonetheless, the dashboard will expect to be able to contact certain controllers given in the device database, and print error messages if this isn't the case (e.g. ``Is aqctl_moninj_proxy running?``). It is equally possible to check your device database and start the requisite controllers manually, or to temporarily delete their entries from ``device_db.py``, but it's normally quite convenient to let the controller manager handle things. The role and use of controller managers will be covered in more detail in :doc:`using_data_interfaces`.
 
 In a third terminal, start the dashboard: ::
 
@@ -127,6 +127,50 @@ If you switch the 'Log' dock to its 'Schedule' tab while the experiment is still
     You may have noted that experiments can be submitted with a due date, a priority level, a pipeline identifier, and other specific settings. Some of these are self-explanatory. Many are scheduling-related. For more information on experiment scheduling, see :ref:`experiment-scheduling`.
 
     In the meantime, you can try out submitting either of the two experiments with different priority levels and take a look at the queues that ensue. If you are interested, you can try submitting experiments through the command line client at the same time, or even open a second dashboard in a different terminal. Observe that no matter the source, all submitted experiments will be accounted for and handled by the scheduler in an orderly way.
+
+.. _mgmt-arguments:
+
+Adding arguments
+----------------
+
+Experiments may have arguments, values which can be set in the dashboard on submission and used in the experiment's code. Create a new experiment called ``argument_tutorial.py``, and give it the following :meth:`~artiq.language.environment.HasEnvironment.build` and :meth:`~artiq.language.environment.Experiment.run` functions: ::
+
+    def build(self):
+        self.setattr_argument("count", NumberValue(precision=0, step=1))
+
+    def run(self):
+    for i in range(self.count):
+        print("Hello World", i)
+
+The method :meth:`~artiq.language.environment.HasEnvironment.setattr_argument` acts to set the argument and make its value accessible, similar to the effect of :meth:`~artiq.language.environment.HasEnvironment.setattr_device`. The second input sets the type of the argument; here, :class:`~artiq.language.environment.NumberValue` represents a floating point numerical value. To learn what other types are supported, see :class:`artiq.language.environment` and :class:`artiq.language.scan`.
+
+Rescan the repository as before. Open the new experiment in the dashboard. Above the submission options, you should now see a spin box that allows you to set the value of ``count``. Try setting it and submitting it.
+
+Interactive arguments
+---------------------
+
+With standard arguments, it is only possible to use :meth:`~artiq.language.environment.HasEnvironment.setattr_argument` in :meth:`~artiq.language.environment.HasEnvironment.build`; these arguments are always requested at submission time. However, it is also possible to use *interactive* arguments, which can be requested and supplied inside :meth:`~artiq.language.environment.Experiment.run`, while the experiment is being executed. Modify the experiment as follows (and push the result): ::
+
+    def build(self):
+        pass
+
+    def run(self):
+        repeat = True
+        while repeat:
+            print("Hello World")
+            with self.interactive(title="Repeat?") as interactive:
+                interactive.setattr_argument("repeat", BooleanValue(True))
+            repeat = interactive.repeat
+
+Close and reopen the submission window, or click on the button labeled 'Recompute all arguments', in order to update the submission parameters. Submit again. It should print once, then wait; you may notice in 'Schedule' that the experiment does not exit, but hangs at status 'running'.
+
+Now, in the same dock as 'Explorer', navigate to the tab 'Interactive Args'. You can now choose and submit a value for 'repeat'. Every time an interactive argument is requested, the experiment pauses until an input is supplied.
+
+.. note::
+    If you choose to 'Cancel' instead, an :exc:`~artiq.language.environment.CancelledArgsError` will be raised (which an experiment can catch, instead of halting).
+
+In order to request and supply multiple interactive arguments at once, simply place them in the same ``with`` block; see also the example ``interactive.py`` in ``examples/no_hardware``.
+
 
 .. _master-setting-up-git:
 
