@@ -174,6 +174,11 @@ organize datasets in folders?
 
 Use the dot (".") in dataset names to separate folders. The GUI will automatically create and delete folders in the dataset tree display.
 
+organize applets in groups?
+---------------------------
+
+Create groups by left-clicking within the applet list and selecting 'New Group'. Move applets in and out of groups by dragging them with the mouse. To unselect an applet or a group, use CTRL+click.
+
 organize experiment windows in the dashboard?
 ---------------------------------------------
 
