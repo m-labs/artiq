@@ -51,6 +51,7 @@ ARTIQ manual
     main_frontend_tools 
     core_language_reference
     core_drivers_reference
+    mgmt_system_reference
     utilities
 
 .. toctree::
