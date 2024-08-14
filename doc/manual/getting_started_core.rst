@@ -185,12 +185,12 @@ Within a parallel block, some statements can be scheduled sequentially again usi
 
 Particular care needs to be taken when working with ``parallel`` blocks which generate large numbers of RTIO events, as it is possible to cause sequencing issues in the gateware; see also :ref:`sequence-errors`.
 
-.. _rtio-analyzer-example:
+.. _rtio-analyzer:
 
 RTIO analyzer
 -------------
 
-The core device records the real-time I/O waveforms into a circular buffer. It is possible to dump any Python object so that it appears alongside the waveforms using the ``rtio_log`` function, which accepts a channel name (i.e. a log target) as the first argument: ::
+The core device records all real-time I/O waveforms, as well as the variation of RTIO slack, into a circular buffer, the contents of which can be extracted using :mod:`~artiq.frontend.artiq_coreanalyzer`. Try for example: ::
 
     from artiq.experiment import *
 
@@ -202,12 +202,28 @@ The core device records the real-time I/O waveforms into a circular buffer. It i
         @kernel
         def run(self):
             self.core.reset()
-            for i in range(100):
-                self.ttl0.pulse(...)
-                rtio_log("ttl0", "i", i)
-                delay(...)
+            for i in range(5):
+                self.ttl0.pulse(0.1 * ms)
+                delay(0.1 * ms)
 
-When using :mod:`~artiq.frontend.artiq_run`, the recorded data can be extracted using :mod:`~artiq.frontend.artiq_coreanalyzer`. To export it to VCD, which can be viewed using third-party tools such as GtkWave, use a command in the form of ``artiq_coreanalyzer -w <file_name>.vcd``. Recorded data can also be viewed directly with the ARTIQ dashboard, which will be presented later in :doc:`getting_started_mgmt`.
+When using :mod:`~artiq.frontend.artiq_run`, the recorded buffer data can be extracted directly into the terminal, using a command in the form of: ::
+
+    $ artiq_coreanalyzer -p
+
+.. note::
+    The first time this command is run, it will retrieve the entire contents of the analyzer buffer, which may include every experiment you have run so far. For a more manageable introduction, run the analyzer once to clear the buffer, run the experiment, and then run the analyzer a second time, so that only the data from this single experiment is displayed.
+
+This will produce a list of the exact output events submitted to RTIO, printed in chronological order, along with the state of both ``now_mu`` and ``rtio_counter_mu``. While useful in diagnosing some specific gateware errors (in particular, :ref:`sequencing issues <sequence-errors>`), it isn't the most readable of formats. An alternate is to export to VCD, which can be viewed using third-party tools such as GtkWave. Run the experiment again, and use a command in the form of: ::
+
+    $ artiq_coreanalyzer -w <file_name>.vcd
+
+The ``<file_name>.vcd`` file should be immediately created and written. Check the directory the command was run in to find it.
+
+.. tip::
+
+    To view e.g. RTIO slack in GtkWave, drag the ``rtio_slack`` signal into the 'Signals' dock, under ``Time``. By default, the data will be presented in a raw form which you will probably not find particularly useful. For RTIO slack in particular, left-click, select ``Data Format > BitsToReal``, then ``Data Format > Analog``, to see a stepped waveform like that which the dashboard displays. Note also that the 'Waves' dock timescale is probably zoomed in very far; you may need to zoom out by some distance to see the effects of your experiment.
+
+The easiest way to view recorded analyzer data, however, is directly in the ARTIQ dashboard, a feature which will be presented later in :ref:`interactivity-waveform`.
 
 .. _getting-started-dma:
 

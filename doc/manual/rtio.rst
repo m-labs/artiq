@@ -103,7 +103,7 @@ Once the timeline cursor has overtaken the wall clock, the exception does not re
 To track down :class:`~artiq.coredevice.exceptions.RTIOUnderflow` exceptions in an experiment there are a few approaches:
 
   * Exception backtraces show where underflow has occurred while executing the code.
-  * The :ref:`integrated logic analyzer <core-device-rtio-analyzer-tool>` shows the timeline context that lead to the exception. The analyzer is always active and supports plotting of RTIO slack. This may be useful to spot where and how an experiment has 'run out' of positive slack.
+  * The :ref:`integrated logic analyzer <rtio-analyzer>` shows the timeline context that lead to the exception. The analyzer is always active and supports plotting of RTIO slack. This may be useful to spot where and how an experiment has 'run out' of positive slack.
 
 .. _sequence-errors:
 

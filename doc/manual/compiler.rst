@@ -159,7 +159,7 @@ Basic NumPy array handling (``np.array()``, ``numpy.transpose()``, ``numpy.full`
 Print and logging functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-ARTIQ offers two native built-in logging functions: ``rtio_log()``, as presented in :ref:`rtio-analyzer-example`, and ``core_log()``, which allows for printing directly to the core log regardless of context or network connection status, which is useful for debugging purposes (especially in satellites or idle/startup kernels, which have no access to a regular ``print()`` RPC). 
+ARTIQ offers two native built-in logging functions: ``rtio_log()``, which prints to the :ref:`RTIO log <rtio-analyzer>`, as retrieved by :mod:`~artiq.frontend.artiq_coreanalyzer`, and ``core_log()``, which allows for printing directly to the core log regardless of context or network connection status. Both exist for debugging purposes, especially in contexts where a ``print()`` RPC is not suitable, such as in idle/startup kernels or when debugging delicate RTIO slack issues which may be strongly affected by the overhead of ``print()``.
 
 ``print()`` itself is in practice an RPC to the regular host Python ``print()``, i.e. with output either in the terminal of :mod:`~artiq.frontend.artiq_run` or in the client logs when using :mod:`~artiq.frontend.artiq_dashboard` or :mod:`~artiq.frontend.artiq_compile`. This means on one hand that it should not be used in idle, startup, or subkernels, and on the other hand that it suffers of some of the timing limitations of any other RPC, especially if the RPC queue is full. Accordingly, it is important to be aware that the timing of ``print()`` outputs can't reliably be used to debug timing in kernels, and especially not the timing of other RPCs.
 
