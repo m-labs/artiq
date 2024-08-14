@@ -3,7 +3,7 @@
 
   inputs.nac3 = { type = "git"; url = "https://git.m-labs.hk/m-labs/nac3.git"; };
   inputs.rust-overlay = {
-      url = "github:oxalica/rust-overlay";
+      url = "github:oxalica/rust-overlay?ref=snapshot/2024-08-01";
       inputs.nixpkgs.follows = "nac3/nixpkgs";
   };
   inputs.sipyco.url = github:m-labs/sipyco;
