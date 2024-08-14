@@ -6,6 +6,7 @@ Release notes
 ARTIQ-9 (Unreleased)
 --------------------
 
+* GUI state files are now automatically backed up upon successful loading.
 * Zotino monitoring in the dashboard now displays the values in volts.
 * afws_client now uses the "happy eyeballs" algorithm (RFC 6555) for a faster and more
   reliable connection to the server.
