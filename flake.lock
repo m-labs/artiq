@@ -48,11 +48,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1722090296,
-        "narHash": "sha256-I4ZW7h6gPlCmV5nLJRQFVhoCob+rx/iExbxKlnXovWM=",
+        "lastModified": 1723599008,
+        "narHash": "sha256-HLj4bs8LU3kKY0zuSvOSNKrC2Sc8sB9O//JFvsODTfo=",
         "ref": "refs/heads/master",
-        "rev": "665ca8e32de99933cf453221b63ffe826a6091f1",
-        "revCount": 1229,
+        "rev": "69320a6cf1445e8fde28537823a26a361f4eb938",
+        "revCount": 1278,
         "type": "git",
         "url": "https://git.m-labs.hk/m-labs/nac3.git"
       },
@@ -95,11 +95,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1722046723,
-        "narHash": "sha256-G7/gHz8ORRvHd1/RIURrdcswKRPe9K0FsIYR4v5jSWo=",
+        "lastModified": 1723602049,
+        "narHash": "sha256-Z/noCSn9WPkv7O77dWKLcBxe4Ub4bWyNzsL5JhjaQfw=",
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "rev": "56baac5e6b2743d4730e664ea64f6d8a2aad0fbb",
+        "rev": "ea0bf33a11a26a62c60123c49d96011da396602c",
         "type": "github"
       },
       "original": {
