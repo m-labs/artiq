@@ -113,14 +113,14 @@ This tool encodes the map of RTIO channel numbers to names in a format suitable 
    :nodescription:
    :nodefault:
 
-.. _core-device-rtio-analyzer-tool:
-
 Core device RTIO analyzer tool
 ------------------------------
 
 .. automodule:: artiq.frontend.artiq_coreanalyzer
 
-This tool converts core device RTIO logs to VCD waveform files that are readable by third-party tools such as GtkWave. See :ref:`rtio-analyzer-example` for an example, or :mod:`artiq.test.coredevice.test_analyzer` for a relevant unit test. When using the ARTIQ dashboard, recorded data can be viewed or exported directly in the integrated waveform analyzer (the "Waveform" dock).
+This tool retrieves core device RTIO logs either as raw data or as VCD waveform files, which are readable by third-party tools such as GtkWave. See :ref:`rtio-analyzer` for an example, or :mod:`artiq.test.coredevice.test_analyzer` for a relevant unit test.
+
+Using the management system, the respective functionality is provided by :mod:`~artiq.frontend.aqctl_coreanalyzer_proxy` and the dashboard's 'Waveform' tab; see :ref:`interactivity-waveform`.
 
 .. argparse::
    :ref: artiq.frontend.artiq_coreanalyzer.get_argparser
@@ -148,7 +148,7 @@ ARTIQ RTIO monitor
 
 .. automodule:: artiq.frontend.artiq_rtiomon
 
-Command-line interface for monitoring RTIO channels, as in the Monitor capacity of dashboard MonInj.
+Command-line interface for monitoring RTIO channels, as in the Monitor capacity of dashboard MonInj. See :ref:`interactivity-moninj`.
 
 .. argparse::
    :ref: artiq.frontend.artiq_rtiomon.get_argparser

@@ -109,6 +109,8 @@ Broadly speaking, these controllers are edge cases, serving as proxies for inter
 
 Although they are listed in the references for completeness' sake, there is normally no reason to run the built-in controllers independently. A controller manager run alongside the master (or anywhere else, provided the given addresses are edited accordingly; proxy controllers communicate with the core device by network just as the master does) is more than sufficient.
 
+.. _interactivity-moninj:
+
 Using MonInj
 ------------
 
@@ -137,10 +139,51 @@ For those peripherals which support monitoring, the command-line :mod:`~artiq.fr
 
 This tool is very simple, and there is rarely any reason to prefer its use over the dashboard monitor. Nonetheless, it can be helpful for certain kinds of debugging.
 
-.. RTIO analyzer and Waveform
-.. --------------------------
+.. _interactivity-waveform:
 
-.. TBI.
+Waveform
+--------
+
+The RTIO analyzer was briefly presented in :ref:`rtio-analyzer`. Like MonInj, it is directly accessible to the dashboard through its own proxy controller, :mod:`~artiq.frontend.aqctl_coreanalyzer_proxy`. To see it in action with the management system, navigate to the 'Waveform' tab of the dashboard. The dock should display several buttons and a currently empty list of waveforms, distinguishable only by the timeline along the top of the field. Use the 'Add channels' button, similar to that used by MonInj, to add waveforms to the list, for example ``rtio_slack`` and the ``led0`` user LED.
+
+The circular arrow 'Fetch analyzer data' button has the same basic effect as using the command-line :mod:`~artiq.frontend.artiq_coreanalyzer`: it extracts the full contents of the circular analyzer buffer. In order to start from a clean slate, click the fetch button a few times, until the ``analyzer dump is empty aside from stop message`` warning appears. Try running a simple experiment, for example this one, which underflows: ::
+
+    from artiq.experiment import *
+
+    class BlinkToUnderflow(EnvExperiment):
+        def build(self):
+            self.setattr_device("core")
+            self.setattr_device("led0")
+
+        @kernel
+        def run(self):
+            self.core.reset()
+            for i in range(1000):
+                self.led0.pulse(.2*us)
+                delay(.2*us)
+
+Now fetch the analyzer data again (only once)! Visible waveforms should appear in their respective fields. If nothing is visible to you, the timescale is likely zoomed too far out; adjust by zooming with CTRL+scroll and moving along the timeline by dragging it with your mouse. On a clean slate, ``BlinkToUnderflow`` should represent the first RTIO events on the record, and the waveforms accordingly will be displayed at the very beginning of the timeline.
+
+Eventually, you should be able to see the up-and-down 'square wave' pattern of the blinking LED, coupled with a steadily descending line in the RTIO slack, representing the progressive wearing away of the slack gained using ``self.core.reset()``. This kind of analysis can be especially useful in diagnosing underflows; with some practice, the waveform can be used to ascertain which parts of an experiment are consuming the greatest amounts of slack, thereby causing underflows down the line.
+
+.. tip::
+
+    File options in the top left allow for saving and exporting RTIO traces and channel lists, as well as opening them from saved files.
+
+RTIO logging
+^^^^^^^^^^^^
+
+It is possible to dump any Python object so that it appears alongside the waveforms, using the built-in ``rtio_log()`` function, which accepts a log name as its first parameter and an arbitrary number of objects along with it. Try adding it to the ``BlinkToUnderflow`` experiment: ::
+
+    @kernel
+    def run(self):
+        self.core.reset()
+        for i in range(1000):
+            self.led0.pulse(.2*us)
+            rtio_log("test_trace", "i", i)
+            delay(.2*us)
+
+Run this edited experiment. Fetch the analyzer data. Open the 'Add channels' pop-up again; ``test_trace`` should appear as an option now that the experiment has been run. Observe that every ``i`` is printed as a single-point event in a new waveform timeline.
 
 Shortcuts
 ---------
