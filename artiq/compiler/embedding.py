@@ -88,18 +88,32 @@ class EmbeddingMap:
                 self.subkernel_message_map[msg_type.name] = msg_id
                 self.object_reverse_map[obj_id] = msg_id
 
-        self.preallocate_runtime_exception_names(["RuntimeError",
-                                                  "RTIOUnderflow",
-                                                  "RTIOOverflow",
-                                                  "RTIODestinationUnreachable",
-                                                  "DMAError",
-                                                  "I2CError",
-                                                  "CacheError",
-                                                  "SPIError",
-                                                  "0:ZeroDivisionError",
-                                                  "0:IndexError",
-                                                  "UnwrapNoneError",
-                                                  "SubkernelError"])
+        # Keep this list of exceptions in sync with `EXCEPTION_ID_LOOKUP` in `artiq.firmware.ksupport.eh_artiq``
+        # The exceptions declared here should be defined in `artiq.coredeive.exceptions``
+        # Without sync, test cases in artiq.test.coredevice.test_exceptions would fail
+        self.preallocate_runtime_exception_names([
+            "RTIOUnderflow",
+            "RTIOOverflow",
+            "RTIODestinationUnreachable",
+            "DMAError",
+            "I2CError",
+            "CacheError",
+            "SPIError",
+            "SubkernelError",
+
+            "0:AssertionError",
+            "0:AttributeError",
+            "0:IndexError",
+            "0:IOError",
+            "0:KeyError",
+            "0:NotImplementedError",
+            "0:OverflowError",
+            "0:RuntimeError",
+            "0:TimeoutError",
+            "0:TypeError",
+            "0:ValueError",
+            "0:ZeroDivisionError"
+        ])
 
     def preallocate_runtime_exception_names(self, names):
         for i, name in enumerate(names):
