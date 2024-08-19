@@ -3,6 +3,7 @@ import logging
 import traceback
 import numpy
 import socket
+import builtins
 from enum import Enum
 from fractions import Fraction
 from collections import namedtuple
@@ -616,9 +617,10 @@ class CommKernel:
                 self._write_int32(embedding_map.store_str(function))
             else:
                 exn_type = type(exn)
-                if exn_type in (ZeroDivisionError, ValueError, IndexError, RuntimeError) or \
-                        hasattr(exn, "artiq_builtin"):
-                    name = "0:{}".format(exn_type.__name__)
+                if exn_type in builtins.__dict__.values():
+                    name = "0:{}".format(exn_type.__qualname__)
+                elif hasattr(exn, "artiq_builtin"):
+                    name = "0:{}.{}".format(exn_type.__module__, exn_type.__qualname__)
                 else:
                     exn_id = embedding_map.store_object(exn_type)
                     name = "{}:{}.{}".format(exn_id,
