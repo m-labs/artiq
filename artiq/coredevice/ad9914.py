@@ -243,9 +243,9 @@ class AD9914:
             # Enable autoclear phase accumulator and enables OSK.
             self.write(AD9914_REG_CFR1L, 0x2108)
             fud_time = now_mu() + int64(2) * self.write_duration_mu
-            pow -= int32((ref_time_mu - fud_time) * self.sysclk_per_mu * int64(ftw) >> int64(32 - 16))
+            pow -= int32((ref_time_mu - fud_time) * self.sysclk_per_mu * int64(ftw) >> (32 - 16))
             if phase_mode == PHASE_MODE_TRACKING:
-                pow += int32(ref_time_mu * self.sysclk_per_mu * int64(ftw) >> int64(32 - 16))
+                pow += int32(ref_time_mu * self.sysclk_per_mu * int64(ftw) >> (32 - 16))
 
         self.write(AD9914_REG_POW,  pow)
         self.write(AD9914_REG_ASF,  asf)
@@ -319,9 +319,9 @@ class AD9914:
         self.write(AD9914_GPIO,      (1 << self.channel) << 1)
 
         self.write(AD9914_REG_DRGAL, int32(xftw) & 0xffff)
-        self.write(AD9914_REG_DRGAH, int32(xftw >> int64(16)) & 0x7fff)
-        self.write(AD9914_REG_DRGFL, int32(xftw >> int64(31)) & 0xffff)
-        self.write(AD9914_REG_DRGFH, int32(xftw >> int64(47)) & 0xffff)
+        self.write(AD9914_REG_DRGAH, int32(xftw >> 16) & 0x7fff)
+        self.write(AD9914_REG_DRGFL, int32(xftw >> 31) & 0xffff)
+        self.write(AD9914_REG_DRGFH, int32(xftw >> 47) & 0xffff)
         self.write(AD9914_REG_ASF,   amplitude)
 
         self.write(AD9914_FUD,       0)
@@ -340,7 +340,7 @@ class AD9914:
         frequency (extended resolution mode).
         """
         return round64(2.0*float(int64(2)**int64(62))*frequency/self.sysclk) & (
-                (int64(1) << int64(63)) - int64(1))
+                (int64(1) << 63) - int64(1))
 
     @portable
     def xftw_to_frequency(self, xftw: int64) -> float:
