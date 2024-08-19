@@ -1,43 +1,54 @@
+from numpy import int32, int64
+
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
+from artiq.coredevice.core import Core
+from artiq.coredevice.ttl import TTLOut
+from artiq.coredevice.edge_counter import EdgeCounter
 
 
+@nac3
 class EdgeCounterExp(EnvExperiment):
+    core: KernelInvariant[Core]
+    loop_in_counter: KernelInvariant[EdgeCounter]
+    loop_out: KernelInvariant[TTLOut]
+
     def build(self):
         self.setattr_device("core")
         self.setattr_device("loop_in_counter")
         self.setattr_device("loop_out")
 
+    # NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/461
     @kernel
-    def count_pulse_edges(self, gate_fn):
+    def count_pulse_edges(self, gate_fn) -> tuple[int32, int32]:
         self.core.break_realtime()
         with parallel:
             with sequential:
-                delay(5 * us)
-                self.loop_out.pulse(10 * us)
+                self.core.delay(5. * us)
+                self.loop_out.pulse(10. * us)
             with sequential:
-                gate_fn(10 * us)
-                delay(1 * us)
-                gate_fn(10 * us)
+                #gate_fn(10. * us)
+                self.core.delay(1. * us)
+                #gate_fn(10 * us)
         return (self.loop_in_counter.fetch_count(),
                 self.loop_in_counter.fetch_count())
 
     @kernel
-    def timeout_timestamp(self):
+    def timeout_timestamp(self) -> int64:
         self.core.break_realtime()
         timestamp_mu, _ = self.loop_in_counter.fetch_timestamped_count(
             now_mu())
         return timestamp_mu
 
     @kernel
-    def gate_relative_timestamp(self):
+    def gate_relative_timestamp(self) -> int64:
         self.core.break_realtime()
-        gate_end_mu = self.loop_in_counter.gate_rising(1 * us)
+        gate_end_mu = self.loop_in_counter.gate_rising(1. * us)
         timestamp_mu, _ = self.loop_in_counter.fetch_timestamped_count()
         return timestamp_mu - gate_end_mu
 
     @kernel
-    def many_pulses_split(self, num_pulses):
+    def many_pulses_split(self, num_pulses: int32) -> tuple[int32, int32]:
         self.core.break_realtime()
 
         self.loop_in_counter.set_config(
@@ -47,8 +58,8 @@ class EdgeCounterExp(EnvExperiment):
             reset_to_zero=True)
 
         for _ in range(num_pulses):
-            self.loop_out.pulse(5 * us)
-            delay(5 * us)
+            self.loop_out.pulse(5. * us)
+            self.core.delay(5. * us)
 
         self.loop_in_counter.set_config(
             count_rising=True,
@@ -57,8 +68,8 @@ class EdgeCounterExp(EnvExperiment):
             reset_to_zero=False)
 
         for _ in range(num_pulses):
-            self.loop_out.pulse(5 * us)
-            delay(5 * us)
+            self.loop_out.pulse(5. * us)
+            self.core.delay(5. * us)
 
         self.loop_in_counter.set_config(
             count_rising=False,
