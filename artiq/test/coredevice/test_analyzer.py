@@ -50,7 +50,7 @@ class WriteLog(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
-        # NAC3TODO rtio_log("foo", 32)
+        rtio_log("foo", 32)
 
 
 class AnalyzerTest(ExperimentCase):
@@ -79,7 +79,6 @@ class AnalyzerTest(ExperimentCase):
             abs(input_messages[0].timestamp - input_messages[1].timestamp),
             1000, delta=4)
 
-    @unittest.skip("NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/297")
     def test_rtio_log(self):
         core_host = self.device_mgr.get_desc("core")["arguments"]["host"]
 
