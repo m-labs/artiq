@@ -184,10 +184,12 @@ Experiment windows can be organized by using the following hotkeys:
 
 The windows will be organized in the order they were last interacted with.
 
-fix errors when restarting management system after a crash?
------------------------------------------------------------
+fix errors when restarting the management system after a crash?
+---------------------------------------------------------------
 
-On Windows in particular, abnormal shutdowns such as power outages or bluescreens sometimes corrupt the organizational files used by the management system, resulting in errors to the tune of ``ValueError: source code string cannot contain null bytes`` when restarting. The easiest way to handle these problems is to delete the corrupted files and start from scratch. Note that GUI configuration ``.pyon`` files are kept in the user configuration directory, see below at :ref:`gui-config-files`
+On Windows in particular, abnormal shutdowns such as power outages or bluescreens can sometimes corrupt the organizational files used by the management system, resulting in errors to the tune of ``ValueError: source code string cannot contain null bytes`` when restarting. The easiest way to handle these problems is to delete the corrupted files and start from scratch.
+
+If the master itself fails to start, it may be necessary to delete the dataset database or even ``last_rid.pyon`` to restart properly, but if the dashboard or browser fail, the problem is probably in the GUI configuration files, where the state of the GUI (arrangement of docks, applets, etc.) is kept. These files are backed up once whenever they are successfully loaded. Navigate to the user configuration directory (see :ref:`gui-config-files`) and look for a file suffixed ``.backup``. To restore the GUI, simply delete the corrupted configuration file and rename the backup to replace it.
 
 create and use variable-length arrays in kernels?
 -------------------------------------------------
