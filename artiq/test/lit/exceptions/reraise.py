@@ -3,7 +3,7 @@
 # REQUIRES: exceptions
 
 def f():
-    # CHECK-L: Uncaught 8
+    # CHECK-L: Uncaught 18
     # CHECK-L: at input.py:${LINE:+1}:
     1/0
 

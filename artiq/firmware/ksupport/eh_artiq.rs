@@ -333,18 +333,27 @@ extern fn stop_fn(_version: c_int,
     }
 }
 
-static EXCEPTION_ID_LOOKUP: [(&str, u32); 11] = [
-    ("RuntimeError", 0),
-    ("RTIOUnderflow", 1),
-    ("RTIOOverflow", 2),
-    ("RTIODestinationUnreachable", 3),
-    ("DMAError", 4),
-    ("I2CError", 5),
-    ("CacheError", 6),
-    ("SPIError", 7),
-    ("ZeroDivisionError", 8),
+// Must be kept in sync with `artq.compiler.embedding`
+static EXCEPTION_ID_LOOKUP: [(&str, u32); 19] = [
+    ("RTIOUnderflow", 0),
+    ("RTIOOverflow", 1),
+    ("RTIODestinationUnreachable", 2),
+    ("DMAError", 3),
+    ("I2CError", 4),
+    ("CacheError", 5),
+    ("SPIError", 6),
+    ("AssertionError", 7),
+    ("AttributeError", 8),
     ("IndexError", 9),
-    ("UnwrapNoneError", 10),
+    ("IOError", 10),
+    ("KeyError", 11),
+    ("NotImplementedError", 12),
+    ("OverflowError", 13),
+    ("RuntimeError", 14),
+    ("TimeoutError", 15),
+    ("TypeError", 16),
+    ("ValueError", 17),
+    ("ZeroDivisionError", 18),
 ];
 
 pub fn get_exception_id(name: &str) -> u32 {
