@@ -1,11 +1,14 @@
-import numpy
-from numpy import int32, int64
 import unittest
 from time import sleep
+from typing import Literal
+
+import numpy
+from numpy import int32, int64, ndarray
 
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 from artiq.coredevice.comm_kernel import RPCReturnValueError
+from artiq.coredevice.core import Core
 
 
 class _Roundtrip(EnvExperiment):
@@ -16,7 +19,7 @@ class _Roundtrip(EnvExperiment):
     def roundtrip(self, obj, fn):
         fn(obj)
 
-
+@unittest.skip("NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/461")
 class RoundtripTest(ExperimentCase):
     def assertRoundtrip(self, obj):
         exp = self.create(_Roundtrip)
@@ -106,15 +109,20 @@ class RoundtripTest(ExperimentCase):
         self.assertArrayRoundtrip(numpy.array([[1, 2], [3]], dtype=object))
 
 
+@nac3
 class _DefaultArg(EnvExperiment):
+    core: KernelInvariant[Core]
+
     def build(self):
         self.setattr_device("core")
 
-    def test(self, foo=42) -> int32:
+    @rpc
+    def test(self, foo: int32 = 42) -> int32:
         return foo
 
+    # NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/101
     @kernel
-    def run(self):
+    def run(self) -> int32:
         return self.test()
 
 
@@ -124,46 +132,50 @@ class DefaultArgTest(ExperimentCase):
         self.assertEqual(exp.run(), 42)
 
 
+@nac3
 class _RPCTypes(EnvExperiment):
+    core: KernelInvariant[Core]
+
     def build(self):
         self.setattr_device("core")
 
+    @rpc
     def return_bool(self) -> bool:
         return True
 
+    @rpc
     def return_int32(self) -> int32:
         return 1
 
+    @rpc
     def return_int64(self) -> int64:
         return 0x100000000
 
+    @rpc
     def return_float(self) -> float:
         return 1.0
 
+    @rpc
     def return_str(self) -> str:
         return "foo"
 
-    def return_bytes(self) -> bytes:
-        return b"foo"
-
-    def return_bytearray(self) -> bytearray:
-        return bytearray(b"foo")
-
+    @rpc
     def return_tuple(self) -> tuple[int32, int32]:
         return (1, 2)
 
+    @rpc
     def return_list(self) -> list[int32]:
         return [2, 3]
 
-    def return_range(self) -> range:
-        return range(10)
-
-    def return_array(self) -> numpy.ndarray: # NAC3TODO [int32]
+    @rpc
+    def return_array(self) -> ndarray[int32, Literal[1]]:
         return numpy.array([1, 2])
 
-    def return_matrix(self) -> numpy.ndarray: # NAC3TODO [int32, 2]
+    @rpc
+    def return_matrix(self) -> ndarray[int32, Literal[2]]:
         return numpy.array([[1, 2], [3, 4]])
 
+    @rpc
     def return_mismatch(self):
         return b"foo"
 
@@ -174,28 +186,21 @@ class _RPCTypes(EnvExperiment):
         core_log(self.return_int64())
         core_log(self.return_float())
         core_log(self.return_str())
-        core_log(self.return_bytes())
-        core_log(self.return_bytearray())
         core_log(self.return_tuple())
         core_log(self.return_list())
-        core_log(self.return_range())
         core_log(self.return_array())
         core_log(self.return_matrix())
 
     def accept(self, value):
         pass
 
-    @kernel
+    # NAC3TODO @kernel
     def run_send(self):
         self.accept(True)
         self.accept(1)
         self.accept(0x100000000)
         self.accept(1.0)
         self.accept("foo")
-        self.accept(b"foo")
-        self.accept(bytearray(b"foo"))
-        self.accept(bytes([1, 2]))
-        self.accept(bytearray([1, 2]))
         self.accept((2, 3))
         self.accept([1, 2])
         self.accept(range(10))
@@ -223,7 +228,10 @@ class RPCTypesTest(ExperimentCase):
             exp.run_mismatch()
 
 
+# NAC3TODO
 class _RPCCalls(EnvExperiment):
+    core: KernelInvariant[Core]
+
     def build(self):
         self.setattr_device("core")
         self._list_int64 = [int64(1)]
@@ -306,13 +314,17 @@ class RPCCallsTest(ExperimentCase):
         exp.async_in_try()
 
 
+@nac3
 class _Annotation(EnvExperiment):
+    core: KernelInvariant[Core]
+
     def build(self):
         self.setattr_device("core")
 
+    # NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/101
     @kernel
     def overflow(self, x: int64) -> bool:
-        return (x << 32) != 0
+        return (x << 32) != int64(0)
 
     @kernel
     def monomorphize(self, x: list[int32]):
@@ -322,15 +334,19 @@ class _Annotation(EnvExperiment):
 class AnnotationTest(ExperimentCase):
     def test_annotation(self):
         exp = self.create(_Annotation)
-        self.assertEqual(exp.overflow(1), True)
+        self.assertEqual(exp.overflow(int64(1)), True)
         exp.monomorphize([])
 
+
+@nac3
 class _Async(EnvExperiment):
+    core: KernelInvariant[Core]
+
     def build(self):
         self.setattr_device("core")
 
-    @rpc(flags={"async"})
-    def recv_async(self, data):
+    @rpc # NAC3TODO (flags={"async"})
+    def recv_async(self, data: list[int32]):
         pass
 
     @kernel
@@ -347,11 +363,15 @@ class AsyncTest(ExperimentCase):
         exp.run()
 
 
+@nac3
 class _Payload1MB(EnvExperiment):
+    core: KernelInvariant[Core]
+
     def build(self):
         self.setattr_device("core")
 
-    def devnull(self, d):
+    @rpc
+    def devnull(self, d: list[int32]):
         pass
 
     @kernel
@@ -366,7 +386,10 @@ class LargePayloadTest(ExperimentCase):
         exp.run()
 
 
+@nac3
 class _ListTuple(EnvExperiment):
+    core: KernelInvariant[Core]
+
     def build(self):
         self.setattr_device("core")
 
@@ -384,25 +407,32 @@ class _ListTuple(EnvExperiment):
             self.verify(d)
 
     @kernel
-    def verify(self, data):
+    def verify(self, data: list[int32]):
         for i in range(len(data)):
             if data[i] != data[0] + i:
                 raise ValueError
 
+    @rpc
     def get_num_iters(self) -> int32:
         return 2
 
-    def get_values(self, base_a, base_b, n) -> tuple[list[int32], list[int32]]:
+    @rpc
+    def get_values(self, base_a: int32, base_b: int32, n: int32) -> tuple[list[int32], list[int32]]:
         return [int32(base_a + i) for i in range(n)], \
             [int32(base_b + i) for i in range(n)]
 
 
+@nac3
 class _NestedTupleList(EnvExperiment):
+    core: KernelInvariant[Core]
+    data: KernelInvariant[list[tuple[int32, list[tuple[str, list[float], list[int32]]]]]]
+
     def build(self):
         self.setattr_device("core")
         self.data = [(0x12345678, [("foo", [0.0, 1.0], [2, 3])]),
                      (0x76543210, [("bar", [4.0, 5.0], [6, 7])])]
 
+    @rpc
     def get_data(self) -> list[tuple
             [int32, list[tuple[str, list[float], list[int32]]]]]:
         return self.data
@@ -414,10 +444,14 @@ class _NestedTupleList(EnvExperiment):
             raise ValueError
 
 
+@nac3
 class _EmptyList(EnvExperiment):
+    core: KernelInvariant[Core]
+
     def build(self):
         self.setattr_device("core")
 
+    @rpc
     def get_empty(self) -> list[int32]:
         return []
 
@@ -439,7 +473,14 @@ class ListTupleTest(ExperimentCase):
         self.create(_EmptyList).run()
 
 
+@nac3
 class _ArrayQuoting(EnvExperiment):
+    core: KernelInvariant[Core]
+    vec_i32: KernelInvariant[ndarray[int32, Literal[1]]]
+    mat_i64: KernelInvariant[ndarray[int64, Literal[2]]]
+    arr_f64: KernelInvariant[ndarray[float, Literal[3]]]
+    strs: KernelInvariant[ndarray[str, Literal[1]]]
+
     def build(self):
         self.setattr_device("core")
         self.vec_i32 = numpy.array([0, 1], dtype=int32)
@@ -453,10 +494,10 @@ class _ArrayQuoting(EnvExperiment):
         assert self.vec_i32[0] == 0
         assert self.vec_i32[1] == 1
 
-        assert self.mat_i64[0, 0] == 0
-        assert self.mat_i64[0, 1] == 1
-        assert self.mat_i64[1, 0] == 2
-        assert self.mat_i64[1, 1] == 3
+        assert self.mat_i64[0, 0] == int64(0)
+        assert self.mat_i64[0, 1] == int64(1)
+        assert self.mat_i64[1, 0] == int64(2)
+        assert self.mat_i64[1, 1] == int64(3)
 
         assert self.arr_f64[0, 0, 0] == 0.0
         assert self.arr_f64[0, 0, 1] == 1.0
@@ -467,8 +508,9 @@ class _ArrayQuoting(EnvExperiment):
         assert self.arr_f64[1, 1, 0] == 6.0
         assert self.arr_f64[1, 1, 1] == 7.0
 
-        assert self.strs[0] == "foo"
-        assert self.strs[1] == "bar"
+        # NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/421
+        #assert self.strs[0] == "foo"
+        #assert self.strs[1] == "bar"
 
 
 class ArrayQuotingTest(ExperimentCase):
@@ -476,16 +518,19 @@ class ArrayQuotingTest(ExperimentCase):
         self.create(_ArrayQuoting).run()
 
 
+@nac3
 class _Assert(EnvExperiment):
+    core: KernelInvariant[Core]
+
     def build(self):
         self.setattr_device("core")
 
     @kernel
-    def check(self, value):
+    def check(self, value: bool):
         assert value
 
     @kernel
-    def check_msg(self, value):
+    def check_msg(self, value: bool):
         assert value, "foo"
 
 
@@ -504,7 +549,12 @@ class AssertTest(ExperimentCase):
         check_fail(lambda: exp.check_msg(False), "foo")
 
 
+@nac3
 class _NumpyBool(EnvExperiment):
+    core: KernelInvariant[Core]
+    np_true: KernelInvariant[bool]
+    np_false: KernelInvariant[bool]
+
     def build(self):
         self.setattr_device("core")
         self.np_true = numpy.True_
@@ -524,7 +574,16 @@ class NumpyBoolTest(ExperimentCase):
         self.create(_NumpyBool).run()
 
 
+@nac3
 class _Alignment(EnvExperiment):
+    core: KernelInvariant[Core]
+    a: KernelInvariant[bool]
+    b: KernelInvariant[float]
+    c: KernelInvariant[bool]
+    d: KernelInvariant[bool]
+    e: KernelInvariant[float]
+    f: KernelInvariant[bool]
+
     def build(self):
         self.setattr_device("core")
         self.a = False
@@ -560,14 +619,17 @@ class AlignmentTest(ExperimentCase):
         self.create(_Alignment).run()
 
 
+@nac3
 class _NumpyQuoting(EnvExperiment):
+    core: KernelInvariant[Core]
+
     def build(self):
         self.setattr_device("core")
 
     @kernel
     def run(self):
-        a = numpy.array([10, 20])
-        b = numpy.sqrt(4.0)
+        a = np_array([10, 20])
+        b = np_sqrt(4.0)
 
 
 class NumpyQuotingTest(ExperimentCase):
@@ -576,7 +638,14 @@ class NumpyQuotingTest(ExperimentCase):
         self.create(_NumpyQuoting).run()
 
 
+@nac3
 class _IntBoundary(EnvExperiment):
+    core: KernelInvariant[Core]
+    int32_min: KernelInvariant[int32]
+    int32_max: KernelInvariant[int32]
+    int64_min: KernelInvariant[int64]
+    int64_max: KernelInvariant[int64]
+
     def build(self):
         self.setattr_device("core")
         self.int32_min = numpy.iinfo(int32).min
