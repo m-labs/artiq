@@ -914,7 +914,7 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
             Ok(()) =>
                 info!("startup kernel finished"),
             Err(Error::KernelNotFound) =>
-                info!("no startup kernel found"),
+                debug!("no startup kernel found"),
             Err(err) => {
                 congress.finished_cleanly.set(false);
                 error!("startup kernel aborted: {}", err);
@@ -1009,7 +1009,7 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
                         drtio::clear_buffers(&io, &aux_mutex);
                     }
                     Err(Error::KernelNotFound) => {
-                        info!("no idle kernel found");
+                        debug!("no idle kernel found");
                         while io.relinquish().is_ok() {}
                     }
                     Err(err) => {
