@@ -5,7 +5,7 @@ Beyond running single experiments, or basic use of master, client, and dashboard
 
 .. note::
 
-    This page follows up directly on :doc:`getting_started_mgmt`, but discusses a broader range of features, most of which continue to rest on the foundation of the management system. Some sections (datasets, the browser) are still possible to try out using your PC alone; others (MonInj, the RTIO analyzer) are only meaningful in relation to some kind of real-time hardware.
+    This page follows up directly on :doc:`getting_started_mgmt`, but discusses a broader range of features, most of which continue to rest on the foundation of the management system. Some sections (datasets, the browser) are still possible to try out using your PC alone; others (MonInj, the RTIO analyzer) are only meaningful in relation to real-time hardware.
 
 .. _mgmt-datasets:
 
@@ -83,7 +83,7 @@ Notably, the browser does not merely act as an HD5 viewer, but also allows the u
 Non-RTIO devices and the controller manager
 -------------------------------------------
 
-As described in :doc:`rtio`, there are two classes of equipment a laboratory typically finds itself needing to operate. So far, we have largely discussed ARTIQ in terms of one only: the kind of specialized hardware that requires the very high-resolution timing control ARTIQ provides. The other class comprises the broad range of regular, "slow" laboratory devices, which do *not* require nanosecond precision and can generally be operated perfectly well from a regular PC over a non-realtime channel such as USB.
+As described in :doc:`rtio`, there are two classes of equipment a laboratory typically finds itself needing to operate. So far, we have largely discussed ARTIQ in terms of one only: specialized hardware which requires the very high-resolution timing control ARTIQ provides. The other class comprises the broad range of regular, "slow" laboratory devices, which do *not* require nanosecond precision and can generally be operated perfectly well from a regular PC over a non-realtime channel such as USB.
 
 To handle these "slow" devices, ARTIQ uses *controllers*, intermediate pieces of software which are responsible for the direct I/O to these devices and offer RPC interfaces to the network. By convention, ARTIQ controllers are named with the prefix ``aqctl_``. Controllers can be started and run standalone, but are generally handled through the *controller manager*, :mod:`~artiq_comtools.artiq_ctlmgr`. The controller manager in turn communicates with the ARTIQ master, and through it with clients or the GUI.
 
@@ -137,7 +137,8 @@ Command-line monitor
 
 For those peripherals which support monitoring, the command-line :mod:`~artiq.frontend.artiq_rtiomon` utility can be used to see monitor output directly in the terminal. The command-line monitor does not require or interact with the management system or even the device database. Instead, it takes the core device IP address and a channel number as parameters and communicates with the core device directly.
 
-This tool is very simple, and there is rarely any reason to prefer its use over the dashboard monitor. Nonetheless, it can be helpful for certain kinds of debugging.
+.. tip::
+    To remember which channel numbers were assigned to which peripherals, check your device database, specifically the ``channel`` field in local entries.
 
 .. _interactivity-waveform:
 
@@ -168,7 +169,7 @@ Eventually, you should be able to see the up-and-down 'square wave' pattern of t
 
 .. tip::
 
-    File options in the top left allow for saving and exporting RTIO traces and channel lists, as well as opening them from saved files.
+    File options in the top left allow for saving and exporting RTIO traces and channel lists (including to VCD), as well as opening them from saved files.
 
 RTIO logging
 ^^^^^^^^^^^^

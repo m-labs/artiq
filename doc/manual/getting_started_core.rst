@@ -213,7 +213,7 @@ When using :mod:`~artiq.frontend.artiq_run`, the recorded buffer data can be ext
 .. note::
     The first time this command is run, it will retrieve the entire contents of the analyzer buffer, which may include every experiment you have run so far. For a more manageable introduction, run the analyzer once to clear the buffer, run the experiment, and then run the analyzer a second time, so that only the data from this single experiment is displayed.
 
-This will produce a list of the exact output events submitted to RTIO, printed in chronological order, along with the state of both ``now_mu`` and ``rtio_counter_mu``. While useful in diagnosing some specific gateware errors (in particular, :ref:`sequencing issues <sequence-errors>`), it isn't the most readable of formats. An alternate is to export to VCD, which can be viewed using third-party tools such as GtkWave. Run the experiment again, and use a command in the form of: ::
+This will produce a list of the exact output events submitted to RTIO, printed in chronological order, along with the state of both ``now_mu`` and ``rtio_counter_mu``. While useful in diagnosing some specific gateware errors (in particular, :ref:`sequencing issues <sequence-errors>`), it isn't the most readable of formats. An alternate is to export to VCD, which can be viewed using third-party tools such as GTKWave. Run the experiment again, and use a command in the form of: ::
 
     $ artiq_coreanalyzer -w <file_name>.vcd
 
@@ -221,7 +221,9 @@ The ``<file_name>.vcd`` file should be immediately created and written. Check th
 
 .. tip::
 
-    To view e.g. RTIO slack in GtkWave, drag the ``rtio_slack`` signal into the 'Signals' dock, under ``Time``. By default, the data will be presented in a raw form which you will probably not find particularly useful. For RTIO slack in particular, left-click, select ``Data Format > BitsToReal``, then ``Data Format > Analog``, to see a stepped waveform like that which the dashboard displays. Note also that the 'Waves' dock timescale is probably zoomed in very far; you may need to zoom out by some distance to see the effects of your experiment.
+    Tutorials on GTKWave options (or other third-party tools) and how best to view VCD files can be found online. By default, the data in a trace like ``rtio_slack`` will probably be presented in a raw form. To see a stepped wave as in the ARTIQ dashboard, look for options to interpret the data as a real number, then as an analog signal.
+
+    Pay attention to the timescale of the waveform dock in your chosen viewer; if you have set your signals to display but nothing is visible, it may be zoomed in or out much too far.
 
 The easiest way to view recorded analyzer data, however, is directly in the ARTIQ dashboard, a feature which will be presented later in :ref:`interactivity-waveform`.
 
