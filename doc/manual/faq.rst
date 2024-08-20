@@ -50,11 +50,6 @@ Some things to consider:
     - Is some other device in your network already using the configured IP address? Turn off the core device and try pinging the configured IP address; if it responds, you have a culprit. One of the two will need a different networking configuration.
     - Are there restrictions or issues in your router or subnet that are preventing the core device from connecting? It may help to try connecting the core device to your PC directly.
 
-fix 'no startup kernel found' / 'no idle kernel found' in the core log?
------------------------------------------------------------------------
-
-Don't. Note that these are ``INFO`` messages, and not ``ERROR`` or even ``WARN``. If you haven't flashed an idle or startup kernel yet, this is normal, and will not cause any problems; between experiments the core device will simply do nothing. The same applies to most other messages in the style of 'no configuration found' or 'falling back to default'. Your system will generally run just fine on its defaults until you get around to setting these configurations, though certain features may be limited until properly set up. See :doc:`configuring` and the list of keys in :ref:`core-device-flash-storage`.
-
 fix 'Mismatch between gateware and software versions'?
 ------------------------------------------------------
 
