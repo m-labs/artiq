@@ -73,7 +73,7 @@ Core device management tool
 
 .. automodule:: artiq.frontend.artiq_coremgmt
 
-The core management utility gives remote access to the core device logs, the :ref:`core device flash storage <core-device-flash-storage>`, and other management functions.
+The core management utility gives remote access to the core device logs, the :ref:`core device flash storage <configuration-storage>`, and other management functions.
 
 To use this tool, it is necessary to specify the IP address your core device can be contacted at. If no option is used, the utility will assume there is a file named ``device_db.py`` in the current directory containing the :ref:`device database <device-db>`; otherwise, a device database file can be provided with ``--device-db`` or an address directly with ``--device`` (see also below).
 
