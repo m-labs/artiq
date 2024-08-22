@@ -100,6 +100,8 @@ Note however that in order for the controller manager to be able to start a cont
 
 Once a device is correctly listed in ``device_db.py``, it can be added to an experiment using ``self.setattr_device([device_name])`` and the methods its API offers called straightforwardly as ``self.[device_name].[method_name]``. As long as the requisite controllers are running and available, the experiment can then be executed with :mod:`~artiq.frontend.artiq_run` or through the management system. To understand how to add controllers to the device database, see also :ref:`device-db`.
 
+.. _built-in-ctlrs:
+
 ARTIQ built-in controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 

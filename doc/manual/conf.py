@@ -332,3 +332,5 @@ render_using_wavedrompy = True
 # tikz_proc_suite = pdf2svg
 # tikz_transparent = True
 # these are the defaults
+
+tikz_tikzlibraries = 'positioning,  shapes, arrows'
