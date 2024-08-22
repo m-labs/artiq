@@ -2,6 +2,7 @@ import builtins
 import linecache
 import re
 import os
+from numpy.linalg import LinAlgError
 
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.coredevice.runtime import source_loader
