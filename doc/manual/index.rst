@@ -31,6 +31,7 @@ ARTIQ manual
     :caption: ARTIQ components
     :maxdepth: 2
 
+    overview
     environment
     compiler
     management_system
