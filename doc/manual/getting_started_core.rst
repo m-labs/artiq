@@ -9,12 +9,12 @@ As a very first step, we will turn on a LED on the core device. Create a file ``
     class LED(EnvExperiment):
         def build(self):
             self.setattr_device("core")
-            self.setattr_device("led")
+            self.setattr_device("led0")
 
         @kernel
         def run(self):
             self.core.reset()
-            self.led.on()
+            self.led0.on()
 
 The central part of our code is our ``LED`` class, which derives from :class:`~artiq.language.environment.EnvExperiment`. Almost all experiments should derive from this class, which provides access to the environment as well as including the necessary experiment framework from the base-level :class:`~artiq.language.environment.Experiment`. It will call our :meth:`~artiq.language.environment.HasEnvironment.build` at the right time and provides the :meth:`~artiq.language.environment.HasEnvironment.setattr_device` we use to gain access to our devices ``core`` and ``led``. The :func:`~artiq.language.core.kernel` decorator (``@kernel``) tells the system that the :meth:`~artiq.language.environment.Experiment.run` method is a kernel and must be compiled for and executed on the core device (instead of being interpreted and executed as regular Python code on the host).
 
@@ -46,7 +46,7 @@ Modify ``led.py`` as follows: ::
     class LED(EnvExperiment):
         def build(self):
             self.setattr_device("core")
-            self.setattr_device("led")
+            self.setattr_device("led0")
 
         @kernel
         def run(self):
@@ -54,9 +54,9 @@ Modify ``led.py`` as follows: ::
             s = input_led_state()
             self.core.break_realtime()
             if s:
-                self.led.on()
+                self.led0.on()
             else:
-                self.led.off()
+                self.led0.off()
 
 
 You can then turn the LED off and on by entering 0 or 1 at the prompt that appears: ::
@@ -70,7 +70,7 @@ What happens is that the ARTIQ compiler notices that the ``input_led_state`` fun
 
 The return type of all RPC functions must be known in advance. If the return value is not ``None``, the compiler requires a type annotation, like ``-> TBool`` in the example above. See also :ref:`compiler-types`.
 
-Without the :meth:`~artiq.coredevice.core.Core.break_realtime` call, the RTIO events emitted by :meth:`self.led.on() <artiq.coredevice.ttl.TTLInOut.on>` or :meth:`self.led.off() <artiq.coredevice.ttl.TTLInOut.off>` would be scheduled at a fixed and very short delay after entering :meth:`~artiq.language.environment.Experiment.run()`. These events would fail because the RPC to ``input_led_state()`` can take an arbitrarily long amount of time, and therefore the deadline for the submission of RTIO events would have long passed when :meth:`self.led.on() <artiq.coredevice.ttl.TTLInOut.on>` or :meth:`self.led.off() <artiq.coredevice.ttl.TTLInOut.off>` are called (that is, the ``rtio_counter_mu`` wall clock will have advanced far ahead of the timeline cursor ``now_mu``, and an :exc:`~artiq.coredevice.exceptions.RTIOUnderflow` would result; see :doc:`rtio` for the full explanation of wall clock vs. timeline.) The :meth:`~artiq.coredevice.core.Core.break_realtime` call is necessary to waive the real-time requirements of the LED state change. Rather than delaying by any particular time interval, it reads ``rtio_counter_mu`` and moves up the ``now_mu`` cursor far enough to ensure it's once again safely ahead of the wall clock.
+Without the :meth:`~artiq.coredevice.core.Core.break_realtime` call, the RTIO events emitted by :meth:`self.led0.on() <artiq.coredevice.ttl.TTLInOut.on>` or :meth:`self.led0.off() <artiq.coredevice.ttl.TTLInOut.off>` would be scheduled at a fixed and very short delay after entering :meth:`~artiq.language.environment.Experiment.run()`. These events would fail because the RPC to ``input_led_state()`` can take an arbitrarily long amount of time, and therefore the deadline for the submission of RTIO events would have long passed when :meth:`self.led0.on() <artiq.coredevice.ttl.TTLInOut.on>` or :meth:`self.led0.off() <artiq.coredevice.ttl.TTLInOut.off>` are called (that is, the ``rtio_counter_mu`` wall clock will have advanced far ahead of the timeline cursor ``now_mu``, and an :exc:`~artiq.coredevice.exceptions.RTIOUnderflow` would result; see :doc:`rtio` for the full explanation of wall clock vs. timeline.) The :meth:`~artiq.coredevice.core.Core.break_realtime` call is necessary to waive the real-time requirements of the LED state change. Rather than delaying by any particular time interval, it reads ``rtio_counter_mu`` and moves up the ``now_mu`` cursor far enough to ensure it's once again safely ahead of the wall clock.
 
 Real-time Input/Output (RTIO)
 -----------------------------
@@ -97,7 +97,7 @@ Create a new file ``rtio.py`` containing the following: ::
 
 In its :meth:`~artiq.language.environment.HasEnvironment.build` method, the experiment obtains the core device and a TTL device called ``ttl0`` as defined in the device database. In ARTIQ, TTL is used roughly synonymous with "a single generic digital signal" and does not refer to a specific signaling standard or voltage/current levels.
 
-When :meth:`~artiq.language.environment.Experiment.run`, the experiment first ensures that ``ttl0`` is in output mode and actively driving the device it is connected to.Bidirectional TTL channels (i.e. :class:`~artiq.coredevice.ttl.TTLInOut`) are in input (high impedance) mode by default, output-only TTL channels (:class:`~artiq.coredevice.ttl.TTLOut`) are always in output mode. There are no input-only TTL channels.
+When :meth:`~artiq.language.environment.Experiment.run`, the experiment first ensures that ``ttl0`` is in output mode and actively driving the device it is connected to. Bidirectional TTL channels (i.e. :class:`~artiq.coredevice.ttl.TTLInOut`) are in input (high impedance) mode by default, output-only TTL channels (:class:`~artiq.coredevice.ttl.TTLOut`) are always in output mode. There are no input-only TTL channels.
 
 The experiment then drives one million 2 µs long pulses separated by 2 µs each. Connect an oscilloscope or logic analyzer to TTL0 and run ``artiq_run rtio.py``. Notice that the generated signal's period is precisely 4 µs, and that it has a duty cycle of precisely 50%. This is not what one would expect if the delay and the pulse were implemented with register-based general purpose input output (GPIO) that is CPU-controlled. The signal's period would depend on CPU speed, and overhead from the loop, memory management, function calls, etc., all of which are hard to predict and variable. Any asymmetry in the overhead would manifest itself in a distorted and variable duty cycle.
 
@@ -169,19 +169,22 @@ Within a parallel block, some statements can be scheduled sequentially again usi
         delay(4*us)
 
 .. warning::
-    ``with parallel`` specifically 'parallelizes' the *top-level* statements inside a block. Consider as an example: ::
+    ``with parallel`` specifically 'parallelizes' the *top-level* statements inside a block. Consider as an example:
+
+    .. code-block::
+        :linenos:
 
             for i in range(1000000):
                 with parallel:
-                    self.ttl0.pulse(2*us)       # 1
-                    if True:                    # 2
-                        self.ttl1.pulse(2*us)   # 3
-                        self.ttl2.pulse(2*us)   # 4
+                    self.ttl0.pulse(2*us)
+                    if True:
+                        self.ttl1.pulse(2*us)
+                        self.ttl2.pulse(2*us)
                 delay(4*us)
 
-    This code will not schedule the three pulses to ``ttl0``, ``ttl1``, and ``ttl2`` in parallel. Rather, the pulse to ``ttl1`` is 'parallelized' *with the if statement*. The timeline cursor resets once, at the beginning of statement #2; it will not repeat the reset at the deeper indentation level for #3 or #4.
+    This code will not schedule the three pulses to ``ttl0``, ``ttl1``, and ``ttl2`` in parallel. Rather, the pulse to ``ttl1`` is 'parallelized' *with the if statement*. The timeline cursor resets once, at the beginning of line #4; it will not repeat the reset at the deeper indentation level for #5 or #6.
 
-    In practice, the pulses to ``ttl0`` and ``ttl1`` will execute simultaneously, and the pulse to ``ttl2`` will execute after the pulse to ``ttl1``, bringing the total duration of the ``parallel`` block to 4 us. Internally, statements #3 and #4, contained within the top-level if statement, are considered an atomic sequence and executed within an implicit ``with sequential``. To execute #3 and #4 in parallel, it is necessary to place them inside a second, nested ``parallel`` block within the if statement.
+    In practice, the pulses to ``ttl0`` and ``ttl1`` will execute simultaneously, and the pulse to ``ttl2`` will execute after the pulse to ``ttl1``, bringing the total duration of the ``parallel`` block to 4 us. Internally, lines #5 and #6, contained within the top-level if statement, are considered an atomic sequence and executed within an implicit ``with sequential``. To schedule #5 and #6 in parallel, it is necessary to place them inside a second, nested ``parallel`` block within the if statement.
 
 Particular care needs to be taken when working with ``parallel`` blocks which generate large numbers of RTIO events, as it is possible to cause sequencing issues in the gateware; see also :ref:`sequence-errors`.
 
@@ -223,7 +226,7 @@ The ``<file_name>.vcd`` file should be immediately created and written. Check th
 
     Tutorials on GTKWave options (or other third-party tools) and how best to view VCD files can be found online. By default, the data in a trace like ``rtio_slack`` will probably be presented in a raw form. To see a stepped wave as in the ARTIQ dashboard, look for options to interpret the data as a real number, then as an analog signal.
 
-    Pay attention to the timescale of the waveform dock in your chosen viewer; if you have set your signals to display but nothing is visible, it may be zoomed in or out much too far.
+    Pay attention to the timescale of the waveform dock in your chosen viewer; if you have set your signals to display but nothing is visible, it is likely zoomed in or out much too far.
 
 The easiest way to view recorded analyzer data, however, is directly in the ARTIQ dashboard, a feature which will be presented later in :ref:`interactivity-waveform`.
 
@@ -232,7 +235,7 @@ The easiest way to view recorded analyzer data, however, is directly in the ARTI
 Direct Memory Access (DMA)
 --------------------------
 
-DMA allows for storing fixed sequences of RTIO events in system memory and having the DMA core in the FPGA play them back at high speed. Provided that the specifications of a desired event sequence are known far enough in advance, and no other RTIO issues (collisions, sequence errors) are provoked, even extremely fast and detailed event sequences can always be generated and executed. RTIO underflows occur when events cannot be generated *as fast as* they need to be executed, resulting in an exception when the wall clock 'catches up'. The solution is to record these sequences to the DMA core. Once recorded, event sequences are fixed and cannot be modified, but can be safely replayed very quickly at any position in the timeline, potentially repeatedly.
+DMA allows for storing fixed sequences of RTIO events in system memory and having the DMA core in the FPGA play them back at high speed. Provided that the specifications of a desired event sequence are known far enough in advance, and no other RTIO issues (collisions, sequence errors) are provoked, even extremely fast and detailed event sequences can always be generated and executed. RTIO underflows occur when events cannot be generated *as fast as* they need to be executed, resulting in an exception when the wall clock 'catches up' to ``now_mu``. The solution is to record these sequences to the DMA core. Once recorded, event sequences are fixed and cannot be modified, but can be safely replayed very quickly at any position in the timeline, potentially repeatedly.
 
 Try this: ::
 

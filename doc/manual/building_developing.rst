@@ -75,7 +75,7 @@ Common system description changes
 To add or remove peripherals from the system, add or remove their entries from the ``peripherals`` field. When replacing hardware with upgraded versions, update the corresponding ``hw_rev`` (hardware revision) field. Other fields to consider include:
 
     - ``enable_wrpll`` (a simple boolean, see :ref:`core-device-clocking`)
-    - ``sed_lanes`` (increasing the number of SED lanes can reduce sequence errors, but correspondingly consumes more FPGA resources, see :ref:`sequence-errors`    )
+    - ``sed_lanes`` (increasing the number of SED lanes can reduce sequence errors, but correspondingly consumes more FPGA resources, see :ref:`sequence-errors`)
     - various defaults (e.g. ``core_addr`` defines a default IP address, which can be freely reconfigured later).
 
 Nix development environment
@@ -84,21 +84,23 @@ Nix development environment
 * Install `Nix <http://nixos.org/nix/>`_ if you haven't already. Prefer a single-user installation for simplicity.
 * Enable flakes in Nix, for example by adding ``experimental-features = nix-command flakes`` to ``nix.conf``; see the `NixOS Wiki on flakes <https://nixos.wiki/wiki/flakes>`_ for details and more options.
 * Clone `the ARTIQ Git repository <https://github.com/m-labs/artiq>`_, or `the ARTIQ-Zynq repository <https://git.m-labs.hk/M-Labs/artiq-zynq>`__ for Zynq devices (Kasli-SoC or ZC706). By default, you are working with the ``master`` branch, which represents the beta version and is not stable (see :doc:`releases`). Checkout the most recent release (``git checkout release-[number]``) for a stable version.
-* If your Vivado installation is not in its default location ``/opt``, open ``flake.nix`` and edit it accordingly (once again text-search ``/opt/Xilinx/Vivado``).
+* If your Vivado installation is not in its default location ``/opt``, open ``flake.nix`` and edit it accordingly (note that the edits must be made in the main ARTIQ flake, even if you are working with Zynq, see also tip below).
 * Run ``nix develop`` at the root of the repository, where ``flake.nix`` is.
 * Answer ``y``/'yes' to any Nix configuration questions if necessary, as in :ref:`installing-troubleshooting`.
 
 .. note::
-    You can also target legacy versions of ARTIQ; use Git to checkout older release branches. Note however that older releases of ARTIQ required different processes for developing and building, which you are broadly more likely to figure out by (also) consulting corresponding older versions of the manual.
+    You can also target legacy versions of ARTIQ; use Git to checkout older release branches. Note however that older releases of ARTIQ required different processes for developing and building, which you are broadly more likely to figure out by (also) consulting the corresponding older versions of the manual.
 
 Once you have run ``nix develop`` you are in the ARTIQ development environment. All ARTIQ commands and utilities -- :mod:`~artiq.frontend.artiq_run`, :mod:`~artiq.frontend.artiq_master`, etc. -- should be available, as well as all the packages necessary to build or run ARTIQ itself. You can exit the environment at any time using Control+D or the ``exit`` command and re-enter it by re-running ``nix develop`` again in the same location.
 
 .. tip::
-    If you are developing for Zynq, you will have noted that the ARTIQ-Zynq repository consists largely of firmware. The firmware for Zynq (NAR3) is more modern than that used for current mainline ARTIQ, and is intended to eventually replace it; for now it constitutes most of the difference between the two ARTIQ variants. The gateware for Zynq, on the other hand, is largely imported from mainline ARTIQ. If you intend to modify the gateware housed in the original ARTIQ repository, but build and test the results on a Zynq device, clone both repositories and set your ``PYTHONPATH`` after entering the ARTIQ-Zynq development shell: ::
+    If you are developing for Zynq, you will have noted that the ARTIQ-Zynq repository consists largely of firmware. The firmware for Zynq (NAR3) is more modern than that used for current mainline ARTIQ, and is intended to eventually replace it; for now it constitutes most of the difference between the two ARTIQ variants. The gateware for Zynq, on the other hand, is largely imported from mainline ARTIQ.
+
+    If you intend to modify the source housed in the original ARTIQ repository, but build and test the results on a Zynq device, clone both repositories and set your ``PYTHONPATH`` after entering the ARTIQ-Zynq development shell: ::
 
         $ export PYTHONPATH=/absolute/path/to/your/artiq:$PYTHONPATH
 
-    Note that this only applies for incremental builds. If you want to use ``nix build``, look into changing the inputs of the ``flake.nix`` instead. You can do this by replacing the URL of the GitHub ARTIQ repository with ``path:/absolute/path/to/your/artiq``; remember that Nix caches dependencies, so to incorporate new changes you will need to exit the development shell, update the Nix cache with ``nix flake update``, and re-run ``nix develop``.
+    Note that this only applies for incremental builds. If you want to use ``nix build``, or make changes to the dependencies, look into changing the inputs of the ``flake.nix`` instead. You can do this by replacing the URL of the GitHub ARTIQ repository with ``path:/absolute/path/to/your/artiq``; remember that Nix caches dependencies, so to incorporate new changes you will need to exit the development shell, update the Nix cache with ``nix flake update``, and re-run ``nix develop``.
 
 Building only standard binaries
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
