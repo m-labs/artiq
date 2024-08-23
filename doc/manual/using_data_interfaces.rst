@@ -62,6 +62,9 @@ Run the experiment again, and observe how the points are added as they are gener
 .. tip::
     Datasets and applets can both be arranged in groups for organizational purposes. (In fact, so can arguments; see the reference of :meth:`~artiq.language.environment.HasEnvironment.setattr_argument`). For datasets, use a dot (``.``) in names to separate folders. For applets, left-click in the applet list to see the option 'Create Group'. You can drag and drop to move applets in and out of groups, or select a particular group with a click to create new applets in that group. Deselect applets or groups with CTRL+click.
 
+.. tip::
+    You can close all open, undocked applets with the shortcut CTRL+ALT+W. Docked applets will remain where they are. This is a convenient way to clean up after exploratory work without destroying a carefully arranged workspace.
+
 The ARTIQ browser
 ^^^^^^^^^^^^^^^^^
 
@@ -193,3 +196,5 @@ The last notable tab of the dashboard is called 'Shortcuts'. To demonstrate its 
 
 .. note::
     Experiments submitted by shortcut will always use the argument currently entered into the submission window, if one is open. If no window is currently open, it will simply use the value *last* entered into a submission window. This is true even if that value was never used to submit an experiment.
+
+It is also possible to bring up a "Quick Open" dialogue where experiments can be called up by searching part of their name. This is bound to the hotkey CTRL+P. To immediately start the experiment with its default arguments, hit CTRL+ENTER.
