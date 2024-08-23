@@ -54,7 +54,7 @@ Return to the terminal where the master is running. You should see an output sim
 
     INFO:worker(0,mgmt_tutorial.py):print:Hello World
 
-In other words, a worker created by the master has executed the experiment, and carried out the print instruction. Congratulations!
+In other words, a worker created by the master has executed the experiment and carried out the print instruction. Congratulations!
 
 .. tip::
 
@@ -74,7 +74,7 @@ You may also notice that the master has created some other organizational files 
 Running the dashboard and controller manager
 --------------------------------------------
 
-Submitting experiments with :mod:`~artiq.frontend.artiq_client` has some interesting qualities: for instance, experiments can be requested simultaneously by different clients and be relied upon to execute neatly in sequence, which is useful in a distributed context. On the other hand, on an local level, it doesn't necessarily carry many practical advantages over using :mod:`~artiq.frontend.artiq_run`. The real convenience of the management system lies in its GUI, the dashboard. We will now try submitting an experiment using the dashboard.
+Submitting experiments with :mod:`~artiq.frontend.artiq_client` has some interesting qualities: for instance, experiments can be requested simultaneously by different clients and be relied upon to execute cleanly in sequence, which is useful in a distributed context. On the other hand, on an local level, it doesn't necessarily carry many practical advantages over using :mod:`~artiq.frontend.artiq_run`. The real convenience of the management system lies in its GUI, the dashboard. We will now try submitting an experiment using the dashboard.
 
 First, start the controller manager: ::
 
@@ -121,7 +121,7 @@ You can ask it to do this through the command-line client: ::
 
 or you can right-click in the Explorer and select 'Scan repository HEAD'. Now you should be able to select and submit the new experiment.
 
-If you switch the 'Log' dock to its 'Schedule' tab while the experiment is still running, you will see the experiment appear, displaying its RID, status, priority, and other information. Click 'Submit' again while the first experiment is progress, and a second iteration of the experiment will appear in the Schedule, queued up to execute next in line.
+If you switch the 'Log' dock to its 'Schedule' tab while the experiment is still running, you will see the experiment appear, displaying its RID, status, priority, and other information. Click 'Submit' again while the first experiment is in progress, and a second iteration of the experiment will appear in the Schedule, queued up to execute next in line.
 
 .. note::
     You may have noted that experiments can be submitted with a due date, a priority level, a pipeline identifier, and other specific settings. Some of these are self-explanatory. Many are scheduling-related. For more information on experiment scheduling, see :ref:`experiment-scheduling`.
@@ -180,7 +180,7 @@ Setting up Git integration
 So far, we have used the bare filesystem for the experiment repository, without any version control. Using Git to host the experiment repository helps with tracking modifications to experiments and with the traceability to a particular version of an experiment.
 
 .. note::
-    The workflow we will describe in this tutorial corresponds to a situation where the computer running the ARTIQ master is also used as a Git server to which multiple users may contribute code. The Git setup can be customized according to your needs; the main point to remember is that when scanning or submitting, the ARTIQ master uses the internal Git data (*not* any working directory that may be present) to fetch the latest *fully completed commit* at the repository's head. See the :doc:`management_system` page for notes on alternate workflows.
+    The workflow we will describe in this tutorial corresponds to a situation where the computer running the ARTIQ master is also used as a Git server to which multiple users may contribute code. The Git setup can be customized according to your needs; the main point to remember is that when scanning or submitting, the ARTIQ master uses the internal Git data (*not* any working directory that may be present) to fetch the latest *fully completed commit* at the repository's head. See the :ref:`Management system <mgmt-git-integration>` page for notes on alternate workflows.
 
 We will use our current ``repository`` folder as the working directory for making local modifications to the experiments, move it away from the master's data directory, and replace it with a new ``repository`` folder, which will hold only the Git data used by the master. Stop the master with Ctrl+C and enter the following commands: ::
 

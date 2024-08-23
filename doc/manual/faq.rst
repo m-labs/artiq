@@ -80,14 +80,14 @@ Inconsistent DRTIO connections, especially with odd or absent errors in the core
 add or remove EEM peripherals or DRTIO satellites?
 --------------------------------------------------
 
-Adding new real-time hardware to an ARTIQ system almost always means reflashing the core device; if you are adding new satellite core devices, they will have to be flashed as well. If you have obtained your upgrades directly from M-Labs or QUARTIQ, updated binaries and reflashing support will normally be offered to you directly. In any other case, track down your JSON system description file(s), bring them up to date with the updated state of your system, and see :doc:`building_developing`.
+Adding new real-time hardware to an ARTIQ system almost always means reflashing the core device; if you are adding new satellite core devices, they will have to be flashed as well. If you have obtained your upgrades from M-Labs or QUARTIQ, updated binaries and reflashing support will normally be offered to you directly. In any other case, track down your JSON system description file(s), bring them up to date with the updated state of your system, and see :doc:`building_developing`.
 
-Once you have an updated set of binaries, reflash the core device, following the instructions in :doc:`flashing`. Be sure to update your device database before starting experimentation; run :mod:`~artiq.frontend.artiq_ddb_template` on your system description(s) to update the local devices, and copy over any aliases or entries for NDSP controllers you may have been using. Note that the device database is a Python file, and the generated file of local devices can also simply be imported into the final version, allowing for dynamic modifications, especially for complex systems that may have multiple device databases in use.
+Once you have an updated set of binaries, reflash the core device, following the instructions in :doc:`flashing`. Be sure to update your device database before starting experimentation; run :mod:`~artiq.frontend.artiq_ddb_template` on your system description(s) to update the local devices, and copy over any aliases or entries for NDSP controllers you may have been using. Note that the device database is a Python file, and the generated file of local devices can also simply be imported into the final version, allowing for dynamic modifications, especially in complex systems that may have multiple device databases in use.
 
 see command-line help?
 ----------------------
 
-Like most if not almost all terminal utilities, ARTIQ commands, tools and applets print their help messages directly into the terminal and exit when run with the flag ``-h``: ::
+Like most if not almost all terminal utilities, ARTIQ commands, tools and applets print their help messages directly into the terminal and exit when run with the flag ``--help`` or ``-h``: ::
 
     $ artiq_run -h
 
@@ -102,14 +102,14 @@ The official examples are stored in the ``examples`` folder of the ARTIQ package
 
   python3 -c "import artiq; print(artiq.__path__[0])"
 
-Copy the ``examples`` folder from that path into your home or user directory, and start experimenting!
+Copy the ``examples`` folder from that path into your home or user directory, and start experimenting! (Note that some examples have dependencies not included with a standard ARTIQ install, like matplotlib and numba. To run those examples properly, make sure those modules are accessible.)
 
-On the other hand, if you have progressed past this level and would like to see more in-depth code or real-life examples of how other groups have handled running experiments with ARTIQ, see the "Community code" directory on the M-labs `resources page <https://m-labs.hk/experiment-control/resources/>`_.
+If you have progressed past this level and would like to see more in-depth code or real-life examples of how other groups have handled running experiments with ARTIQ, see the "Community code" directory on the M-labs `resources page <https://m-labs.hk/experiment-control/resources/>`_.
 
 fix ``failed to connect to moninj`` in the dashboard?
 -----------------------------------------------------
 
-This and other similar messages almost always indicate that your device database lists controllers (for example, ``aqctl_moninj_proxy``) that either haven't been started or aren't reachable at the given host and port. See :ref:`mgmt-ctlmgr`, or navigate to the directory containing your ``device_db.py`` and run: ::
+This and other similar messages almost always indicate that your device database lists controllers (for example, ``aqctl_moninj_proxy``) that either haven't been started or aren't reachable at the given host and port. See :ref:`mgmt-ctlmgr`, or simply run: ::
 
     $ artiq_ctlgmr
 

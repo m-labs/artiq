@@ -39,15 +39,15 @@ As long as ``archive=False`` is not explicitly set, datasets are among the infor
 You can open the result file for this experiment with HDFView, h5dump, or any similar third-party tool. Observe that it contains the dataset we just generated, as well as other useful information such as RID, run time, start time, and the Git commit ID of the repository at the time of the experiment (a hexadecimal hash such as ``947acb1f90ae1b8862efb489a9cc29f7d4e0c645``).
 
 .. tip::
-    If you are not familiar with Git, try running ``git log`` in either of your connected Git repositories to see a history of commits in the repository which includes their respective hashes. As long as this history remains intact, you can use a hash of this kind of to uniquely identify, and even retrieve, the state of the files in the repository at the time this experiment was run. In oher words, when running experiments from a Git repository, it's always possible to retrieve the code that led to a particular set of results.
+    If you are not familiar with Git, try running ``git log`` in either of your connected Git repositories to see a history of commits in the repository which includes their respective hashes. As long as this history remains intact, you can use a hash of this kind of to uniquely identify, and even retrieve, the state of the files in the repository at the time this experiment was run. In other words, when running experiments from a Git repository, it's always possible to retrieve the code that led to a particular set of results.
 
 Applets
 ^^^^^^^
 
-Most of the time, rather than the HDF dump, we would like to see our result datasets in a readable graphical form, preferably without opening any third-party applications. In the ARTIQ dashboard, this is achieved by programs called "applets". Applets provide simple, modular GUI features; are run independently from the dashboard as separate processes to achieve goals of modularity and resilience. ARTIQ supplies several applets for basic plotting in the :mod:`artiq.applets` module, and provides interfaces so users can write their owns.
+Most of the time, rather than the HDF dump, we would like to see our result datasets in a readable graphical form, preferably without opening any third-party applications. In the ARTIQ dashboard, this is achieved by programs called "applets". Applets provide simple, modular GUI features; are run independently from the dashboard as separate processes to achieve goals of modularity and resilience. ARTIQ supplies several applets for basic plotting in the :mod:`artiq.applets` module, and provides interfaces so users can write their own.
 
 .. seealso::
-    For more about developing your own applets, see the references provided on the :ref:`Management system reference<applet-references>` page of this manual.
+    When developing your own applets, see also the references provided on the :ref:`Management system reference<applet-references>` page of this manual.
 
 For our ``parabola`` dataset, we will create an XY plot using the provided :mod:`artiq.applets.plot_xy`. Applets are configured with simple command line options. To figure out what configurations are accepted, use the ``-h`` flag, as in: ::
 

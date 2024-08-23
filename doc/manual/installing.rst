@@ -82,9 +82,6 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
     };
   }
 
-.. note::
-  You might consider adding matplotlib and numba in particular, as these are required by certain ARTIQ example experiments.
-
 You can now spawn a shell containing these packages by running ``$ nix shell`` in the directory containing the ``flake.nix``. This should make both the ARTIQ commands and all the additional packages available to you. You can exit the shell with Control+D or with the command  ``exit``. A first execution of ``$ nix shell`` may take some time, but for any future repetitions Nix will use cached packages and startup should be much faster.
 
 You might be interested in creating multiple directories containing different ``flake.nix`` files which represent different sets of packages for different purposes. If you are familiar with Conda, using Nix in this way is similar to having multiple Conda environments.

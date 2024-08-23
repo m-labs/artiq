@@ -19,7 +19,7 @@ Full support for a specific device, called a network device support package or N
 
 1. The `driver`, which contains the Python API functions to be called over the network and performs the I/O to the device. The top-level module of the driver should be called ``artiq.devices.XXX.driver``.
 2. The `controller`, which instantiates, initializes and terminates the driver, and sets up the RPC server. The controller is a front-end command-line tool to the user and should be called ``artiq.frontend.aqctl_XXX``. A ``setup.py`` entry must also be created to install it.
-3. An optional `client`, which connects to the controller and exposes the functions of the driver as a command-line interface. Clients are front-end tools (called ``artiq.frontend.aqcli_XXX``) that have ``setup.py`` entries. In most cases, a custom client is not needed and the generic ``sipyco_rpctool`` utility can be used instead. Custom clients are only required when large amounts of data must be transferred over the network API, that would be unwieldy to pass as ``sipyco_rpctool`` command-line parameters.
+3. An optional `client`, which connects to the controller and exposes the functions of the driver as a command-line interface. Clients are front-end tools (called ``artiq.frontend.aqcli_XXX``) that have ``setup.py`` entries. In most cases, a custom client is not needed and the generic ``sipyco_rpctool`` utility can be used instead. Custom clients are only required when large amounts of data, which would be unwieldy to pass as ``sipyco_rpctool`` command-line parameters, must be transferred over the network API.
 4. An optional `mediator`, which is code executed on the client that supplements the network API. A mediator may contain kernels that control real-time signals such as TTL lines connected to the device. Simple devices use the network API directly and do not have a mediator. Mediator modules are called ``artiq.devices.XXX.mediator`` and their public classes are exported at the ``artiq.devices.XXX`` level (via ``__init__.py``) for direct import and use by the experiments.
 
 The driver and controller
@@ -213,7 +213,7 @@ Command line and options
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 * Controllers should be able to operate in "simulation" mode, specified with ``--simulation``, where they behave properly even if the associated hardware is not connected. For example, they can print the data to the console instead of sending it to the device, or dump it into a file.
-* The device identification (e.g. serial number, or entry in ``/dev``) to attach to must be passed as a command-line parameter to the controller. We suggest using ``-d`` and ``--device`` as parameter name.
+* The device identification (e.g. serial number, or entry in ``/dev``) to attach to must be passed as a command-line parameter to the controller. We suggest using ``-d`` and ``--device`` as parameter names.
 * Keep command line parameters consistent across clients/controllers. When adding new command line options, look for a client/controller that does a similar thing and follow its use of ``argparse``. If the original client/controller could use ``argparse`` in a better way, improve it.
 
 Style
