@@ -114,6 +114,7 @@ class EmbeddingMap:
             "0:ValueError",
             "0:ZeroDivisionError",
             "0:LinAlgError",
+            "UnwrapNoneError",
         ])
 
     def preallocate_runtime_exception_names(self, names):

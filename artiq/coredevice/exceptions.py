@@ -182,3 +182,8 @@ class I2CError(Exception):
 class SPIError(Exception):
     """Raised when a SPI transaction fails."""
     artiq_builtin = True
+
+
+class UnwrapNoneError(Exception):
+    """Raised when unwrapping a none Option."""
+    artiq_builtin = True
