@@ -92,6 +92,7 @@ class EmbeddingMap:
         # The exceptions declared here must be defined in `artiq.coredevice.exceptions`
         # Verify synchronization by running the test cases in `artiq.test.coredevice.test_exceptions`
         self.preallocate_runtime_exception_names([
+            "0:RuntimeError",
             "RTIOUnderflow",
             "RTIOOverflow",
             "RTIODestinationUnreachable",
@@ -99,20 +100,10 @@ class EmbeddingMap:
             "I2CError",
             "CacheError",
             "SPIError",
-            "SubkernelError",
-
-            "0:AssertionError",
-            "0:AttributeError",
+            "0:ZeroDivisionError",
             "0:IndexError",
-            "0:IOError",
-            "0:KeyError",
-            "0:NotImplementedError",
-            "0:OverflowError",
-            "0:RuntimeError",
-            "0:TimeoutError",
-            "0:TypeError",
-            "0:ValueError",
-            "0:ZeroDivisionError"
+            "UnwrapNoneError",
+            "SubkernelError",
         ])
 
     def preallocate_runtime_exception_names(self, names):
