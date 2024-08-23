@@ -25,7 +25,7 @@ Installing and configuring OpenOCD
 ----------------------------------
 
 .. warning::
-  These instructions are not applicable to Zynq devices (Kasli-SoC or ZC706), which do not use the utility :mod:`~artiq.frontend.artiq_flash` to reflash. If your core device is a Zynq device, skip straight to :ref:`writing-flash`.
+  These instructions are not applicable to Zynq devices (Kasli-SoC or ZC706), which do not use the utility :mod:`~artiq.frontend.artiq_flash`. If your core device is a Zynq device, skip straight to :ref:`writing-flash`.
 
 ARTIQ supplies the utility :mod:`~artiq.frontend.artiq_flash`, which uses OpenOCD to write the binary images into an FPGA board's flash memory. For both Nix and MSYS2, OpenOCD are included with the installation by default. Note that in the case of Nix this is the package ``artiq.openocd-bscanspi`` and not ``pkgs.openocd``; the second is OpenOCD from the Nix package collection, which does not support ARTIQ/Sinara boards.
 
@@ -83,7 +83,7 @@ First ensure the board is connected to your computer. In the case of Kasli, the 
 For Kasli-SoC or ZC706:
     ::
 
-        $ artiq_coremgmt [-D 192.168.1.75] config write -f boot [afws_directory]/boot.bin
+        $ artiq_coremgmt [-D IP_address] config write -f boot <afws_directory>/boot.bin
         $ artiq_coremgmt reboot
 
     If the device is not reachable due to corrupted firmware or networking problems, extract the SD card and copy ``boot.bin`` onto it manually.
@@ -91,12 +91,12 @@ For Kasli-SoC or ZC706:
 For Kasli:
     ::
 
-        $ artiq_flash -d [afws_directory]
+        $ artiq_flash -d <afws_directory>
 
 For KC705:
     ::
 
-        $ artiq_flash -t kc705 -d [afws_directory]
+        $ artiq_flash -t kc705 -d <afws_directory>
 
     The SW13 switches need to be set to 00001.
 

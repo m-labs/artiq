@@ -5,7 +5,7 @@ The ARTIQ compiler transforms the Python code of the kernels into machine code e
 
 ARTIQ kernel code accepts *nearly,* but not quite, a strict subset of Python 3. The necessities of real-time operation impose a harsher set of limitations; as a result, many Python features are necessarily omitted, and there are some specific discrepancies (see also :ref:`compiler-pitfalls`).
 
-In general, ARTIQ Python supports only statically typed variables; it implements no heap allocation or garbage collection systems, essentially disallowing any heap-based data structures (although lists and arrays remain available in a stack-based form); and it cannot use runtime dispatch, meaning that, for example, all elements of an array must be of the same type. Nonetheless, technical details aside, a basic knowledge of Python is entirely sufficient to write useful and coherent ARTIQ experiments.
+In general, ARTIQ Python supports only statically typed variables; it implements no heap allocation or garbage collection systems, essentially disallowing any heap-based data structures (although lists and arrays remain available in a stack-based form); and it cannot use runtime dispatch, meaning that, for example, all elements of an array must be of the same type. Nonetheless, technical details aside, a basic knowledge of Python is entirely sufficient to write ARTIQ experiments.
 
 .. note::
     The ARTIQ compiler is now in its second iteration. The third generation, known as NAC3, is `currently in development <https://git.m-labs.hk/M-Labs/nac3>`_, and available for pre-alpha experimental use. NAC3 represents a major overhaul of ARTIQ compilation, and will feature much faster compilation speeds, a greatly improved type system, and more predictable and transparent operation. It is compatible with ARTIQ firmware starting at ARTIQ-7. Instructions for installation and basic usage differences can also be found `on the M-Labs Forum <https://forum.m-labs.hk/d/392-nac3-new-artiq-compiler-3-prealpha-release>`_. While NAC3 is a work in progress and many important features remain unimplemented, installation and feedback is welcomed.
@@ -20,7 +20,7 @@ Functions and decorators
 
 The ARTIQ compiler recognizes several specialized decorators, which determine the way the decorated function will be compiled and handled.
 
-``@kernel`` (see :meth:`~artiq.language.core.kernel`) designates kernel functions, which will be compiled for and wholly executed on the core device; the basic setup and background for kernels is detailed on the :doc:`getting_started_core` page. ``@subkernel`` (:meth:`~artiq.language.core.subkernel`) designates subkernel functions, which are largely similar to kernels except that they are executed on satellite devices in a DRTIO setting, with some associated limitations; they are described in more detail on the :doc:`using_drtio_subkernels` page.
+``@kernel`` (see :meth:`~artiq.language.core.kernel`) designates kernel functions, which will be compiled for and executed on the core device; the basic setup and background for kernels is detailed on the :doc:`getting_started_core` page. ``@subkernel`` (:meth:`~artiq.language.core.subkernel`) designates subkernel functions, which are largely similar to kernels except that they are executed on satellite devices in a DRTIO setting, with some associated limitations; they are described in more detail on the :doc:`using_drtio_subkernels` page.
 
 ``@rpc`` (:meth:`~artiq.language.core.rpc`) designates functions to be executed on the host machine, which are compiled and run in regular Python, outside of the core device's real-time limitations. Notably, functions without decorators are assumed to be host-bound by default, and treated identically to an explicitly marked ``@rpc``. As a result, the explicit decorator is only really necessary when specifying additional flags (for example, ``flags={"async"}``, see below).
 
@@ -135,7 +135,7 @@ ARTIQ makes various useful built-in and mathematical functions from Python, NumP
             - ``print()`` (with caveats; see below)
             - all basic type conversions (``int()``, ``float()`` etc.)
     +   * `NumPy mathematic utilities <https://numpy.org/doc/stable/reference/routines.math.html>`_
-        *   - ``sqrt()``, ``cbrt```
+        *   - ``sqrt()``, ``cbrt()``
             - ``fabs()``, ``fmax()``, ``fmin()``
             - ``floor()``, ``ceil()``, ``trunc()``, ``rint()``
     +   * `NumPy exponents and logarithms <https://numpy.org/doc/stable/reference/routines.math.html#exponents-and-logarithms>`_
@@ -154,12 +154,12 @@ ARTIQ makes various useful built-in and mathematical functions from Python, NumP
             - ``gamma()``, ``gammaln()``
             - ``j0()``, ``j1()``, ``y0()``, ``y1()``
 
-Basic NumPy array handling (``np.array()``, ``numpy.transpose()``, ``numpy.full``, ``@``, element-wise operation, etc.) is also available. NumPy functions are implicitly broadcast when applied to arrays.
+Basic NumPy array handling (``np.array()``, ``numpy.transpose()``, ``numpy.full()``, ``@``, element-wise operation, etc.) is also available. NumPy functions are implicitly broadcast when applied to arrays.
 
 Print and logging functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-ARTIQ offers two native built-in logging functions: ``rtio_log()``, which prints to the :ref:`RTIO log <rtio-analyzer>`, as retrieved by :mod:`~artiq.frontend.artiq_coreanalyzer`, and ``core_log()``, which allows for printing directly to the core log regardless of context or network connection status. Both exist for debugging purposes, especially in contexts where a ``print()`` RPC is not suitable, such as in idle/startup kernels or when debugging delicate RTIO slack issues which may be strongly affected by the overhead of ``print()``.
+ARTIQ offers two native built-in logging functions: ``rtio_log()``, which prints to the :ref:`RTIO log <rtio-analyzer>`, as retrieved by :mod:`~artiq.frontend.artiq_coreanalyzer`, and ``core_log()``, which prints directly to the core log, regardless of context or network connection status. Both exist for debugging purposes, especially in contexts where a ``print()`` RPC is not suitable, such as in idle/startup kernels or when debugging delicate RTIO slack issues which may be significantly affected by the overhead of ``print()``.
 
 ``print()`` itself is in practice an RPC to the regular host Python ``print()``, i.e. with output either in the terminal of :mod:`~artiq.frontend.artiq_run` or in the client logs when using :mod:`~artiq.frontend.artiq_dashboard` or :mod:`~artiq.frontend.artiq_compile`. This means on one hand that it should not be used in idle, startup, or subkernels, and on the other hand that it suffers of some of the timing limitations of any other RPC, especially if the RPC queue is full. Accordingly, it is important to be aware that the timing of ``print()`` outputs can't reliably be used to debug timing in kernels, and especially not the timing of other RPCs.
 
