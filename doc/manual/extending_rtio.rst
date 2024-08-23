@@ -14,7 +14,7 @@ Introduction to the ARTIQ internal stack
 
 .. tikz::
    :align: center
-   :libs: positioning, arrows.meta
+   :libs: arrows
    :xscale: 70
 
     \definecolor{primary}{HTML}{0d3547} % ARTIQ blue
@@ -30,24 +30,24 @@ Introduction to the ARTIQ internal stack
     \node[draw=primary, fill=white] (hardware) at (0, 2) {Hardware: \it{Sinara ecosystem}};
 
     \begin{pgfonlayer}{bg}
-        \draw[primary, ->, dotted, thick] (frontend.south) to [out=-180, in=-180] (firmware.west);
-        \draw[primary, ->, dotted, thick] (frontend) to (software);
+        \draw[primary, -Stealth, dotted, thick] (frontend.south) to [out=180, in=180] (firmware.west);
+        \draw[primary, -Stealth, dotted, thick] (frontend) to (software);
     \end{pgfonlayer}
-    \draw[primary, ->] (firmware) to (software);
-    \draw[primary, ->] (gateware) to (firmware);
-    \draw[primary, ->] (hardware) to (gateware);
+    \draw[primary, -Stealth] (firmware) to (software);
+    \draw[primary, -Stealth] (gateware) to (firmware);
+    \draw[primary, -Stealth] (hardware) to (gateware);
 
 Like any other modern piece of software, kernel code running on an ARTIQ core device rests upon a layered infrastructure, starting with the hardware: the physical carrier board and its peripherals. Generally, though not exclusively, this is the `Sinara device family <https://m-labs.hk/experiment-control/sinara-core/>`_, which is designed to work with ARTIQ. Other carrier boards, such as the Xilinx KC705 and ZC706, are also supported.
 
 All of the ARTIQ core device carrier boards necessarily center around a physical field-programmable gate array, or FPGA. If you have never worked with FPGAs before, it is easiest to understand them as 'rearrangeable' circuits. Ideally, they are capable of approaching the tremendous speed and timing precision advantages of custom-designed, application-specific hardware, while still being reprogrammable, allowing development and revision to continue after manufacturing.
 
-The 'configuration' of an FPGA, the circuit design it is programmed with, is its *gateware*. Gateware is not software, and is not written in programming languges. Rather, it is written in a *hardware description language,* of which the most common are VHDL and Verilog. The ARTIQ codebase uses a set of tools called `Migen <https://m-labs.hk/gateware/migen/>`_ to write hardware description in a subset of Python, which is later translated to Verilog behind the scenes. This has the advantage of preserving much of the flexibility and convenience of Python as a programming language, but shouldn't be mistaken for it *being* Python, or functioning like Python. (MiSoC, built on Migen, is used to implement softcore -- i.e. 'programmed', on-FPGA, not hardwired -- CPUs on Kasli and KC705. Zynq devices contain 'hardcore' ARM CPUs already and correspondingly make relatively less intensive use of MiSoC.)
+The 'configuration' of an FPGA, the circuit design it is programmed with, is its *gateware*. Gateware is not software, and is not written in programming languages. Rather, it is written in a *hardware description language,* of which the most common are VHDL and Verilog. The ARTIQ codebase uses a set of tools called `Migen <https://m-labs.hk/gateware/migen/>`_ to write hardware description in a subset of Python, which is later translated to Verilog behind the scenes. This has the advantage of preserving much of the flexibility and convenience of Python as a programming language, but shouldn't be mistaken for it *being* Python, or functioning like Python. (MiSoC, built on Migen, is used to implement softcore -- i.e. 'programmed', on-FPGA, not hardwired -- CPUs on Kasli and KC705. Zynq devices contain 'hardcore' ARM CPUs already and correspondingly make relatively less intensive use of MiSoC.)
 
 The low-level software that runs directly on the core device's CPU, softcore or hardcore, is its *firmware.* This is the 'operating system' of the core device. The firmware is tasked, among other things, with handling the low-level communication between the core device and the host machine, as well as between the core devices in a DRTIO setting. It is written in bare-metal `Rust <https://www.rust-lang.org/>`__. There are currently two active versions of the ARTIQ firmware (the version used for ARTIQ-Zynq, NAR3, is more modern than that used on Kasli and KC705, and will likely eventually replace it) but they are functionally equivalent except for internal details.
 
 Experiment kernels themselves -- ARTIQ Python, processed by the ARTIQ compiler and loaded from the host machine -- rest on top of and are framed and supported by the firmware, in the same sense way that application software on your PC rests on top of an operating system. All together, software kernels communicate with the firmware to set parameters for the gateware, which passes signals directly to the hardware.
 
-These frameworks are built to be self-contained and extensible. To make additions to the gateware, for example, we do not necessarily need to make changes to the firmware; we can interact purely with the interfaces provided on either side.
+These frameworks are built to be self-contained and extensible. To make additions to the gateware and software, for example, we do not need to make changes to the firmware; we can interact purely with the interfaces provided on either side.
 
 Extending gateware logic
 ------------------------
@@ -100,7 +100,7 @@ To get started, create a new file in ``gateware/rtio/phy``. Call it ``linked_led
 In our example, rather than controlling both LEDs manually using ``on`` and ``off``, which is the functionality ``ttl_simple.py`` provides, we will control one LED manually and have the gateware determine the value of the other based on the first. This same logic would be easy (in fact, much easier) to implement in ARTIQ Python; the advantage of placing it in gateware is that logic in gateware is *extremely fast,* in effect 'instant', i.e., completed within a single clock cycle. Rather than waiting for a CPU to process and respond to instructions, a response can happen at the speed of a dedicated logic circuit.
 
 .. note::
-    Naturally, the truth is more complicated, and depends heavily on how complex the logic in question is. An overlong chain of gateware logic will fail to settle within a single RTIO clock cycle, causing a wide array of potential problems that are difficult to diagnose and difficult to fix; the only solutions are to simplify the logic, deliberately split it across multiple clock cycles (correspondingly increasing latency), or to decrease the speed of the clock (increasing latency for *everything* the device does).
+    Naturally, the truth is more complicated, and depends heavily on how complex the logic in question is. An overlong chain of gateware logic will fail to settle within a single RTIO clock cycle, causing a wide array of potential problems that are difficult to diagnose and difficult to fix; the only solutions are to simplify the logic, deliberately split it across multiple clock cycles (correspondingly increasing latency for the operation), or to decrease the speed of the clock (increasing latency for *everything* the device does).
 
     For now, it's enough to say that you are unlikely to encounter timing failures with the kind of simple logic demonstrated in this tutorial. Indeed, designing gateware logic to run in as few cycles as possible without 'failing timing' is an engineering discipline in itself, and much of what FPGA developers spend their time on.
 
@@ -118,7 +118,7 @@ For now, add two intermediate signals for our logic, instances of the Migen ``Si
 
 These are our inputs, outputs, and intermediate signals. By convention, in Migen, these definitions are all made at the beginning of a module, and separated from the logic that interconnects them with a line containing the three symbols ``###``. See also ``ttl_simple.py`` and other modules.
 
-Since hardware description is not linear or chronological, nothing conceptually prevents us from making these statements in any other order -- in fact, except for the practicalities of code execution, nothing particularly prevents us from defining the connections between the signals before we define the signals themselves -- but for readable and maintainable code, this format is vastly preferrable.
+Since hardware description is not linear or chronological, nothing conceptually prevents us from making these statements in any other order -- in fact, except for the practicalities of code execution, nothing particularly prevents us from defining the connections between the signals before we define the signals themselves -- but for readable and maintainable code, this format is vastly preferable.
 
 Combinatorial and synchronous statements
 """"""""""""""""""""""""""""""""""""""""
@@ -182,7 +182,7 @@ The drivers are software, not gateware, and they are written in regular ARTIQ Py
 
 .. note::
 
-    ``rtio_output()`` is one of four methods given in ``coredevice/rtio.py``, which provides an interface with lower layers of the system. You can think of it ultimately as representing the other side of the ``Interface`` we requested in our Migen module.
+    ``rtio_output()`` is one of four methods given in ``coredevice/rtio.py``, which provides an interface with lower layers of the system. You can think of it ultimately as representing the other side of the ``Interface`` we requested in our Migen module. Notably, in between the two, events pass through the SED and its FIFO lanes, where they are held until the exact real-time moment the events were scheduled for, as originally described in :doc:`rtio`.
 
 Now we can write the kernel API. In the gateware, bit 0 flips the value of the first pad: ::
 
