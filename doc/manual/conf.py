@@ -333,4 +333,4 @@ render_using_wavedrompy = True
 # tikz_transparent = True
 # these are the defaults
 
-tikz_tikzlibraries = 'positioning, shapes, arrows'
+tikz_tikzlibraries = 'positioning, shapes, arrows.meta'

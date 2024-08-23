@@ -14,7 +14,7 @@ Introduction to the ARTIQ internal stack
 
 .. tikz::
    :align: center
-   :libs: arrows
+   :libs: arrows.meta
    :xscale: 70
 
     \definecolor{primary}{HTML}{0d3547} % ARTIQ blue
