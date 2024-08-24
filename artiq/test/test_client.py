@@ -44,7 +44,8 @@ class TestClient(unittest.TestCase):
                                         self.device_db_path, *args], encoding="utf8", env=get_env(),
                                        text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         while self.master.stdout.readline().strip() != "ARTIQ master is now ready.":
-            pass
+            if self.master.poll() is not None:
+                raise IOError("master terminated unexpectedly")
 
     def check_and_terminate_master(self):
         while not ("test content" in self.master.stdout.readline()):
