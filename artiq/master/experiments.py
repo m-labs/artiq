@@ -206,10 +206,9 @@ class GitBackend:
         a git hash
         """
         commit, _ = self.git.resolve_refish(rev)
-
-        logger.debug('Resolved git ref "%s" into "%s"', rev, commit.hex)
-
-        return commit.hex
+        commit_id = str(commit.id)
+        logger.debug('Resolved git ref "%s" into "%s"', rev, commit_id)
+        return commit_id
 
     def request_rev(self, rev):
         rev = self._get_pinned_rev(rev)
