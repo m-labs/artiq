@@ -259,12 +259,39 @@ mod imp {
     }
 
     pub fn write(key: &str, value: &[u8]) -> Result<(), Error> {
-        match append(key, value) {
-            Err(Error::SpaceExhausted) => {
-                compact()?;
-                append(key, value)
+        fn flash_binary(origin: usize, payload: &[u8]) {
+            let mut offset = 0;
+            while offset < payload.len() {
+                unsafe {
+                    spiflash::erase_sector(origin + offset);
+                }
+                offset += spiflash::SECTOR_SIZE;
             }
-            res => res
+            unsafe {
+                spiflash::write(origin, payload);
+            }
+        }
+
+        match key {
+            "gateware" => {
+                flash_binary(0, value);
+                Ok(())
+            }
+            "bootloader" => {
+                flash_binary(::mem::ROM_BASE, value);
+                Ok(())
+            }
+            "firmware" => {
+                flash_binary(::mem::FLASH_BOOT_ADDRESS, value);
+                Ok(())
+            }
+            _ => match append(key, value) {
+                Err(Error::SpaceExhausted) => {
+                    compact()?;
+                    append(key, value)
+                }
+                res => res
+            }
         }
     }
 
