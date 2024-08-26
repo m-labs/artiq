@@ -16,7 +16,9 @@ pub enum Error<T> {
     #[fail(display = "invalid UTF-8: {}", _0)]
     Utf8(Utf8Error),
     #[fail(display = "{}", _0)]
-    Io(#[cause] IoError<T>)
+    Io(#[cause] IoError<T>),
+    #[fail(display = "drtio error")]
+    DrtioError,
 }
 
 impl<T> From<IoError<T>> for Error<T> {
