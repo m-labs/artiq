@@ -506,7 +506,7 @@ pub mod drtio {
         }
     }
 
-    fn partition_data<F>(data: &[u8], send_f: F) -> Result<(), Error>
+    pub fn partition_data<F>(data: &[u8], send_f: F) -> Result<(), Error>
             where F: Fn(&[u8; MASTER_PAYLOAD_MAX_SIZE], PayloadStatus, usize) -> Result<(), Error> {
             let mut i = 0;
             while i < data.len() {

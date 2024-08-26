@@ -209,7 +209,11 @@ fn startup() {
     rtio_mgt::startup(&io, &aux_mutex, &drtio_routing_table, &up_destinations, &ddma_mutex, &subkernel_mutex);
     {
         let restart_idle = restart_idle.clone();
-        io.spawn(4096, move |io| { mgmt::thread(io, &restart_idle) });
+        let aux_mutex = aux_mutex.clone();
+        let ddma_mutex = ddma_mutex.clone();
+        let subkernel_mutex = subkernel_mutex.clone();
+        let drtio_routing_table = drtio_routing_table.clone();
+        io.spawn(4096, move |io| { mgmt::thread(io, &restart_idle, &aux_mutex, &ddma_mutex, &subkernel_mutex, &drtio_routing_table) });
     }
     {
         let aux_mutex = aux_mutex.clone();
