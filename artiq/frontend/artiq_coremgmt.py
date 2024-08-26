@@ -95,6 +95,11 @@ def get_argparser():
     p_allocator = subparsers.add_parser("allocator",
                                         help="show heap layout")
 
+    # manage target
+    p_drtio_dest = parser.add_argument("-s", "--satellite", default=0,
+                        metavar="DRTIO ID", type=int,
+                        help="specify DRTIO destination that receives this command")
+
     return parser
 
 
@@ -107,7 +112,7 @@ def main():
         core_addr = ddb.get("core", resolve_alias=True)["arguments"]["host"]
     else:
         core_addr = args.device
-    mgmt = CommMgmt(core_addr)
+    mgmt = CommMgmt(core_addr, drtio_dest=args.satellite)
 
     if args.tool == "log":
         if args.action == "set_level":

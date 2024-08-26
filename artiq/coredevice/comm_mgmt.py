@@ -46,15 +46,17 @@ class LogLevel(Enum):
 
 
 class CommMgmt:
-    def __init__(self, host, port=1380):
+    def __init__(self, host, port=1380, drtio_dest=0):
         self.host = host
         self.port = port
+        self.drtio_dest = drtio_dest
 
     def open(self):
         if hasattr(self, "socket"):
             return
         self.socket = create_connection(self.host, self.port)
         self.socket.sendall(b"ARTIQ management\n")
+        self._write_int8(self.drtio_dest)
         endian = self._read(1)
         if endian == b"e":
             self.endian = "<"

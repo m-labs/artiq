@@ -25,6 +25,9 @@ def get_argparser():
                         help="Simulation - does not connect to device")
     parser.add_argument("core_addr", metavar="CORE_ADDR",
                         help="hostname or IP address of the core device")
+    parser.add_argument("-s", "--satellite", default=0,
+                        metavar="DRTIO_ID", type=int,
+                        help="the logged DRTIO destination")
     return parser
 
 
@@ -39,7 +42,7 @@ async def get_logs_sim(host):
         log_with_name("firmware.simulation", logging.INFO, "hello " + host)
 
 
-async def get_logs(host):
+async def get_logs(host, drtio_dest):
     try:
         reader, writer = await async_open_connection(
             host,
@@ -49,6 +52,7 @@ async def get_logs(host):
             max_fails=3,
         )
         writer.write(b"ARTIQ management\n")
+        writer.write(drtio_dest.to_bytes(1))
         endian = await reader.readexactly(1)
         if endian == b"e":
             endian = "<"
@@ -96,7 +100,7 @@ def main():
         signal_handler.setup()
         try:
             get_logs_task = asyncio.ensure_future(
-                get_logs_sim(args.core_addr) if args.simulation else get_logs(args.core_addr),
+                get_logs_sim(args.core_addr) if args.simulation else get_logs(args.core_addr, args.satellite),
                 loop=loop)
             try:
                 server = Server({"corelog": PingTarget()}, None, True)
