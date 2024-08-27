@@ -41,13 +41,15 @@ You can open the result file for this experiment with HDFView, h5dump, or any si
 .. tip::
     If you are not familiar with Git, try running ``git log`` in either of your connected Git repositories to see a history of commits in the repository which includes their respective hashes. As long as this history remains intact, you can use a hash of this kind of to uniquely identify, and even retrieve, the state of the files in the repository at the time this experiment was run. In other words, when running experiments from a Git repository, it's always possible to retrieve the code that led to a particular set of results.
 
+A last interesting feature of the result files is that, for experiments with arguments, they also store the values of the arguments used for that iteration of the experiment. Again, this is for reproducibility: if it's ever necessary to find what arguments produced certain results, that information is preserved in the HDF5 file. To repeat an experiment with the exact same arguments as in a previous run, the 'Load HDF5' button in the submission window can be used to take them directly from a result file.
+
 Applets
 ^^^^^^^
 
-Most of the time, rather than the HDF dump, we would like to see our result datasets in a readable graphical form, preferably without opening any third-party applications. In the ARTIQ dashboard, this is achieved by programs called "applets". Applets provide simple, modular GUI features; are run independently from the dashboard as separate processes to achieve goals of modularity and resilience. ARTIQ supplies several applets for basic plotting in the :mod:`artiq.applets` module, and provides interfaces so users can write their own.
+Most of the time, rather than the HDF dump, we would like to see our result datasets in a readable graphical form, preferably without opening any third-party applications. In the ARTIQ dashboard, this is achieved by programs called "applets". Applets provide simple, modular GUI features, and are run independently from the dashboard as separate processes for modularity and resilience. ARTIQ supplies several applets for basic plotting in the :mod:`artiq.applets` module, and provides interfaces so users can write their own.
 
 .. seealso::
-    When developing your own applets, see also the references provided on the :ref:`Management system reference<applet-references>` page of this manual.
+    Resources for writing your own applets are detailed on the :ref:`Management system reference<applet-references>` page.
 
 For our ``parabola`` dataset, we will create an XY plot using the provided :mod:`artiq.applets.plot_xy`. Applets are configured with simple command line options. To figure out what configurations are accepted, use the ``-h`` flag, as in: ::
 
@@ -57,7 +59,7 @@ In our case, we only need to supply our dataset to the applet to be plotted. Nav
 
     ${artiq_applet}plot_xy parabola
 
-Run the experiment again, and observe how the points are added as they are generated to the plot in the applet window.
+Run the experiment again, and observe how the points are added to the plot in the applet window as they are generated.
 
 .. tip::
     Datasets and applets can both be arranged in groups for organizational purposes. (In fact, so can arguments; see the reference of :meth:`~artiq.language.environment.HasEnvironment.setattr_argument`). For datasets, use a dot (``.``) in names to separate folders. For applets, left-click in the applet list to see the option 'Create Group'. You can drag and drop to move applets in and out of groups, or select a particular group with a click to create new applets in that group. Deselect applets or groups with CTRL+click.
@@ -68,7 +70,7 @@ Run the experiment again, and observe how the points are added as they are gener
 The ARTIQ browser
 ^^^^^^^^^^^^^^^^^
 
-ARTIQ also possesses a second GUI, specifically targeted for the manipulation and analysis of datasets, called the ARTIQ browser. It is independent, and does not require either a running master or a core device to operate; a connection to the master is only necessary if you want to upload edited datasets back to the main management system. Open ``results`` in the browser by running: ::
+ARTIQ also possesses a second GUI, specifically targeted for the manipulation and analysis of datasets, called the ARTIQ browser. It is standalone, and does not require either a running master or a core device to operate; a connection to the master is only necessary if you want to upload edited datasets back to the main management system. Open ``results`` in the browser by running: ::
 
     $ cd ~/artiq-master
     $ artiq_browser ./results
@@ -79,7 +81,7 @@ To open an experiment, click on 'Experiment' at the top left. Observe that inste
 
 As described later in :ref:`experiment-scheduling`, only :meth:`~artiq.language.environment.Experiment.run` is obligatory for experiments to implement, and only :meth:`~artiq.language.environment.Experiment.run` is permitted to access hardware; the preparation and analysis stages occur before and after, and are limited to the host machine. The browser allows for re-running the post-experiment :meth:`~artiq.language.environment.Experiment.analyze`, potentially with different arguments or an edited algorithm, while accessing the datasets from opened ``results`` files.
 
-Notably, the browser does not merely act as an HD5 viewer, but also allows the use of ARTIQ applets to plot and view the data. For this, see the lower left dock; applets can be opened, closed, and managed just as they are in the dashboard, once again accessing datasets from ``results``.
+Notably, the browser does not merely act as an HDF5 viewer, but also allows the use of ARTIQ applets to plot and view the data. For this, see the lower left dock; applets can be opened, closed, and managed just as they are in the dashboard, once again accessing datasets from ``results``.
 
 .. _mgmt-ctlmgr:
 

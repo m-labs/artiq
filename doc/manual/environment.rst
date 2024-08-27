@@ -86,7 +86,7 @@ A dataset may be broadcast (``broadcast=True``), that is, distributed to all cli
 
 Broadcasted datasets are replaced when a new dataset with the same key (name) is produced. By default, they are erased when the master halts. Broadcasted datasets may be made persistent (``persistent=True``, which also implies ``broadcast=True``), in which case the master stores them in a LMDB database typically called ``dataset_db.mdb``, where they are saved across master restarts.
 
-By default, datasets are archived in the ``results`` HDF5 output for that run, although this can be opted against (``archive=False``).
+By default, datasets are archived in the ``results`` HDF5 output for that run, although this can be opted against (``archive=False``). They can be viewed and analyzed with the ARTIQ browser, or with an HDF5 viewer of your choice.
 
 Datasets and units
 ^^^^^^^^^^^^^^^^^^
