@@ -3,7 +3,6 @@ import importlib.util
 import importlib.machinery
 import inspect
 import logging
-import os
 import pathlib
 import string
 import sys
@@ -11,9 +10,9 @@ import sys
 import numpy as np
 
 from sipyco import pyon
+from platformdirs import user_config_dir
 
 from artiq import __version__ as artiq_version
-from artiq.appdirs import user_config_dir
 from artiq.language.environment import is_public_experiment
 from artiq.language import units
 
@@ -195,6 +194,4 @@ def get_windows_drives():
 
 def get_user_config_dir():
     major = artiq_version.split(".")[0]
-    dir = user_config_dir("artiq", "m-labs", major)
-    os.makedirs(dir, exist_ok=True)
-    return dir
+    return user_config_dir("artiq", "m-labs", major, ensure_exists=True)
