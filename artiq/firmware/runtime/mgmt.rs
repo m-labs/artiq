@@ -333,7 +333,7 @@ mod remote_coremgmt {
                     buffer.extend(&value[..length as usize]);
 
                     if last {
-                        Reply::ConfigData(&value[..length as usize]).write_to(stream)?;
+                        Reply::ConfigData(&buffer).write_to(stream)?;
                         return Ok(());
                     }
 
