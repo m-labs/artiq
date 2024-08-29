@@ -504,13 +504,13 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
 
             error!("RISC-V satellite devices do not support buffered logging");
-            drtioaux::send(0, &drtioaux::Packet::CoreMgmtNack)
+            drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false })
         }
         drtioaux::Packet::CoreMgmtSetUartLogLevelRequest { destination: _destination, .. } => {
             forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
 
             error!("RISC-V satellite devices has fixed UART log level fixed at TRACE");
-            drtioaux::send(0, &drtioaux::Packet::CoreMgmtNack)
+            drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false })
         }
         drtioaux::Packet::CoreMgmtConfigReadRequest {
             destination: _destination,
@@ -524,7 +524,7 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             let key_slice = &key[..length as usize];
             if !key_slice.is_ascii() {
                 error!("invalid key");
-                drtioaux::send(0, &drtioaux::Packet::CoreMgmtNack)
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false })
             } else {
                 let key = core::str::from_utf8(key_slice).unwrap();
                 if coremgr.fetch_config_value(key).is_ok() {
@@ -538,7 +538,7 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
                         },
                     )
                 } else {
-                    drtioaux::send(0, &drtioaux::Packet::CoreMgmtNack)
+                    drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false })
                 }
             }
         }
@@ -565,7 +565,7 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             if last {
                 coremgr.write_config()
             } else {
-                drtioaux::send(0, &drtioaux::Packet::CoreMgmtAck)
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })
             }
         }
         drtioaux::Packet::CoreMgmtConfigRemoveRequest { destination: _destination, length, key } => {
@@ -576,16 +576,12 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
                 .map_err(|err| warn!("error on removing config: {:?}", err))
                 .is_ok();
 
-            if succeeded {
-                drtioaux::send(0, &drtioaux::Packet::CoreMgmtAck)
-            } else {
-                drtioaux::send(0, &drtioaux::Packet::CoreMgmtNack)
-            }
+            drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded })
         }
         drtioaux::Packet::CoreMgmtRebootRequest { destination: _destination } => {
             forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
 
-            drtioaux::send(0, &drtioaux::Packet::CoreMgmtAck)?;
+            drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })?;
             warn!("restarting");
             unsafe { spiflash::reload(); }
         }

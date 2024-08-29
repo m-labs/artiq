@@ -216,7 +216,7 @@ mod remote_coremgmt {
         );
 
         match reply {
-            Ok(Packet::CoreMgmtAck) => {
+            Ok(Packet::CoreMgmtReply { succeeded: true }) => {
                 Reply::Success.write_to(stream)?;
                 Ok(())
             }
@@ -267,7 +267,7 @@ mod remote_coremgmt {
         );
 
         match reply {
-            Ok(Packet::CoreMgmtAck) => {
+            Ok(Packet::CoreMgmtReply { succeeded: true }) => {
                 Reply::Success.write_to(stream)?;
                 Ok(())
             }
@@ -293,7 +293,7 @@ mod remote_coremgmt {
         );
 
         match reply {
-            Ok(Packet::CoreMgmtAck) => {
+            Ok(Packet::CoreMgmtReply { succeeded: true }) => {
                 Reply::Success.write_to(stream)?;
                 Ok(())
             }
@@ -371,7 +371,7 @@ mod remote_coremgmt {
                 &Packet::CoreMgmtConfigWriteRequest {
                     destination: destination, length: len as u16, last: status.is_last(), data: *slice});
             match reply {
-                Ok(Packet::CoreMgmtAck) => Ok(()),
+                Ok(Packet::CoreMgmtReply { succeeded: true }) => Ok(()),
                 Ok(packet) => {
                     error!("received unexpected aux packet: {:?}", packet);
                     Err(drtio::Error::UnexpectedReply)
@@ -410,7 +410,7 @@ mod remote_coremgmt {
             });
 
         match reply {
-            Ok(Packet::CoreMgmtAck) => {
+            Ok(Packet::CoreMgmtReply { succeeded: true }) => {
                 Reply::Success.write_to(stream)?;
                 Ok(())
             }
@@ -437,7 +437,7 @@ mod remote_coremgmt {
             });
         
         match reply {
-            Ok(Packet::CoreMgmtAck) => {
+            Ok(Packet::CoreMgmtReply { succeeded: true }) => {
                 Reply::Success.write_to(stream)?;
                 Ok(())
             }
@@ -464,7 +464,7 @@ mod remote_coremgmt {
             });
         
         match reply {
-            Ok(Packet::CoreMgmtAck) => {
+            Ok(Packet::CoreMgmtReply { succeeded: true }) => {
                 Reply::RebootImminent.write_to(stream)?;
                 Ok(())
             }
@@ -491,7 +491,7 @@ mod remote_coremgmt {
             });
 
         match reply {
-            Ok(Packet::CoreMgmtAck) => Ok(()),
+            Ok(Packet::CoreMgmtReply { succeeded: true }) => Ok(()),
             Ok(packet) => {
                 error!("received unexpected aux packet: {:?}", packet);
                 Err(drtio::Error::UnexpectedReply.into())
