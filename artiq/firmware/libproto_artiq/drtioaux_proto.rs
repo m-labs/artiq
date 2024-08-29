@@ -143,7 +143,6 @@ pub enum Packet {
     CoreMgmtConfigReadReply { last: bool, length: u16, value: [u8; SAT_PAYLOAD_MAX_SIZE] },
     CoreMgmtAck,
     CoreMgmtNack,
-    CoreMgmtRebootImminent,
 }
 
 impl Packet {
@@ -508,7 +507,6 @@ impl Packet {
             },
             0xdd => Packet::CoreMgmtAck,
             0xde => Packet::CoreMgmtNack,
-            0xdf => Packet::CoreMgmtRebootImminent,
 
             ty => return Err(Error::UnknownPacket(ty))
         })
@@ -880,7 +878,6 @@ impl Packet {
             },
             Packet::CoreMgmtAck => writer.write_u8(0xdd)?,
             Packet::CoreMgmtNack => writer.write_u8(0xde)?,
-            Packet::CoreMgmtRebootImminent => writer.write_u8(0xdf)?,
         }
         Ok(())
     }

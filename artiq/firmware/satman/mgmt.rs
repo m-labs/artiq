@@ -53,7 +53,7 @@ impl Manager {
 
         match key.as_str() {
             "gateware" | "bootloader" | "firmware" => {
-                drtioaux::send(0, &drtioaux::Packet::CoreMgmtRebootImminent)?;
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtAck)?;
                 #[cfg(not(soc_platform = "efc"))]
                 unsafe {
                     clock::spin_us(10000);
