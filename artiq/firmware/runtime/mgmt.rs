@@ -372,7 +372,6 @@ mod remote_coremgmt {
                     destination: destination, length: len as u16, last: status.is_last(), data: *slice});
             match reply {
                 Ok(Packet::CoreMgmtAck) => Ok(()),
-                Ok(Packet::CoreMgmtRebootImminent) if status.is_last() => Ok(()),
                 Ok(packet) => {
                     error!("received unexpected aux packet: {:?}", packet);
                     Err(drtio::Error::UnexpectedReply)
