@@ -562,17 +562,10 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
 
             coremgr.add_data(&data, length as usize);
-            let mut succeeded = true;
             if last {
-                succeeded = coremgr.write_config().is_ok();
-                debug!("Write succeeded: {}", succeeded);
-                coremgr.clear_data();
-            }
-
-            if succeeded {
-                drtioaux::send(0, &drtioaux::Packet::CoreMgmtAck)
+                coremgr.write_config()
             } else {
-                drtioaux::send(0, &drtioaux::Packet::CoreMgmtNack)
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtAck)
             }
         }
         drtioaux::Packet::CoreMgmtConfigRemoveRequest { destination: _destination, length, key } => {
