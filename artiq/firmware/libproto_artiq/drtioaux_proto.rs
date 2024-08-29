@@ -141,8 +141,7 @@ pub enum Packet {
     CoreMgmtAllocatorDebugRequest { destination: u8 },
     CoreMgmtGetLogReply { last: bool, length: u16, data: [u8; SAT_PAYLOAD_MAX_SIZE] },
     CoreMgmtConfigReadReply { last: bool, length: u16, value: [u8; SAT_PAYLOAD_MAX_SIZE] },
-    CoreMgmtAck,
-    CoreMgmtNack,
+    CoreMgmtReply { succeeded: bool },
 }
 
 impl Packet {
@@ -505,8 +504,9 @@ impl Packet {
                     value: value,
                 }
             },
-            0xdd => Packet::CoreMgmtAck,
-            0xde => Packet::CoreMgmtNack,
+            0xdd => Packet::CoreMgmtReply {
+                succeeded: reader.read_bool()?,
+            },
 
             ty => return Err(Error::UnknownPacket(ty))
         })
@@ -876,8 +876,10 @@ impl Packet {
                 writer.write_u16(length)?;
                 writer.write_all(&value[0..length as usize])?;
             },
-            Packet::CoreMgmtAck => writer.write_u8(0xdd)?,
-            Packet::CoreMgmtNack => writer.write_u8(0xde)?,
+            Packet::CoreMgmtReply { succeeded } => {
+                writer.write_u8(0xdd)?;
+                writer.write_bool(succeeded)?;
+            },
         }
         Ok(())
     }

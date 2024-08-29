@@ -45,7 +45,7 @@ impl Manager {
             Err(err) => {
                 self.clear_data();
                 error!("error on reading key: {:?}", err);
-                return drtioaux::send(0, &drtioaux::Packet::CoreMgmtNack);
+                return drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false });
             }
         };
 
@@ -53,7 +53,7 @@ impl Manager {
 
         match key.as_str() {
             "gateware" | "bootloader" | "firmware" => {
-                drtioaux::send(0, &drtioaux::Packet::CoreMgmtAck)?;
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })?;
                 #[cfg(not(soc_platform = "efc"))]
                 unsafe {
                     clock::spin_us(10000);
@@ -71,11 +71,7 @@ impl Manager {
 
                 self.clear_data();
 
-                if succeeded {
-                    drtioaux::send(0, &drtioaux::Packet::CoreMgmtAck)
-                } else {
-                    drtioaux::send(0, &drtioaux::Packet::CoreMgmtNack)
-                }
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded })
             }
         }
     }
