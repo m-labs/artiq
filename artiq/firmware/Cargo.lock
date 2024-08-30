@@ -513,6 +513,7 @@ dependencies = [
  "board_misoc",
  "build_misoc",
  "byteorder",
+ "crc",
  "cslice",
  "dyld",
  "eh",
