@@ -118,3 +118,26 @@ Accessing the :meth:`pause` and :meth:`~artiq.master.scheduler.Scheduler.check_p
    For maximum compatibility, the ``scheduler`` virtual device can also be accessed when running experiments with :mod:`~artiq.frontend.artiq_run`. However, since there is no :mod:`~artiq.master.scheduler.Scheduler` backend, the methods are replaced by simple dummies, e.g. :meth:`~artiq.master.scheduler.Scheduler.check_pause` simply returns false, and requests are printed into the console. Much the same is true of client control broadcasts (see again :doc:`mgmt_system_reference`).
 
 :meth:`~artiq.master.scheduler.Scheduler.check_pause` can be called (via RPC) from a kernel, but :meth:`pause` must not be.
+
+Internal details
+----------------
+
+Internally, the ARTIQ management system uses Simple Python Communications, or `SiPyCo <https://github.com/m-labs/sipyco>`_, which was originally written as part of ARTIQ and later split away as a generic communications library. The SiPyCo manual is hosted `here <https://m-labs.hk/artiq/sipyco-manual/>`_. The core of the management system is largely contained within ``artiq.master``, which contains the :class:`~artiq.master.scheduler.Scheduler`, the various environment and filesystem databases, and the worker processes that execute the experiments themselves.
+
+By default, the master communicates with other processes over four network ports, see :doc:`default_network_ports`, for logging, broadcasts, notifications, and control. All four of these can be customized by using the ``--port`` flags, see :ref:`the front-end reference<frontend-artiq-master>`.
+
+- The logging port is occupied by a :class:`sipyco.logging_tools.Server`, and used only by the worker processes to transmit exceptions and other information to the master.
+- The broadcast port is occupied by a :class:`sipyco.broadcast.Broadcaster`, which inherits from :class:`sipyco.pc_rpc.AsyncioServer`. Both the dashboard and the client automatically connect to this port, using :class:`sipyco.broadcast.Receiver` to receive logs and CCB messages.
+- The notification port is occupied by a :class:`sipyco.sync_struct.Publisher`. The dashboard and client automatically connect to this port, using :class:`sipyco.sync_struct.Subscriber`. Several objects are given to the :class:`~sipyco.sync_struct.Publisher` to monitor, among them the experiment schedule, the device database, the dataset database, and the experiment list. It notifies the subscribers whenever these objects are modified.
+- The control port is occupied by a :class:`sipyco.pc_rpc.Server`, which when running can be queried with :mod:`sipyco.sipyco_rpctool` like any other source of RPC targets. Multiple concurrent calls to target methods are supported. Through this server, the clients are provided with access to control methods to access the various databases and repositories the master handles, through classes like :class:`artiq.master.databases.DeviceDB`, :class:`artiq.master.databases.DatasetDB`, and :class:`artiq.master.experiments.ExperimentDB`.
+
+The experiment database is supported by :class:`artiq.master.experiments.GitBackend` when Git integration is active, and :class:`artiq.master.experiments.FilesystemBackend` if not.
+
+Experiment workers
+^^^^^^^^^^^^^^^^^^
+
+The :mod:`~artiq.frontend.artiq_run` tool makes use of many of the same databases and handlers as the master (whereas the scheduler and CCB manager are replaced by dummies, as mentioned above), but also directly runs the build, run, and analyze stages of the experiments. On the other hand, within the management system, the master's :class:`~artiq.master.scheduler.Scheduler` spawns a new worker process for each experiment. This allows for the parallelisation of stages and pipelines described above in :ref:`experiment-scheduling`.
+
+The master and the worker processes communicate through IPC, internal process calls, implemented through :mod:`sipyco.pipe_ipc`. Specifically, it is :mod:`artiq.master.worker_impl` which is spawned as a new process for each experiment, and the class :class:`artiq.master.worker.Worker` which manages the IPC requests of the workers, including access to :class:`~artiq.master.scheduler.Scheduler` but also to devices, datasets, arguments, and CCBs. This allows the worker to support experiment :meth:`~artiq.language.environment.HasEnvironment.build` methods and the :doc:`management system interfaces <mgmt_system_reference>`.
+
+It is the worker process which executes the experiment code itself. Within the experiment, kernel decorators -- :class:`~artiq.language.core.kernel`, :class:`~artiq.language.core.subkernel`, etc. -- call the ARTIQ compiler as necessary and trigger core device execution.
