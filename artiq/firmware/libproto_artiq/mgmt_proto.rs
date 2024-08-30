@@ -67,6 +67,8 @@ pub enum Request {
 
     Reboot,
 
+    Flash        { image: Vec<u8> },
+
     DebugAllocator,
 }
 
@@ -124,6 +126,10 @@ impl Request {
             5 => Request::Reboot,
 
             8 => Request::DebugAllocator,
+
+            9 => Request::Flash {
+                image:  reader.read_bytes()?,
+            },
 
             ty => return Err(Error::UnknownPacket(ty))
         })

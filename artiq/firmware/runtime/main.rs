@@ -1,6 +1,7 @@
 #![feature(lang_items, panic_info_message, const_btree_new, iter_advance_by, never_type)]
 #![no_std]
 
+extern crate crc;
 extern crate dyld;
 extern crate eh;
 #[macro_use]

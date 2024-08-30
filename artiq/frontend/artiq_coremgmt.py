@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
 import argparse
+import os
 import struct
+import tempfile
+import atexit
 
 from sipyco import common_args
 
@@ -9,6 +12,8 @@ from artiq import __version__ as artiq_version
 from artiq.master.databases import DeviceDB
 from artiq.coredevice.comm_kernel import CommKernel
 from artiq.coredevice.comm_mgmt import CommMgmt
+from artiq.frontend.bit2bin import bit2bin
+from misoc.tools.mkmscimg import insert_crc
 
 
 def get_argparser():
@@ -85,6 +90,13 @@ def get_argparser():
     t_boot = tools.add_parser("reboot",
                               help="reboot the running system")
 
+    # flashing
+    t_flash = tools.add_parser("flash",
+                               help="flash the running system")
+
+    p_directory = t_flash.add_argument("directory", metavar="DIRECTORY", type=str,
+                                       help="directory that contains the binaries")
+
     # misc debug
     t_debug = tools.add_parser("debug",
                                help="specialized debug functions")
@@ -142,6 +154,37 @@ def main():
                 mgmt.config_remove(key)
         if args.action == "erase":
             mgmt.config_erase()
+    
+    if args.tool == "flash":
+        def convert_gateware(bit_filename):
+            bin_handle, bin_filename = tempfile.mkstemp(
+                prefix="artiq_", suffix="_" + os.path.basename(bit_filename))
+            with open(bit_filename, "rb") as bit_file, open(bin_handle, "wb") as bin_file:
+                bit2bin(bit_file, bin_file)
+            atexit.register(lambda: os.unlink(bin_filename))
+            return bin_filename
+
+        gateware = convert_gateware(os.path.join(args.directory, "top.bit"))
+        bootloader = os.path.join(args.directory, "bootloader.bin")
+
+        firmwares = []
+        for firmware in "satman", "runtime":
+            filename = os.path.join(args.directory, firmware + ".fbi")
+            if os.path.exists(filename):
+                firmwares.append(filename)
+        if not firmwares:
+            raise FileNotFoundError("no firmware found")
+        if len(firmwares) > 1:
+            raise ValueError("more than one firmware file, please clean up your build directory. "
+                "Found firmware files: {}".format(" ".join(firmwares)))
+        firmware = firmwares[0]
+
+        bins = {
+            "gateware": gateware,
+            "bootloader": bootloader,
+            "firmware": firmware,
+        }
+        mgmt.flash(**bins)
 
     if args.tool == "reboot":
         mgmt.reboot()

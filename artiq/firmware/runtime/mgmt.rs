@@ -17,10 +17,11 @@ impl From<SchedError> for Error<SchedError> {
 
 mod local_coremgmt {
     use alloc::{string::String, vec::Vec};
+    use crc::crc32;
     use log::LevelFilter;
 
-    use board_misoc::{config, spiflash};
-    use io::{Write, ProtoWrite, Error as IoError};
+    use board_misoc::{config, mem, spiflash};
+    use io::{Cursor, Write, ProtoWrite, ProtoRead, Error as IoError};
     use logger_artiq::BufferLogger;
     use mgmt_proto::{Error, Reply};
     use sched::{Io, TcpStream, Error as SchedError};
@@ -151,6 +152,54 @@ mod local_coremgmt {
 
     pub fn debug_allocator(_io: &Io, _stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
         unsafe { println!("{}", ::ALLOC) }
+        Ok(())
+    }
+
+    pub fn flash(_io: &Io, stream: &mut TcpStream, image: &Vec<u8>) -> Result<(), Error<SchedError>> {
+        let mut reader = Cursor::new(&image[..]);
+        let expected_crc = reader.read_u32().unwrap();
+
+        let image = &image[4..];
+        let actual_crc = crc32::checksum_ieee(image);
+
+        if actual_crc == expected_crc {
+            info!("Checksum matched");
+            let header_size = reader.read_u32().unwrap() as usize;
+            let header_offset = reader.position();
+            let bin_offset = header_offset + header_size;
+
+            let header = &image[header_offset..bin_offset];
+            let binaries = &image[bin_offset..];
+
+            info!("found header of size {}", header.len());
+
+            let mut reader = Cursor::new(header);
+            let bin_no = reader.read_u32().unwrap() as usize;
+            for _ in 0..bin_no {
+                let bin_name = reader.read_string().unwrap();
+                let offset = reader.read_u32().unwrap() as usize;
+                let len = reader.read_u32().unwrap() as usize;
+
+                let origin = match bin_name.as_str() {
+                    "gateware" => 0,
+                    "bootloader" => mem::ROM_BASE,
+                    "firmware" => mem::FLASH_BOOT_ADDRESS,
+                    _ => {
+                        error!("unexpected binary component {}", bin_name);
+                        return Ok(Reply::Error.write_to(stream)?);
+                    }
+                };
+
+                unsafe {
+                    spiflash::flash_binary(origin, &binaries[offset..offset+len]);
+                }
+            }
+
+            reboot(_io, stream)?;
+        } else {
+            error!("CRC failed in SDRAM (actual {:08x}, expected {:08x})", actual_crc, expected_crc);
+            Reply::Error.write_to(stream)?;
+        }
         Ok(())
     }
 }
@@ -502,6 +551,13 @@ mod remote_coremgmt {
             }
         }
     }
+
+    pub fn flash(io: &Io, aux_mutex: &Mutex,
+        ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
+        routing_table: &drtio_routing::RoutingTable, linkno: u8,
+        destination: u8, stream: &mut TcpStream, image: &Vec<u8>) -> Result<(), Error<SchedError>> {
+        todo!()
+    }
 }
 
 #[cfg(has_drtio)]
@@ -545,6 +601,7 @@ fn worker(io: &Io, stream: &mut TcpStream, restart_idle: &Urc<Cell<bool>>,
             Request::ConfigErase => process!(io, _aux_mutex, _ddma_mutex, _subkernel_mutex, _routing_table, stream, _destination, config_erase, restart_idle),
             Request::Reboot => process!(io, _aux_mutex, _ddma_mutex, _subkernel_mutex, _routing_table, stream, _destination, reboot),
             Request::DebugAllocator => process!(io, _aux_mutex, _ddma_mutex, _subkernel_mutex, _routing_table, stream, _destination, debug_allocator),
+            Request::Flash { ref image } => process!(io, _aux_mutex, _ddma_mutex, _subkernel_mutex, _routing_table, stream, _destination, flash, image),
         }?;
     }
 }
