@@ -16,6 +16,7 @@ requirements = [
     "python-dateutil", "prettytable", "h5py", "lmdb",
     "qasync", "pyqtgraph", "pygit2",
     "llvmlite", "pythonparser", "levenshtein",
+    "platformdirs",
 ]
 
 console_scripts = [
