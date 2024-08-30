@@ -8,6 +8,8 @@ from inspect import getfullargspec, getmodule
 from types import SimpleNamespace
 from math import floor, ceil
 
+from numpy import int32, int64
+
 from artiq.language import import_cache
 
 
@@ -42,13 +44,13 @@ def ConstGeneric(name, constraint):
     return TypeVar(name, _ConstGenericMarker, constraint)
 
 def round64(x):
-    return round(x)
+    return int64(round(x))
 
 def floor64(x):
-    return floor(x)
+    return int64(floor(x))
 
 def ceil64(x):
-    return ceil(x)
+    return int64(ceil(x))
 
 
 # Delay NAC3 analysis until all referenced variables are supposed to exist on the CPython side.
