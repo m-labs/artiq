@@ -176,7 +176,7 @@ class Core:
 
         :param seconds: time (in seconds) to convert.
         """
-        return int64(seconds//self.ref_period)
+        return round64(seconds/self.ref_period)
 
     @portable
     def mu_to_seconds(self, mu: int64) -> float:
