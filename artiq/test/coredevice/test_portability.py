@@ -1,3 +1,4 @@
+import unittest
 from operator import itemgetter
 
 from numpy import int32, int64
