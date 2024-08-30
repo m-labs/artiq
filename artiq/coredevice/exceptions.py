@@ -57,7 +57,6 @@ class ClockFailure(Exception):
     """Raised when RTIO PLL has lost lock."""
     artiq_builtin = True
 
-
 @nac3
 class I2CError(Exception):
     """Raised when a I2C transaction fails."""
@@ -67,5 +66,10 @@ class I2CError(Exception):
 @nac3
 class SPIError(Exception):
     """Raised when a SPI transaction fails."""
+    artiq_builtin = True
+
+
+class UnwrapNoneError(Exception):
+    """Raised when unwrapping a none Option."""
     artiq_builtin = True
 

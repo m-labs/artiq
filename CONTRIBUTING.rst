@@ -8,27 +8,26 @@ Reporting Issues/Bugs
 Thanks for `reporting issues to ARTIQ
 <https://github.com/m-labs/artiq/issues/new>`_! You can also discuss issues and
 ask questions on IRC (the #m-labs channel on OFTC), the `Mattermost chat
-<https://chat.m-labs.hk>`_, or on the `forum <https://forum.m-labs.hk>`_.
+<https://chat.m-labs.hk>`_, or in the `forum <https://forum.m-labs.hk>`_.
 
 The best bug reports are those which contain sufficient information. With
 accurate and comprehensive context, an issue can be resolved quickly and
 efficiently. Please consider adding the following data to your issue
 report if possible:
 
-* A clear and unique summary that fits into one line. Also check that
-  this issue has not yet been reported. If it has, add additional information there.
-* Precise steps to reproduce (list of actions that leads to the issue)
+* A clear and unique summary that fits into one line. Check that this
+  issue has not yet been reported; if it has, add additional information there.
+* Precise steps to reproduce (a list of actions that leads to the issue)
 * Expected behavior (what should happen)
 * Actual behavior (what happens instead)
-* Logging message, trace backs, screen shots where relevant
+* Logging message, tracebacks, screenshots, where applicable
 * Components involved (omit irrelevant parts):
 
-  * Operating System
-  * ARTIQ version (with recent versions of ARTIQ, run ``artiq_client --version``)
-  * Version of the gateware and runtime loaded in the core device (in the output of ``artiq_coremgmt -D .... log``)
-  * If using MSYS2, output of `pacman -Q`
+  * Operating system used
+  * ARTIQ version (run any command in the form of ``artiq_client --version``)
+  * Gateware and firmware loaded to the core device (in the output of
+    ``artiq_coremgmt [-D ....] log``)
   * Hardware involved
-
 
 For in-depth information on bug reporting, see:
 
@@ -39,10 +38,10 @@ https://developer.mozilla.org/en-US/docs/Mozilla/QA/Bug_writing_guidelines
 Contributing Code
 =================
 
-ARTIQ welcomes contributions. Write bite-sized patches that can stand alone,
-clean them up, write proper commit messages, add docstrings and unittests. Then
+ARTIQ welcomes contributions. Write bite-size patches that can stand alone,
+clean them up, write proper commit messages, add docstrings and unit tests;
 ``git rebase`` them onto the current master or merge the current master. Verify
-that the testsuite passes. Then submit a pull request. Expect your contribution
+that the test suite passes. Then submit a pull request. Expect your contribution
 to be held up to coding standards (e.g. use ``flake8`` to check yourself).
 
 Checklist for Code Contributions
@@ -52,7 +51,7 @@ Checklist for Code Contributions
 - Use correct spelling and grammar. Use your code editor to help you with
   syntax, spelling, and style
 - Style: PEP-8 (``flake8``)
-- Add, check docstrings and comments
+- Add or update docstrings and comments
 - Split your contribution into logically separate changes (``git rebase
   --interactive``). Merge (squash, fixup) commits that just fix previous commits
   or amend them. Remove unintended changes. Clean up your commits.
@@ -64,12 +63,37 @@ Checklist for Code Contributions
 - Review each of your commits for the above items (``git show``)
 - Update ``RELEASE_NOTES.md`` if there are noteworthy changes, especially if
   there are changes to existing APIs
-- Check, test, and update the documentation in `doc/`
-- Check, test, and update the unittests
+- Check, test, and update the documentation in ``doc/``
+- Check, test, and update the unit tests
 - Close and/or update issues
 
+
+Contributing Documentation
+==========================
+
+ARTIQ welcomes documentation contributions. The ARTIQ manual is hosted online in HTML
+form `here <https://m-labs.hk/artiq/manual/>`__ and in PDF form
+`here <https://m-labs.hk/artiq/manual.pdf>`__. It is generated from source files
+in ``doc/manual``, written in a variant of the
+`reStructured Text <https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html>`_
+markup language processed by `Sphinx <https://www.sphinx-doc.org/en/master/>`_, with
+some of the additional reference material processed from inline documentation
+in the ARTIQ source itself.
+
+Write bite-size patches that can stand alone, clean them up, write proper commit 
+messages. Check that your edits render properly and compile without errors: ::
+
+  $ nix build .#artiq-manual-pdf
+  $ nix build .#artiq-manual-html
+
+Elaborations, improvements, clarifications and corrections to any of the material
+are happily accepted, but special attention is drawn to the manual
+`FAQ <https://m-labs.hk/artiq/manual/faq.html>`_, where tips and solutions
+are especially easy to add. See also the FAQ's own
+`section on the subject <https://m-labs.hk/artiq/manual/faq.html#build-documentation>`_.
+
 Copyright and Sign-Off
-----------------------
+======================
 
 Authors retain copyright of their contributions to ARTIQ, but whenever possible
 should use the GNU LGPL version 3 license for them to be merged.
@@ -109,7 +133,7 @@ can certify the below:
             maintained indefinitely and may be redistributed consistent with
             this project or the open source license(s) involved.
 
-then you just add a line saying
+then add a line saying
 
         Signed-off-by: Random J Developer <random@developer.example.org>
 

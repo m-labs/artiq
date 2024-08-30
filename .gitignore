@@ -11,6 +11,7 @@ __pycache__/
 .ipynb_checkpoints
 /doc/manual/_build
 /build
+/result
 /dist
 /*.egg-info
 /.coverage
@@ -22,7 +23,8 @@ __pycache__/
 /artiq/test/results
 /artiq/examples/*/results
 /artiq/examples/*/last_rid.pyon
-/artiq/examples/*/dataset_db.pyon
+/artiq/examples/*/dataset_db.mdb
+/artiq/examples/*/dataset_db.mdb-lock
 
 # when testing ad-hoc experiments at the root:
 /repository/

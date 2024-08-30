@@ -1,19 +1,17 @@
-.. _drtio-and-subkernels:
-
 Using DRTIO and subkernels
 ==========================
 
 In larger or more spread-out systems, a single core device might not be suited to managing all the RTIO operations or channels necessary. For these situations ARTIQ supplies Distributed Real-Time IO, or DRTIO. This allows systems to be configured with some or all of their RTIO channels distributed to one or several *satellite* core devices, which are linked to the *master* core device. These remote channels are then accessible in kernels on the master device exactly like local channels.
 
-While the components of a system, as well as the distribution of peripherals among satellites, are necessarily fixed in the system configuration, the specific topology of core and satellite links is flexible and can be changed whenever necessary. It is supplied to the core device by means of a routing table (see below). Kasli and Kasli-SoC devices use the SFP ports for DRTIO connections, whereunder links should be high-speed duplex serial lines operating 1Gbps or more.
+While the components of a system, as well as the distribution of peripherals among satellites, are necessarily fixed in the system configuration, the specific topology of master and satellite links is flexible and can be changed whenever necessary. It is supplied to the core device by means of a routing table (see below). Kasli and Kasli-SoC devices use SFP ports for DRTIO connections. Links should be high-speed duplex serial lines operating 1Gbps or more.
 
 Certain peripheral cards with onboard FPGAs of their own (e.g. Shuttler) can be configured as satellites in a DRTIO setting, allowing them to run their own subkernels and make use of DDMA. In these cases, the EEM connection to the core device is used for DRTIO communication (DRTIO-over-EEM).
 
 .. note::
-    As with other configuration changes (e.g. adding new hardware), if you are in possession of a non-distributed ARTIQ system and you'd like to expand it into a DRTIO setup, it's easily possible to do so, but you need to be sure that both master and satellite are (re)flashed with this in mind. As usual, if you obtained your hardware from M-Labs, you will normally be supplied with all the binaries you need, through ``afws_client`` or otherwise.
+    As with other configuration changes (e.g. adding new hardware), if you are in possession of a non-distributed ARTIQ system and you'd like to expand it into a DRTIO setup, it's easily possible to do so, but you need to be sure that both master and satellite are (re)flashed with this in mind. As usual, if you obtained your hardware from M-Labs, you will normally be supplied with all the binaries you need, through :mod:`~artiq.frontend.afws_client` or otherwise.
 
-.. note::
-    Do not confuse the DRTIO *master device* (used to mean the central controlling core device of a distributed system) with the *ARTIQ master* (the central piece of software of ARTIQ's management system, which interacts with ``artiq_client`` and the dashboard.) ``artiq_run`` can be used to run experiments on DRTIO systems just as easily as non-distributed ones, and the ARTIQ master interacts with the central core device regardless of whether it's configured as a DRTIO master or standalone.
+.. warning::
+    Do not confuse the DRTIO *master device* (used to mean the central controlling core device of a distributed system) with the *ARTIQ master* (the central piece of software of ARTIQ's management system, which interacts with :mod:`~artiq.frontend.artiq_client` and the dashboard.) :mod:`~artiq.frontend.artiq_run` can be used to run experiments on DRTIO systems just as easily as non-distributed ones, and the ARTIQ master interacts with the central core device regardless of whether it's configured as a DRTIO master or standalone.
 
 Using DRTIO
 -----------
@@ -23,7 +21,7 @@ Using DRTIO
 Configuring the routing table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-By default, DRTIO assumes a routing table for a star topology (i.e. all satellites directly connected to the master), with destination 0 being the master device's local RTIO core and destinations 1 and above corresponding to devices on the master's respective downstream ports. To use any other topology, it is necessary to supply a corresponding routing table in the form of a binary file, written to flash storage under the key ``routing_table``. The binary file is easily generated in the correct format using ``artiq_route``. This example is for a chain of 3 devices: ::
+By default, DRTIO assumes a routing table for a star topology (i.e. all satellites directly connected to the master), with destination 0 being the master device's local RTIO core and destinations 1 and above corresponding to devices on the master's respective downstream ports. To use any other topology, it is necessary to supply a corresponding routing table in the form of a binary file, written to flash storage under the key ``routing_table``. The binary file is easily generated in the correct format using :mod:`~artiq.frontend.artiq_route`. This example is for a chain of 3 devices: ::
 
     # create an empty routing table
     $ artiq_route rt.bin init
@@ -89,16 +87,16 @@ Enabling DDMA on a purely local sequence on a DRTIO system introduces an overhea
 Subkernels
 ----------
 
-Rather than only offloading the RTIO channels to satellites and limiting all processing to the master core device, it is fully possible to run kernels directly on satellite devices. These are referred to as *subkernels*. Using subkernels to process and control remote RTIO channels can free up resources on the core device.
+Rather than only offloading the RTIO channels to satellites and limiting all processing to the master core device, it is also possible to run kernels directly on satellite devices. These are referred to as *subkernels*. Using subkernels to process and control remote RTIO channels can free up resources on the core device.
 
 Subkernels behave for the most part like regular kernels; they accept arguments, can return values, and are marked by the decorator ``@subkernel(destination=i)``, where ``i`` is the satellite's destination number as used in the routing table. To call a subkernel, call it like any other function. There are however a few caveats:
 
    - subkernels do not support RPCs,
    - subkernels do not support (recursive) DRTIO (but they can call other subkernels and send messages to each other, see below),
    - they support DMA, for which DDMA is considered always enabled,
+   - they can raise exceptions, which they may catch locally or propagate to the calling kernel,
    - their return values must be fully annotated with an ARTIQ type,
    - their arguments should be annotated, and only basic ARTIQ types are supported,
-   - they can raise exceptions, but the exceptions cannot be caught by the master (they can only be caught locally or propagated directly to the host),
    - while ``self`` is allowed as an argument, it is retrieved at compile time and exists as a purely local object afterwards. Any changes made by other kernels will not be visible, and changes made locally will not be applied anywhere else.
 
 Subkernels in practice
@@ -176,7 +174,7 @@ Subkernels can call other kernels and subkernels. For a more complex example: ::
 In this case, without the preload, the delay after the core reset would need to be longer. Depending on the connection, the call may still take some time in itself. Notice that the method ``pulse_ttl()`` can be called both within a subkernel and on its own.
 
 .. note::
-    Subkernels can call subkernels on any other satellite, not only their own. Care should however be taken that different kernels do not call subkernels on the same satellite, or only very cautiously. If, e.g., a newer call overrides a subkernel that another caller is awaiting, unpredictable timeouts or locks may result, as the original subkernel will never return. There is not currently any mechanism to check whether a particular satellite is 'busy'; it is up to the programmer to handle this correctly.
+    Subkernels can call subkernels on any other satellite, not only their own. Care should however be taken that different kernels do not call subkernels on the same satellite, or only very cautiously. If, e.g., a newer call overrides a subkernel that another caller is awaiting, unpredictable timeouts or locks may result, as the original subkernel will never return. There is no mechanism to check whether a particular satellite is 'busy'; it is up to the programmer to handle this correctly.
 
 Message passing
 ^^^^^^^^^^^^^^^

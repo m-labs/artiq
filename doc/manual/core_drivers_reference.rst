@@ -1,4 +1,4 @@
-Core drivers reference
+Core real-time drivers
 ======================
 
 These drivers are for the core device and the peripherals closely integrated into it, which do not use the controller mechanism.

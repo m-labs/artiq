@@ -140,7 +140,12 @@ def main():
         args.db_file = os.path.join(get_user_config_dir(), "artiq_browser.pyon")
     widget_log_handler = log.init_log(args, "browser")
 
-    app = QtWidgets.QApplication(["ARTIQ Browser"])
+    forced_platform = []
+    if (QtGui.QGuiApplication.platformName() == "wayland" and
+            not os.getenv("QT_QPA_PLATFORM")):
+        # force XCB instead of Wayland due to applets not embedding
+        forced_platform = ["-platform", "xcb"]
+    app = QtWidgets.QApplication(["ARTIQ Browser"] + forced_platform)
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
     atexit.register(loop.close)

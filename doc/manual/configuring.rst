@@ -1,7 +1,7 @@
 Networking and configuration
 ============================
 
-.. _core-device-networking: 
+.. _core-device-networking:
 
 Setting up core device networking
 ---------------------------------
@@ -24,7 +24,7 @@ If ping fails, check that the Ethernet LED is ON; on Kasli, it is the LED next t
 Core management tool
 ^^^^^^^^^^^^^^^^^^^^
 
-The tool used to configure the core device is the command-line utility ``artiq_coremgmt``. In order for it to connect to your core device, it is necessary to supply it somehow with the correct IP address for your core device. This can be done directly through use of the ``-D`` option, for example in: ::
+The tool used to configure the core device is the command-line utility :mod:`~artiq.frontend.artiq_coremgmt`. In order for it to connect to your core device, it is necessary to supply it somehow with the correct IP address for your core device. This can be done directly through use of the ``-D`` option, for example in: ::
 
     $ artiq_coremgmt -D <IP_address> log
 
@@ -33,7 +33,7 @@ The tool used to configure the core device is the command-line utility ``artiq_c
 
 Normally, however, the core device IP is supplied through the *device database* for your system, which comes in the form of a Python script called ``device_db.py`` (see also :ref:`device-db`). If you purchased a system from M-Labs, the ``device_db.py`` for your system will have been provided for you, either on the USB stick, inside ``~/artiq`` on your NUC, or sent by email.
 
-Make sure the field ``core_addr`` at the top of the file is set to your core device's correct IP address, and always execute ``artiq_coremgmt`` from the same directory the device database is placed in.
+Make sure the field ``core_addr`` at the top of the file is set to your core device's correct IP address, and always execute :mod:`~artiq.frontend.artiq_coremgmt` from the same directory the device database is placed in.
 
 Once you can reach your core device, the IP can be changed at any time by running: ::
 
@@ -63,9 +63,11 @@ For Kasli or KC705:
         $ artiq_mkfs flash_storage.img [-s mac xx:xx:xx:xx:xx:xx] [-s ip xx.xx.xx.xx/xx] [-s ipv4_default_route xx.xx.xx.xx] [-s ip6 xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx/xx] [-s ipv6_default_route xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx]
         $ artiq_flash -t [board] -V [variant] -f flash_storage.img storage start
 
-On Kasli or Kasli-SoC devices, specifying the MAC address is unnecessary, as they can obtain it from their EEPROM. If you only want to access the core device from the same subnet, default gateway and IPv4 prefix length may also be ommitted. On any board, once a device can be reached by ``artiq_coremgmt``, these values can be set and edited at any time, following the procedure for IP above.
+On Kasli or Kasli-SoC devices, specifying the MAC address is unnecessary, as they can obtain it from their EEPROM. If you only want to access the core device from the same subnet, default gateway and IPv4 prefix length may also be ommitted. On any board, once a device can be reached by :mod:`~artiq.frontend.artiq_coremgmt`, these values can be set and edited at any time, following the procedure for IP above.
 
 Regarding IPv6, note that the device also has a link-local address that corresponds to its EUI-64, which can be used simultaneously to the (potentially unrelated) IPv6 address defined by using the ``ip6`` configuration key.
+
+If problems persist, see the :ref:`network troubleshooting <faq-networking>` section of the FAQ.
 
 .. _core-device-config:
 
@@ -73,24 +75,24 @@ Configuring the core device
 ---------------------------
 
 .. note::
-  The following steps are optional, and you only need to execute them if they are necessary for your specific system. To learn more about how ARTIQ works and how to use it first, you might skip to the next page, :doc:`rtio`. For all configuration options, the core device generally must be restarted for changes to take effect.
+  The following steps are optional, and you only need to execute them if they are necessary for your specific system. To learn more about how ARTIQ works and how to use it first, you might skip to the first tutorial page, :doc:`rtio`. For all configuration options, the core device generally must be restarted for changes to take effect.
 
 Flash idle and/or startup kernel
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The *idle kernel* is the kernel (that is, a piece of code running on the core device; see :doc:`the next page <rtio>` for further explanation) which the core device runs in between experiments and whenever not connected to the host. It is saved directly to the core device's flash storage in compiled form. Potential uses include cleanup of the environment between experiments, state maintenance for certain hardware, or anything else that should run continuously whenever the system is not otherwise occupied.
+The *idle kernel* is the kernel (that is, a piece of code running on the core device; see :doc:`rtio` for further explanation) which the core device runs in between experiments and whenever not connected to the host. It is saved directly to the core device's flash storage in compiled form. Potential uses include cleanup of the environment between experiments, state maintenance for certain hardware, or anything else that should run continuously whenever the system is not otherwise occupied.
 
 To flash an idle kernel, first write an idle experiment. Note that since the idle kernel runs regardless of whether the core device is connected to the host, remote procedure calls or RPCs (functions called by a kernel to run on the host) are forbidden and the ``run()`` method must be a kernel marked with ``@kernel``. Once written, you can compile and flash your idle experiment: ::
 
   $ artiq_compile idle.py
   $ artiq_coremgmt config write -f idle_kernel idle.elf
 
-The *startup kernel* is a kernel executed once and only once immediately whenever the core device powers on. Uses include initializing DDSes and setting TTL directions. For DRTIO systems, the startup kernel should wait until the desired destinations, including local RTIO, are up, using ``self.core.get_rtio_destination_status`` (:meth:`~artiq.coredevice.core.Core.get_rtio_destination_status`).
+The *startup kernel* is a kernel executed once and only once immediately whenever the core device powers on. Uses include initializing DDSes and setting TTL directions. For DRTIO systems, the startup kernel should wait until the desired destinations, including local RTIO, are up, using ``self.core.get_rtio_destination_status`` (see :meth:`~artiq.coredevice.core.Core.get_rtio_destination_status`).
 
-To flash a startup kernel, proceed as with the idle kernel, but using the ``startup_kernel`` key in the ``artiq_coremgmt`` command.
+To flash a startup kernel, proceed as with the idle kernel, but using the ``startup_kernel`` key in the :mod:`~artiq.frontend.artiq_coremgmt` command.
 
 .. note::
-  Subkernels (see :doc:`using_drtio_subkernels`) are allowed in idle (and startup) experiments without any additional ceremony. ``artiq_compile`` will produce a ``.tar`` rather than a ``.elf``; simply substitute ``idle.tar`` for ``idle.elf`` in the ``artiq_coremgmt config write`` command.
+  Subkernels (see :doc:`using_drtio_subkernels`) are allowed in idle (and startup) experiments without any additional ceremony. :mod:`~artiq.frontend.artiq_compile` will produce a ``.tar`` rather than a ``.elf``; simply substitute ``idle.tar`` for ``idle.elf`` in the ``artiq_coremgmt config write`` command.
 
 Select the RTIO clock source
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -104,10 +106,12 @@ The default is to use an internal 125MHz clock. To select a source, use a comman
 
 See :ref:`core-device-clocking` for availability of specific options.
 
+.. _config-rtiomap:
+
 Set up resolving RTIO channels to their names
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-This feature allows you to print the channels' respective names alongside with their numbers in RTIO error messages. To enable it, run the ``artiq_rtiomap`` tool and write its result into the device config at the ``device_map`` key: ::
+This feature allows you to print the channels' respective names alongside with their numbers in RTIO error messages. To enable it, run the :mod:`~artiq.frontend.artiq_rtiomap` tool and write its result into the device config at the ``device_map`` key: ::
 
   $ artiq_rtiomap dev_map.bin
   $ artiq_coremgmt config write -f device_map dev_map.bin

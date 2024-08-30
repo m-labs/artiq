@@ -6,8 +6,8 @@ import sys
 import versioneer
 
 
-if sys.version_info[:2] < (3, 9):
-    raise Exception("You need Python 3.9+")
+if sys.version_info[:2] < (3, 11):
+    raise Exception("You need Python 3.11+")
 
 
 console_scripts = [

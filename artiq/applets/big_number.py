@@ -34,7 +34,7 @@ class NumberWidget(LayoutWidget):
         self.addWidget(self.number_area, 0, 0)
 
         self.unit_area = QtWidgets.QLabel()
-        self.unit_area.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTop)
+        self.unit_area.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight | QtCore.Qt.AlignmentFlag.AlignTop)
         self.addWidget(self.unit_area, 0, 1)
 
         self.lcd_widget = QResponsiveLCDNumber()

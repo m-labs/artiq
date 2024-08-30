@@ -208,16 +208,19 @@ class _BaseWaveform(pg.PlotWidget):
             pixmapi = QtWidgets.QApplication.style().standardIcon(
                 QtWidgets.QStyle.StandardPixmap.SP_FileIcon)
             drag.setPixmap(pixmapi.pixmap(32))
-            drag.exec_(QtCore.Qt.MoveAction)
+            drag.exec(QtCore.Qt.DropAction.MoveAction)
         else:
             super().mouseMoveEvent(e)
 
     def wheelEvent(self, e):
-        if e.modifiers() & QtCore.Qt.ControlModifier:
+        if e.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier:
             super().wheelEvent(e)
+        else:
+            e.ignore()
+
 
     def mouseDoubleClickEvent(self, e):
-        pos = self.view_box.mapSceneToView(e.pos())
+        pos = self.view_box.mapSceneToView(e.position())
         self.cursorMove.emit(pos.x())
 
 
@@ -393,6 +396,13 @@ class LogWaveform(_BaseWaveform):
             self.plot_data_item.setData(x=[], y=[])
 
 
+# pg.GraphicsView ignores dragEnterEvent but not dragLeaveEvent
+# https://github.com/pyqtgraph/pyqtgraph/blob/1e98704eac6b85de9c35371079f561042e88ad68/pyqtgraph/widgets/GraphicsView.py#L388
+class _RefAxis(pg.PlotWidget):
+    def dragLeaveEvent(self, ev):
+        ev.ignore()
+
+
 class _WaveformView(QtWidgets.QWidget):
     cursorMove = QtCore.pyqtSignal(float)
 
@@ -408,7 +418,7 @@ class _WaveformView(QtWidgets.QWidget):
         layout.setSpacing(0)
         self.setLayout(layout)
 
-        self._ref_axis = pg.PlotWidget()
+        self._ref_axis = _RefAxis()
         self._ref_axis.hideAxis("bottom")
         self._ref_axis.hideAxis("left")
         self._ref_axis.hideButtons()

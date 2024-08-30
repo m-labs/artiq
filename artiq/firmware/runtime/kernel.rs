@@ -95,7 +95,9 @@ pub mod subkernel {
     use board_artiq::drtio_routing::RoutingTable;
     use board_misoc::clock;
     use proto_artiq::{drtioaux_proto::{PayloadStatus, MASTER_PAYLOAD_MAX_SIZE}, rpc_proto as rpc};
-    use io::Cursor;
+    use io::{Cursor, ProtoRead};
+    use eh::eh_artiq::Exception;
+    use cslice::CSlice;
     use rtio_mgt::drtio;
     use sched::{Io, Mutex, Error as SchedError};
 
@@ -226,8 +228,8 @@ pub mod subkernel {
             if subkernel.state == SubkernelState::Running {
                 subkernel.state = SubkernelState::Finished {
                     status: match with_exception {
-                    true => FinishStatus::Exception(exception_src),
-                    false => FinishStatus::Ok,
+                        true => FinishStatus::Exception(exception_src),
+                        false => FinishStatus::Ok,
                     }
                 }
             }
@@ -255,6 +257,49 @@ pub mod subkernel {
             }
         }
     }
+
+    fn read_exception_string<'a>(reader: &mut Cursor<&[u8]>) -> Result<CSlice<'a, u8>, Error> {
+        let len = reader.read_u32()? as usize;
+        if len == usize::MAX {
+            let data = reader.read_u32()?;
+            Ok(unsafe { CSlice::new(data as *const u8, len) })
+        } else {
+            let pos = reader.position();
+            let slice = unsafe {
+                let ptr = reader.get_ref().as_ptr().offset(pos as isize);
+                CSlice::new(ptr, len)
+            };
+            reader.set_position(pos + len);
+            Ok(slice)
+        }
+    }
+
+    pub fn read_exception(buffer: &[u8]) -> Result<Exception, Error>
+    {
+        let mut reader = Cursor::new(buffer);
+
+        let mut byte = reader.read_u8()?;
+        // to sync
+        while byte != 0x5a {
+            byte = reader.read_u8()?;
+        }
+        // skip sync bytes, 0x09 indicates exception
+        while byte != 0x09 {
+            byte = reader.read_u8()?;
+        }
+        let _len = reader.read_u32()?;
+        // ignore the remaining exceptions, stack traces etc. - unwinding from another device would be unwise anyway
+        Ok(Exception {
+            id:       reader.read_u32()?,
+            message:  read_exception_string(&mut reader)?,
+            param:    [reader.read_u64()? as i64, reader.read_u64()? as i64, reader.read_u64()? as i64],
+            file:     read_exception_string(&mut reader)?,
+            line:     reader.read_u32()?,
+            column:   reader.read_u32()?,
+            function: read_exception_string(&mut reader)?
+        })
+    }
+
 
     pub fn retrieve_finish_status(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex,
         routing_table: &RoutingTable, id: u32) -> Result<SubkernelFinished, Error> {

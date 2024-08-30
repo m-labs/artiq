@@ -24,12 +24,14 @@ ARTIQ manual
     rtio
     getting_started_core
     getting_started_mgmt
+    using_data_interfaces
     using_drtio_subkernels
 
 .. toctree::
     :caption: ARTIQ components
     :maxdepth: 2
 
+    overview
     environment
     compiler
     management_system
@@ -48,13 +50,15 @@ ARTIQ manual
     :caption: References
     :maxdepth: 2
 
-    main_frontend_reference
+    main_frontend_tools 
     core_language_reference
     core_drivers_reference
+    mgmt_system_reference
     utilities
 
 .. toctree::
     :caption: Addenda
     :maxdepth: 2
 
+    extending_rtio
     faq

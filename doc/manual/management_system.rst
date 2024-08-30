@@ -10,43 +10,53 @@ Components
 Master
 ^^^^^^
 
-The :ref:`ARTIQ master <frontend-artiq-master>` is responsible for managing the parameter and device databases, the experiment repository, scheduling and running experiments, archiving results, and distributing real-time results. It is a headless component, and one or several clients (command-line or GUI) use the network to interact with it.
+The :ref:`ARTIQ master <frontend-artiq-master>` is responsible for managing the dataset and device databases, the experiment repository, scheduling and running experiments, archiving results, and distributing real-time results. It is a headless component, and one or several clients (command-line or GUI) use the network to interact with it.
 
-It should not be confused with the 'master' device in a DRTIO system, which is only a designation for the particular core device acting as central node in a distributed configuration of ARTIQ. The two concepts are otherwise unrelated.
+The master expects to be given a directory on startup, the experiment repository, containing these experiments which are automatically tracked and communicated to clients. By default, it simply looks for a directory called ``repository``. The ``-r`` flag can be used to substitute an alternate location.
 
-Command-line client
-^^^^^^^^^^^^^^^^^^^
+It also expects access to a ``device_db.py``, with a corresponding flag ``--device-db`` to substitute a different file name. Additionally, it will reference or create certain files in the directory it is run in, among them ``dataset_db.mdb``, the LMDB database containing persistent datasets, ``last_rid.pyon``, which simply contains the last used RID, and the ``results`` directory.
 
-The :ref:`command-line client <frontend-artiq-client>` connects to the master and permits modification and monitoring of the databases, monitoring the experiment schedule and log, and submitting experiments.
+.. note::
+   Because the other parts of the management system all seem to be able to access the information stored in these files, confusion can sometimes result about where it is really stored and how it is distributed. Device databases, datasets, results, and experiments are all solely kept and administered by the master, which communicates information to dashboards, browsers, and clients over the network whenever necessary.
 
-Dashboard
-^^^^^^^^^
+   Notably, clients and dashboards do not send in experiments to the master; they request them from the array of experiments the master knows about, primarily those in ``repository``, but also in the master's local file system, if 'Open file outside repository' is selected. This is true even if ``repository`` is configured as a Git repository and cloned on other machines.
 
-The :ref:`dashboard <frontend-artiq-dashboard>` connects to the master and is the main method of interacting with it. The main features of the dashboard are scheduling of experiments, setting of their arguments, examining the schedule, displaying real-time results, and debugging TTL and DDS channels in real time.
+The ARTIQ master should not be confused with the 'master' device in a DRTIO system, which is only a designation for the particular core device acting as central node in a distributed configuration of ARTIQ. The two concepts are otherwise unrelated.
+
+Clients
+^^^^^^^
+
+The :ref:`command-line client <frontend-artiq-client>` connects to the master and permits modification and monitoring of the databases, reading the experiment schedule and log, and submitting experiments.
+
+The :ref:`dashboard <frontend-artiq-dashboard>` connects to the master and is the main method of interacting with it. The main roles of the dashboard are scheduling of experiments, setting of their arguments, examining the schedule, displaying real-time results, and debugging TTL and DDS channels in real time.
 
 The dashboard remembers and restores GUI state (window/dock positions, last values entered by the user, etc.) in between instances. This information is stored in a file called ``artiq_dashboard_{server}_{port}.pyon`` in the configuration directory (e.g. generally ``~/.config/artiq`` for Unix, same as data directory for Windows), distinguished in subfolders by ARTIQ version.
+
+Browser
+^^^^^^^
+
+The :ref:`browser <frontend-artiq-browser>` is used to read ARTIQ ``results`` HDF5 files and run experiment :meth:`~artiq.language.environment.Experiment.analyze` functions, in particular to retrieve previous result databases, process them, and display them in ARTIQ applets. The browser also remembers and restores its GUI state; this is stored in a file called simply ``artiq_browser``, kept in the same configuration directory as the dashboard.
 
 Controller manager
 ^^^^^^^^^^^^^^^^^^
 
-The controller manager is provided in the ``artiq-comtools`` package (which is also made available separately from mainline ARTIQ, to allow independent use with minimal dependencies) and started with the ``artiq_ctlmgr`` command. It is responsible for running and stopping controllers on a machine. One controller manager must be run by each network node that runs controllers.
+The controller manager is provided in the ``artiq-comtools`` package (which is also made available separately from mainline ARTIQ, to allow independent use with minimal dependencies) and started with the :mod:`~artiq_comtools.artiq_ctlmgr` command. It is responsible for running and stopping controllers on a machine. One controller manager must be run by each network node that runs controllers.
 
 A controller manager connects to the master and accesses the device database through it to determine what controllers need to be run. The local network address of the connection is used to filter for only those controllers allocated to the current node. Hostname resolution is supported. Changes to the device database are tracked and controllers will be stopped and started accordingly.
 
+.. _mgmt-git-integration:
 
 Git integration
 ---------------
 
-The master may use a Git repository to store experiment source code. Using Git has many advantages. For example, each result file (HDF5) contains the commit ID corresponding to the exact source code it was produced by, which helps reproducibility.
-
-Although the master also supports non-bare repositories, it is recommended to use a bare repository (e.g. ``git init --bare``) to easily support push transactions from clients.
+The master may use a Git repository to store experiment source code. Using Git has many advantages. For example, each result file (HDF5) contains the commit ID corresponding to the exact source code it was produced by, which helps reproducibility. Although the master also supports non-bare repositories, it is recommended to use a bare repository (e.g. ``git init --bare``) to easily support push transactions from clients.
 
 You will want Git to notify the master every time the repository is pushed to (e.g. updated), so that the master knows to rescan the repository for new or changed experiments. This is easiest done with the ``post-receive`` hook, as described in :ref:`master-setting-up-git`.
 
 .. note::
    If you plan to run the ARTIQ system entirely on a single machine, you may also consider using a non-bare repository and the ``post-commit`` hook to trigger repository scans every time you commit changes (locally). In this case, note that the ARTIQ master never uses the repository's working directory, but only what is committed. More precisely, when scanning the repository, it fetches the last (atomically) completed commit at that time of repository scan and checks it out in a temporary folder. This commit ID is used by default when subsequently submitting experiments. There is one temporary folder by commit ID currently referenced in the system, so concurrently running experiments from different repository revisions is fully supported by the master.
 
-By default, the dashboard runs experiments from the repository, whereas the command-line client (``artiq_client submit``) runs experiments from the raw filesystem (which is useful for iterating rapidly without creating many disorganized commits). In order to run from the raw filesystem when using the dashboard, right-click in the Explorer window and select the option "Open file outside repository"; in order to run from the repository when using the command-line client, simply pass the ``-R`` flag.
+By default, the dashboard runs experiments from the repository, whereas the command-line client (``artiq_client submit``) runs experiments from the raw filesystem (which is useful for iterating rapidly without creating many disorganized commits). In order to run from the raw filesystem when using the dashboard, right-click in the Explorer window and select the option 'Open file outside repository'. In order to run from the repository when using the command-line client, simply pass the ``-R`` flag.
 
 .. _experiment-scheduling:
 
@@ -59,7 +69,7 @@ Basics
 To make more efficient use of hardware resources, experiments are generally split into three phases and pipelined, such that potentially compute-intensive pre-computation or analysis phases may be executed in parallel with the bodies of other experiments, which access hardware.
 
 .. seealso::
-   These steps are implemented in :class:`~artiq.language.environment.Experiment`. However, user-written experiments should usually derive from (sub-class) :class:`artiq.language.environment.EnvExperiment`.
+   These steps are implemented in :class:`~artiq.language.environment.Experiment`. However, user-written experiments should usually derive from (sub-class) :class:`artiq.language.environment.EnvExperiment`, which additionally provides access to the methods of :class:`artiq.language.environment.HasEnvironment`.
 
 There are three stages of a standard experiment users may write code in:
 
@@ -104,92 +114,3 @@ The experiment must place the hardware in a safe state and disconnect from the c
 Accessing the :meth:`pause` and :meth:`~artiq.master.scheduler.Scheduler.check_pause` methods is done through a virtual device called ``scheduler`` that is accessible to all experiments. The scheduler virtual device is requested like regular devices using :meth:`~artiq.language.environment.HasEnvironment.get_device` (``self.get_device()``) or :meth:`~artiq.language.environment.HasEnvironment.setattr_device` (``self.setattr_device()``).
 
 :meth:`~artiq.master.scheduler.Scheduler.check_pause` can be called (via RPC) from a kernel, but :meth:`pause` must not be.
-
-Scheduler API reference
------------------------
-
-The scheduler is exposed to the experiments via a virtual device called ``scheduler``. It can be requested like any regular device, and the methods below, as well as :meth:`pause`, can be called on the returned object.
-
-The scheduler virtual device also contains the attributes ``rid``, ``pipeline_name``, ``priority`` and ``expid``, which contain the corresponding information about the current run.
-
-.. autoclass:: artiq.master.scheduler.Scheduler
-   :members:
-
-Client control broadcasts (CCBs)
---------------------------------
-
-Client control broadcasts are requests made by experiments for clients to perform some action. Experiments do so by requesting the ``ccb`` virtual device and calling its ``issue`` method. The first argument of the issue method is the name of the broadcast, and any further positional and keyword arguments are passed to the broadcast.
-
-CCBs are used by experiments to configure applets in the dashboard, for example for plotting purposes.
-
-.. autoclass:: artiq.dashboard.applets_ccb.AppletsCCBDock
-   :members:
-
-.. _applet-references:
-
-Applet request interfaces
--------------------------
-
-Applet request interfaces allow applets to perform actions on the master database and set arguments in the dashboard. Applets may inherit from ``artiq.applets.simple.SimpleApplet`` and call the methods defined below through the ``req`` attribute.
-
-Embedded applets should use ``AppletRequestIPC`` while standalone applets use ``AppletRequestRPC``. ``SimpleApplet`` automatically chooses the correct interface on initialization.
-
-.. autoclass:: artiq.applets.simple._AppletRequestInterface
-   :members:
-
-Applet entry area
------------------
-
-Argument widgets can be used in applets through the :class:`~artiq.gui.applets.EntryArea` class. Below is a simple example code snippet: ::
-
-   entry_area = EntryArea()
-
-   # Create a new widget
-   entry_area.setattr_argument("bl", BooleanValue(True))
-
-   # Get the value of the widget (output: True)
-   print(entry_area.bl)
-
-   # Set the value
-   entry_area.set_value("bl", False)
-
-   # False
-   print(entry_area.bl)
-
-The :class:`~artiq.gui.applets.EntryArea`  object can then be added to a layout and integrated with the applet GUI. Multiple :class:`~artiq.gui.applets.EntryArea`  objects can be used in a single applet.
-
-.. class:: artiq.gui.applets.EntryArea
-
-   .. method:: setattr_argument(name, proc, group=None, tooltip=None)
-
-      Sets an argument as attribute. The names of the argument and of the
-      attribute are the same.
-
-      :param name: Argument name
-      :param proc: Argument processor, for example :class:`~artiq.language.environment.NumberValue`
-      :param group: Used to group together arguments in the GUI under a common category
-      :param tooltip: Tooltip displayed when hovering over the entry widget
-
-   .. method:: get_value(name)
-
-      Get the value of an entry widget.
-
-      :param name: Argument name
-
-   .. method:: get_values()
-
-      Get all values in the :class:`~artiq.gui.applets.EntryArea` as a dictionary. Names are stored as keys, and argument values as values.
-
-   .. method:: set_value(name, value)
-
-      Set the value of an entry widget. The change is temporary and will reset to default when the reset button is clicked.
-
-      :param name: Argument name
-      :param value: Object representing the new value of the argument. For :class:`~artiq.language.scan.Scannable` arguments, this parameter
-          should be a :class:`~artiq.language.scan.ScanObject`. The type of the :class:`~artiq.language.scan.ScanObject` will be set as the selected type when this function is called.
-
-   .. method:: set_values(values)
-
-      Set multiple values from a dictionary input. Calls :meth:`set_value` for each key-value pair.
-
-      :param values: Dictionary with names as keys and new argument values as values.

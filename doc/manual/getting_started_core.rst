@@ -1,10 +1,5 @@
-Getting started with the core language
-======================================
-
-.. _connecting-to-the-core-device:
-
-Connecting to the core device
------------------------------
+Getting started with the core device
+====================================
 
 As a very first step, we will turn on a LED on the core device. Create a file ``led.py`` containing the following: ::
 
@@ -14,12 +9,12 @@ As a very first step, we will turn on a LED on the core device. Create a file ``
     class LED(EnvExperiment):
         def build(self):
             self.setattr_device("core")
-            self.setattr_device("led")
+            self.setattr_device("led0")
 
         @kernel
         def run(self):
             self.core.reset()
-            self.led.on()
+            self.led0.on()
 
 The central part of our code is our ``LED`` class, which derives from :class:`~artiq.language.environment.EnvExperiment`. Almost all experiments should derive from this class, which provides access to the environment as well as including the necessary experiment framework from the base-level :class:`~artiq.language.environment.Experiment`. It will call our :meth:`~artiq.language.environment.HasEnvironment.build` at the right time and provides the :meth:`~artiq.language.environment.HasEnvironment.setattr_device` we use to gain access to our devices ``core`` and ``led``. The :func:`~artiq.language.core.kernel` decorator (``@kernel``) tells the system that the :meth:`~artiq.language.environment.Experiment.run` method is a kernel and must be compiled for and executed on the core device (instead of being interpreted and executed as regular Python code on the host).
 
@@ -32,7 +27,7 @@ If you don't have a ``device_db.py`` for your system, consult :ref:`device-db` t
 
         python3 -c "import artiq; print(artiq.__path__[0])"
 
-Run your code using ``artiq_run``, which is one of the ARTIQ front-end tools: ::
+Run your code using :mod:`~artiq.frontend.artiq_run`, which is one of the ARTIQ front-end tools: ::
 
     $ artiq_run led.py
 
@@ -51,7 +46,7 @@ Modify ``led.py`` as follows: ::
     class LED(EnvExperiment):
         def build(self):
             self.setattr_device("core")
-            self.setattr_device("led")
+            self.setattr_device("led0")
 
         @kernel
         def run(self):
@@ -59,9 +54,9 @@ Modify ``led.py`` as follows: ::
             s = input_led_state()
             self.core.break_realtime()
             if s:
-                self.led.on()
+                self.led0.on()
             else:
-                self.led.off()
+                self.led0.off()
 
 
 You can then turn the LED off and on by entering 0 or 1 at the prompt that appears: ::
@@ -75,7 +70,7 @@ What happens is that the ARTIQ compiler notices that the ``input_led_state`` fun
 
 The return type of all RPC functions must be known in advance. If the return value is not ``None``, the compiler requires a type annotation, like ``-> TBool`` in the example above. See also :ref:`compiler-types`.
 
-Without the :meth:`~artiq.coredevice.core.Core.break_realtime` call, the RTIO events emitted by :meth:`self.led.on() <artiq.coredevice.ttl.TTLInOut.on>` or :meth:`self.led.off() <artiq.coredevice.ttl.TTLInOut.off>` would be scheduled at a fixed and very short delay after entering :meth:`~artiq.language.environment.Experiment.run()`. These events would fail because the RPC to ``input_led_state()`` can take an arbitrarily long amount of time, and therefore the deadline for the submission of RTIO events would have long passed when :meth:`self.led.on() <artiq.coredevice.ttl.TTLInOut.on>` or :meth:`self.led.off() <artiq.coredevice.ttl.TTLInOut.off>` are called (that is, the ``rtio_counter_mu`` wall clock will have advanced far ahead of the timeline cursor ``now_mu``, and an :exc:`~artiq.coredevice.exceptions.RTIOUnderflow` would result; see :ref:`artiq-real-time-i-o-concepts` for the full explanation of wall clock vs. timeline.) The :meth:`~artiq.coredevice.core.Core.break_realtime` call is necessary to waive the real-time requirements of the LED state change. Rather than delaying by any particular time interval, it reads ``rtio_counter_mu`` and moves up the ``now_mu`` cursor far enough to ensure it's once again safely ahead of the wall clock.
+Without the :meth:`~artiq.coredevice.core.Core.break_realtime` call, the RTIO events emitted by :meth:`self.led0.on() <artiq.coredevice.ttl.TTLInOut.on>` or :meth:`self.led0.off() <artiq.coredevice.ttl.TTLInOut.off>` would be scheduled at a fixed and very short delay after entering :meth:`~artiq.language.environment.Experiment.run()`. These events would fail because the RPC to ``input_led_state()`` can take an arbitrarily long amount of time, and therefore the deadline for the submission of RTIO events would have long passed when :meth:`self.led0.on() <artiq.coredevice.ttl.TTLInOut.on>` or :meth:`self.led0.off() <artiq.coredevice.ttl.TTLInOut.off>` are called (that is, the ``rtio_counter_mu`` wall clock will have advanced far ahead of the timeline cursor ``now_mu``, and an :exc:`~artiq.coredevice.exceptions.RTIOUnderflow` would result; see :doc:`rtio` for the full explanation of wall clock vs. timeline.) The :meth:`~artiq.coredevice.core.Core.break_realtime` call is necessary to waive the real-time requirements of the LED state change. Rather than delaying by any particular time interval, it reads ``rtio_counter_mu`` and moves up the ``now_mu`` cursor far enough to ensure it's once again safely ahead of the wall clock.
 
 Real-time Input/Output (RTIO)
 -----------------------------
@@ -100,19 +95,11 @@ Create a new file ``rtio.py`` containing the following: ::
                 delay(2*us)
                 self.ttl0.pulse(2*us)
 
-In its :meth:`~artiq.language.environment.HasEnvironment.build` method, the experiment obtains the core device and a TTL device called ``ttl0`` as defined in the device database.
-In ARTIQ, TTL is used roughly synonymous with "a single generic digital signal" and does not refer to a specific signaling standard or voltage/current levels.
+In its :meth:`~artiq.language.environment.HasEnvironment.build` method, the experiment obtains the core device and a TTL device called ``ttl0`` as defined in the device database. In ARTIQ, TTL is used roughly synonymous with "a single generic digital signal" and does not refer to a specific signaling standard or voltage/current levels.
 
-When :meth:`~artiq.language.environment.Experiment.run`, the experiment first ensures that ``ttl0`` is in output mode and actively driving the device it is connected to.
-Bidirectional TTL channels (i.e. :class:`~artiq.coredevice.ttl.TTLInOut`) are in input (high impedance) mode by default, output-only TTL channels (:class:`~artiq.coredevice.ttl.TTLOut`) are always in output mode.
-There are no input-only TTL channels.
+When :meth:`~artiq.language.environment.Experiment.run`, the experiment first ensures that ``ttl0`` is in output mode and actively driving the device it is connected to. Bidirectional TTL channels (i.e. :class:`~artiq.coredevice.ttl.TTLInOut`) are in input (high impedance) mode by default, output-only TTL channels (:class:`~artiq.coredevice.ttl.TTLOut`) are always in output mode. There are no input-only TTL channels.
 
-The experiment then drives one million 2 µs long pulses separated by 2 µs each.
-Connect an oscilloscope or logic analyzer to TTL0 and run ``artiq_run rtio.py``.
-Notice that the generated signal's period is precisely 4 µs, and that it has a duty cycle of precisely 50%.
-This is not what one would expect if the delay and the pulse were implemented with register-based general purpose input output (GPIO) that is CPU-controlled.
-The signal's period would depend on CPU speed, and overhead from the loop, memory management, function calls, etc., all of which are hard to predict and variable.
-Any asymmetry in the overhead would manifest itself in a distorted and variable duty cycle.
+The experiment then drives one million 2 µs long pulses separated by 2 µs each. Connect an oscilloscope or logic analyzer to TTL0 and run ``artiq_run rtio.py``. Notice that the generated signal's period is precisely 4 µs, and that it has a duty cycle of precisely 50%. This is not what one would expect if the delay and the pulse were implemented with register-based general purpose input output (GPIO) that is CPU-controlled. The signal's period would depend on CPU speed, and overhead from the loop, memory management, function calls, etc., all of which are hard to predict and variable. Any asymmetry in the overhead would manifest itself in a distorted and variable duty cycle.
 
 Instead, inside the core device, output timing is generated by the gateware and the CPU only programs switching commands with certain timestamps that the CPU computes.
 
@@ -166,11 +153,7 @@ Try the following code and observe the generated pulses on a 2-channel oscillosc
                     self.ttl1.pulse(4*us)
                 delay(4*us)
 
-ARTIQ can implement ``with parallel`` blocks without having to resort to any of the typical parallel processing approaches.
-It simply remembers its position on the timeline (``now_mu``) when entering the ``parallel`` block and resets to that position after each individual statement.
-At the end of the block, the cursor is advanced to the furthest position it reached during the block.
-In other words, the statements in a ``parallel`` block are actually executed sequentially.
-Only the RTIO events generated by the statements are *scheduled* in parallel.
+ARTIQ can implement ``with parallel`` blocks without having to resort to any of the typical parallel processing approaches. It simply remembers its position on the timeline (``now_mu``) when entering the ``parallel`` block and resets to that position after each individual statement. At the end of the block, the cursor is advanced to the furthest position it reached during the block. In other words, the statements in a ``parallel`` block are actually executed sequentially. Only the RTIO events generated by the statements are *scheduled* in parallel.
 
 Remember that while ``now_mu`` resets at the beginning of each statement in a ``parallel`` block, the wall clock advances regardless. If a particular statement takes a long time to execute (which is different from -- and unrelated to! -- the events *scheduled* by the statement taking a long time), the wall clock may advance past the reset value, putting any subsequent statements inside the block into a situation of negative slack (i.e., resulting in :exc:`~artiq.coredevice.exceptions.RTIOUnderflow` ). Sometimes underflows may be avoided simply by reordering statements within the parallel block. This especially applies to input methods, which generally necessarily block CPU progress until the wall clock has caught up to or overtaken the cursor.
 
@@ -186,31 +169,33 @@ Within a parallel block, some statements can be scheduled sequentially again usi
         delay(4*us)
 
 .. warning::
-    ``with parallel`` specifically 'parallelizes' the *top-level* statements inside a block. Consider as an example: ::
+    ``with parallel`` specifically 'parallelizes' the *top-level* statements inside a block. Consider as an example:
+
+    .. code-block::
+        :linenos:
 
             for i in range(1000000):
                 with parallel:
-                    self.ttl0.pulse(2*us)       # 1
-                    if True:                    # 2
-                        self.ttl1.pulse(2*us)   # 3
-                        self.ttl2.pulse(2*us)   # 4
+                    self.ttl0.pulse(2*us)
+                    if True:
+                        self.ttl1.pulse(2*us)
+                        self.ttl2.pulse(2*us)
                 delay(4*us)
 
-    This code will not schedule the three pulses to ``ttl0``, ``ttl1``, and ``ttl2`` in parallel. Rather, the pulse to ``ttl1`` is 'parallelized' *with the if statement*. The timeline cursor resets once, at the beginning of statement #2; it will not repeat the reset at the deeper indentation level for #3 or #4.
+    This code will not schedule the three pulses to ``ttl0``, ``ttl1``, and ``ttl2`` in parallel. Rather, the pulse to ``ttl1`` is 'parallelized' *with the if statement*. The timeline cursor resets once, at the beginning of line #4; it will not repeat the reset at the deeper indentation level for #5 or #6.
 
-    In practice, the pulses to ``ttl0`` and ``ttl1`` will execute simultaneously, and the pulse to ``ttl2`` will execute after the pulse to ``ttl1``, bringing the total duration of the ``parallel`` block to 4 us. Internally, statements #3 and #4, contained within the top-level if statement, are considered an atomic sequence and executed within an implicit ``with sequential``. To execute #3 and #4 in parallel, it is necessary to place them inside a second, nested ``parallel`` block within the if statement.
+    In practice, the pulses to ``ttl0`` and ``ttl1`` will execute simultaneously, and the pulse to ``ttl2`` will execute after the pulse to ``ttl1``, bringing the total duration of the ``parallel`` block to 4 us. Internally, lines #5 and #6, contained within the top-level if statement, are considered an atomic sequence and executed within an implicit ``with sequential``. To schedule #5 and #6 in parallel, it is necessary to place them inside a second, nested ``parallel`` block within the if statement.
 
 Particular care needs to be taken when working with ``parallel`` blocks which generate large numbers of RTIO events, as it is possible to cause sequencing issues in the gateware; see also :ref:`sequence-errors`.
 
-.. _rtio-analyzer-example:
+.. _rtio-analyzer:
 
 RTIO analyzer
 -------------
 
-The core device records the real-time I/O waveforms into a circular buffer. It is possible to dump any Python object so that it appears alongside the waveforms using the ``rtio_log`` function, which accepts a channel name (i.e. a log target) as the first argument: ::
+The core device records all real-time I/O waveforms, as well as the variation of RTIO slack, into a circular buffer, the contents of which can be extracted using :mod:`~artiq.frontend.artiq_coreanalyzer`. Try for example: ::
 
     from artiq.experiment import *
-
 
     class Tutorial(EnvExperiment):
         def build(self):
@@ -220,19 +205,37 @@ The core device records the real-time I/O waveforms into a circular buffer. It i
         @kernel
         def run(self):
             self.core.reset()
-            for i in range(100):
-                self.ttl0.pulse(...)
-                rtio_log("ttl0", "i", i)
-                delay(...)
+            for i in range(5):
+                self.ttl0.pulse(0.1 * ms)
+                delay(0.1 * ms)
 
-When using ``artiq_run``, the recorded data can be extracted using ``artiq_coreanalyzer`` (see :ref:`core-device-rtio-analyzer-tool`). To export it to VCD, which can be viewed using third-party tools such as GtkWave, use the command ``artiq_coreanalyzer -w rtio.vcd``. Recorded data can also be viewed directly with the ARTIQ dashboard, which will be presented later in :doc:`getting_started_mgmt`.
+When using :mod:`~artiq.frontend.artiq_run`, the recorded buffer data can be extracted directly into the terminal, using a command in the form of: ::
+
+    $ artiq_coreanalyzer -p
+
+.. note::
+    The first time this command is run, it will retrieve the entire contents of the analyzer buffer, which may include every experiment you have run so far. For a more manageable introduction, run the analyzer once to clear the buffer, run the experiment, and then run the analyzer a second time, so that only the data from this single experiment is displayed.
+
+This will produce a list of the exact output events submitted to RTIO, printed in chronological order, along with the state of both ``now_mu`` and ``rtio_counter_mu``. While useful in diagnosing some specific gateware errors (in particular, :ref:`sequencing issues <sequence-errors>`), it isn't the most readable of formats. An alternate is to export to VCD, which can be viewed using third-party tools such as GTKWave. Run the experiment again, and use a command in the form of: ::
+
+    $ artiq_coreanalyzer -w <file_name>.vcd
+
+The ``<file_name>.vcd`` file should be immediately created and written. Check the directory the command was run in to find it.
+
+.. tip::
+
+    Tutorials on GTKWave options (or other third-party tools) and how best to view VCD files can be found online. By default, the data in a trace like ``rtio_slack`` will probably be presented in a raw form. To see a stepped wave as in the ARTIQ dashboard, look for options to interpret the data as a real number, then as an analog signal.
+
+    Pay attention to the timescale of the waveform dock in your chosen viewer; if you have set your signals to display but nothing is visible, it is likely zoomed in or out much too far.
+
+The easiest way to view recorded analyzer data, however, is directly in the ARTIQ dashboard, a feature which will be presented later in :ref:`interactivity-waveform`.
 
 .. _getting-started-dma:
 
 Direct Memory Access (DMA)
 --------------------------
 
-DMA allows for storing fixed sequences of RTIO events in system memory and having the DMA core in the FPGA play them back at high speed. Provided that the specifications of a desired event sequence are known far enough in advance, and no other RTIO issues (collisions, sequence errors) are provoked, even extremely fast and detailed event sequences can always be generated and executed. RTIO underflows occur when events cannot be generated *as fast as* they need to be executed, resulting in an exception when the wall clock 'catches up'. The solution is to record these sequences to the DMA core. Once recorded, event sequences are fixed and cannot be modified, but can be safely replayed very quickly at any position in the timeline, potentially repeatedly.
+DMA allows for storing fixed sequences of RTIO events in system memory and having the DMA core in the FPGA play them back at high speed. Provided that the specifications of a desired event sequence are known far enough in advance, and no other RTIO issues (collisions, sequence errors) are provoked, even extremely fast and detailed event sequences can always be generated and executed. RTIO underflows occur when events cannot be generated *as fast as* they need to be executed, resulting in an exception when the wall clock 'catches up' to ``now_mu``. The solution is to record these sequences to the DMA core. Once recorded, event sequences are fixed and cannot be modified, but can be safely replayed very quickly at any position in the timeline, potentially repeatedly.
 
 Try this: ::
 

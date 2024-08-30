@@ -133,7 +133,12 @@ def main():
                                     server=args.server.replace(":", "."),
                                     port=args.port_notify))
 
-    app = QtWidgets.QApplication(["ARTIQ Dashboard"])
+    forced_platform = []
+    if (QtGui.QGuiApplication.platformName() == "wayland" and
+            not os.getenv("QT_QPA_PLATFORM")):
+        # force XCB instead of Wayland due to applets not embedding
+        forced_platform = ["-platform", "xcb"]
+    app = QtWidgets.QApplication(["ARTIQ Dashboard"] + forced_platform)
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
     atexit.register(loop.close)
@@ -256,7 +261,7 @@ def main():
     right_docks = [
         d_explorer, d_shortcuts,
         d_datasets, d_applets,
-        # d_waveform, d_interactive_args
+        d_waveform, d_interactive_args
     ]
     main_window.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, right_docks[0])
     for d1, d2 in zip(right_docks, right_docks[1:]):

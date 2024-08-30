@@ -25,6 +25,9 @@ def rtio_get_destination_status(destination: int32) -> bool:
 def rtio_get_counter() -> int64:
     raise NotImplementedError("syscall not simulated")
 
+@syscall
+def test_exception_id_sync(id: TInt32) -> TNone:
+    raise NotImplementedError("syscall not simulated")
 
 artiq_builtins = {
     "none": none,

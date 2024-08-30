@@ -123,8 +123,8 @@ pub enum Packet {
     SubkernelLoadRunRequest { source: u8, destination: u8, id: u32, run: bool },
     SubkernelLoadRunReply { destination: u8, succeeded: bool },
     SubkernelFinished { destination: u8, id: u32, with_exception: bool, exception_src: u8 },
-    SubkernelExceptionRequest { destination: u8 },
-    SubkernelException { last: bool, length: u16, data: [u8; SAT_PAYLOAD_MAX_SIZE] },
+    SubkernelExceptionRequest { source: u8, destination: u8 },
+    SubkernelException { destination: u8, last: bool, length: u16, data: [u8; MASTER_PAYLOAD_MAX_SIZE] },
     SubkernelMessage { source: u8, destination: u8, id: u32, status: PayloadStatus, length: u16, data: [u8; MASTER_PAYLOAD_MAX_SIZE] },
     SubkernelMessageAck { destination: u8 },
 }
@@ -367,14 +367,17 @@ impl Packet {
                 exception_src: reader.read_u8()?
             },
             0xc9 => Packet::SubkernelExceptionRequest {
+                source: reader.read_u8()?,
                 destination: reader.read_u8()?
             },
             0xca => {
+                let destination = reader.read_u8()?;
                 let last = reader.read_bool()?;
                 let length = reader.read_u16()?;
-                let mut data: [u8; SAT_PAYLOAD_MAX_SIZE] = [0; SAT_PAYLOAD_MAX_SIZE];
+                let mut data: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
                 reader.read_exact(&mut data[0..length as usize])?;
                 Packet::SubkernelException {
+                    destination: destination,
                     last: last,
                     length: length,
                     data: data
@@ -663,12 +666,14 @@ impl Packet {
                 writer.write_bool(with_exception)?;
                 writer.write_u8(exception_src)?;
             },
-            Packet::SubkernelExceptionRequest { destination } => {
+            Packet::SubkernelExceptionRequest { source, destination } => {
                 writer.write_u8(0xc9)?;
+                writer.write_u8(source)?;
                 writer.write_u8(destination)?;
             },
-            Packet::SubkernelException { last, length, data } => {
+            Packet::SubkernelException { destination, last, length, data } => {
                 writer.write_u8(0xca)?;
+                writer.write_u8(destination)?;
                 writer.write_bool(last)?;
                 writer.write_u16(length)?;
                 writer.write_all(&data[0..length as usize])?;
@@ -693,18 +698,20 @@ impl Packet {
     pub fn routable_destination(&self) -> Option<u8> {
         // only for packets that could be re-routed, not only forwarded
         match self {
-            Packet::DmaAddTraceRequest      { destination, .. } => Some(*destination),
-            Packet::DmaAddTraceReply        { destination, .. } => Some(*destination),
-            Packet::DmaRemoveTraceRequest   { destination, .. } => Some(*destination),
-            Packet::DmaRemoveTraceReply     { destination, .. } => Some(*destination),
-            Packet::DmaPlaybackRequest      { destination, .. } => Some(*destination),
-            Packet::DmaPlaybackReply        { destination, .. } => Some(*destination),
-            Packet::SubkernelLoadRunRequest { destination, .. } => Some(*destination),
-            Packet::SubkernelLoadRunReply   { destination, .. } => Some(*destination),
-            Packet::SubkernelMessage        { destination, .. } => Some(*destination),
-            Packet::SubkernelMessageAck     { destination, .. } => Some(*destination),
-            Packet::DmaPlaybackStatus       { destination, .. } => Some(*destination),
-            Packet::SubkernelFinished       { destination, .. } => Some(*destination),
+            Packet::DmaAddTraceRequest        { destination, .. } => Some(*destination),
+            Packet::DmaAddTraceReply          { destination, .. } => Some(*destination),
+            Packet::DmaRemoveTraceRequest     { destination, .. } => Some(*destination),
+            Packet::DmaRemoveTraceReply       { destination, .. } => Some(*destination),
+            Packet::DmaPlaybackRequest        { destination, .. } => Some(*destination),
+            Packet::DmaPlaybackReply          { destination, .. } => Some(*destination),
+            Packet::SubkernelLoadRunRequest   { destination, .. } => Some(*destination),
+            Packet::SubkernelLoadRunReply     { destination, .. } => Some(*destination),
+            Packet::SubkernelMessage          { destination, .. } => Some(*destination),
+            Packet::SubkernelMessageAck       { destination, .. } => Some(*destination),
+            Packet::SubkernelExceptionRequest { destination, .. } => Some(*destination),
+            Packet::SubkernelException        { destination, .. } => Some(*destination),
+            Packet::DmaPlaybackStatus         { destination, .. } => Some(*destination),
+            Packet::SubkernelFinished         { destination, .. } => Some(*destination),
             _ => None
         }
     }

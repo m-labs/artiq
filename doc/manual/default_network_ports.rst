@@ -10,9 +10,9 @@ Default network ports
 +---------------------------------+--------------+
 | Core device (analyzer)          | 1382         |
 +---------------------------------+--------------+
-| Moninj (core device or proxy)   | 1383         |
+| MonInj (core device or proxy)   | 1383         |
 +---------------------------------+--------------+
-| Moninj (proxy control)          | 1384         |
+| MonInj (proxy control)          | 1384         |
 +---------------------------------+--------------+
 | Core analyzer proxy (proxy)     | 1385         |
 +---------------------------------+--------------+
