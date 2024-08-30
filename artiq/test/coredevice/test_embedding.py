@@ -127,6 +127,7 @@ class _DefaultArg(EnvExperiment):
 
 
 class DefaultArgTest(ExperimentCase):
+    @unittest.skip("NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/528")
     def test_default_arg(self):
         exp = self.create(_DefaultArg)
         self.assertEqual(exp.run(), 42)
@@ -295,6 +296,7 @@ class _RPCCalls(EnvExperiment):
 
 
 class RPCCallsTest(ExperimentCase):
+    @unittest.skip("NAC3TODO")
     def test_args(self):
         exp = self.create(_RPCCalls)
         self.assertEqual(exp.args0(), 0)
@@ -332,6 +334,7 @@ class _Annotation(EnvExperiment):
 
 
 class AnnotationTest(ExperimentCase):
+    @unittest.skip("NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/101")
     def test_annotation(self):
         exp = self.create(_Annotation)
         self.assertEqual(exp.overflow(int64(1)), True)
@@ -463,6 +466,7 @@ class _EmptyList(EnvExperiment):
 
 
 class ListTupleTest(ExperimentCase):
+    @unittest.skip("NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/529")
     def test_list_tuple(self):
         self.create(_ListTuple).run()
 
@@ -535,6 +539,7 @@ class _Assert(EnvExperiment):
 
 
 class AssertTest(ExperimentCase):
+    @unittest.skip("NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/530")
     def test_assert(self):
         exp = self.create(_Assert)
 

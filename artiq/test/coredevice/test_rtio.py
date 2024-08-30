@@ -591,6 +591,7 @@ class CoredeviceTest(ExperimentCase):
         count = self.dataset_mgr.get("count")
         self.assertEqual(count, 10)
 
+    @unittest.skip("NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/532")
     def test_pulse_rate(self):
         """Minimum interval for sustained TTL output switching"""
         exp = self.execute(PulseRate)
