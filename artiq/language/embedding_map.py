@@ -7,27 +7,34 @@ class EmbeddingMap:
         self.function_map = {}
         self.attributes_writeback = []
 
-        # preallocate exception names
-        # must be kept in sync with EXCEPTION_ID_LOOKUP in artiq/firmware/ksupport/eh_artiq.rs,
-        # and src/runtime/src/eh_artiq.rs (Zynq)
-        self.preallocate_runtime_exception_names(["RuntimeError",
-                                                  "RTIOUnderflow",
-                                                  "RTIOOverflow",
-                                                  "RTIODestinationUnreachable",
-                                                  "DMAError",
-                                                  "I2CError",
-                                                  "CacheError",
-                                                  "SPIError",
-                                                  "0:ZeroDivisionError",
-                                                  "0:IndexError",
-                                                  "0:ValueError",
-                                                  "0:RuntimeError",
-                                                  "0:AssertionError",
-                                                  "0:KeyError",
-                                                  "0:NotImplementedError",
-                                                  "0:OverflowError",
-                                                  "0:IOError",
-                                                  "0:UnwrapNoneError"])
+        # Keep this list of exceptions in sync with `EXCEPTION_ID_LOOKUP` in `artiq::firmware::ksupport::eh_artiq`
+        # The exceptions declared here must be defined in `artiq.coredevice.exceptions`
+        # Verify synchronization by running the test cases in `artiq.test.coredevice.test_exceptions`
+        self.preallocate_runtime_exception_names([
+            "RTIOUnderflow",
+            "RTIOOverflow",
+            "RTIODestinationUnreachable",
+            "DMAError",
+            "I2CError",
+            "CacheError",
+            "SPIError",
+            "SubkernelError",
+
+            "0:AssertionError",
+            "0:AttributeError",
+            "0:IndexError",
+            "0:IOError",
+            "0:KeyError",
+            "0:NotImplementedError",
+            "0:OverflowError",
+            "0:RuntimeError",
+            "0:TimeoutError",
+            "0:TypeError",
+            "0:ValueError",
+            "0:ZeroDivisionError",
+            "0:LinAlgError",
+            "UnwrapNoneError",
+        ])
 
     def preallocate_runtime_exception_names(self, names):
         for i, name in enumerate(names):

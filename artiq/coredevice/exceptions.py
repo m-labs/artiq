@@ -1,6 +1,27 @@
+import builtins
+from numpy.linalg import LinAlgError
 from artiq.language.core import nac3, UnwrapNoneError
-from builtins import ZeroDivisionError, ValueError, IndexError, RuntimeError, AssertionError
 
+"""
+This file provides class definition for all the exceptions declared in `EmbeddingMap` in `artiq.language.embedding_map`
+
+For Python builtin exceptions, use the `builtins` module
+For ARTIQ specific exceptions, inherit from `Exception` class
+"""
+
+AssertionError = builtins.AssertionError
+AttributeError = builtins.AttributeError
+IndexError = builtins.IndexError
+IOError = builtins.IOError
+KeyError = builtins.KeyError
+NotImplementedError = builtins.NotImplementedError
+OverflowError = builtins.OverflowError
+RuntimeError = builtins.RuntimeError
+TimeoutError = builtins.TimeoutError
+TypeError = builtins.TypeError
+ValueError = builtins.ValueError
+ZeroDivisionError = builtins.ZeroDivisionError
+OSError = builtins.OSError
 
 @nac3
 class RTIOUnderflow(Exception):
