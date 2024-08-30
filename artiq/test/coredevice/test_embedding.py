@@ -650,15 +650,15 @@ class _IntBoundary(EnvExperiment):
         self.setattr_device("core")
         self.int32_min = numpy.iinfo(int32).min
         self.int32_max = numpy.iinfo(int32).max
-        self.int64_min = numpy.iinfo(int64).min
-        self.int64_max = numpy.iinfo(int64).max
+        self.int64_min = int64(numpy.iinfo(int64).min)
+        self.int64_max = int64(numpy.iinfo(int64).max)
 
     @kernel
-    def test_int32_bounds(self, min_val: int32, max_val: int32):
+    def test_int32_bounds(self, min_val: int32, max_val: int32) -> bool:
         return min_val == self.int32_min and max_val == self.int32_max
 
     @kernel
-    def test_int64_bounds(self, min_val: int64, max_val: int64):
+    def test_int64_bounds(self, min_val: int64, max_val: int64) -> bool:
         return min_val == self.int64_min and max_val == self.int64_max
 
     @kernel
