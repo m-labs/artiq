@@ -19,7 +19,7 @@ class EdgeCounterExp(EnvExperiment):
         self.setattr_device("loop_out")
 
     # NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/461
-    @kernel
+    # NAC3TODO @kernel
     def count_pulse_edges(self, gate_fn) -> tuple[int32, int32]:
         self.core.break_realtime()
         with parallel:
@@ -27,9 +27,9 @@ class EdgeCounterExp(EnvExperiment):
                 self.core.delay(5. * us)
                 self.loop_out.pulse(10. * us)
             with sequential:
-                #gate_fn(10. * us)
+                gate_fn(10. * us)
                 self.core.delay(1. * us)
-                #gate_fn(10 * us)
+                gate_fn(10 * us)
         return (self.loop_in_counter.fetch_count(),
                 self.loop_in_counter.fetch_count())
 
