@@ -17,11 +17,12 @@ impl From<SchedError> for Error<SchedError> {
 
 mod local_coremgmt {
     use alloc::{string::String, vec::Vec};
+    use byteorder::{ByteOrder, NativeEndian};
     use crc::crc32;
     use log::LevelFilter;
 
     use board_misoc::{config, mem, spiflash};
-    use io::{Cursor, Write, ProtoWrite, ProtoRead, Error as IoError};
+    use io::{Write, ProtoWrite, Error as IoError};
     use logger_artiq::BufferLogger;
     use mgmt_proto::{Error, Reply};
     use sched::{Io, TcpStream, Error as SchedError};
@@ -155,44 +156,30 @@ mod local_coremgmt {
         Ok(())
     }
 
-    pub fn flash(_io: &Io, stream: &mut TcpStream, image: &Vec<u8>) -> Result<(), Error<SchedError>> {
-        let mut reader = Cursor::new(&image[..]);
-        let expected_crc = reader.read_u32().unwrap();
+    pub fn flash(_io: &Io, stream: &mut TcpStream, image: &[u8]) -> Result<(), Error<SchedError>> {
+        let (expected_crc, mut image) = {
+            let (image, crc_slice) = image.split_at(image.len() - 4);
+            (NativeEndian::read_u32(crc_slice), image)
+        };
 
-        let image = &image[4..];
         let actual_crc = crc32::checksum_ieee(image);
 
         if actual_crc == expected_crc {
-            info!("Checksum matched");
-            let header_size = reader.read_u32().unwrap() as usize;
-            let header_offset = reader.position();
-            let bin_offset = header_offset + header_size;
+            let bin_origins = [
+                ("gateware"  , 0                      ),
+                ("bootloader", mem::ROM_BASE          ),
+                ("firmware"  , mem::FLASH_BOOT_ADDRESS),
+            ];
 
-            let header = &image[header_offset..bin_offset];
-            let binaries = &image[bin_offset..];
+            for (name, origin) in bin_origins {
+                info!("Flashing {} binary...", name);
+                let size = NativeEndian::read_u32(&image[..4]) as usize;
+                image = &image[4..];
 
-            info!("found header of size {}", header.len());
+                let (bin, remaining) = image.split_at(size);
+                image = remaining;
 
-            let mut reader = Cursor::new(header);
-            let bin_no = reader.read_u32().unwrap() as usize;
-            for _ in 0..bin_no {
-                let bin_name = reader.read_string().unwrap();
-                let offset = reader.read_u32().unwrap() as usize;
-                let len = reader.read_u32().unwrap() as usize;
-
-                let origin = match bin_name.as_str() {
-                    "gateware" => 0,
-                    "bootloader" => mem::ROM_BASE,
-                    "firmware" => mem::FLASH_BOOT_ADDRESS,
-                    _ => {
-                        error!("unexpected binary component {}", bin_name);
-                        return Ok(Reply::Error.write_to(stream)?);
-                    }
-                };
-
-                unsafe {
-                    spiflash::flash_binary(origin, &binaries[offset..offset+len]);
-                }
+                unsafe { spiflash::flash_binary(origin, bin) };
             }
 
             reboot(_io, stream)?;

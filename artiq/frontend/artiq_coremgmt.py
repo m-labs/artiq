@@ -179,12 +179,8 @@ def main():
                 "Found firmware files: {}".format(" ".join(firmwares)))
         firmware = firmwares[0]
 
-        bins = {
-            "gateware": gateware,
-            "bootloader": bootloader,
-            "firmware": firmware,
-        }
-        mgmt.flash(**bins)
+        bins = [ gateware, bootloader, firmware ]
+        mgmt.flash(bins)
 
     if args.tool == "reboot":
         mgmt.reboot()
