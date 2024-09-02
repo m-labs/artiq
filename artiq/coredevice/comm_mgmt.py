@@ -201,42 +201,17 @@ class CommMgmt:
     def debug_allocator(self):
         self._write_header(Request.DebugAllocator)
 
-    def flash(self, **bin_paths):
+    def flash(self, bin_paths):
         self._write_header(Request.Flash)
 
-        addr_table = {}
-        with io.BytesIO() as image_buf, io.BytesIO() as bin_buf:
-            offset = 0
-            # Reserve 4-bytes for CRC
-            image_buf.write(struct.pack(self.endian + "I", 0))
-            # Reserve 4-bytes for header length
-            image_buf.write(struct.pack(self.endian + "I", 0))
-            image_buf.write(struct.pack(self.endian + "I", len(bin_paths)))
-            for bin_name, filename in bin_paths.items():
+        with io.BytesIO() as image_buf:
+            for filename in bin_paths:
                 with open(filename, "rb") as fi:
                     bin_ = fi.read()
-                    length = bin_buf.write(bin_)
+                    image_buf.write(struct.pack(self.endian + "I", len(bin_)))
+                    image_buf.write(bin_)
 
-                    bin_name_str = bin_name.encode("utf-8")
-                    image_buf.write(struct.pack(self.endian + "I", len(bin_name_str)))
-                    image_buf.write(bin_name_str)
-                    image_buf.write(struct.pack(self.endian + "II", offset, length))
-
-                    offset += length
-
-            # header = image_buf.getvalue()
-            # image = image_buf.getvalue()
-
-            assert(image_buf.tell() == len(image_buf.getvalue()))
-            header_len = image_buf.tell() - 8
-            image_buf.seek(4, 0)
-            image_buf.write(struct.pack(self.endian + "I", header_len))
-            image_buf.seek(0, 2)
-            image_buf.write(bin_buf.getvalue())
-
-            image_buf.seek(4, 0)
-            crc = binascii.crc32(image_buf.read())
-            image_buf.seek(0, 0)
+            crc = binascii.crc32(image_buf.getvalue())
             image_buf.write(struct.pack(self.endian + "I", crc))
 
             self._write_bytes(image_buf.getvalue())
