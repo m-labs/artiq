@@ -139,6 +139,7 @@ pub enum Packet {
     CoreMgmtConfigEraseRequest { destination: u8 },
     CoreMgmtRebootRequest { destination: u8 },
     CoreMgmtAllocatorDebugRequest { destination: u8 },
+    CoreMgmtFlashRequest { destination: u8, last: bool, length: u16, data: [u8; MASTER_PAYLOAD_MAX_SIZE] },
     CoreMgmtGetLogReply { last: bool, length: u16, data: [u8; SAT_PAYLOAD_MAX_SIZE] },
     CoreMgmtConfigReadReply { last: bool, length: u16, value: [u8; SAT_PAYLOAD_MAX_SIZE] },
     CoreMgmtReply { succeeded: bool },
@@ -506,6 +507,19 @@ impl Packet {
             },
             0xdd => Packet::CoreMgmtReply {
                 succeeded: reader.read_bool()?,
+            },
+            0xde => {
+                let destination = reader.read_u8()?;
+                let last = reader.read_bool()?;
+                let length = reader.read_u16()?;
+                let mut data: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
+                reader.read_exact(&mut data[0..length as usize])?;
+                Packet::CoreMgmtFlashRequest {
+                    destination: destination,
+                    last: last,
+                    length: length,
+                    data: data,
+                }
             },
 
             ty => return Err(Error::UnknownPacket(ty))
@@ -879,6 +893,13 @@ impl Packet {
             Packet::CoreMgmtReply { succeeded } => {
                 writer.write_u8(0xdd)?;
                 writer.write_bool(succeeded)?;
+            },
+            Packet::CoreMgmtFlashRequest { destination, last, length, data } => {
+                writer.write_u8(0xde)?;
+                writer.write_u8(destination)?;
+                writer.write_bool(last)?;
+                writer.write_u16(length)?;
+                writer.write_all(&data[..length as usize])?;
             },
         }
         Ok(())

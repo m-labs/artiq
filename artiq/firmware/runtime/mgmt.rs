@@ -542,8 +542,33 @@ mod remote_coremgmt {
     pub fn flash(io: &Io, aux_mutex: &Mutex,
         ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
         routing_table: &drtio_routing::RoutingTable, linkno: u8,
-        destination: u8, stream: &mut TcpStream, image: &Vec<u8>) -> Result<(), Error<SchedError>> {
-        todo!()
+        destination: u8, stream: &mut TcpStream, image: &[u8]) -> Result<(), Error<SchedError>> {
+
+        match drtio::partition_data(&image, |slice, status, len: usize| {
+            let reply = drtio::aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno, 
+                &Packet::CoreMgmtFlashRequest {
+                    destination: destination, length: len as u16, last: status.is_last(), data: *slice});
+            match reply {
+                Ok(Packet::CoreMgmtReply { succeeded: true }) => Ok(()),
+                Ok(packet) => {
+                    error!("received unexpected aux packet: {:?}", packet);
+                    Err(drtio::Error::UnexpectedReply)
+                }
+                Err(e) => {
+                    error!("aux packet error ({})", e);
+                    Err(e)
+                }
+            }
+        }) {
+            Ok(()) => {
+                Reply::RebootImminent.write_to(stream)?;
+                Ok(())
+            },
+            Err(e) => {
+                Reply::Error.write_to(stream)?;
+                Err(e.into())
+            },
+        }
     }
 }
 
@@ -588,7 +613,7 @@ fn worker(io: &Io, stream: &mut TcpStream, restart_idle: &Urc<Cell<bool>>,
             Request::ConfigErase => process!(io, _aux_mutex, _ddma_mutex, _subkernel_mutex, _routing_table, stream, _destination, config_erase, restart_idle),
             Request::Reboot => process!(io, _aux_mutex, _ddma_mutex, _subkernel_mutex, _routing_table, stream, _destination, reboot),
             Request::DebugAllocator => process!(io, _aux_mutex, _ddma_mutex, _subkernel_mutex, _routing_table, stream, _destination, debug_allocator),
-            Request::Flash { ref image } => process!(io, _aux_mutex, _ddma_mutex, _subkernel_mutex, _routing_table, stream, _destination, flash, image),
+            Request::Flash { ref image } => process!(io, _aux_mutex, _ddma_mutex, _subkernel_mutex, _routing_table, stream, _destination, flash, &image[..]),
         }?;
     }
 }
