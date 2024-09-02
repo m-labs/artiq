@@ -9,6 +9,8 @@ extern crate board_artiq;
 extern crate riscv;
 extern crate alloc;
 extern crate proto_artiq;
+extern crate byteorder;
+extern crate crc;
 extern crate cslice;
 extern crate io;
 extern crate eh;
@@ -558,10 +560,10 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
                 },
             )
         }
-        drtioaux::Packet::CoreMgmtConfigWriteRequest { destination: _destination, length, last, data }  => {
+        drtioaux::Packet::CoreMgmtConfigWriteRequest { destination: _destination, last, length, data }  => {
             forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
 
-            coremgr.add_data(&data, length as usize);
+            coremgr.add_config_data(&data, length as usize);
             if last {
                 coremgr.write_config()
             } else {
@@ -584,6 +586,16 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })?;
             warn!("restarting");
             unsafe { spiflash::reload(); }
+        }
+        drtioaux::Packet::CoreMgmtFlashRequest { destination: _destination, last, length, data } => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+
+            coremgr.add_image_data(&data, length as usize);
+            if last {
+                coremgr.flash_image()
+            } else {
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })
+            }
         }
 
         _ => {
