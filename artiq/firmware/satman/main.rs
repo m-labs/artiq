@@ -592,10 +592,27 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
 
             coremgr.add_image_data(&data, length as usize);
             if last {
-                coremgr.flash_image()
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtDropLink)
             } else {
                 drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })
             }
+        }
+        drtioaux::Packet::CoreMgmtDropLinkAck { destination: _destination } => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+
+            #[cfg(not(soc_platform = "efc"))]
+            unsafe {
+                csr::gt_drtio::txenable_write(0);
+            }
+
+            #[cfg(has_drtio_eem)]
+            unsafe {
+                csr::eem_transceiver::txenable_write(0);
+            }
+
+            coremgr.flash_image();
+            warn!("restarting");
+            unsafe { spiflash::reload(); }
         }
 
         _ => {
