@@ -114,40 +114,6 @@ pub unsafe fn write(mut addr: usize, mut data: &[u8]) {
     }
 }
 
-// pub unsafe fn write_image(image: &[u8]) {
-//     let image = &image[..];
-//     let actual_crc = crc32::checksum_ieee(image);
-
-//     if actual_crc == expected_crc {
-//         let mut reader = Cursor::new(header);
-//         let bin_no = reader.read_u32().unwrap() as usize;
-//         for _ in 0..bin_no {
-//             let bin_name = reader.read_string().unwrap();
-//             let offset = reader.read_u32().unwrap() as usize;
-//             let len = reader.read_u32().unwrap() as usize;
-
-//             let origin = match bin_name.as_str() {
-//                 "gateware" => 0,
-//                 "bootloader" => mem::ROM_BASE,
-//                 "firmware" => mem::FLASH_BOOT_ADDRESS,
-//                 _ => {
-//                     error!("unexpected binary component {}", bin_name);
-//                     return Ok(Reply::Error.write_to(stream)?);
-//                 }
-//             };
-
-//             unsafe {
-//                 spiflash::flash_binary(origin, &image[offset..offset+len]);
-//             }
-//         }
-
-//         reboot(_io, stream)?;
-//     } else {
-//         error!("CRC failed in SDRAM (actual {:08x}, expected {:08x})", actual_crc, expected_crc);
-//         Reply::Error.write_to(stream)?;
-//     }
-// }
-
 pub unsafe fn flash_binary(origin: usize, payload: &[u8]) {
     assert!((origin & (SECTOR_SIZE - 1)) == 0);
     let mut offset = 0;
