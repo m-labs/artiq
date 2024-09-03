@@ -97,6 +97,10 @@ def get_argparser():
     p_directory = t_flash.add_argument("directory", metavar="DIRECTORY", type=str,
                                        help="directory that contains the binaries")
 
+    p_srcbuild = t_flash.add_argument("--srcbuild",
+        help="board binaries directory is laid out as a source build tree",
+        default=False, action="store_true")
+
     # misc debug
     t_debug = tools.add_parser("debug",
                                help="specialized debug functions")
@@ -156,6 +160,15 @@ def main():
             mgmt.config_erase()
     
     if args.tool == "flash":
+        def artifact_path(this_binary_dir, *path_filename):
+            if args.srcbuild:
+                # source tree - use path elements to locate file
+                return os.path.join(this_binary_dir, *path_filename)
+            else:
+                # flat tree - all files in the same directory, discard path elements
+                *_, filename = path_filename
+                return os.path.join(this_binary_dir, filename)
+
         def convert_gateware(bit_filename):
             bin_handle, bin_filename = tempfile.mkstemp(
                 prefix="artiq_", suffix="_" + os.path.basename(bit_filename))
@@ -164,12 +177,13 @@ def main():
             atexit.register(lambda: os.unlink(bin_filename))
             return bin_filename
 
-        gateware = convert_gateware(os.path.join(args.directory, "top.bit"))
-        bootloader = os.path.join(args.directory, "bootloader.bin")
+        gateware = convert_gateware(
+            artifact_path(args.directory, "gateware", "top.bit"))
+        bootloader = artifact_path(args.directory, "software", "bootloader", "bootloader.bin")
 
         firmwares = []
         for firmware in "satman", "runtime":
-            filename = os.path.join(args.directory, firmware + ".fbi")
+            filename = artifact_path(args.directory, "software", firmware, firmware + ".fbi")
             if os.path.exists(filename):
                 firmwares.append(filename)
         if not firmwares:
