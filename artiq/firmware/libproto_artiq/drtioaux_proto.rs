@@ -140,6 +140,8 @@ pub enum Packet {
     CoreMgmtRebootRequest { destination: u8 },
     CoreMgmtAllocatorDebugRequest { destination: u8 },
     CoreMgmtFlashRequest { destination: u8, last: bool, length: u16, data: [u8; MASTER_PAYLOAD_MAX_SIZE] },
+    CoreMgmtDropLinkAck { destination: u8 },
+    CoreMgmtDropLink,
     CoreMgmtGetLogReply { last: bool, length: u16, data: [u8; SAT_PAYLOAD_MAX_SIZE] },
     CoreMgmtConfigReadReply { last: bool, length: u16, value: [u8; SAT_PAYLOAD_MAX_SIZE] },
     CoreMgmtReply { succeeded: bool },
@@ -521,6 +523,10 @@ impl Packet {
                     data: data,
                 }
             },
+            0xdf => Packet::CoreMgmtDropLink,
+            0xe0 => Packet::CoreMgmtDropLinkAck {
+                destination: reader.read_u8()?,
+            },
 
             ty => return Err(Error::UnknownPacket(ty))
         })
@@ -900,6 +906,12 @@ impl Packet {
                 writer.write_bool(last)?;
                 writer.write_u16(length)?;
                 writer.write_all(&data[..length as usize])?;
+            },
+            Packet::CoreMgmtDropLink => 
+                writer.write_u8(0xdf)?,
+            Packet::CoreMgmtDropLinkAck { destination } => {
+                writer.write_u8(0xe0)?;
+                writer.write_u8(destination)?;
             },
         }
         Ok(())

@@ -196,7 +196,7 @@ mod remote_coremgmt {
     use alloc::{string::String, vec::Vec};
     use log::LevelFilter;
 
-    use board_artiq::{drtioaux::Packet, drtio_routing};
+    use board_artiq::{drtioaux, drtioaux::Packet, drtio_routing};
     use io::{Cursor, ProtoWrite};
     use mgmt_proto::{Error, Reply};
     use rtio_mgt::drtio;
@@ -550,6 +550,16 @@ mod remote_coremgmt {
                     destination: destination, length: len as u16, last: status.is_last(), data: *slice});
             match reply {
                 Ok(Packet::CoreMgmtReply { succeeded: true }) => Ok(()),
+                Ok(Packet::CoreMgmtDropLink) => {
+                    if status.is_last() {
+                        drtioaux::send(
+                            linkno, &Packet::CoreMgmtDropLinkAck { destination: destination }
+                        ).map_err(|_| drtio::Error::AuxError)
+                    } else {
+                        error!("received unexpected drop link packet");
+                        Err(drtio::Error::UnexpectedReply)
+                    }
+                }
                 Ok(packet) => {
                     error!("received unexpected aux packet: {:?}", packet);
                     Err(drtio::Error::UnexpectedReply)

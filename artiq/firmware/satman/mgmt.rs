@@ -4,7 +4,7 @@ use crc::crc32;
 
 use routing::{Sliceable, SliceMeta};
 use board_artiq::drtioaux;
-use board_misoc::{mem, clock, config, csr, spiflash};
+use board_misoc::{mem, config, spiflash};
 use io::{Cursor, ProtoRead, ProtoWrite};
 use proto_artiq::drtioaux_proto::SAT_PAYLOAD_MAX_SIZE;
 
@@ -68,12 +68,7 @@ impl Manager {
         self.image_payload.write_all(&data[..data_len]).unwrap();
     }
 
-    pub fn clear_image_data(&mut self) {
-        self.image_payload.get_mut().clear();
-        self.image_payload.set_position(0);
-    }
-
-    pub fn flash_image(&mut self) -> Result<(), drtioaux::Error<!>> {
+    pub fn flash_image(&self) {
         let image = &self.image_payload.get_ref()[..];
 
         let (expected_crc, mut image) = {
@@ -84,13 +79,6 @@ impl Manager {
         let actual_crc = crc32::checksum_ieee(image);
 
         if actual_crc == expected_crc {
-            drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })?;
-            #[cfg(not(soc_platform = "efc"))]
-            unsafe {
-                clock::spin_us(10000);
-                csr::gt_drtio::txenable_write(0);
-            }
-
             let bin_origins = [
                 ("gateware"  , 0                      ),
                 ("bootloader", mem::ROM_BASE          ),
@@ -98,7 +86,7 @@ impl Manager {
             ];
 
             for (name, origin) in bin_origins {
-                info!("Flashing {} binary...", name);
+                info!("flashing {} binary...", name);
                 let size = NativeEndian::read_u32(&image[..4]) as usize;
                 image = &image[4..];
 
@@ -108,13 +96,8 @@ impl Manager {
                 unsafe { spiflash::flash_binary(origin, bin) };
             }
 
-            warn!("restarting");
-            unsafe { spiflash::reload(); }
-
         } else {
-            error!("CRC failed in SDRAM (actual {:08x}, expected {:08x})", actual_crc, expected_crc);
-            self.clear_image_data();
-            drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false })
+            panic!("CRC failed in SDRAM (actual {:08x}, expected {:08x})", actual_crc, expected_crc);
         }
     }
 }
