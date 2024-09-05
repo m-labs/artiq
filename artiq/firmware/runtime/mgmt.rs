@@ -2,7 +2,7 @@ use log::{self, LevelFilter};
 use core::cell::Cell;
 use core::cell::RefCell;
 
-use board_artiq::drtio_routing;
+use board_artiq::drtio_routing::RoutingTable;
 use io::{ProtoRead, Write, Error as IoError};
 use mgmt_proto::*;
 use sched::{Io, TcpListener, TcpStream, Error as SchedError};
@@ -22,10 +22,10 @@ mod local_coremgmt {
     use log::LevelFilter;
 
     use board_misoc::{config, mem, spiflash};
-    use io::{Write, ProtoWrite, Error as IoError};
+    use io::ProtoWrite;
     use logger_artiq::BufferLogger;
-    use mgmt_proto::{Error, Reply};
-    use sched::{Io, TcpStream, Error as SchedError};
+
+    use super::*;
 
 
     pub fn get_log(io: &Io, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
@@ -196,13 +196,12 @@ mod remote_coremgmt {
     use alloc::{string::String, vec::Vec};
     use log::LevelFilter;
 
-    use board_artiq::{drtioaux, drtioaux::Packet, drtio_routing};
-    use io::{Cursor, ProtoWrite};
-    use mgmt_proto::{Error, Reply};
+    use board_artiq::{drtioaux, drtioaux::Packet};
+    use io::ProtoWrite;
     use rtio_mgt::drtio;
-    use sched::{Io, Mutex, TcpStream, Error as SchedError};
     use proto_artiq::drtioaux_proto::MASTER_PAYLOAD_MAX_SIZE;
 
+    use super::*;
 
     impl From<drtio::Error> for Error<SchedError> {
         fn from(_value: drtio::Error) -> Error<SchedError> {
@@ -212,7 +211,7 @@ mod remote_coremgmt {
 
     pub fn get_log(io: &Io, aux_mutex: &Mutex,
         ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
-        routing_table: &drtio_routing::RoutingTable, linkno: u8,
+        routing_table: &RoutingTable, linkno: u8,
         destination: u8, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
         let mut buffer = String::new();
         loop {
@@ -245,7 +244,7 @@ mod remote_coremgmt {
 
     pub fn clear_log(io: &Io, aux_mutex: &Mutex,
         ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
-        routing_table: &drtio_routing::RoutingTable, linkno: u8,
+        routing_table: &RoutingTable, linkno: u8,
         destination: u8, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
         let reply = drtio::aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno,
             &Packet::CoreMgmtClearLogRequest { destination }
@@ -271,7 +270,7 @@ mod remote_coremgmt {
 
     pub fn pull_log(io: &Io, aux_mutex: &Mutex,
         ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
-        routing_table: &drtio_routing::RoutingTable, linkno: u8,
+        routing_table: &RoutingTable, linkno: u8,
         destination: u8, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
         loop {
             let reply = drtio::aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno,
@@ -296,7 +295,7 @@ mod remote_coremgmt {
 
     pub fn set_log_filter(io: &Io, aux_mutex: &Mutex,
         ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
-        routing_table: &drtio_routing::RoutingTable, linkno: u8,
+        routing_table: &RoutingTable, linkno: u8,
         destination: u8, stream: &mut TcpStream, level: LevelFilter) -> Result<(), Error<SchedError>> {
         let reply = drtio::aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno,
             &Packet::CoreMgmtSetLogLevelRequest { destination, log_level: level as u8 }
@@ -322,7 +321,7 @@ mod remote_coremgmt {
 
     pub fn set_uart_log_filter(io: &Io, aux_mutex: &Mutex,
         ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
-        routing_table: &drtio_routing::RoutingTable, linkno: u8,
+        routing_table: &RoutingTable, linkno: u8,
         destination: u8, stream: &mut TcpStream, level: LevelFilter) -> Result<(), Error<SchedError>> {
         let reply = drtio::aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno,
             &Packet::CoreMgmtSetUartLogLevelRequest { destination, log_level: level as u8 }
@@ -348,7 +347,7 @@ mod remote_coremgmt {
 
     pub fn config_read(io: &Io, aux_mutex: &Mutex,
         ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
-        routing_table: &drtio_routing::RoutingTable, linkno: u8,
+        routing_table: &RoutingTable, linkno: u8,
         destination: u8, stream: &mut TcpStream, key: &String) -> Result<(), Error<SchedError>> {
         let mut config_key: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
         let len = key.len();
@@ -395,7 +394,7 @@ mod remote_coremgmt {
 
     pub fn config_write(io: &Io, aux_mutex: &Mutex,
         ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
-        routing_table: &drtio_routing::RoutingTable, linkno: u8,
+        routing_table: &RoutingTable, linkno: u8,
         destination: u8, stream: &mut TcpStream, key: &String, value: &Vec<u8>,
         _restart_idle: &Urc<Cell<bool>>) -> Result<(), Error<SchedError>> {
         let mut message = Vec::with_capacity(key.len() + value.len() + 4 * 2);
@@ -431,7 +430,7 @@ mod remote_coremgmt {
 
     pub fn config_remove(io: &Io, aux_mutex: &Mutex,
         ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
-        routing_table: &drtio_routing::RoutingTable, linkno: u8,
+        routing_table: &RoutingTable, linkno: u8,
         destination: u8, stream: &mut TcpStream, key: &String,
         _restart_idle: &Urc<Cell<bool>>) -> Result<(), Error<SchedError>> {
         let mut config_key: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
@@ -465,7 +464,7 @@ mod remote_coremgmt {
 
     pub fn config_erase(io: &Io, aux_mutex: &Mutex,
         ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
-        routing_table: &drtio_routing::RoutingTable, linkno: u8,
+        routing_table: &RoutingTable, linkno: u8,
         destination: u8, stream: &mut TcpStream, _restart_idle: &Urc<Cell<bool>>) -> Result<(), Error<SchedError>> {
         let reply = drtio::aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno,
             &Packet::CoreMgmtConfigEraseRequest {
@@ -492,7 +491,7 @@ mod remote_coremgmt {
 
     pub fn reboot(io: &Io, aux_mutex: &Mutex,
         ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
-        routing_table: &drtio_routing::RoutingTable, linkno: u8,
+        routing_table: &RoutingTable, linkno: u8,
         destination: u8, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
         let reply = drtio::aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno,
             &Packet::CoreMgmtRebootRequest {
@@ -519,7 +518,7 @@ mod remote_coremgmt {
 
     pub fn debug_allocator(io: &Io, aux_mutex: &Mutex,
         ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
-        routing_table: &drtio_routing::RoutingTable, linkno: u8,
+        routing_table: &RoutingTable, linkno: u8,
         destination: u8, _stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
         let reply = drtio::aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno,
             &Packet::CoreMgmtAllocatorDebugRequest {
@@ -541,7 +540,7 @@ mod remote_coremgmt {
 
     pub fn flash(io: &Io, aux_mutex: &Mutex,
         ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
-        routing_table: &drtio_routing::RoutingTable, linkno: u8,
+        routing_table: &RoutingTable, linkno: u8,
         destination: u8, stream: &mut TcpStream, image: &[u8]) -> Result<(), Error<SchedError>> {
 
         match drtio::partition_data(&image, |slice, status, len: usize| {
@@ -604,7 +603,7 @@ macro_rules! process {
 
 fn worker(io: &Io, stream: &mut TcpStream, restart_idle: &Urc<Cell<bool>>,
     _aux_mutex: &Mutex, _ddma_mutex: &Mutex, _subkernel_mutex: &Mutex,
-    _routing_table: &drtio_routing::RoutingTable, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
+    _routing_table: &RoutingTable, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
     read_magic(stream)?;
     let _destination = stream.read_u8()?;
     Write::write_all(stream, "e".as_bytes())?;
@@ -628,7 +627,7 @@ fn worker(io: &Io, stream: &mut TcpStream, restart_idle: &Urc<Cell<bool>>,
     }
 }
 
-pub fn thread(io: Io, restart_idle: &Urc<Cell<bool>>, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>) {
+pub fn thread(io: Io, restart_idle: &Urc<Cell<bool>>, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex, routing_table: &Urc<RefCell<RoutingTable>>) {
     let listener = TcpListener::new(&io, 8192);
     listener.listen(1380).expect("mgmt: cannot listen");
     info!("management interface active");
