@@ -6,6 +6,7 @@ import logging
 from PyQt6 import QtCore, QtWidgets, QtGui
 
 from artiq.gui.models import DictSyncModel
+from artiq.gui.tools import SelectableColumnTableView
 from artiq.tools import elide
 
 
@@ -66,7 +67,7 @@ class ScheduleDock(QtWidgets.QDockWidget):
 
         self.schedule_ctl = schedule_ctl
 
-        self.table = QtWidgets.QTableView()
+        self.table = SelectableColumnTableView()
         self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
         self.table.verticalHeader().setSectionResizeMode(
@@ -103,6 +104,9 @@ class ScheduleDock(QtWidgets.QDockWidget):
         h.resizeSection(5, 30 * cw)
         h.resizeSection(6, 20 * cw)
         h.resizeSection(7, 20 * cw)
+
+        # Allow user to reorder or disable columns.
+        h.setSectionsMovable(True)
 
     def set_model(self, model):
         self.table_model = model
@@ -154,4 +158,9 @@ class ScheduleDock(QtWidgets.QDockWidget):
         return bytes(self.table.horizontalHeader().saveState())
 
     def restore_state(self, state):
-        self.table.horizontalHeader().restoreState(QtCore.QByteArray(state))
+        h = self.table.horizontalHeader()
+        h.restoreState(QtCore.QByteArray(state))
+
+        # The state includes the sectionsMovable property, so set it again to be able to
+        # deal with pre-existing save files from when we used not to enable it.
+        h.setSectionsMovable(True)
