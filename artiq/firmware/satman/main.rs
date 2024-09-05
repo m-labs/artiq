@@ -580,6 +580,15 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
 
             drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded })
         }
+        drtioaux::Packet::CoreMgmtConfigEraseRequest { destination: _destination } => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+
+            let succeeded = config::erase()
+                .map_err(|err| warn!("error on erasing config: {:?}", err))
+                .is_ok();
+
+            drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded })
+        }
         drtioaux::Packet::CoreMgmtRebootRequest { destination: _destination } => {
             forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
 
