@@ -398,11 +398,11 @@ mod remote_coremgmt {
         routing_table: &drtio_routing::RoutingTable, linkno: u8,
         destination: u8, stream: &mut TcpStream, key: &String, value: &Vec<u8>,
         _restart_idle: &Urc<Cell<bool>>) -> Result<(), Error<SchedError>> {
-        let mut message = Cursor::new(Vec::with_capacity(key.len() + value.len() + 4 * 2));
+        let mut message = Vec::with_capacity(key.len() + value.len() + 4 * 2);
         message.write_string(key).unwrap();
         message.write_bytes(value).unwrap();
 
-        match drtio::partition_data(message.get_ref(), |slice, status, len: usize| {
+        match drtio::partition_data(&message, |slice, status, len: usize| {
             let reply = drtio::aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno, 
                 &Packet::CoreMgmtConfigWriteRequest {
                     destination: destination, length: len as u16, last: status.is_last(), data: *slice});
