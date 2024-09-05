@@ -18,6 +18,7 @@ ARTIQ-9 (Unreleased)
 * Qt6 support.
 * Python 3.12 support.
 * Compiler can now give automatic suggestions for ``kernel_invariants``. 
+* Idle kernels now restart when written with ``artiq_coremgmt`` and stop when erased/removed from config.
 
 ARTIQ-8
 -------
