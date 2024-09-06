@@ -428,7 +428,7 @@
       devShells.x86_64-linux.boards = pkgs.mkShell {
         name = "artiq-boards-shell";
         buildInputs = [
-          (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ps.packaging ]))
+          (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ps.packaging ps.paramiko ]))
           rust
           pkgs.llvmPackages_15.clang-unwrapped
           pkgs.llvm_15
