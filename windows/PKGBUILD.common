@@ -7,7 +7,7 @@ sha256sums=("SKIP")
 
 build() {
   mkdir clang64
-  export PYTHONPATH=`pwd`/clang64/lib/python3.11/site-packages
+  export PYTHONPATH=`pwd`/clang64/lib/python3.12/site-packages
   chmod +w -R source
   cd source
   wine-msys2-build python setup.py install --single-version-externally-managed --prefix=../clang64 --record=setuptools-sucks.txt
