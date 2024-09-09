@@ -253,3 +253,7 @@ In the synthetic example above, the compiler will be able to detect that the res
             for _ in range(100):
                 delay_mu(precomputed_delay_mu)
                 self.worker.work()
+
+Kernel invariants are defined for every object by the ``kernel_invariants`` atttribute, which is a set containing the names of every invariant attribute of this object.
+
+At compile time it is possible to automatically detect attributes that are never altered in a kernel, and thus may be good candidates for inclusion into ``kernel_invariants``. This is done by specifying ``report_invariants=True`` when initializing the core device driver (in the dashboard you can do this using the "Override device arguments" option).
