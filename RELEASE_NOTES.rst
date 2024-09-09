@@ -17,6 +17,7 @@ ARTIQ-9 (Unreleased)
 * Fastino monitoring with Moninj is now supported.
 * Qt6 support.
 * Python 3.12 support.
+* Compiler can now give automatic suggestions for ``kernel_invariants``. 
 
 ARTIQ-8
 -------
