@@ -187,6 +187,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         devarg_override.lineEdit().setPlaceholderText("Override device arguments")
         devarg_override.lineEdit().setClearButtonEnabled(True)
         devarg_override.insertItem(0, "core:analyze_at_run_end=True")
+        devarg_override.insertItem(1, "core:report_invariants=True")
         self.layout.addWidget(devarg_override, 2, 3)
 
         devarg_override.setCurrentText(options["devarg_override"])

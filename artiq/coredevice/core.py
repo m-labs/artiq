@@ -85,6 +85,8 @@ class Core:
         (optional).
     :param analyze_at_run_end: automatically trigger the core device analyzer
         proxy after the Experiment's run stage finishes.
+    :param report_invariants: report variables which are not changed inside
+        kernels and are thus candidates for inclusion in kernel_invariants
     """
 
     kernel_invariants = {
@@ -95,7 +97,8 @@ class Core:
                  host, ref_period,
                  analyzer_proxy=None, analyze_at_run_end=False,
                  ref_multiplier=8,
-                 target="rv32g", satellite_cpu_targets={}):
+                 target="rv32g", satellite_cpu_targets={},
+                 report_invariants=False):
         self.ref_period = ref_period
         self.ref_multiplier = ref_multiplier
         self.satellite_cpu_targets = satellite_cpu_targets
@@ -107,6 +110,7 @@ class Core:
             self.comm = CommKernel(host)
         self.analyzer_proxy_name = analyzer_proxy
         self.analyze_at_run_end = analyze_at_run_end
+        self.report_invariants = report_invariants
 
         self.first_run = True
         self.dmgr = dmgr
@@ -139,7 +143,8 @@ class Core:
 
             module = Module(stitcher,
                 ref_period=self.ref_period,
-                attribute_writeback=attribute_writeback)
+                attribute_writeback=attribute_writeback,
+                remarks=self.report_invariants)
             target = target if target is not None else self.target_cls()
 
             library = target.compile_and_link([module])
