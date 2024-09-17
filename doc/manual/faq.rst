@@ -111,7 +111,7 @@ fix ``failed to connect to moninj`` in the dashboard?
 
 This and other similar messages almost always indicate that your device database lists controllers (for example, ``aqctl_moninj_proxy``) that either haven't been started or aren't reachable at the given host and port. See :ref:`mgmt-ctlmgr`, or simply run: ::
 
-    $ artiq_ctlgmr
+    $ artiq_ctlmgr
 
 to let the controller manager start the necessary controllers automatically.
 
@@ -198,6 +198,24 @@ create and use variable-length arrays in kernels?
 -------------------------------------------------
 
 You can't, in general; see the corresponding notes under :ref:`compiler-types`. ARTIQ kernels do not support heap allocation, meaning in particular that lists, arrays, and strings must be of constant size. One option is to preallocate everything, as mentioned on the Compiler page; another option is to chunk it and e.g. read 100 events per function call, push them upstream and retry until the gate time closes.
+
+understand how best to send data between kernel and host?
+---------------------------------------------------------
+
+See also :ref:`basic-artiq-python`. Let's run down the options for kernel-host data transfer:
+
+    - Kernels can return single values directly. They *cannot* return lists, arrays or strings, because of the way these values are allocated, which prevents values of these types from outliving the kernel they are created in. This is still true when the values in question are wrapped in functions or objects, in which case they may be missed by lifetime tracking and accepted by the compiler, but will cause memory corruption when run.
+
+    - Kernels can freely make changes to attributes of objects shared with the host, including ``self``. However, these changes will be made to a kernel-owned copy of the object, which is only synchronized with the host copy when the kernel completes. This means that host-side operations executed during the runtime of the kernel, including RPCs, will be handling an unmodified version of the object, and modifications made by those operations will simply be overwritten when the kernel returns.
+
+    .. note::
+        Attribute writeback happens *once per kernel*, that is, if your experiment contains many separate kernels called from the host, modifications will be written back when each separate kernel completes. This is generally not suitable for data transfer, however, as new kernels are costly to create, and experiments often try to avoid doing so. It is also important to specify that kernels called *from* a kernel will not write back to the host upon completion. Attribute writeback is only executed upon return to the host.
+
+    - Kernels can interact with datasets, either as attributes (if :meth:`~artiq.language.environment.HasEnvironment.setattr_dataset` is used) or by RPC of the get and set methods (:meth:`~artiq.language.environment.HasEnvironment.get_dataset`, :meth:`~artiq.language.environment.HasEnvironment.set_dataset`, etc.). In this case note that, like certain other host-side methods, :meth:`~artiq.language.environment.HasEnvironment.get_dataset` will not actually be accepted by the compiler, because its return type is not specified. To call it as an RPC, simply wrap it in another function which *does* specify a return type. :meth:`~artiq.language.environment.HasEnvironment.set_dataset` can be similarly wrapped to make it asynchronous.
+
+    - Kernels can of course also call arbitrary RPCs. When sending data to the host, these can be asynchronous, and this is normally the recommended way of transferring data back to the host, resulting in a relatively minor amount of delay in the kernel. Keep in mind however that asynchronous RPCs may still block execution for some time if the arguments are very large or if many RPCs are submitted in close succession. When receiving data from the host, RPCs must be synchronous, which is still considerably faster than starting a new kernel. Note that if data is being both (asynchronously) sent and received, there is a small possibility of minor race conditions (i.e. retrieved data may not yet show updates sent in an earlier RPC).
+
+Kernel attributes and data transfer remain somewhat of an open area of development. Many such developments are or will be implemented in `NAC3 <https://forum.m-labs.hk/d/392-nac3-new-artiq-compiler-3-prealpha-release>`_, the next-generation ARTIQ compiler. The overhead for starting new kernels, which is largely dominated by compile time, should be significantly reduced (NAC3 can be expected to complete compilations 6x - 30x faster than currently).
 
 write part of my experiment as a coroutine/asyncio task/generator?
 ------------------------------------------------------------------

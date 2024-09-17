@@ -89,6 +89,8 @@ Multidimensional arrays are allowed (using NumPy syntax). Element-wise operation
 
 User-defined classes are supported, provided their attributes are of other supported types (attributes that are not used in the kernel are ignored and thus unrestricted). When several instances of a user-defined class are referenced from the same kernel, every attribute must have the same type in every instance of the class.
 
+.. _basic-artiq-python:
+
 Basic ARTIQ Python
 ^^^^^^^^^^^^^^^^^^
 
@@ -117,7 +119,7 @@ Kernels can freely modify attributes of objects shared with the host. However, b
                 # results in memory corruption
                 return func([1, 2, 3])
 
-    will compile, **but corrupts at runtime.** On the other hand, lists, arrays, or strings can and should be used as inputs for RPCs, and this is the preferred method of returning data to the host. In this way the data is inherently read and sent before the kernel completes and there are no allocation issues.
+    will compile, **but corrupts at runtime.** On the other hand, lists, arrays, or strings can and should be used as inputs for RPCs, and this is the preferred method of returning data to the host. In this way the data is sent before the kernel completes and there are no allocation issues.
 
 Available built-in functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
