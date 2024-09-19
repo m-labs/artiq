@@ -208,7 +208,8 @@ class CommMgmt:
             for filename in bin_paths:
                 with open(filename, "rb") as fi:
                     bin_ = fi.read()
-                    image_buf.write(struct.pack(self.endian + "I", len(bin_)))
+                    if (len(bin_paths) > 1):
+                        image_buf.write(struct.pack(self.endian + "I", len(bin_)))
                     image_buf.write(bin_)
 
             crc = binascii.crc32(image_buf.getvalue())
