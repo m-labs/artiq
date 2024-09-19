@@ -31,7 +31,7 @@ impl Manager {
     }
 
     pub fn get_config_value_slice(&mut self, data_slice: &mut [u8; SAT_PAYLOAD_MAX_SIZE]) -> SliceMeta {
-        self.last_value.get_slice_sat(data_slice)
+        self.last_value.get_slice_satellite(data_slice)
     }
 
     pub fn add_config_data(&mut self, data: &[u8], data_len: usize) {
