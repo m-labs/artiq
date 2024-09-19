@@ -1,11 +1,8 @@
-use log::{self, LevelFilter};
-use core::cell::Cell;
-use core::cell::RefCell;
+use core::cell::{Cell, RefCell};
 
 use board_artiq::drtio_routing::RoutingTable;
 use io::{ProtoRead, Write, Error as IoError};
 use mgmt_proto::*;
-use sched::{Io, TcpListener, TcpStream, Error as SchedError};
 use sched::{Io, Mutex, TcpListener, TcpStream, Error as SchedError};
 use urc::Urc;
 
@@ -102,7 +99,7 @@ mod local_coremgmt {
         Ok(())
     }
 
-    pub fn config_write(_io: &Io, stream: &mut TcpStream, key: &String, value: &Vec<u8>, restart_idle: &Urc<Cell<bool>>) -> Result<(), Error<SchedError>> {
+    pub fn config_write(io: &Io, stream: &mut TcpStream, key: &String, value: &Vec<u8>, restart_idle: &Urc<Cell<bool>>) -> Result<(), Error<SchedError>> {
         match config::write(key, value) {
             Ok(_) => {
                 if key == "idle_kernel" {
@@ -116,7 +113,7 @@ mod local_coremgmt {
         Ok(())
     }
 
-    pub fn config_remove(_io: &Io, stream: &mut TcpStream, key: &String, restart_idle: &Urc<Cell<bool>>) -> Result<(), Error<SchedError>> {
+    pub fn config_remove(io: &Io, stream: &mut TcpStream, key: &String, restart_idle: &Urc<Cell<bool>>) -> Result<(), Error<SchedError>> {
         match config::remove(key) {
             Ok(()) => {
                 if key == "idle_kernel" {
@@ -130,7 +127,7 @@ mod local_coremgmt {
         Ok(())
     }
 
-    pub fn config_erase(_io: &Io, stream: &mut TcpStream, restart_idle: &Urc<Cell<bool>>) -> Result<(), Error<SchedError>> {
+    pub fn config_erase(io: &Io, stream: &mut TcpStream, restart_idle: &Urc<Cell<bool>>) -> Result<(), Error<SchedError>> {
         match config::erase() {
             Ok(()) => {
                 io.until(|| !restart_idle.get())?;
@@ -603,7 +600,7 @@ macro_rules! process {
 
 fn worker(io: &Io, stream: &mut TcpStream, restart_idle: &Urc<Cell<bool>>,
     _aux_mutex: &Mutex, _ddma_mutex: &Mutex, _subkernel_mutex: &Mutex,
-    _routing_table: &RoutingTable, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
+    _routing_table: &RoutingTable) -> Result<(), Error<SchedError>> {
     read_magic(stream)?;
     let _destination = stream.read_u8()?;
     Write::write_all(stream, "e".as_bytes())?;
