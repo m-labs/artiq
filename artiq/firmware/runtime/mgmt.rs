@@ -269,14 +269,20 @@ mod remote_coremgmt {
         ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
         routing_table: &RoutingTable, linkno: u8,
         destination: u8, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
+        let mut buffer = Vec::new();
         loop {
             let reply = drtio::aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno,
                 &Packet::CoreMgmtGetLogRequest { destination, clear: true }
             );
 
             match reply {
-                Ok(Packet::CoreMgmtGetLogReply { last: _, length, data }) => {
-                    stream.write_bytes(&data[..length as usize])?;
+                Ok(Packet::CoreMgmtGetLogReply { last, length, data }) => {
+                    buffer.extend(&data[..length as usize]);
+
+                    if last {
+                        stream.write_bytes(&buffer[..length as usize])?;
+                        buffer.clear();
+                    }
                 }
                 Ok(packet) => {
                     error!("received unexpected aux packet: {:?}", packet);
