@@ -130,10 +130,10 @@ class StandaloneBase(MiniSoC, AMPSoC):
         self.csr_devices.append("i2c")
         self.config["I2C_BUS_COUNT"] = 1
 
-    def add_rtio(self, rtio_channels, sed_lanes=8):
+    def add_rtio(self, rtio_channels, sed_lanes=8, enable_spread=True):
         fix_serdes_timing_path(self.platform)
         self.submodules.rtio_tsc = rtio.TSC(glbl_fine_ts_width=3)
-        self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels, lane_count=sed_lanes)
+        self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels, lane_count=sed_lanes, enable_spread=enable_spread)
         self.csr_devices.append("rtio_core")
         self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
         self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
@@ -304,13 +304,13 @@ class MasterBase(MiniSoC, AMPSoC):
 
         fix_serdes_timing_path(platform)
 
-    def add_rtio(self, rtio_channels, sed_lanes=8):
+    def add_rtio(self, rtio_channels, sed_lanes=8, enable_spread=True):
         # Only add MonInj core if there is anything to monitor
         if any([len(c.probes) for c in rtio_channels]):
             self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
             self.csr_devices.append("rtio_moninj")
 
-        self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels, lane_count=sed_lanes)
+        self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels, lane_count=sed_lanes, enable_spread=enable_spread)
         self.csr_devices.append("rtio_core")
 
         self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
@@ -589,14 +589,14 @@ class SatelliteBase(BaseSoC, AMPSoC):
 
         fix_serdes_timing_path(platform)
 
-    def add_rtio(self, rtio_channels, sed_lanes=8):
+    def add_rtio(self, rtio_channels, sed_lanes=8, enable_spread=True):
         # Only add MonInj core if there is anything to monitor
         if any([len(c.probes) for c in rtio_channels]):
             self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
             self.csr_devices.append("rtio_moninj")
 
         # satellite (master-controlled) RTIO
-        self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels, lane_count=sed_lanes)
+        self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels, lane_count=sed_lanes, enable_spread=enable_spread))
         self.comb += [ 
             self.drtiosat.async_errors.eq(self.local_io.async_errors),
             self.local_io.sed_spread_enable.eq(self.drtiosat.sed_spread_enable.storage)
@@ -701,7 +701,7 @@ class GenericStandalone(StandaloneBase):
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
         self.rtio_channels.append(rtio.LogChannel())
 
-        self.add_rtio(self.rtio_channels, sed_lanes=description["sed_lanes"])
+        self.add_rtio(self.rtio_channels, sed_lanes=description["sed_lanes"], enable_spread=description["enable_spread"])
 
         if has_grabber:
             self.config["HAS_GRABBER"] = None
@@ -755,7 +755,7 @@ class GenericMaster(MasterBase):
             self.add_eem_drtio(self.eem_drtio_channels)
         self.add_drtio_cpuif_groups()
 
-        self.add_rtio(self.rtio_channels, sed_lanes=description["sed_lanes"])
+        self.add_rtio(self.rtio_channels, sed_lanes=description["sed_lanes"], enable_spread=description["enable_spread"])
 
         if has_grabber:
             self.config["HAS_GRABBER"] = None
@@ -804,7 +804,7 @@ class GenericSatellite(SatelliteBase):
             self.add_eem_drtio(self.eem_drtio_channels)
         self.add_drtio_cpuif_groups()
 
-        self.add_rtio(self.rtio_channels, sed_lanes=description["sed_lanes"])
+        self.add_rtio(self.rtio_channels, sed_lanes=description["sed_lanes"], enable_spread=description["enable_spread"])
         if has_grabber:
             self.config["HAS_GRABBER"] = None
             self.add_csr_group("grabber", self.grabber_csr_group)

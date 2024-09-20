@@ -14,7 +14,7 @@ from artiq.gateware.rtio.input_collector import *
 
 
 class Core(Module, AutoCSR):
-    def __init__(self, tsc, channels, lane_count=8, fifo_depth=128):
+    def __init__(self, tsc, channels, lane_count=8, fifo_depth=128, enable_spread=True):
         self.cri = cri.Interface()
         self.reset = CSR()
         self.reset_phy = CSR()
@@ -63,7 +63,7 @@ class Core(Module, AutoCSR):
 
         outputs = ClockDomainsRenamer("rio")(SED(channels, tsc.glbl_fine_ts_width,
             quash_channels=quash_channels,
-            lane_count=lane_count, fifo_depth=fifo_depth,
+            lane_count=lane_count, fifo_depth=fifo_depth, enable_spread=enable_spread,
             interface=self.cri))
         self.submodules += outputs
         self.comb += outputs.coarse_timestamp.eq(tsc.coarse_ts)

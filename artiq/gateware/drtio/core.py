@@ -49,7 +49,7 @@ async_errors_layout = [
 
 
 class SyncRTIO(Module):
-    def __init__(self, tsc, channels, lane_count=8, fifo_depth=128):
+    def __init__(self, tsc, channels, lane_count=8, fifo_depth=128, enable_spread=True):
         self.cri = cri.Interface()
         self.async_errors = Record(async_errors_layout)
         self.sed_spread_enable = Signal()
@@ -63,8 +63,8 @@ class SyncRTIO(Module):
         self.submodules.outputs = ClockDomainsRenamer("rio")(
             SED(channels, tsc.glbl_fine_ts_width,
                 lane_count=lane_count, fifo_depth=fifo_depth,
-                fifo_high_watermark=0.75, report_buffer_space=True,
-                interface=self.cri))
+                enable_spread=enable_spread, fifo_high_watermark=0.75,
+                report_buffer_space=True, interface=self.cri))
         self.comb += self.outputs.coarse_timestamp.eq(tsc.coarse_ts)
         self.sync += self.outputs.minimum_coarse_timestamp.eq(tsc.coarse_ts + 16)
         self.specials += MultiReg(self.sed_spread_enable, self.outputs.enable_spread, "rio")

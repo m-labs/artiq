@@ -83,6 +83,11 @@
             "default": 8,
             "description": "Number of FIFOs in the SED, must be a power of 2"
         },
+        "enable_spread": {
+            "type": "boolean",
+            "default": true,
+            "description": "If enabled, switch to the next line if the current is at its high water mark"
+        },
         "peripherals": {
             "type": "array",
             "items": {
