@@ -280,7 +280,7 @@ mod remote_coremgmt {
                     buffer.extend(&data[..length as usize]);
 
                     if last {
-                        stream.write_bytes(&buffer[..length as usize])?;
+                        stream.write_bytes(&buffer)?;
                         buffer.clear();
                     }
                 }
