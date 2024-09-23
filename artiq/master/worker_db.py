@@ -120,6 +120,7 @@ class DatasetManager:
     def __init__(self, ddb):
         self._broadcaster = Notifier(dict())
         self.local = dict()
+        self.hdf5_attributes = dict()
         self.archive = dict()
         self.metadata = dict()
 
@@ -142,7 +143,7 @@ class DatasetManager:
             self.local[key] = value
         elif key in self.local:
             del self.local[key]
-        
+
         self.metadata[key] = metadata
 
     def _get_mutation_target(self, key):
@@ -184,11 +185,23 @@ class DatasetManager:
             return self.metadata[key]
         return self.ddb.get_metadata(key)
 
+    def set_metadata(self, key, metadata_key, metadata_value):
+        if key not in self.local:
+            raise KeyError(f"Dataset '{key}' does not exist.")
+        if key not in self.hdf5_attributes:
+            self.hdf5_attributes[key] = dict()
+        self.hdf5_attributes[key][metadata_key] = metadata_value
+
     def write_hdf5(self, f):
         datasets_group = f.create_group("datasets")
         for k, v in self.local.items():
             m = self.metadata.get(k, {})
             _write(datasets_group, k, v, m)
+
+        for k, attrs in self.hdf5_attributes.items():
+            assert k in datasets_group
+            for attr_k, attr_v in attrs.items():
+                datasets_group[k].attrs[attr_k] = attr_v
 
         archive_group = f.create_group("archive")
         for k, v in self.archive.items():

@@ -446,6 +446,21 @@ class HasEnvironment:
         efficiently as incremental modifications in broadcast mode."""
         self.__dataset_mgr.append_to(key, value)
 
+    @rpc(flags={"async"})
+    def set_dataset_metadata(self, key, metadata_key, metadata_value):
+        """Attach metadata to the dataset.
+
+        The metadata is saved as HDF5 attributes if there was a call to
+        ``set_dataset(..., archive=True)`` with the same key.
+
+        :param key: The already existing dataset, to which you want to attach the metadata.
+        If absent, KeyError will be raised.
+        :param metadata_key: The metadata key of type string. If already exists, rewrites the metadata.
+        :param metadata_value: Value to be attached to ``metadata_key``. Can be any valid HDF5 datatype.
+        See HDF5 documentation for additional information.
+        """
+        self.__dataset_mgr.set_metadata(key, metadata_key, metadata_value)
+
     def get_dataset(self, key, default=NoDefault, archive=True):
         """Returns the contents of a dataset.
 
