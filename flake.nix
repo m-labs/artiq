@@ -69,15 +69,21 @@
 
       qasync = pkgs.python3Packages.buildPythonPackage rec {
         pname = "qasync";
-        version = "0.25.0";
+        version = "0.27.1";
+        format = "pyproject";
         src = pkgs.fetchFromGitHub {
           owner = "CabbageDevelopment";
           repo = "qasync";
-          rev = "v${version}";
-          sha256 = "sha256-lfH8FNA8cP7dmxR+ihoe2Gr8uOxXHdqn1AhNLIkX5ko=";
+          rev = "refs/tags/v${version}";
+          sha256 = "sha256-oXzwilhJ1PhodQpOZjnV9gFuoDy/zXWva9LhhK3T00g=";
         };
+        postPatch = ''
+          rm qasync/_windows.py # Ignoring it is not taking effect and it will not be used on Linux
+        '';
+        buildInputs = [ pkgs.python3Packages.poetry-core ];
         propagatedBuildInputs = [ pkgs.python3Packages.pyqt6 ];
-        nativeCheckInputs = [ pkgs.python3Packages.pytest-runner pkgs.python3Packages.pytestCheckHook ];
+        checkInputs = [ pkgs.python3Packages.pytestCheckHook ];
+        pythonImportsCheck = [ "qasync" ];
         disabledTestPaths = [ "tests/test_qeventloop.py" ];
       };
 
