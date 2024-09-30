@@ -188,7 +188,7 @@ We will use our current ``repository`` folder as the working directory for makin
     $ mv repository ~/artiq-work
     $ mkdir repository
     $ cd repository
-    $ git init bare
+    $ git init --bare
 
 Now initialize a regular (non-bare) Git repository in our working directory: ::
 
