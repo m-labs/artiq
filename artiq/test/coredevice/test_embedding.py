@@ -348,7 +348,7 @@ class _Async(EnvExperiment):
     def build(self):
         self.setattr_device("core")
 
-    @rpc # NAC3TODO (flags={"async"})
+    @rpc(flags={"async"})
     def recv_async(self, data: list[int32]):
         pass
 

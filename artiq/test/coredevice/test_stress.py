@@ -13,8 +13,7 @@ class _Stress(EnvExperiment):
     def build(self):
         self.setattr_device("core")
 
-    # NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/182
-    @rpc #(flags={"async"})
+    @rpc(flags={"async"})
     def sink(self, data: int32):
         pass
 

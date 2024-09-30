@@ -77,19 +77,17 @@ class _Transfer(EnvExperiment):
     def sink_array(self, data: ndarray[int32, Literal[1]]):
         pass
 
-    @rpc  # NAC3TODO (flags={"async"})
+    @rpc(flags={"async"})
     def sink_async(self, data: list[int32]):
         global received_bytes, time_start, time_end
         if received_bytes == 0:
             time_start = time.time()
-        received_bytes += len(data)
+        received_bytes += 4*len(data)
         if received_bytes == (1024 ** 2)*128:
             time_end = time.time()
 
-    @rpc
     def get_async_throughput(self) -> float:
         return 128.0 / (time_end - time_start)
-
 
     @kernel
     def test_bool_list(self, large: bool):
@@ -125,11 +123,10 @@ class _Transfer(EnvExperiment):
             self.d2h[i] = self.core.mu_to_seconds(t2 - t1)
 
     @kernel
-    def test_async(self) -> float:
+    def test_async(self):
         data = self.get_list(True)
         for _ in range(128):
             self.sink_async(data)
-        return self.get_async_throughput()
 
 
 class TransferTest(ExperimentCase):
@@ -225,10 +222,10 @@ class TransferTest(ExperimentCase):
         self.results.append(["I32 Array (1KB) D2H", device_to_host.mean(),
                              device_to_host.std()])
 
-    @unittest.skip("NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/182")
     def test_async_throughput(self):
         exp = self.create(_Transfer)
-        results = exp.test_async()
+        exp.test_async()
+        results = exp.get_async_throughput()
         print("Async throughput: {:>6.2f}MiB/s".format(results))
 
 
