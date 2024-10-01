@@ -196,8 +196,8 @@
         src = pkgs.fetchFromGitHub {
           owner = "m-labs";
           repo = "asyncserial";
-          rev = "d95bc1d6c791b0e9785935d2f62f628eb5cdf98d";
-          sha256 = "0yzkka9jk3612v8gx748x6ziwykq5lr7zmr9wzkcls0v2yilqx9k";
+          rev = "446559fec892a556876b17d17f182ae9647d5952";
+          sha256 = "sha256-WExmgh55sTH2w7wV3i96J1F1FN7L5rX3L/Ayvt2Kw/g=";
         };
         propagatedBuildInputs = [ pkgs.python3Packages.pyserial ];
       };
