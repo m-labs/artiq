@@ -560,6 +560,7 @@ dependencies = [
  "eh",
  "io",
  "log",
+ "logger_artiq",
  "proto_artiq",
  "riscv",
 ]
