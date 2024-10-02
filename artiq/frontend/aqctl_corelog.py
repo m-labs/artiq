@@ -25,9 +25,9 @@ def get_argparser():
                         help="Simulation - does not connect to device")
     parser.add_argument("core_addr", metavar="CORE_ADDR",
                         help="hostname or IP address of the core device")
-    parser.add_argument("-s", "--satellite", default=0,
-                        metavar="DRTIO_ID", type=int,
-                        help="the logged DRTIO destination")
+    parser.add_argument("-s", "--drtio-dest", default=0,
+                        metavar="DRTIO_DEST", type=int,
+                        help="specifies the DRTIO destination")
     return parser
 
 
