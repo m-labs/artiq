@@ -13,6 +13,7 @@ from artiq.master.databases import DeviceDB
 from artiq.coredevice.comm_kernel import CommKernel
 from artiq.coredevice.comm_mgmt import CommMgmt
 from artiq.frontend.bit2bin import bit2bin
+from artiq.frontend.fetch_bin import fetch_bin
 
 
 def get_argparser():
@@ -171,46 +172,9 @@ def main():
             boot = os.path.join(args.directory, "boot.bin")
             bins = [boot]
         else:
-            def artifact_path(this_binary_dir, *path_filename):
-                if args.srcbuild:
-                    # source tree - use path elements to locate file
-                    return os.path.join(this_binary_dir, *path_filename)
-                else:
-                    # flat tree
-                    # all files in the same directory, discard path elements
-                    *_, filename = path_filename
-                    return os.path.join(this_binary_dir, filename)
-
-            def convert_gateware(bit_filename):
-                bin_handle, bin_filename = tempfile.mkstemp(
-                    prefix="artiq_",
-                    suffix="_" + os.path.basename(bit_filename))
-                with open(bit_filename, "rb") as bit_file, \
-                        open(bin_handle, "wb") as bin_file:
-                    bit2bin(bit_file, bin_file)
-                atexit.register(lambda: os.unlink(bin_filename))
-                return bin_filename
-
-            gateware = convert_gateware(artifact_path(
-                args.directory, "gateware", "top.bit"))
-            bootloader = artifact_path(
-                args.directory, "software", "bootloader", "bootloader.bin")
-
-            firmwares = []
-            for firmware in "satman", "runtime":
-                filename = artifact_path(
-                    args.directory, "software", firmware, firmware + ".fbi")
-                if os.path.exists(filename):
-                    firmwares.append(filename)
-            if not firmwares:
-                raise FileNotFoundError("no firmware found")
-            if len(firmwares) > 1:
-                raise ValueError("more than one firmware file, "
-                                 "please clean up your build directory. "
-                                 "Found firmware files: {}".format(
-                                    " ".join(firmwares)))
-            firmware = firmwares[0]
-
+            gateware = fetch_bin(args.directory, "gateware", args.srcbuild)
+            bootloader = fetch_bin(args.directory, "bootloader", args.srcbuild)
+            firmware = fetch_bin(args.directory, ["runtime", "satman"], args.srcbuild)
             bins = [gateware, bootloader, firmware]
 
         mgmt.flash(bins)
