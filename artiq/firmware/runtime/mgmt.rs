@@ -181,7 +181,7 @@ mod local_coremgmt {
 
             reboot(_io, stream)?;
         } else {
-            error!("CRC failed in SDRAM (actual {:08x}, expected {:08x})", actual_crc, expected_crc);
+            error!("CRC failed, images have not been written to flash.\n(actual {:08x}, expected {:08x})", actual_crc, expected_crc);
             Reply::Error.write_to(stream)?;
         }
         Ok(())
