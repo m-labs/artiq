@@ -118,8 +118,8 @@ def get_argparser():
                                         help="show heap layout")
 
     # manage target
-    p_drtio_dest = parser.add_argument("-s", "--satellite", default=0,
-                                       metavar="DRTIO ID", type=int,
+    p_drtio_dest = parser.add_argument("-s", "--drtio-dest", default=0,
+                                       metavar="DRTIO_DEST", type=int,
                                        help="specify DRTIO destination that "
                                             "receives this command")
 
