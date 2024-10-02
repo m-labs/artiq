@@ -19,7 +19,7 @@ ARTIQ-9 (Unreleased)
 * Python 3.12 support.
 * Compiler can now give automatic suggestions for ``kernel_invariants``. 
 * Idle kernels now restart when written with ``artiq_coremgmt`` and stop when erased/removed from config.
-* Support for coredevice reflashing through new the ``flash`` tool in ``artiq_coremgmt``.
+* Support for coredevice reflashing through the new ``flash`` tool in ``artiq_coremgmt``.
 * ``artiq_coremgmt`` now supports configuring satellites.
 
 ARTIQ-8
