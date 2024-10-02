@@ -501,19 +501,50 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             Ok(())
         }
 
-        drtioaux::Packet::CoreMgmtGetLogRequest { destination: _destination, .. } |
-        drtioaux::Packet::CoreMgmtClearLogRequest { destination: _destination } |
-        drtioaux::Packet::CoreMgmtSetLogLevelRequest {destination: _destination, .. } => {
+        drtioaux::Packet::CoreMgmtGetLogRequest { destination: _destination, clear } => {
             forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
 
-            error!("RISC-V satellite devices do not support buffered logging");
-            drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false })
+            let mut data_slice = [0; SAT_PAYLOAD_MAX_SIZE];
+            if let Ok(meta) = coremgr.log_get_slice(&mut data_slice, clear) {
+                drtioaux::send(
+                    0,
+                    &drtioaux::Packet::CoreMgmtGetLogReply {
+                        last: meta.status.is_last(),
+                        length: meta.len as u16,
+                        data: data_slice,
+                    },
+                )
+            } else {
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false })
+            }
         }
-        drtioaux::Packet::CoreMgmtSetUartLogLevelRequest { destination: _destination, .. } => {
+        drtioaux::Packet::CoreMgmtClearLogRequest { destination: _destination } => {
             forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
 
-            error!("RISC-V satellite devices has fixed UART log level fixed at TRACE");
-            drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false })
+            drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: mgmt::clear_log().is_ok() })
+        }
+        drtioaux::Packet::CoreMgmtSetLogLevelRequest {destination: _destination, log_level } => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+
+            if let Ok(level_filter) = mgmt::byte_to_level_filter(log_level) {
+                info!("changing log level to {}", level_filter);
+                log::set_max_level(level_filter);
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })
+            } else {
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false })
+            }
+        }
+        drtioaux::Packet::CoreMgmtSetUartLogLevelRequest { destination: _destination, log_level } => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+
+            if let Ok(level_filter) = mgmt::byte_to_level_filter(log_level) {
+                info!("changing UART log level to {}", level_filter);
+                logger_artiq::BufferLogger::with(|logger|
+                    logger.set_uart_log_level(level_filter));
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })
+            } else {
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false })
+            }
         }
         drtioaux::Packet::CoreMgmtConfigReadRequest {
             destination: _destination,
