@@ -6,6 +6,7 @@ extern crate log;
 #[macro_use]
 extern crate board_misoc;
 extern crate board_artiq;
+extern crate logger_artiq;
 extern crate riscv;
 extern crate alloc;
 extern crate proto_artiq;
@@ -16,14 +17,14 @@ extern crate io;
 extern crate eh;
 
 use core::convert::TryFrom;
-use board_misoc::{csr, ident, clock, config, uart_logger, i2c, pmp};
+use board_misoc::{csr, ident, clock, config, i2c, pmp};
 #[cfg(has_si5324)]
 use board_artiq::si5324;
 #[cfg(has_si549)]
 use board_artiq::si549;
 #[cfg(soc_platform = "kasli")]
 use board_misoc::irq;
-use board_misoc::spiflash;
+use board_misoc::{boot, spiflash};
 use board_artiq::{spi, drtioaux, drtio_routing};
 #[cfg(soc_platform = "efc")]
 use board_artiq::ad9117;
@@ -793,6 +794,27 @@ fn sysclk_setup() {
     }
 }
 
+fn setup_log_levels() {
+    match config::read_str("log_level", |r| r.map(|s| s.parse())) {
+        Ok(Ok(log_level_filter)) => {
+            info!("log level set to {} by `log_level` config key",
+                  log_level_filter);
+            log::set_max_level(log_level_filter);
+        }
+        _ => info!("log level set to INFO by default")
+    }
+    match config::read_str("uart_log_level", |r| r.map(|s| s.parse())) {
+        Ok(Ok(uart_log_level_filter)) => {
+            info!("UART log level set to {} by `uart_log_level` config key",
+                  uart_log_level_filter);
+            logger_artiq::BufferLogger::with(|logger|
+                logger.set_uart_log_level(uart_log_level_filter));
+        }
+        _ => info!("UART log level set to INFO by default")
+    }
+}
+
+static mut LOG_BUFFER: [u8; 1<<17] = [0; 1<<17];
 
 #[no_mangle]
 pub extern fn main() -> i32 {
@@ -812,11 +834,20 @@ pub extern fn main() -> i32 {
     irq::enable(csr::WRPLL_INTERRUPT);
 
     clock::init();
-    uart_logger::ConsoleLogger::register();
+    unsafe {
+        logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(||
+            boot::start_user(startup as usize));
+    }
 
+    0
+}
+
+fn startup() {
     info!("ARTIQ satellite manager starting...");
     info!("software ident {}", csr::CONFIG_IDENTIFIER_STR);
     info!("gateware ident {}", ident::read(&mut [0; 64]));
+
+    setup_log_levels();
 
     #[cfg(has_i2c)]
     i2c::init().expect("I2C initialization failed");
