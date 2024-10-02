@@ -5,14 +5,39 @@ use crc::crc32;
 use routing::{Sliceable, SliceMeta};
 use board_artiq::drtioaux;
 use board_misoc::{mem, config, spiflash};
+use log::LevelFilter;
+use logger_artiq::BufferLogger;
 use io::{Cursor, ProtoRead, ProtoWrite};
 use proto_artiq::drtioaux_proto::SAT_PAYLOAD_MAX_SIZE;
 
+
+pub fn clear_log() -> Result<(), ()> {
+    BufferLogger::with(|logger| {
+        let mut buffer = logger.buffer()?;
+        Ok(buffer.clear())
+    }).map_err(|()| error!("error on clearing log buffer"))
+}
+
+pub fn byte_to_level_filter(level_byte: u8) -> Result<LevelFilter, ()> {
+    Ok(match level_byte {
+        0 => LevelFilter::Off,
+        1 => LevelFilter::Error,
+        2 => LevelFilter::Warn,
+        3 => LevelFilter::Info,
+        4 => LevelFilter::Debug,
+        5 => LevelFilter::Trace,
+        lv => {
+            error!("unknown log level: {}", lv);
+            return Err(());
+        }
+    })
+}
 
 pub struct Manager {
     config_payload: Cursor<Vec<u8>>,
     image_payload: Cursor<Vec<u8>>,
     last_value: Sliceable,
+    last_log: Sliceable,
 }
 
 impl Manager {
@@ -21,6 +46,7 @@ impl Manager {
             config_payload: Cursor::new(Vec::new()),
             image_payload: Cursor::new(Vec::new()),
             last_value: Sliceable::new(0, Vec::new()),
+            last_log: Sliceable::new(0, Vec::new()),
         }
     }
 
@@ -28,6 +54,22 @@ impl Manager {
         config::read(key, |result| result.map(
             |value| self.last_value = Sliceable::new(0, value.to_vec())
         )).map_err(|_err| warn!("read error: no such key"))
+    }
+
+    pub fn log_get_slice(&mut self, data_slice: &mut [u8; SAT_PAYLOAD_MAX_SIZE], consume: bool) -> Result<SliceMeta, ()> {
+        // Populate buffer if depleted
+        if self.last_log.at_end() {
+            BufferLogger::with(|logger| {
+                let mut buffer = logger.buffer()?;
+                self.last_log = Sliceable::new(0, buffer.extract().as_bytes().to_vec());
+                if consume {
+                    buffer.clear();
+                }
+                Ok(())
+            }).map_err(|()| error!("error on getting log buffer"))?;
+        }
+
+        Ok(self.last_log.get_slice_satellite(data_slice))
     }
 
     pub fn get_config_value_slice(&mut self, data_slice: &mut [u8; SAT_PAYLOAD_MAX_SIZE]) -> SliceMeta {
