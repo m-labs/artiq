@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
 import argparse
+import os
 import struct
+import tempfile
+import atexit
 
 from sipyco import common_args
 
@@ -9,6 +12,8 @@ from artiq import __version__ as artiq_version
 from artiq.master.databases import DeviceDB
 from artiq.coredevice.comm_kernel import CommKernel
 from artiq.coredevice.comm_mgmt import CommMgmt
+from artiq.frontend.bit2bin import bit2bin
+from artiq.frontend.fetch_bin import fetch_bin
 
 
 def get_argparser():
@@ -85,6 +90,24 @@ def get_argparser():
     t_boot = tools.add_parser("reboot",
                               help="reboot the running system")
 
+    # flashing
+    t_flash = tools.add_parser("flash",
+                               help="flash the running system")
+
+    p_zynq = t_flash.add_argument("-z", "--zynq", default=False,
+                                  help="target zynq device",
+                                  action="store_true")
+
+    p_directory = t_flash.add_argument("directory",
+                                       metavar="DIRECTORY", type=str,
+                                       help="directory that contains the "
+                                            "binaries")
+
+    p_srcbuild = t_flash.add_argument("--srcbuild",
+                                      help="board binaries directory is laid "
+                                           "out as a source build tree",
+                                      default=False, action="store_true")
+
     # misc debug
     t_debug = tools.add_parser("debug",
                                help="specialized debug functions")
@@ -94,6 +117,12 @@ def get_argparser():
 
     p_allocator = subparsers.add_parser("allocator",
                                         help="show heap layout")
+
+    # manage target
+    p_drtio_dest = parser.add_argument("-s", "--drtio-dest", default=0,
+                                       metavar="DRTIO_DEST", type=int,
+                                       help="specify DRTIO destination that "
+                                            "receives this command")
 
     return parser
 
@@ -107,7 +136,7 @@ def main():
         core_addr = ddb.get("core", resolve_alias=True)["arguments"]["host"]
     else:
         core_addr = args.device
-    mgmt = CommMgmt(core_addr)
+    mgmt = CommMgmt(core_addr, drtio_dest=args.drtio_dest)
 
     if args.tool == "log":
         if args.action == "set_level":
@@ -137,6 +166,18 @@ def main():
                 mgmt.config_remove(key)
         if args.action == "erase":
             mgmt.config_erase()
+
+    if args.tool == "flash":
+        if args.zynq:
+            boot = os.path.join(args.directory, "boot.bin")
+            bins = [boot]
+        else:
+            gateware = fetch_bin(args.directory, "gateware", args.srcbuild)
+            bootloader = fetch_bin(args.directory, "bootloader", args.srcbuild)
+            firmware = fetch_bin(args.directory, ["runtime", "satman"], args.srcbuild)
+            bins = [gateware, bootloader, firmware]
+
+        mgmt.flash(bins)
 
     if args.tool == "reboot":
         mgmt.reboot()

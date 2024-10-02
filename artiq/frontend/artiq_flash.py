@@ -15,6 +15,7 @@ from sipyco import common_args
 from artiq import __version__ as artiq_version
 from artiq.remoting import SSHClient, LocalClient
 from artiq.frontend.bit2bin import bit2bin
+from artiq.frontend.fetch_bin import fetch_bin
 
 
 def get_argparser():
@@ -302,46 +303,19 @@ def main():
 
     programmer = config["programmer"](client, preinit_script=args.preinit_command)
 
-    def artifact_path(this_binary_dir, *path_filename):
-        if args.srcbuild:
-            # source tree - use path elements to locate file
-            return os.path.join(this_binary_dir, *path_filename)
-        else:
-            # flat tree - all files in the same directory, discard path elements
-            *_, filename = path_filename
-            return os.path.join(this_binary_dir, filename)
-
-    def convert_gateware(bit_filename):
-        bin_handle, bin_filename = tempfile.mkstemp(
-            prefix="artiq_", suffix="_" + os.path.basename(bit_filename))
-        with open(bit_filename, "rb") as bit_file, open(bin_handle, "wb") as bin_file:
-            bit2bin(bit_file, bin_file)
-        atexit.register(lambda: os.unlink(bin_filename))
-        return bin_filename
-
     for action in args.action:
         if action == "gateware":
-            gateware_bin = convert_gateware(
-                artifact_path(binary_dir, "gateware", "top.bit"))
+            gateware_bin = fetch_bin(binary_dir, "gateware", args.srcbuild)
             programmer.write_binary(*config["gateware"], gateware_bin)
         elif action == "bootloader":
-            bootloader_bin = artifact_path(binary_dir, "software", "bootloader", "bootloader.bin")
+            bootloader_bin = fetch_bin(binary_dir, "bootloader", args.srcbuild)
             programmer.write_binary(*config["bootloader"], bootloader_bin)
         elif action == "storage":
             storage_img = args.storage
             programmer.write_binary(*config["storage"], storage_img)
         elif action == "firmware":
-            firmware_fbis = []
-            for firmware in "satman", "runtime":
-                filename = artifact_path(binary_dir, "software", firmware, firmware + ".fbi")
-                if os.path.exists(filename):
-                    firmware_fbis.append(filename)
-            if not firmware_fbis:
-                raise FileNotFoundError("no firmware found")
-            if len(firmware_fbis) > 1:
-                raise ValueError("more than one firmware file, please clean up your build directory. "
-                   "Found firmware files: {}".format(" ".join(firmware_fbis)))
-            programmer.write_binary(*config["firmware"], firmware_fbis[0])
+            firmware_fbi = fetch_bin(binary_dir, ["satman", "runtime"], args.srcbuild)
+            programmer.write_binary(*config["firmware"], firmware_fbi)
         elif action == "load":
             gateware_bit = artifact_path(binary_dir, "gateware", "top.bit")
             programmer.load(gateware_bit, 0)

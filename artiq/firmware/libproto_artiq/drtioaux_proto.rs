@@ -127,6 +127,24 @@ pub enum Packet {
     SubkernelException { destination: u8, last: bool, length: u16, data: [u8; MASTER_PAYLOAD_MAX_SIZE] },
     SubkernelMessage { source: u8, destination: u8, id: u32, status: PayloadStatus, length: u16, data: [u8; MASTER_PAYLOAD_MAX_SIZE] },
     SubkernelMessageAck { destination: u8 },
+
+    CoreMgmtGetLogRequest { destination: u8, clear: bool },
+    CoreMgmtClearLogRequest { destination: u8 },
+    CoreMgmtSetLogLevelRequest { destination: u8, log_level: u8 },
+    CoreMgmtSetUartLogLevelRequest { destination: u8, log_level: u8 },
+    CoreMgmtConfigReadRequest { destination: u8, length: u16, key: [u8; MASTER_PAYLOAD_MAX_SIZE] },
+    CoreMgmtConfigReadContinue { destination: u8 },
+    CoreMgmtConfigWriteRequest { destination: u8, last: bool, length: u16, data: [u8; MASTER_PAYLOAD_MAX_SIZE] },
+    CoreMgmtConfigRemoveRequest { destination: u8, length: u16, key: [u8; MASTER_PAYLOAD_MAX_SIZE] },
+    CoreMgmtConfigEraseRequest { destination: u8 },
+    CoreMgmtRebootRequest { destination: u8 },
+    CoreMgmtAllocatorDebugRequest { destination: u8 },
+    CoreMgmtFlashRequest { destination: u8, last: bool, length: u16, data: [u8; MASTER_PAYLOAD_MAX_SIZE] },
+    CoreMgmtDropLinkAck { destination: u8 },
+    CoreMgmtDropLink,
+    CoreMgmtGetLogReply { last: bool, length: u16, data: [u8; SAT_PAYLOAD_MAX_SIZE] },
+    CoreMgmtConfigReadReply { last: bool, length: u16, value: [u8; SAT_PAYLOAD_MAX_SIZE] },
+    CoreMgmtReply { succeeded: bool },
 }
 
 impl Packet {
@@ -402,6 +420,111 @@ impl Packet {
             },
             0xcc => Packet::SubkernelMessageAck {
                 destination: reader.read_u8()?
+            },
+
+            0xd0 => Packet::CoreMgmtGetLogRequest {
+                destination: reader.read_u8()?,
+                clear: reader.read_bool()?,
+            },
+            0xd1 => Packet::CoreMgmtClearLogRequest {
+                destination: reader.read_u8()?,
+            },
+            0xd2 => Packet::CoreMgmtSetLogLevelRequest {
+                destination: reader.read_u8()?,
+                log_level: reader.read_u8()?,
+            },
+            0xd3 => Packet::CoreMgmtSetUartLogLevelRequest {
+                destination: reader.read_u8()?,
+                log_level: reader.read_u8()?,
+            },
+            0xd4 => {
+                let destination = reader.read_u8()?;
+                let length = reader.read_u16()?;
+                let mut key: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
+                reader.read_exact(&mut key[0..length as usize])?;
+                Packet::CoreMgmtConfigReadRequest {
+                    destination: destination,
+                    length: length,
+                    key: key,
+                }
+            },
+            0xd5 => Packet::CoreMgmtConfigReadContinue {
+                destination: reader.read_u8()?,
+            },
+            0xd6 => {
+                let destination = reader.read_u8()?;
+                let last = reader.read_bool()?;
+                let length = reader.read_u16()?;
+                let mut data: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
+                reader.read_exact(&mut data[0..length as usize])?;
+                Packet::CoreMgmtConfigWriteRequest {
+                    destination: destination,
+                    last: last,
+                    length: length,
+                    data: data,
+                }
+            },
+            0xd7 => {
+                let destination = reader.read_u8()?;
+                let length = reader.read_u16()?;
+                let mut key: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
+                reader.read_exact(&mut key[0..length as usize])?;
+                Packet::CoreMgmtConfigRemoveRequest {
+                    destination: destination,
+                    length: length,
+                    key: key,
+                }
+            },
+            0xd8 => Packet::CoreMgmtConfigEraseRequest {
+                destination: reader.read_u8()?,
+            },
+            0xd9 => Packet::CoreMgmtRebootRequest {
+                destination: reader.read_u8()?,
+            },
+            0xda => Packet::CoreMgmtAllocatorDebugRequest {
+                destination: reader.read_u8()?,
+            },
+            0xdb => {
+                let destination = reader.read_u8()?;
+                let last = reader.read_bool()?;
+                let length = reader.read_u16()?;
+                let mut data: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
+                reader.read_exact(&mut data[0..length as usize])?;
+                Packet::CoreMgmtFlashRequest {
+                    destination: destination,
+                    last: last,
+                    length: length,
+                    data: data,
+                }
+            },
+            0xdc => Packet::CoreMgmtDropLinkAck {
+                destination: reader.read_u8()?,
+            },
+            0xdd => Packet::CoreMgmtDropLink,
+            0xde => {
+                let last = reader.read_bool()?;
+                let length = reader.read_u16()?;
+                let mut data: [u8; SAT_PAYLOAD_MAX_SIZE] = [0; SAT_PAYLOAD_MAX_SIZE];
+                reader.read_exact(&mut data[0..length as usize])?;
+                Packet::CoreMgmtGetLogReply {
+                    last: last,
+                    length: length,
+                    data: data,
+                }
+            },
+            0xdf => {
+                let last = reader.read_bool()?;
+                let length = reader.read_u16()?;
+                let mut value: [u8; SAT_PAYLOAD_MAX_SIZE] = [0; SAT_PAYLOAD_MAX_SIZE];
+                reader.read_exact(&mut value[0..length as usize])?;
+                Packet::CoreMgmtConfigReadReply {
+                    last: last,
+                    length: length,
+                    value: value,
+                }
+            },
+            0xe0 => Packet::CoreMgmtReply {
+                succeeded: reader.read_bool()?,
             },
 
             ty => return Err(Error::UnknownPacket(ty))
@@ -691,6 +814,103 @@ impl Packet {
                 writer.write_u8(0xcc)?;
                 writer.write_u8(destination)?;
             },
+
+            Packet::CoreMgmtGetLogRequest { destination, clear } => {
+                writer.write_u8(0xd0)?;
+                writer.write_u8(destination)?;
+                writer.write_bool(clear)?;
+            },
+            Packet::CoreMgmtClearLogRequest { destination } => {
+                writer.write_u8(0xd1)?;
+                writer.write_u8(destination)?;
+            },
+            Packet::CoreMgmtSetLogLevelRequest { destination, log_level } => {
+                writer.write_u8(0xd2)?;
+                writer.write_u8(destination)?;
+                writer.write_u8(log_level)?;
+            },
+            Packet::CoreMgmtSetUartLogLevelRequest { destination, log_level } => {
+                writer.write_u8(0xd3)?;
+                writer.write_u8(destination)?;
+                writer.write_u8(log_level)?;
+            },
+            Packet::CoreMgmtConfigReadRequest {
+                destination,
+                length,
+                key,
+            } => {
+                writer.write_u8(0xd4)?;
+                writer.write_u8(destination)?;
+                writer.write_u16(length)?;
+                writer.write_all(&key[0..length as usize])?;
+            },
+            Packet::CoreMgmtConfigReadContinue { destination } => {
+                writer.write_u8(0xd5)?;
+                writer.write_u8(destination)?;
+            },
+            Packet::CoreMgmtConfigWriteRequest {
+                destination,
+                last,
+                length,
+                data,
+            } => {
+                writer.write_u8(0xd6)?;
+                writer.write_u8(destination)?;
+                writer.write_bool(last)?;
+                writer.write_u16(length)?;
+                writer.write_all(&data[0..length as usize])?;
+            },
+            Packet::CoreMgmtConfigRemoveRequest {
+                destination,
+                length,
+                key,
+            } => {
+                writer.write_u8(0xd7)?;
+                writer.write_u8(destination)?;
+                writer.write_u16(length)?;
+                writer.write_all(&key[0..length as usize])?;
+            },
+            Packet::CoreMgmtConfigEraseRequest { destination } => {
+                writer.write_u8(0xd8)?;
+                writer.write_u8(destination)?;
+            },
+            Packet::CoreMgmtRebootRequest { destination } => {
+                writer.write_u8(0xd9)?;
+                writer.write_u8(destination)?;
+            },
+            Packet::CoreMgmtAllocatorDebugRequest { destination } => {
+                writer.write_u8(0xda)?;
+                writer.write_u8(destination)?;
+            },
+            Packet::CoreMgmtFlashRequest { destination, last, length, data } => {
+                writer.write_u8(0xdb)?;
+                writer.write_u8(destination)?;
+                writer.write_bool(last)?;
+                writer.write_u16(length)?;
+                writer.write_all(&data[..length as usize])?;
+            },
+            Packet::CoreMgmtDropLinkAck { destination } => {
+                writer.write_u8(0xdc)?;
+                writer.write_u8(destination)?;
+            },
+            Packet::CoreMgmtDropLink => 
+                writer.write_u8(0xdd)?,
+            Packet::CoreMgmtGetLogReply { last, length, data } => {
+                writer.write_u8(0xde)?;
+                writer.write_bool(last)?;
+                writer.write_u16(length)?;
+                writer.write_all(&data[0..length as usize])?;
+            },
+            Packet::CoreMgmtConfigReadReply { last, length, value } => {
+                writer.write_u8(0xdf)?;
+                writer.write_bool(last)?;
+                writer.write_u16(length)?;
+                writer.write_all(&value[0..length as usize])?;
+            },
+            Packet::CoreMgmtReply { succeeded } => {
+                writer.write_u8(0xe0)?;
+                writer.write_bool(succeeded)?;
+            },
         }
         Ok(())
     }
@@ -724,7 +944,7 @@ impl Packet {
             Packet::DmaAddTraceReply { .. } | Packet::DmaRemoveTraceReply { .. } |
                 Packet::DmaPlaybackReply { .. } | Packet::SubkernelLoadRunReply { .. } |
                 Packet::SubkernelMessageAck { .. } | Packet::DmaPlaybackStatus { .. } |
-                Packet::SubkernelFinished { .. } => false,
+                Packet::SubkernelFinished { .. } | Packet::CoreMgmtDropLinkAck { .. } => false,
             _ => true
         }
     }
