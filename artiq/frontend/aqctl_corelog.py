@@ -100,7 +100,7 @@ def main():
         signal_handler.setup()
         try:
             get_logs_task = asyncio.ensure_future(
-                get_logs_sim(args.core_addr) if args.simulation else get_logs(args.core_addr, args.satellite),
+                get_logs_sim(args.core_addr) if args.simulation else get_logs(args.core_addr, args.drtio_dest),
                 loop=loop)
             try:
                 server = Server({"corelog": PingTarget()}, None, True)

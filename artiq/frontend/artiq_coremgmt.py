@@ -136,7 +136,7 @@ def main():
         core_addr = ddb.get("core", resolve_alias=True)["arguments"]["host"]
     else:
         core_addr = args.device
-    mgmt = CommMgmt(core_addr, drtio_dest=args.satellite)
+    mgmt = CommMgmt(core_addr, drtio_dest=args.drtio_dest)
 
     if args.tool == "log":
         if args.action == "set_level":
