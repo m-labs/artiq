@@ -19,6 +19,7 @@ ARTIQ-9 (Unreleased)
 * Python 3.12 support.
 * Compiler can now give automatic suggestions for ``kernel_invariants``. 
 * Idle kernels now restart when written with ``artiq_coremgmt`` and stop when erased/removed from config.
+* New support for the EBAZ4205 Zynq-SoC control card.
 
 ARTIQ-8
 -------
