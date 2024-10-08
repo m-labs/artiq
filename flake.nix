@@ -192,12 +192,13 @@
 
       asyncserial = pkgs.python3Packages.buildPythonPackage rec {
         pname = "asyncserial";
-        version = "0.1";
+        version = "1.0";
         src = pkgs.fetchFromGitHub {
           owner = "m-labs";
           repo = "asyncserial";
-          rev = "446559fec892a556876b17d17f182ae9647d5952";
-          sha256 = "sha256-WExmgh55sTH2w7wV3i96J1F1FN7L5rX3L/Ayvt2Kw/g=";
+          rev = version;
+          sha256 = "sha256-ZHzgJnbsDVxVcp09LXq9JZp46+dorgdP8bAiTB59K28=";
+
         };
         propagatedBuildInputs = [ pkgs.python3Packages.pyserial ];
       };
