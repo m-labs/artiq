@@ -39,7 +39,7 @@ The core device reserves some storage space (either flash or directly on SD card
 ``device_map``
   If set, allows the core log to connect RTIO channels to device names and use device names as well as channel numbers in log output. A correctly formatted table can be automatically generated with :mod:`~artiq.frontend.artiq_rtiomap`, see :ref:`Utilities<rtiomap-tool>`.
 ``net_trace``
-  If set to ``1``, will activate net trace (print all packets sent and received to UART and core log). This will considerably slow down all network response from the core. Not applicable for ARTIQ-Zynq (Kasli-SoC, ZC706).
+  If set to ``1``, will activate net trace (print all packets sent and received to UART and core log). This will considerably slow down all network response from the core. Not applicable for ARTIQ-Zynq (Kasli-SoC, ZC706, EBAZ4205).
 ``panic_reset``
   If set to ``1``, core device will restart automatically.  Not applicable for ARTIQ-Zynq.
 ``no_flash_boot``
