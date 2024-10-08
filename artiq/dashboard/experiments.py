@@ -28,6 +28,7 @@ class _ArgumentEditor(EntryTreeWidget):
     def __init__(self, manager, dock, expurl):
         self.manager = manager
         self.expurl = expurl
+        self.dock = dock
 
         EntryTreeWidget.__init__(self)
 
@@ -78,6 +79,18 @@ class _ArgumentEditor(EntryTreeWidget):
         argument["desc"] = procdesc
         argument["state"] = state
         self.update_argument(name, argument)
+        self.dock.apply_colors()
+
+    def apply_color(self, palette, color):
+        self.setPalette(palette)
+        for child in self.findChildren(QtWidgets.QWidget):
+            child.setPalette(palette)
+            child.setAutoFillBackground(True)
+        items = self.findItems("*",
+            QtCore.Qt.MatchFlag.MatchWildcard | QtCore.Qt.MatchFlag.MatchRecursive)
+        for item in items:
+            for column in range(item.columnCount()):
+                item.setBackground(column, QtGui.QColor(color))
 
     # Hooks that allow user-supplied argument editors to react to imminent user
     # actions. Here, we always keep the manager-stored submission arguments
@@ -90,6 +103,19 @@ class _ArgumentEditor(EntryTreeWidget):
 
 
 log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+
+
+class _ColoredTitleBar(QtWidgets.QProxyStyle):
+    def __init__(self, color, style=None):
+        super().__init__(style)
+        self.color = color
+
+    def drawComplexControl(self, control, option, painter, widget=None):
+        if control == QtWidgets.QStyle.ComplexControl.CC_TitleBar:
+            option = QtWidgets.QStyleOptionTitleBar(option)
+            option.palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor(self.color))
+            option.palette.setColor(QtGui.QPalette.ColorRole.Highlight, QtGui.QColor(self.color))
+        self.baseStyle().drawComplexControl(control, option, painter, widget)
 
 
 class _ExperimentDock(QtWidgets.QMdiSubWindow):
@@ -303,13 +329,60 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.argeditor = editor_class(self.manager, self, self.expurl)
         self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
         self.argeditor.restore_state(argeditor_state)
+        self.apply_colors()
 
     def contextMenuEvent(self, event):
         menu = QtWidgets.QMenu(self)
+        select_title_bar_color = menu.addAction("Select title bar color")
+        select_window_color = menu.addAction("Select window color")
+        reset_colors = menu.addAction("Reset to default colors")
+        menu.addSeparator()
         reset_sched = menu.addAction("Reset scheduler settings")
         action = menu.exec(self.mapToGlobal(event.pos()))
-        if action == reset_sched:
+        if action == select_title_bar_color:
+            self.select_color("title_bar")
+        elif action == select_window_color:
+            self.select_color("window")
+        elif action == reset_colors:
+            self.reset_colors()
+        elif action == reset_sched:
             asyncio.ensure_future(self._recompute_sched_options_task())
+
+    def select_color(self, key):
+        color = QtWidgets.QColorDialog.getColor(
+            title=f"Select {key.replace('_', ' ').title()} color")
+        if color.isValid():
+            self.manager.set_color(self.expurl, key, color.name())
+            self.apply_colors()
+
+    def apply_colors(self):
+        colors = self.manager.get_colors(self.expurl)
+        if colors is None:
+            palette = QtWidgets.QApplication.palette()
+            colors = {
+                "window": palette.color(QtGui.QPalette.ColorRole.Window).name(),
+                "title_bar": palette.color(QtGui.QPalette.ColorRole.Highlight).name(),
+            }
+            self.manager.colors[self.expurl] = colors
+        colors["window_text"] = "#000000" if QtGui.QColor(
+            colors["window"]).lightness() > 128 else "#FFFFFF"
+        self.modify_palette(colors)
+        self.setStyle(_ColoredTitleBar(colors["title_bar"]))
+        self.argeditor.apply_color(self.palette(), (colors["window"]))
+
+    def modify_palette(self, colors):
+        palette = self.palette()
+        palette.setColor(QtGui.QPalette.ColorRole.Window, QtGui.QColor(colors["window"]))
+        palette.setColor(QtGui.QPalette.ColorRole.Base, QtGui.QColor(colors["window"]))
+        palette.setColor(QtGui.QPalette.ColorRole.Button, QtGui.QColor(colors["window"]))
+        palette.setColor(QtGui.QPalette.ColorRole.Text, QtGui.QColor(colors["window_text"]))
+        palette.setColor(QtGui.QPalette.ColorRole.ButtonText, QtGui.QColor(colors["window_text"]))
+        palette.setColor(QtGui.QPalette.ColorRole.WindowText, QtGui.QColor(colors["window_text"]))
+        self.setPalette(palette)
+
+    def reset_colors(self):
+        self.manager.reset_colors(self.expurl)
+        self.apply_colors()
 
     async def _recompute_sched_options_task(self):
         try:
@@ -457,6 +530,7 @@ class ExperimentManager:
         self.submission_options = dict()
         self.submission_arguments = dict()
         self.argument_ui_names = dict()
+        self.colors = dict()
 
         self.datasets = dict()
         dataset_sub.add_setmodel_callback(self.set_dataset_model)
@@ -482,6 +556,18 @@ class ExperimentManager:
 
     def set_schedule_model(self, model):
         self.schedule = model.backing_store
+
+    def set_color(self, expurl, key, value):
+        if expurl not in self.colors:
+            self.colors[expurl] = {}
+        self.colors[expurl][key] = value
+
+    def get_colors(self, expurl):
+        return self.colors.get(expurl)
+
+    def reset_colors(self, expurl):
+        if expurl in self.colors:
+            del self.colors[expurl]
 
     def resolve_expurl(self, expurl):
         if expurl[:5] == "repo:":
@@ -592,6 +678,7 @@ class ExperimentManager:
         self.open_experiments[expurl] = dock
         dock.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
         self.main_window.centralWidget().addSubWindow(dock)
+        dock.apply_colors()
         dock.show()
         dock.sigClosed.connect(partial(self.on_dock_closed, expurl))
         if expurl in self.dock_states:
@@ -708,7 +795,8 @@ class ExperimentManager:
             "arguments": self.submission_arguments,
             "docks": self.dock_states,
             "argument_uis": self.argument_ui_names,
-            "open_docks": set(self.open_experiments.keys())
+            "open_docks": set(self.open_experiments.keys()),
+            "colors": self.colors
         }
 
     def restore_state(self, state):
@@ -719,6 +807,7 @@ class ExperimentManager:
         self.submission_options = state["options"]
         self.submission_arguments = state["arguments"]
         self.argument_ui_names = state.get("argument_uis", {})
+        self.colors = state.get("colors", {})
         for expurl in state["open_docks"]:
             self.open_experiment(expurl)
 
