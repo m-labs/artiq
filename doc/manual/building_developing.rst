@@ -82,11 +82,31 @@ Nix development environment
 ---------------------------
 
 * Install `Nix <http://nixos.org/nix/>`_ if you haven't already. Prefer a single-user installation for simplicity.
-* Enable flakes in Nix, for example by adding ``experimental-features = nix-command flakes`` to ``nix.conf``; see the `NixOS Wiki on flakes <https://nixos.wiki/wiki/flakes>`_ for details and more options.
+* Configure Nix to support building ARTIQ:
+
+    - Enable flakes, for example by adding ``experimental-features = nix-command flakes`` to ``nix.conf``. See also the `NixOS Wiki on flakes <https://nixos.wiki/wiki/flakes>`_.
+    - Add ``/opt`` (or your Vivado location) as an Nix sandbox, for example by adding ``extra-sandbox-paths = /opt`` to ``nix.conf``.
+    - Create a file called ``trusted-settings.json`` in ``~/.local/share/nix/``, if it doesn't exist already. Make sure it contains the following:
+
+    ::
+
+        {
+            "extra-sandbox-paths":{
+                "/opt":true
+            },
+            "extra-substituters":{
+                "https://nixbld.m-labs.hk":true
+            },
+            "extra-trusted-public-keys":{
+                "nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc=":true
+            }
+        }
+
+    - If using NixOS, instead make the equivalent changes to your ``configuration.nix``.
+
 * Clone `the ARTIQ Git repository <https://github.com/m-labs/artiq>`_, or `the ARTIQ-Zynq repository <https://git.m-labs.hk/M-Labs/artiq-zynq>`__ for Zynq devices (Kasli-SoC or ZC706). By default, you are working with the ``master`` branch, which represents the beta version and is not stable (see :doc:`releases`). Checkout the most recent release (``git checkout release-[number]``) for a stable version.
 * If your Vivado installation is not in its default location ``/opt``, open ``flake.nix`` and edit it accordingly (note that the edits must be made in the main ARTIQ flake, even if you are working with Zynq, see also tip below).
 * Run ``nix develop`` at the root of the repository, where ``flake.nix`` is.
-* Answer ``y``/'yes' to any Nix configuration questions if necessary, as in :ref:`installing-troubleshooting`.
 
 .. note::
     You can also target legacy versions of ARTIQ; use Git to checkout older release branches. Note however that older releases of ARTIQ required different processes for developing and building, which you are broadly more likely to figure out by (also) consulting the corresponding older versions of the manual.
@@ -227,9 +247,6 @@ For ZC706:
     $ make TARGET=zc706 GWARGS="-V <variant>" <fw-type>
 
 where ``fw-type`` is ``runtime`` for standalone or DRTIO master builds and ``satman`` for DRTIO satellites. Both the gateware and the firmware will generate into the ``../build`` destination directory. At this stage you can :ref:`boot from JTAG <zynq-jtag-boot>`; either of the ``*_run.sh`` scripts will expect the gateware and firmware files at their default locations, and the ``szl.elf`` bootloader is retrieved automatically.
-
-.. warning::
-    Note that in between runs of ``make`` it is necessary to manually clear ``build``, even for different targets, or ``make`` will do nothing.
 
 If you prefer to boot from SD card, you will need to construct your own ``boot.bin``. Build ``szl.elf`` from source by running a command of the form: ::
 
