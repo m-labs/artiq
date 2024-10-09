@@ -45,7 +45,7 @@ The 'configuration' of an FPGA, the circuit design it is programmed with, is its
 
 The low-level software that runs directly on the core device's CPU, softcore or hardcore, is its *firmware.* This is the 'operating system' of the core device. The firmware is tasked, among other things, with handling the low-level communication between the core device and the host machine, as well as between the core devices in a DRTIO setting. It is written in bare-metal `Rust <https://www.rust-lang.org/>`__. There are currently two active versions of the ARTIQ firmware (the version used for ARTIQ-Zynq, NAR3, is more modern than that used on Kasli and KC705, and will likely eventually replace it) but they are functionally equivalent except for internal details.
 
-Experiment kernels themselves -- ARTIQ Python, processed by the ARTIQ compiler and loaded from the host machine -- rest on top of and are framed and supported by the firmware, in the same sense way that application software on your PC rests on top of an operating system. All together, software kernels communicate with the firmware to set parameters for the gateware, which passes signals directly to the hardware.
+Experiment kernels themselves -- ARTIQ Python, processed by the ARTIQ compiler and loaded from the host machine -- rest on top of and are framed and supported by the firmware, in the same way that application software on your PC rests on top of an operating system. All together, software kernels communicate with the firmware to set parameters for the gateware, which passes signals directly to the hardware.
 
 These frameworks are built to be self-contained and extensible. To make additions to the gateware and software, for example, we do not need to make changes to the firmware; we can interact purely with the interfaces provided on either side.
 
@@ -150,7 +150,7 @@ Add the combinatorial block as follows: ::
     self.comb += [
         pad0.eq(pad0_o),
         If(reg,
-            pad1.eq(pad0_k)
+            pad1.eq(pad0_o)
         )
     ]
 
