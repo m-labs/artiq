@@ -97,7 +97,7 @@ To find more packages you can browse the `Nix package search <https://search.nix
 
     $ nix profile remove [index]
 
-  While using flakes, ARTIQ is not 'installed' as such in any permanent way. However, Nix will preserve independent cached packages in ``/nix/store`` for each flake, which over time or with many different flakes and versions can take up large amounts of storage space. To clear this cache, run ``$ nix-garbage-collect``.
+  While using flakes, ARTIQ is not 'installed' as such in any permanent way. However, Nix will preserve independent cached packages in ``/nix/store`` for each flake, which over time or with many different flakes and versions can take up large amounts of storage space. To clear this cache, run ``$ nix-collect-garbage``.
 
 .. _installing-troubleshooting:
 
