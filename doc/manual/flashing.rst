@@ -4,6 +4,47 @@
 .. note::
   If you have purchased a pre-assembled system from M-Labs or QUARTIQ, the gateware and firmware of your devices will already be flashed to the newest version of ARTIQ. Flashing your device is only necessary if you obtained your hardware in a different way, or if you want to change your system configuration or upgrade your ARTIQ version after the original purchase. Otherwise, skip straight to :doc:`configuring`.
 
+.. _types-of-boards:
+
+Types of Boards
+---------------
+
+To clarify the terminology used in ARTIQ, we can distinguish the boards into a few key groups. There are two primary ways to categorize them. The first is based on the ARTIQ platform itself: either **ARTIQ** or **ARTIQ-Zynq**. ARTIQ-Zynq boards specifically refer to those that feature a Xilinx Zynq FPGA. The second distinction is based on how the boards are configured: some use a **config file** (or system configuration file, see [blah]), while others do not.
+
+Below are the current groups of boards:
+
+.. _zynq-devices:
+
+Zynq Devices
+^^^^^^^^^^^^
+
+These devices are compatible with ARTIQ-Zynq, which utilizes the Xilinx Zynq FPGA.
+
+- Kasli-SoC
+- ZC706
+- EBAZ4205
+
+.. _config-file-devices:
+
+Config File Devices
+^^^^^^^^^^^^^^^^^^^
+
+These devices use a system description or config file for system configuration.
+
+- Kasli
+- Kasli-SoC
+
+.. _standalone-devices:
+
+Standalone Devices
+^^^^^^^^^^^^^^^^^^
+
+These devices do not require a system description or config file for system configuration.
+
+- KC705
+- ZC706
+- EBAZ4205
+
 .. _obtaining-binaries:
 
 Obtaining board binaries
@@ -17,7 +58,7 @@ Run the command::
 
 Replace ``<username>`` with the login name that was given to you with the subscription, ``<variant>`` with the name of your system variant, and ``<afws_directory>`` with the name of an empty directory, which will be created by the command if it does not exist. Enter your password when prompted and wait for the build (if applicable) and download to finish. If you experience issues with the AFWS client, write to the helpdesk@ email. For more information about :mod:`~artiq.frontend.afws_client` see also the corresponding entry on the :ref:`Utilities <afws-client>` page.
 
-For certain configurations (KC705, ZC706, or EBAZ4205 only) it is also possible to source firmware from `the M-Labs Hydra server <https://nixbld.m-labs.hk/project/artiq>`_ (in ``main``, ``zynq`` and ``zynq`` respectively).
+For :ref:`standalone-devices` it is also possible to source firmware from `the M-Labs Hydra server <https://nixbld.m-labs.hk/project/artiq>`_ (in ``main`` and ``zynq``).
 
 Without a subscription, you may build the firmware yourself from the open source code. See the section :doc:`building_developing`.
 
@@ -25,7 +66,7 @@ Installing and configuring OpenOCD
 ----------------------------------
 
 .. warning::
-  These instructions are not applicable to Zynq devices (Kasli-SoC, ZC706 or EBAZ4205), which do not use the utility :mod:`~artiq.frontend.artiq_flash`. If your core device is a Zynq device, skip straight to :ref:`writing-flash`.
+  These instructions are not applicable to :ref:`zynq-devices`, which do not use the utility :mod:`~artiq.frontend.artiq_flash`. If your core device is a Zynq device, skip straight to :ref:`writing-flash`.
 
 ARTIQ supplies the utility :mod:`~artiq.frontend.artiq_flash`, which uses OpenOCD to write the binary images into an FPGA board's flash memory. For both Nix and MSYS2, OpenOCD are included with the installation by default. Note that in the case of Nix this is the package ``artiq.openocd-bscanspi`` and not ``pkgs.openocd``; the second is OpenOCD from the Nix package collection, which does not support ARTIQ/Sinara boards.
 
@@ -78,7 +119,7 @@ On Windows
 Writing the flash
 -----------------
 
-First ensure the board is connected to your computer. In the case of Kasli, the JTAG adapter is integrated into the Kasli board; for flashing (and debugging) you can simply connect your computer to the micro-USB connector on the Kasli front panel. For Kasli-SoC, ZC706, or EBAZ4205, which use :mod:`~artiq.frontend.artiq_coremgmt` to flash over network, an Ethernet connection and an IP address, supplied either with the ``-D`` option or in your :ref:`device database <device-db>`, are sufficient.
+First ensure the board is connected to your computer. In the case of Kasli, the JTAG adapter is integrated into the Kasli board; for flashing (and debugging) you can simply connect your computer to the micro-USB connector on the Kasli front panel. For :ref:`zynq-devices`, which use :mod:`~artiq.frontend.artiq_coremgmt` to flash over network, an Ethernet connection and an IP address, supplied either with the ``-D`` option or in your :ref:`device database <device-db>`, are sufficient.
 
 For Kasli-SoC, ZC706 or EBAZ4205:
     ::

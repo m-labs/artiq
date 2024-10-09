@@ -37,7 +37,7 @@ ARTIQ gateware and firmware binaries are dependent on the system configuration. 
 
 .. warning::
 
-    System configuration files are only used with Kasli and Kasli-SoC boards. KC705, ZC706 and EBAZ4205 ARTIQ configurations, due to their relative rarity and specialization, are handled on a case-by-case basis and selected through a variant name such as ``nist_clock``, with no system description file necessary. See below in :ref:`building` for where to find the list of supported variants. Writing new KC705, ZC706 or EBAZ4205 variants is not a trivial task, and not particularly recommended, unless you are an FPGA developer and know what you're doing.
+    System configuration files are only used with :ref:`_config-file-devices`.  ARTIQ configurations for :ref:`standalone-devices`, due to their relative rarity and specialization, are handled on a case-by-case basis and selected through a variant name such as ``nist_clock``, with no system description file necessary. See below in :ref:`building` for where to find the list of supported variants. Writing new variants for :ref:`standalone-devices` is not a trivial task, and not particularly recommended, unless you are an FPGA developer and know what you're doing.
 
 If you already have your system configuration file on hand, you can edit it to reflect any changes in configuration. If you purchased your original system from M-Labs, or recently purchased new hardware to add to it, you can obtain your up-to-date system configuration file through AFWS at any time using the command ``$ afws_client get_json`` (see :ref:`AFWS client<afws-client>`). If you are starting from scratch, a close reading of ``coredevice_generic.schema.json`` in ``artiq/coredevice`` will be helpful.
 
@@ -151,10 +151,10 @@ This will create a directory ``artiq_kasli`` or ``artiq_kc705`` containing the b
 
     Look for the option ``-V VARIANT, --variant VARIANT``.
 
-Kasli-SoC, ZC706 or EBAZ4205 (ARTIQ on Zynq)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Zynq Devices (ARTIQ on Zynq)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The building process for Zynq devices is a little more complex. The easiest method is to leverage ``nix build`` and the ``makeArtiqZynqPackage`` utility provided by the official flake. The ensuing command is rather long, because it uses a multi-clause expression in the Nix language to describe the desired result; it can be executed piece-by-piece using the `Nix REPL <https://nix.dev/manual/nix/2.18/command-ref/new-cli/nix3-repl.html>`_, but ``nix build`` provides a lot of useful conveniences.
+The building process for :ref:`zynq-devices` is a little more complex. The easiest method is to leverage ``nix build`` and the ``makeArtiqZynqPackage`` utility provided by the official flake. The ensuing command is rather long, because it uses a multi-clause expression in the Nix language to describe the desired result; it can be executed piece-by-piece using the `Nix REPL <https://nix.dev/manual/nix/2.18/command-ref/new-cli/nix3-repl.html>`_, but ``nix build`` provides a lot of useful conveniences.
 
 For Kasli-SoC, run: ::
 
@@ -162,40 +162,24 @@ For Kasli-SoC, run: ::
 
 Replace ``<variant>`` with ``master``, ``satellite``, or ``standalone``, depending on your targeted DRTIO role. Remove ``?ref=release-[number]`` to use the current beta version rather than a numbered release. If you have cloned the repository and prefer to use your local copy of the flake, replace the corresponding clause with ``builtins.getFlake "/absolute/path/to/your/artiq-zynq"``.
 
-For ZC706 or EBAZ4205, you can use a command of the same form: ::
+For ZC706 or EBAZ4205, you can use a command of the same form (replace ``<target>`` with ``zc706`` or ``ebaz4205``): ::
 
-    $ nix build --print-build-logs --impure --expr 'let fl = builtins.getFlake "git+https://git.m-labs.hk/m-labs/artiq-zynq?ref=release-[number]"; in (fl.makeArtiqZynqPackage {target="zc706"; variant="<variant>";}).zc706-<variant>-sd'
-
-or:
-
-    $ nix build --print-build-logs --impure --expr 'let fl = builtins.getFlake "git+https://git.m-labs.hk/m-labs/artiq-zynq?ref=release-[number]"; in (fl.makeArtiqZynqPackage {target="ebaz4205"; variant="<variant>";}).ebaz4205-<variant>-sd'
+    $ nix build --print-build-logs --impure --expr 'let fl = builtins.getFlake "git+https://git.m-labs.hk/m-labs/artiq-zynq?ref=release-[number]"; in (fl.makeArtiqZynqPackage {target="<target>"; variant="<variant>";}).<target>-<variant>-sd'
 
 or you can use the more direct version: ::
 
-    $ nix build --print-build-logs git+https://git.m-labs.hk/m-labs/artiq-zynq\?ref=release-[number]#zc706-<variant>-sd
-
-or:
-
-    $ nix build --print-build-logs git+https://git.m-labs.hk/m-labs/artiq-zynq\?ref=release-[number]#ebaz4205-<variant>-sd
+    $ nix build --print-build-logs git+https://git.m-labs.hk/m-labs/artiq-zynq\?ref=release-[number]#<target>-<variant>-sd
 
 (which is possible for ZC706 or EBAZ4205 because there is no need to be able to specify a system description file in the arguments.)
 
 .. note::
-    To see supported ZC706 or EBAZ4205 variants, you can run the following at the root of the repository: ::
+    To see supported ZC706 variants (for EBAZ4205 variants, replace ``zc706`` with ``ebaz4205``), you can run the following at the root of the repository: ::
 
         $ src/gateware/zc706.py --help
-
-    or:
-
-        $ src/gateware/ebaz4205.py --help
 
     Look for the option ``-V VARIANT, --variant VARIANT``. If you have not cloned the repository or are not in the development environment, try: ::
 
         $ nix flake show git+https://git.m-labs.hk/m-labs/artiq-zynq\?ref=release-[number] | grep "package 'zc706.*sd"
-
-    or:
-
-        $ nix flake show git+https://git.m-labs.hk/m-labs/artiq-zynq\?ref=release-[number] | grep "package 'ebaz4205.*sd"
 
     to see the list of suitable build targets directly.
 
@@ -206,7 +190,7 @@ Any of these commands should produce a directory ``result`` which contains a fil
 3. Set to boot from SD card:
 
    - For ZC706 ensure that the DIP switches (labeled BOOT MODE) are set correctly, to SD.
-   - For EBAZ4205, apply `boot select resistor <https://github.com/xjtuecho/EBAZ4205>`_ to boot from SD card.
+   - For EBAZ4205, setup the `boot select resistor <https://github.com/xjtuecho/EBAZ4205>`_ to boot from SD card.
 5. Power the board back on.
 
 Optionally, the SD card may also be loaded at the same time with an additional file ``config.txt``, which can contain preset configuration values in the format ``key=value``, one per line. The keys are those used with :mod:`~artiq.frontend.artiq_coremgmt`. This allows e.g. presetting an IP address and any other configuration information.
@@ -218,7 +202,7 @@ After a successful boot, the "FPGA DONE" light should be illuminated and the boa
 Booting over JTAG/Ethernet
 """"""""""""""""""""""""""
 
-It is also possible to boot Zynq devices over USB and Ethernet (EBAZ4205 not currently supported). Flip the DIP switches to JTAG. The scripts ``remote_run.sh`` and ``local_run.sh`` in the ARTIQ-Zynq repository, intended for use with a remote JTAG server or a local connection to the core device respectively, are used at M-Labs to accomplish this. Both make use of the netboot tool ``artiq_netboot``, see also its source `here <https://git.m-labs.hk/M-Labs/artiq-netboot>`_, which is included in the ARTIQ-Zynq development environment. Adapt the relevant script to your system or read it closely to understand the options and the commands being run; note for example that ``remote_run.sh`` as written only supports ZC706.
+It is also possible to boot :ref:`zynq-devices` over USB and Ethernet (EBAZ4205 not currently supported). Flip the DIP switches to JTAG. The scripts ``remote_run.sh`` and ``local_run.sh`` in the ARTIQ-Zynq repository, intended for use with a remote JTAG server or a local connection to the core device respectively, are used at M-Labs to accomplish this. Both make use of the netboot tool ``artiq_netboot``, see also its source `here <https://git.m-labs.hk/M-Labs/artiq-netboot>`_, which is included in the ARTIQ-Zynq development environment. Adapt the relevant script to your system or read it closely to understand the options and the commands being run; note for example that ``remote_run.sh`` as written only supports ZC706.
 
 You will need to generate the gateware, firmware and bootloader first, either through ``nix build`` or incrementally as below. After an incremental build add the option ``-i`` when running either of the scripts. If using ``nix build``, note that target names of the form ``<board>-<variant>-jtag`` (run ``nix flake show`` to see all targets) will output the three necessary files without combining them into ``boot.bin``.
 
