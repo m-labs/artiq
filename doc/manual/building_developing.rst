@@ -238,13 +238,13 @@ For Kasli-SoC:
     ::
 
     $ gateware/kasli_soc.py -g ../build/gateware <description.json>
-    $ make --always-make TARGET=kasli_soc GWARGS="path/to/description.json" <fw-type>
+    $ make TARGET=kasli_soc GWARGS="path/to/description.json" <fw-type>
 
 For ZC706:
     ::
 
     $ gateware/zc706.py -g ../build/gateware -V <variant>
-    $ make --always-make TARGET=zc706 GWARGS="-V <variant>" <fw-type>
+    $ make TARGET=zc706 GWARGS="-V <variant>" <fw-type>
 
 where ``fw-type`` is ``runtime`` for standalone or DRTIO master builds and ``satman`` for DRTIO satellites. Both the gateware and the firmware will generate into the ``../build`` destination directory. At this stage you can :ref:`boot from JTAG <zynq-jtag-boot>`; either of the ``*_run.sh`` scripts will expect the gateware and firmware files at their default locations, and the ``szl.elf`` bootloader is retrieved automatically.
 
