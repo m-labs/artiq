@@ -752,7 +752,7 @@ pub extern fn main() -> i32 {
         io_expander.service().unwrap();
     }
 
-    #[cfg(not(soc_platform = "efc"))]
+    #[cfg(not(has_drtio_eem))]
     unsafe {
         csr::gt_drtio::txenable_write(0xffffffffu32 as _);
     }
