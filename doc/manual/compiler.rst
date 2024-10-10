@@ -82,14 +82,14 @@ Python/NumPy types correspond to ARTIQ types as follows:
 
 Integers are 32-bit by default but may be converted to 64-bit with ``numpy.int64``.
 
-The ARTIQ compiler can be thought of as overriding all built-in Python types, and types in kernel code cannot always be assumed to behave as they would in host Python. In particular, normally heap-allocated types such as arrays, lists, tuples, and strings are very limited in what they support. Strings must be constant and lists and arrays must be of constant size. Methods like ``append``, ``push``, and ``pop`` are unavailable as a matter of principle, and will not compile. Certain types, notably dictionaries, have no ARTIQ implementation and cannot be used in kernels at all.
+The ARTIQ compiler can be thought of as overriding all built-in Python types, and types in kernel code cannot always be assumed to behave as they would in host Python. In particular, normally heap-allocated types such as arrays, lists, and strings are very limited in what they support. Strings must be constant and lists and arrays must be of constant size. Methods like ``append``, ``push``, and ``pop`` are unavailable as a matter of principle, and will not compile. Certain types, notably dictionaries, have no ARTIQ implementation and cannot be used in kernels at all.
 
 .. tip::
     Instead of pushing or appending, preallocate for the maximum number of elements you expect with a list comprehension, i.e. ``x = [0 for _ in range(1024)]``, and then keep a variable ``n`` noting the last filled element of the array. Afterwards, ``x[0:n]`` will give you a list with that number of elements.
 
 Multidimensional arrays are allowed (using NumPy syntax). Element-wise operations (e.g. ``+``, ``/``), matrix multiplication (``@``) and multidimensional indexing are supported; slices and views (currently) are not.
 
-Tuples may contain a mixture of different types. They cannot be indexed or iterated over, although multiple assignment is supported.
+Tuples may contain a mixture of different types. They cannot be iterated over or dynamically indexed, although they may be indexed by constants and multiple assignment is supported.
 
 User-defined classes are supported, provided their attributes are of other supported types (attributes that are not used in the kernel are ignored and thus unrestricted). When several instances of a user-defined class are referenced from the same kernel, every attribute must have the same type in every instance of the class.
 
