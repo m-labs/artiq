@@ -4,47 +4,6 @@
 .. note::
   If you have purchased a pre-assembled system from M-Labs or QUARTIQ, the gateware and firmware of your devices will already be flashed to the newest version of ARTIQ. Flashing your device is only necessary if you obtained your hardware in a different way, or if you want to change your system configuration or upgrade your ARTIQ version after the original purchase. Otherwise, skip straight to :doc:`configuring`.
 
-.. _types-of-boards:
-
-Types of Boards
----------------
-
-To clarify the terminology used in ARTIQ, we can distinguish the boards into a few key groups. There are two primary ways to categorize them. The first is based on the ARTIQ platform itself: either ARTIQ or ARTIQ-Zynq. ARTIQ-Zynq boards specifically refer to those that feature a Xilinx Zynq FPGA. The second distinction is based on how the boards are configured: some use a :ref:`system-description`, while others do not.
-
-Below are the current groups of boards:
-
-.. _zynq-devices:
-
-Zynq Devices
-^^^^^^^^^^^^
-
-These devices are compatible with ARTIQ-Zynq, which utilizes the Xilinx Zynq FPGA.
-
-- Kasli-SoC
-- ZC706
-- EBAZ4205
-
-.. _config-file-devices:
-
-Config File Devices
-^^^^^^^^^^^^^^^^^^^
-
-These devices use a system description or config file for system configuration.
-
-- Kasli
-- Kasli-SoC
-
-.. _standalone-devices:
-
-Standalone Devices
-^^^^^^^^^^^^^^^^^^
-
-These devices do not require a system description or config file for system configuration.
-
-- KC705
-- ZC706
-- EBAZ4205
-
 .. _obtaining-binaries:
 
 Obtaining board binaries

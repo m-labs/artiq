@@ -37,7 +37,7 @@ ARTIQ gateware and firmware binaries are dependent on the system configuration. 
 
 .. warning::
 
-    System configuration files are only used with :ref:`_config-file-devices`.  ARTIQ configurations for :ref:`standalone-devices`, due to their relative rarity and specialization, are handled on a case-by-case basis and selected through a variant name such as ``nist_clock``, with no system description file necessary. See below in :ref:`building` for where to find the list of supported variants. Writing new variants for :ref:`standalone-devices` is not a trivial task, and not particularly recommended, unless you are an FPGA developer and know what you're doing.
+    System configuration files are only used with :ref:`config-file-devices`.  ARTIQ configurations for :ref:`standalone-devices`, due to their relative rarity and specialization, are handled on a case-by-case basis and selected through a variant name such as ``nist_clock``, with no system description file necessary. See below in :ref:`building` for where to find the list of supported variants. Writing new variants for :ref:`standalone-devices` is not a trivial task, and not particularly recommended, unless you are an FPGA developer and know what you're doing.
 
 If you already have your system configuration file on hand, you can edit it to reflect any changes in configuration. If you purchased your original system from M-Labs, or recently purchased new hardware to add to it, you can obtain your up-to-date system configuration file through AFWS at any time using the command ``$ afws_client get_json`` (see :ref:`AFWS client<afws-client>`). If you are starting from scratch, a close reading of ``coredevice_generic.schema.json`` in ``artiq/coredevice`` will be helpful.
 
@@ -171,8 +171,8 @@ This will create a directory ``artiq_kasli`` or ``artiq_kc705`` containing the b
 
     Look for the option ``-V VARIANT, --variant VARIANT``.
 
-Zynq Devices (ARTIQ on Zynq)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Kasli-SoC, ZC706 or EBAZ4205 (ARTIQ on Zynq)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The building process for :ref:`zynq-devices` is a little more complex. The easiest method is to leverage ``nix build`` and the ``makeArtiqZynqPackage`` utility provided by the official flake. The ensuing command is rather long, because it uses a multi-clause expression in the Nix language to describe the desired result; it can be executed piece-by-piece using the `Nix REPL <https://nix.dev/manual/nix/2.18/command-ref/new-cli/nix3-repl.html>`_, but ``nix build`` provides a lot of useful conveniences.
 
@@ -209,9 +209,10 @@ Any of these commands should produce a directory ``result`` which contains a fil
 2. Insert the SD card back into the board.
 3. Set to boot from SD card:
 
-   - For ZC706 ensure that the DIP switches (labeled BOOT MODE) are set correctly, to SD.
-   - For EBAZ4205, setup the `boot select resistor <https://github.com/xjtuecho/EBAZ4205>`_ to boot from SD card.
-5. Power the board back on.
+   - For Kasli-SoC or ZC706 ensure that the DIP switches (labeled BOOT MODE) are set correctly, to SD.
+   - For EBAZ4205, set up the `boot select resistor <https://github.com/xjtuecho/EBAZ4205>`_ to boot from SD card.
+
+4. Power the board back on.
 
 Optionally, the SD card may also be loaded at the same time with an additional file ``config.txt``, which can contain preset configuration values in the format ``key=value``, one per line. The keys are those used with :mod:`~artiq.frontend.artiq_coremgmt`. This allows e.g. presetting an IP address and any other configuration information.
 

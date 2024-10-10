@@ -106,6 +106,47 @@ If not using WRPLL, PLL can also be bypassed entirely with the options
 
 Bypassing the PLL ensures the skews between input clock, downstream clock outputs, and RTIO clock are deterministic across reboots of the system. This is useful when phase determinism is required in situations where the reference clock fans out to other devices before reaching the master.
 
+.. _types-of-boards:
+
+Types of boards
+---------------
+
+To clarify the terminology used in ARTIQ, we can distinguish the boards into a few key groups. There are two primary ways to categorize them. The first is based on the ARTIQ platform itself: either ARTIQ or ARTIQ-Zynq. ARTIQ-Zynq boards specifically refer to those that feature a Xilinx Zynq FPGA. The second distinction is based on how the boards are configured: some use a :ref:`system-description`, while others do not.
+
+Below are the current groups of boards:
+
+.. _zynq-devices:
+
+Zynq devices
+^^^^^^^^^^^^
+
+These devices are compatible with ARTIQ-Zynq, which utilizes the Xilinx Zynq FPGA.
+
+- Kasli-SoC
+- ZC706
+- EBAZ4205
+
+.. _config-file-devices:
+
+Config file devices
+^^^^^^^^^^^^^^^^^^^
+
+These devices use a system description or config file for system configuration.
+
+- Kasli
+- Kasli-SoC
+
+.. _standalone-devices:
+
+Standalone devices
+^^^^^^^^^^^^^^^^^^
+
+These devices do not require a system description or config file for system configuration.
+
+- KC705
+- ZC706
+- EBAZ4205
+
 Board details
 -------------
 
