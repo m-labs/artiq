@@ -209,7 +209,7 @@ Any of these commands should produce a directory ``result`` which contains a fil
 2. Insert the SD card back into the board.
 3. Set to boot from SD card:
 
-   - For Kasli-SoC or ZC706 ensure that the DIP switches (labeled BOOT MODE) are set correctly, to SD.
+   - For Kasli-SoC or ZC706, ensure that the DIP switches (labeled BOOT MODE) are set correctly, to SD.
    - For EBAZ4205, set up the `boot select resistor <https://github.com/xjtuecho/EBAZ4205>`_ to boot from SD card.
 
 4. Power the board back on.
