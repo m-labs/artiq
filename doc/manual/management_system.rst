@@ -66,27 +66,25 @@ Experiment scheduling
 Basics
 ^^^^^^
 
-To make more efficient use of hardware resources, experiments are generally split into three phases and pipelined. While one experiment is using the real-time hardware, others may execute potentially compute-intensive pre-computation or analysis phases in parallel.
-
-.. seealso::
-   These steps are implemented in :class:`~artiq.language.environment.Experiment`. User-written experiments should usually derive from (sub-class) :class:`artiq.language.environment.EnvExperiment`, which additionally provides access to the methods of :class:`artiq.language.environment.HasEnvironment`.
-
-There are three stages of a standard experiment users may write code for:
+To make more efficient use of resources, experiments are generally split into three phases and pipelined. While one experiment has control of the specialized hardware, others may carry out pre-computation or post-analysis in parallel. There are three stages of a standard experiment users may write code for:
 
 1. The **preparation** stage, which pre-fetches and pre-computes any data that is necessary to run the experiment. Users may implement this stage by overloading the :meth:`~artiq.language.environment.Experiment.prepare` method. It is not permitted to access hardware in this stage.
 
-2. The **run** stage, which corresponds to the body of the experiment. Users must implement this stage and overload the :meth:`~artiq.language.environment.Experiment.run` method. In this stage, the experiment has the right to run kernels and access hardware.
+2. The **run** stage, which corresponds to the body of the experiment. Users *must* implement this stage and overload the :meth:`~artiq.language.environment.Experiment.run` method. In this stage, the experiment has the right to run kernels and access hardware.
 
-3. The **analysis** stage, where raw results collected in the running stage are post-processed and may lead to updates of the parameter database. This stage may be implemented by overloading the :meth:`~artiq.language.environment.Experiment.analyze` method. It is not permitted to access hardware in this stage.
+3. The **analysis** stage, where raw results collected in the running stage can be post-processed and/or saved. This stage may be implemented by overloading the :meth:`~artiq.language.environment.Experiment.analyze` method. It is not permitted to access hardware in this stage.
 
-Only the :meth:`~artiq.language.environment.Experiment.run` method implementation is mandatory; if the experiment does not fit into the pipelined scheduling model, it can leave one or both of the other methods empty (which is the default).
+.. seealso::
+   These steps are implemented in :class:`artiq.language.environment.Experiment`. User-written experiments should usually derive from (sub-class) :class:`artiq.language.environment.EnvExperiment`, which additionally provides access to the methods of :class:`~artiq.language.environment.HasEnvironment`.
 
-Consecutive experiments are executed in a pipelined manner by the ARTIQ master's scheduler: first experiment A executes its preparation stage, than experiment A executes its running stage while experiment B executes its preparation stage, and so on.
+Only the :meth:`~artiq.language.environment.Experiment.run` method implementation is mandatory; if the experiment does not fit into the pipelined scheduling model, it can leave one or both of the other methods empty (which is the default). Preparation and analysis stages are forbidden from accessing hardware so as not to interfere with a potential concurrent run stage. Note that they are not *prevented* from doing so, and it is up to the programmer to respect these guidelines.
+
+Consecutive experiments are automatically pipelined by the ARTIQ master's scheduler: first experiment A executes its preparation stage, then experiment A executes its running stage while experiment B executes its preparation stage, and so on.
 
 .. note::
-   An experiment A can exit its :meth:`~artiq.language.environment.Experiment.run` method before all its RTIO events have been executed, i.e., while those RTIO events are still waiting in the FIFO buffers. If the next experiment entering the running stage uses :meth:`~artiq.coredevice.core.Core.reset`, those buffers will be cleared, and any remaining events discarded, potentially including those scheduled by A.
+   An experiment A can exit its :meth:`~artiq.language.environment.Experiment.run` method before all its RTIO events have been executed, i.e., while those events are still 'waiting' in the RTIO core buffers. If the next experiment entering the running stage uses :meth:`~artiq.coredevice.core.Core.reset`, those buffers will be cleared, and any remaining events discarded, potentially including those scheduled by A.
 
-   This is a deliberate feature of seamless handover, but can cause problems if the events scheduled by A were important and should not have been skipped. In those cases, it is recommended to ensure the :meth:`~artiq.language.environment.Experiment.run` method of experiment A does not return until *all* its scheduled events have been executed. See also :ref:`RTIO Synchronization<rtio-handover-synchronization>`.
+   This is a deliberate feature of seamless handover, but can cause problems if the events scheduled by A were important and should not have been skipped. In those cases, it is recommended to ensure the :meth:`~artiq.language.environment.Experiment.run` method of experiment A does not return until *all* its scheduled events have been executed, or that it is followed only by experiments which do not perform a core reset. See also :ref:`RTIO Synchronization<rtio-handover-synchronization>`.
 
 Priorities and timed runs
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -110,14 +108,14 @@ Pauses
 
 In the run stage, an experiment may yield to the scheduler by calling the :meth:`pause` method of the scheduler. If there are other experiments with higher priority (e.g. a high-priority experiment has been newly submitted, or reached its due date and become eligible for execution), the higher-priority experiments are executed first, and then :meth:`pause` returns. If there are no such experiments, :meth:`pause` returns immediately. To check whether :meth:`pause` would in fact *not* return immediately, use :meth:`~artiq.master.scheduler.Scheduler.check_pause`.
 
-The experiment must place the hardware in a safe state and disconnect from the core device - typically, by calling ``self.core.comm.close()`` from the kernel, which is equivalent to :meth:`artiq.coredevice.core.Core.close` - before calling :meth:`pause`.
+The experiment must place the hardware in a safe state and disconnect from the core device before calling :meth:`pause` - typically by calling ``self.core.comm.close()``, which is equivalent to :meth:`~artiq.coredevice.core.Core.close`, from the host after completion of the kernel.
 
 Accessing the :meth:`pause` and :meth:`~artiq.master.scheduler.Scheduler.check_pause` methods is done through a virtual device called ``scheduler`` that is accessible to all experiments. The scheduler virtual device is requested like any other device, with :meth:`~artiq.language.environment.HasEnvironment.get_device` or :meth:`~artiq.language.environment.HasEnvironment.setattr_device`. See also the detailed reference on the :doc:`mgmt_system_reference` page.
 
 .. note::
    For maximum compatibility, the ``scheduler`` virtual device can also be accessed when running experiments with :mod:`~artiq.frontend.artiq_run`. However, since there is no :mod:`~artiq.master.scheduler.Scheduler` backend, the methods are replaced by simple dummies, e.g. :meth:`~artiq.master.scheduler.Scheduler.check_pause` simply returns false, and requests are printed into the console. Much the same is true of client control broadcasts (see again :doc:`mgmt_system_reference`).
 
-:meth:`~artiq.master.scheduler.Scheduler.check_pause` can be called (via RPC) from a kernel, but :meth:`pause` must not be.
+:meth:`~artiq.master.scheduler.Scheduler.check_pause` can be called (via RPC) from a kernel, but :meth:`pause` cannot be.
 
 Internal details
 ----------------
@@ -136,8 +134,8 @@ The experiment database is supported by :class:`artiq.master.experiments.GitBack
 Experiment workers
 ^^^^^^^^^^^^^^^^^^
 
-The :mod:`~artiq.frontend.artiq_run` tool makes use of many of the same databases and handlers as the master (whereas the scheduler and CCB manager are replaced by dummies, as mentioned above), but also directly runs the build, run, and analyze stages of the experiments. On the other hand, within the management system, the master's :class:`~artiq.master.scheduler.Scheduler` spawns a new worker process for each experiment. This allows for the parallelisation of stages and pipelines described above in :ref:`experiment-scheduling`.
+The :mod:`~artiq.frontend.artiq_run` tool makes use of many of the same databases and handlers as the master (whereas the scheduler and CCB manager are replaced by dummies, as mentioned above), but also directly runs the build, run, and analyze stages of the experiments. On the other hand, within the management system, the master's :class:`~artiq.master.scheduler.Scheduler` spawns a new worker process for each experiment. This allows for the parallelization of stages and pipelines described above in :ref:`experiment-scheduling`.
 
-The master and the worker processes communicate through IPC, internal process calls, implemented through :mod:`sipyco.pipe_ipc`. Specifically, it is :mod:`artiq.master.worker_impl` which is spawned as a new process for each experiment, and the class :class:`artiq.master.worker.Worker` which manages the IPC requests of the workers, including access to :class:`~artiq.master.scheduler.Scheduler` but also to devices, datasets, arguments, and CCBs. This allows the worker to support experiment :meth:`~artiq.language.environment.HasEnvironment.build` methods and the :doc:`management system interfaces <mgmt_system_reference>`.
+The master and the worker processes communicate through IPC, Inter Process Communcation, implemented with :mod:`sipyco.pipe_ipc`. Specifically, it is :mod:`artiq.master.worker_impl` which is spawned as a new process for each experiment, and the class :class:`artiq.master.worker.Worker` which manages the IPC requests of the workers, including access to :class:`~artiq.master.scheduler.Scheduler` but also to devices, datasets, arguments, and CCBs. This allows the worker to support experiment :meth:`~artiq.language.environment.HasEnvironment.build` methods and the :doc:`management system interfaces <mgmt_system_reference>`.
 
-It is the worker process which executes the experiment code itself. Within the experiment, kernel decorators -- :class:`~artiq.language.core.kernel`, :class:`~artiq.language.core.subkernel`, etc. -- call the ARTIQ compiler as necessary and trigger core device execution.
+The worker process also executes the experiment code itself. Within the experiment, kernel decorators -- :class:`~artiq.language.core.kernel`, :class:`~artiq.language.core.subkernel`, etc. -- call the ARTIQ compiler as necessary and trigger core device execution.
