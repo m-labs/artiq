@@ -37,7 +37,7 @@ ARTIQ gateware and firmware binaries are dependent on the system configuration. 
 
 .. warning::
 
-    System configuration files are only used with :ref:`config-file-devices`.  ARTIQ configurations for :ref:`standalone-devices`, due to their relative rarity and specialization, are handled on a case-by-case basis and selected through a variant name such as ``nist_clock``, with no system description file necessary. See below in :ref:`building` for where to find the list of supported variants. Writing new variants for :ref:`standalone-devices` is not a trivial task, and not particularly recommended, unless you are an FPGA developer and know what you're doing.
+    System configuration files are only used with :ref:`config file devices <config-file-devices>`.  ARTIQ configurations for :ref:`standalone devices <standalone-devices>`, due to their relative rarity and specialization, are handled on a case-by-case basis and selected through a variant name such as ``nist_clock``, with no system description file necessary. See below in :ref:`building` for where to find the list of supported variants. Writing new variants for :ref:`standalone devices <standalone-devices>` is not a trivial task, and not particularly recommended, unless you are an FPGA developer and know what you're doing.
 
 If you already have your system configuration file on hand, you can edit it to reflect any changes in configuration. If you purchased your original system from M-Labs, or recently purchased new hardware to add to it, you can obtain your up-to-date system configuration file through AFWS at any time using the command ``$ afws_client get_json`` (see :ref:`AFWS client<afws-client>`). If you are starting from scratch, a close reading of ``coredevice_generic.schema.json`` in ``artiq/coredevice`` will be helpful.
 
@@ -104,7 +104,7 @@ Nix development environment
 
     - If using NixOS, instead make the equivalent changes to your ``configuration.nix``.
 
-* Clone `the ARTIQ Git repository <https://github.com/m-labs/artiq>`_, or `the ARTIQ-Zynq repository <https://git.m-labs.hk/M-Labs/artiq-zynq>`__ for Zynq devices (Kasli-SoC or ZC706). By default, you are working with the ``master`` branch, which represents the beta version and is not stable (see :doc:`releases`). Checkout the most recent release (``git checkout release-[number]``) for a stable version.
+* Clone `the ARTIQ Git repository <https://github.com/m-labs/artiq>`_, or `the ARTIQ-Zynq repository <https://git.m-labs.hk/M-Labs/artiq-zynq>`__ for :ref:`zynq-devices` (Kasli-SoC, ZC706, or EBAZ4205). By default, you are working with the ``master`` branch, which represents the beta version and is not stable (see :doc:`releases`). Checkout the most recent release (``git checkout release-[number]``) for a stable version.
 * If your Vivado installation is not in its default location ``/opt``, open ``flake.nix`` and edit it accordingly (note that the edits must be made in the main ARTIQ flake, even if you are working with Zynq, see also tip below).
 * Run ``nix develop`` at the root of the repository, where ``flake.nix`` is.
 
