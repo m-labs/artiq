@@ -50,6 +50,8 @@ class SinaraTester(EnvExperiment):
         self.leds = dict()
         self.ttl_outs = dict()
         self.ttl_ins = dict()
+        self.ttl_lvds = dict()
+        self.ttl_lvds_ins = dict()
         self.urukul_cplds = dict()
         self.urukuls = dict()
         self.samplers = dict()
@@ -73,10 +75,15 @@ class SinaraTester(EnvExperiment):
                     dev = self.get_device(name)
                     if "led" in name:  # guess
                         self.leds[name] = dev
+                    elif "board" in desc and desc["board"].lower() == "dio_lvds":
+                        self.ttl_lvds[name] = self.get_device(name)
                     else:
                         self.ttl_outs[name] = dev
                 elif (module, cls) == ("artiq.coredevice.ttl", "TTLInOut"):
-                    self.ttl_ins[name] = self.get_device(name)
+                    if "board" in desc and desc["board"].lower() == "dio_lvds":
+                        self.ttl_lvds_ins[name] = self.get_device(name)
+                    else:
+                        self.ttl_ins[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.urukul", "CPLD"):
                     self.urukul_cplds[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.ad9910", "AD9910"):
@@ -155,6 +162,8 @@ class SinaraTester(EnvExperiment):
         self.leds = sorted(self.leds.items(), key=lambda x: x[1].channel)
         self.ttl_outs = sorted(self.ttl_outs.items(), key=lambda x: x[1].channel)
         self.ttl_ins = sorted(self.ttl_ins.items(), key=lambda x: x[1].channel)
+        self.ttl_lvds_ins = sorted(self.ttl_lvds_ins.items(), key=lambda x: x[1].channel)
+        self.ttl_lvds = sorted(self.ttl_lvds.items(), key=lambda x: x[1].channel)
         self.urukuls = sorted(self.urukuls.items(), key=lambda x: (x[1].cpld.bus.channel, x[1].chip_select))
         self.samplers = sorted(self.samplers.items(), key=lambda x: x[1].cnv.channel)
         self.zotinos = sorted(self.zotinos.items(), key=lambda x: x[1].bus.channel)
@@ -243,6 +252,63 @@ class SinaraTester(EnvExperiment):
                 print("PASSED")
             else:
                 print("FAILED")
+
+    def test_lvds_group(self, ttl_out_chunk, ttl_in_chunk):
+        def devices_to_string(chunk):
+            return ', '.join(map(lambda x: x[0], chunk))
+
+        input(f"\nConnect ({devices_to_string(ttl_out_chunk)}) group to ({devices_to_string(ttl_in_chunk)}) group . Press ENTER when done.")
+        for x in range(4):
+            ttl_in, ttl_in_dev = ttl_in_chunk[x]
+            ttl_out, ttl_out_dev = ttl_out_chunk[x]
+            print(f"Testing {ttl_in} with {ttl_out}... ", end="")
+
+            if self.test_ttl_in(ttl_out_dev, ttl_in_dev):
+                print("PASSED")
+            else:
+                print("FAILED")
+
+    def test_ttl_lvds(self):
+        def lower_bound_of_device_chunk(dev_list, dev_name, N):
+            dev_index = next(i for i, v in enumerate(dev_list) if v[0] == dev_name)
+            return dev_index - (dev_index % N)
+
+        print(f"*** Testing LVDS TTL")
+
+        if not self.ttl_lvds_ins:
+            print(f"No available input channels for testing. Skipping...")
+            return
+
+        ttl_in_index, ttl_out_index = 0, -1
+        default_ttl_in_name, _ = self.ttl_lvds_ins[ttl_in_index]
+        default_ttl_out_name, _ = self.ttl_lvds[ttl_out_index]
+
+        print("LVDS TTL channels are tested in groups of 4.")
+        print("You can choose any channel within the group.")
+        ttl_in_name = input(f"TTL device to use as an input (default: {default_ttl_in_name}): ")
+        ttl_out_name = input(f"TTL device to use as an output (default: {default_ttl_out_name}): ")
+
+        if not ttl_in_name:
+            ttl_in_name = default_ttl_in_name
+        if not ttl_out_name:
+            ttl_out_name = default_ttl_out_name
+
+        ttl_in_index = lower_bound_of_device_chunk(self.ttl_lvds_ins, ttl_in_name, 4)
+        ttl_out_index = lower_bound_of_device_chunk(self.ttl_lvds, ttl_out_name, 4)
+        ttl_in_static_chunk = self.ttl_lvds_ins[ttl_in_index: ttl_in_index + 4]
+        ttl_out_static_chunk = self.ttl_lvds[ttl_out_index: ttl_out_index + 4]
+
+        print("\nTesting output channels. Keep input group connected in the same port, and cycle through all outputs.")
+        for ttl_out_moving_chunk in chunker(self.ttl_lvds, 4):
+            self.test_lvds_group(ttl_out_moving_chunk, ttl_in_static_chunk)
+
+        if len(self.ttl_lvds_ins) == 4:
+            return
+
+        print("\nTesting input channels. Keep output group connected in the same port, and cycle through all inputs.")
+        for ttl_in_moving_chunk in chunker(self.ttl_lvds_ins, 4):
+            if not ttl_in_moving_chunk == ttl_in_static_chunk:
+                self.test_lvds_group(ttl_out_static_chunk, ttl_in_moving_chunk)
 
     @kernel
     def init_urukul(self, cpld):
