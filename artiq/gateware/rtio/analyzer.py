@@ -151,23 +151,56 @@ class DMAWriter(Module, AutoCSR):
                                        alignment_bits=data_alignment)
         self.byte_count = CSRStatus(64)  # only read when shut down
 
-        self.sink = stream.Endpoint(
-            [("data", dw),
-             ("valid_token_count", bits_for(messages_per_dw))])
+        layout = [
+            ("data", dw),
+            ("valid_token_count", bits_for(messages_per_dw))
+        ]
+
+        self.sink = stream.Endpoint(layout)
+        self.done = Signal()
 
         # # #
 
+        lookahead_buf = stream.Endpoint(layout)
+        buffer_open = Signal()
+
         self.comb += [
-            membus.cyc.eq(self.sink.stb),
-            membus.stb.eq(self.sink.stb),
-            self.sink.ack.eq(membus.ack),
+            buffer_open.eq(~lookahead_buf.stb | lookahead_buf.ack),
+            self.sink.ack.eq(buffer_open),
+        ]
+        self.sync += [
+            If(buffer_open,
+                self.sink.connect(lookahead_buf, omit={"ack"}),
+            ),
+        ]
+
+        # RULE 4.30: Set End-Of-Burst to signal the end of the current burst.
+        last = Signal()
+        stale_last = Signal()
+        self.comb += last.eq(lookahead_buf.eop | (lookahead_buf.stb & ~self.sink.stb))
+        self.sync += \
+            If(~buffer_open,
+                If(last, stale_last.eq(1)),
+            ).Else(
+                stale_last.eq(0)
+            )
+        
+        # Write operations completes once EoP is transmitted
+        self.comb += self.done.eq(
+            lookahead_buf.stb & lookahead_buf.ack & lookahead_buf.eop)
+
+        self.comb += [
+            membus.cyc.eq(lookahead_buf.stb),
+            membus.stb.eq(lookahead_buf.stb),
+            membus.cti.eq(Mux(last | stale_last, 0b111, 0b010)),
+            lookahead_buf.ack.eq(membus.ack),
             membus.we.eq(1),
-            membus.dat_w.eq(dma.convert_signal(self.sink.data, cpu_dw//8))
+            membus.dat_w.eq(dma.convert_signal(lookahead_buf.data, cpu_dw//8))
         ]
         if messages_per_dw > 1:
             for i in range(dw//8):
                 self.comb += membus.sel[i].eq(
-                    self.sink.valid_token_count >= i//(256//8))
+                    lookahead_buf.valid_token_count >= i//(256//8))
         else:
             self.comb += membus.sel.eq(2**(dw//8)-1)
 
@@ -189,7 +222,7 @@ class DMAWriter(Module, AutoCSR):
         self.sync += [
             If(self.reset.re, message_count.eq(0)),
             If(membus.ack, message_count.eq(
-                message_count + self.sink.valid_token_count))
+                message_count + lookahead_buf.valid_token_count))
         ]
 
 
@@ -201,8 +234,9 @@ class Analyzer(Module, AutoCSR):
 
         self.submodules.message_encoder = MessageEncoder(
             tsc, cri, self.enable.storage)
+        hi_wm = 64 if fifo_depth > 64 else None
         self.submodules.fifo = stream.SyncFIFO(
-            [("data", message_len)], fifo_depth, True)
+            [("data", message_len)], fifo_depth, True, hi_wm=hi_wm)
         self.submodules.converter = stream.Converter(
             message_len, len(membus.dat_w), reverse=True,
             report_valid_token_count=True)
@@ -213,8 +247,8 @@ class Analyzer(Module, AutoCSR):
             enable_r.eq(self.enable.storage),
             If(self.enable.storage & ~enable_r,
                 self.busy.status.eq(1)),
-            If(self.dma.sink.stb & self.dma.sink.ack & self.dma.sink.eop,
-                self.busy.status.eq(0))
+            If(self.dma.done,
+                self.busy.status.eq(0)),
         ]
 
         self.comb += [
