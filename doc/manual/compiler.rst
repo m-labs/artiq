@@ -117,7 +117,7 @@ Kernels can freely modify attributes of objects shared with the host. However, b
 
 .. warning::
 
-    Kernels *cannot and should not* return lists, arrays, tuples, or strings they have created, or any objects containing them; in the absence of a heap, the way these values are allocated means they cannot outlive the kernels they are created in. Trying to do so will normally be discovered by lifetime tracking and result in compilation errors, but in certain cases lifetime tracking will fail to detect a problem and experiments will encounter memory corruption at runtime. For example: ::
+    Kernels *cannot and should not* return lists, arrays, or strings they have created, or any objects containing them; in the absence of a heap, the way these values are allocated means they cannot outlive the kernels they are created in. Trying to do so will normally be discovered by lifetime tracking and result in compilation errors, but in certain cases lifetime tracking will fail to detect a problem and experiments will encounter memory corruption at runtime. For example: ::
 
         def func(a):
             return a
