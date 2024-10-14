@@ -111,7 +111,7 @@ Bypassing the PLL ensures the skews between input clock, downstream clock output
 Types of boards
 ---------------
 
-To clarify the terminology used in ARTIQ, we can distinguish the boards into a few key groups. There are two primary ways to categorize them. The first is based on the ARTIQ platform itself: either ARTIQ or ARTIQ-Zynq. ARTIQ-Zynq boards specifically refer to those that feature a Xilinx Zynq FPGA. The second distinction is based on how the boards are configured: some use a :ref:`system description file <system-description>`, while others do not.
+To clarify the terminology used in ARTIQ, we can distinguish the boards into a few key groups. There are two primary ways to categorize them. The first is based on the ARTIQ platform itself: either ARTIQ or ARTIQ-Zynq. ARTIQ-Zynq boards specifically refer to those that feature a Xilinx Zynq FPGA. The second distinction is based on how the boards are configured: some use a :ref:`JSON system description file <system-description>`, while others do not.
 
 Below are the current groups of boards:
 
@@ -120,28 +120,28 @@ Below are the current groups of boards:
 Zynq devices
 ^^^^^^^^^^^^
 
-These devices are compatible with ARTIQ-Zynq, which utilizes the Xilinx Zynq FPGA.
+These devices are compatible with ARTIQ-Zynq, which utilizes the Zynq-SoC platform.
 
 - Kasli-SoC
 - ZC706
 - EBAZ4205
 
-.. _config-file-devices:
+.. _json-variant-devices:
 
-Config file devices
-^^^^^^^^^^^^^^^^^^^
+Devices with JSON variants
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-These devices use a system description or config file for system configuration.
+These devices use a JSON system description file for configuration.
 
 - Kasli
 - Kasli-SoC
 
-.. _standalone-devices:
+.. _hardcoded-variant-devices:
 
-Standalone devices
-^^^^^^^^^^^^^^^^^^
+Devices with hardcoded variants
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-These devices do not require a system description or config file for system configuration.
+These devices do not use a JSON system description file for configuration.  The variants are hardcoded.
 
 - KC705
 - ZC706
