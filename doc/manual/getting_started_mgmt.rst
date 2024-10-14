@@ -139,8 +139,8 @@ Experiments may have arguments, values which can be set in the dashboard on subm
         self.setattr_argument("count", NumberValue(precision=0, step=1))
 
     def run(self):
-    for i in range(self.count):
-        print("Hello World", i)
+        for i in range(self.count):
+            print("Hello World", i)
 
 The method :meth:`~artiq.language.environment.HasEnvironment.setattr_argument` acts to set the argument and make its value accessible, similar to the effect of :meth:`~artiq.language.environment.HasEnvironment.setattr_device`. The second input sets the type of the argument; here, :class:`~artiq.language.environment.NumberValue` represents a floating point numerical value. To learn what other types are supported, see :class:`artiq.language.environment` and :class:`artiq.language.scan`.
 
