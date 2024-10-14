@@ -17,8 +17,6 @@ from artiq.coredevice import spi2 as spi
 from artiq.coredevice.spi2 import SPIMaster
 from artiq.coredevice.core import Core
 
-# Control Register Bits
-
 AD9834_B28 = 1 << 13
 AD9834_HLB = 1 << 12
 AD9834_FSEL = 1 << 11
@@ -32,15 +30,14 @@ AD9834_SIGN_PIB = 1 << 4
 AD9834_DIV2 = 1 << 3
 AD9834_MODE = 1 << 1
 
+AD9834_FREQ_REG_0 = 0b01 << 14
+AD9834_FREQ_REG_1 = 0b10 << 14
+FREQ_REGS = [AD9834_FREQ_REG_0, AD9834_FREQ_REG_1]
 
-class FreqReg(Enum):
-    REG0 = 0b01 << 14
-    REG1 = 0b10 << 14
-
-
-class PhaseReg(Enum):
-    REG0 = (0b11 << 14) | (0 << 13)
-    REG1 = (0b11 << 14) | (1 << 13)
+AD9834_PHASE_REG = 0b11 << 14
+AD9834_PHASE_REG_0 = AD9834_PHASE_REG | (0 << 13)
+AD9834_PHASE_REG_1 = AD9834_PHASE_REG | (1 << 13)
+PHASE_REGS = [AD9834_PHASE_REG_0, AD9834_PHASE_REG_1]
 
 
 class AD9834:
@@ -96,15 +93,15 @@ class AD9834:
         self.enable_reset()
 
     @kernel
-    def set_frequency(self, freq_reg: FreqReg, frequency: TInt32):
+    def write_frequency_reg(self, freq_reg, frequency: TFloat):
         """
-        Set the frequency for the specified FREQ register.
+        Set the frequency for the specified frequency register.
 
         This method calculates the frequency word based on the provided frequency in Hz
         and writes it to the specified frequency register.
 
         :param freq_reg: The frequency register to write to, must be one of
-                         FreqReg.REG0 or FreqReg.REG1.
+                         AD9834_FREQ_REG_0 or AD9834_FREQ_REG_1.
         :param frequency: The desired frequency in Hz, which will be converted to a
                          frequency word suitable for the AD9834.
 
@@ -116,24 +113,27 @@ class AD9834:
         then sends the least significant byte (LSB) and most significant byte (MSB) in
         two consecutive writes to the specified frequency register.
         """
+        if freq_reg not in FREQ_REGS:
+            raise ValueError("Invalid frequency register")
+        assert frequency <= 37.5 * MHz, "Frequency exceeds maximum value of 37.5 MHz"
         freq_word = int((frequency * (1 << 28)) / self.clk_freq) & 0x0FFFFFFF
         self.ctrl_reg |= AD9834_B28
         self.write(self.ctrl_reg)
         lsb = freq_word & 0x3FFF
         msb = (freq_word >> 14) & 0x3FFF
-        self.write(freq_reg.value | lsb)
-        self.write(freq_reg.value | msb)
+        self.write(freq_reg | lsb)
+        self.write(freq_reg | msb)
 
     @kernel
-    def set_frequency_msb_word(self, freq_reg: FreqReg, word: TInt32):
+    def write_frequency_reg_msb(self, freq_reg, word: TInt32):
         """
-        Set the most significant byte (MSB) of the specified FREQ register.
+        Set the most significant byte (MSB) of the specified frequency register.
 
         This method updates the specified frequency register with the provided MSB value.
         It configures the control register to indicate that the MSB is being set.
 
         :param freq_reg: The frequency register to update, must be one of
-                         FreqReg.REG0 or FreqReg.REG1.
+                         AD9834_FREQ_REG_0 or AD9834_FREQ_REG_1.
         :param word: The MSB value to be written to the frequency register,
                      limited to the lower 14 bits.
 
@@ -141,49 +141,93 @@ class AD9834:
         indicate that the MSB is being sent, and then writes the updated control register
         followed by the MSB value to the specified frequency register.
         """
+        if freq_reg not in FREQ_REGS:
+            raise ValueError("Invalid frequency register")
         self.ctrl_reg &= ~AD9834_B28
         self.ctrl_reg |= AD9834_HLB
         self.write(self.ctrl_reg)
-        self.write(freq_reg.value | (word & 0x3FFF))
+        self.write(freq_reg | (word & 0x3FFF))
 
     @kernel
-    def set_frequency_lsb_word(self, freq_reg: FreqReg, word: TInt32):
+    def write_frequency_reg_lsb(self, freq_reg, word: TInt32):
         """
-        Set the least significant byte (LSB) of the specified FREQ register.
+        Set the least significant byte (LSB) of the specified frequency register.
 
         This method updates the specified frequency register with the provided LSB value.
         It configures the control register to indicate that the LSB is being set.
 
         :param freq_reg: The frequency register to update, must be one of
-                         FreqReg.REG0 or FreqReg.REG1.
+                         AD9834_FREQ_REG_0 or AD9834_FREQ_REG_1.
         :param word: The LSB value to be written to the frequency register,
                      limited to the lower 14 bits.
 
         The method first clears the appropriate control bits and writes the updated control
         register followed by the LSB value to the specified frequency register.
         """
+        if freq_reg not in FREQ_REGS:
+            raise ValueError("Invalid frequency register")
         self.ctrl_reg &= ~AD9834_B28
         self.ctrl_reg &= ~AD9834_HLB
         self.write(self.ctrl_reg)
-        self.write(freq_reg.value | (word & 0x3FFF))
+        self.write(freq_reg | (word & 0x3FFF))
 
     @kernel
-    def set_phase(self, phase_reg: PhaseReg, phase: TInt32):
+    def select_frequency_reg(self, FSEL: bool):
         """
-        Set the phase for the specified PHASE register.
+        Select the active frequency register for the phase accumulator.
+
+        This method chooses between the two frequency registers available in the AD9834 for
+        controlling the phase of the output waveform. It updates the control register to
+        select the appropriate frequency register (FREQ_REG_0 or FREQ_REG_1).
+
+        :param FSEL: If False, selects FREQ_REG_0. If True, selects FREQ_REG_1.
+        """
+        if FSEL:
+            self.ctrl_reg |= AD9834_FSEL
+        else:
+            self.ctrl_reg &= ~AD9834_FSEL
+
+        self.ctrl_reg &= ~AD9834_PIN_SW
+        self.write(self.ctrl_reg)
+
+    @kernel
+    def write_phase_reg(self, phase_reg, phase: TInt32):
+        """
+        Set the phase for the specified phase register.
 
         This method updates the specified phase register with the provided phase value.
 
         :param phase_reg: The phase register to update, must be one of
-                          PhaseReg.REG0 or PhaseReg.REG1.
+                          AD9834_PHASE_REG_0 or AD9834_PHASE_REG_1.
         :param phase: The phase value to be written to the phase register,
                       limited to the lower 12 bits.
 
         The method masks the phase value to ensure it fits within the 12-bit limit
         and writes it to the specified phase register.
         """
+        if phase_reg not in PHASE_REGS:
+            raise ValueError("Invalid phase register")
         phase_word = phase & 0x0FFF
-        self.write(phase_reg.value | phase_word)
+        self.write(phase_reg | phase_word)
+
+    @kernel
+    def select_phase_reg(self, PSEL: bool):
+        """
+        Select the active phase register for the phase accumulator.
+
+        This method chooses between the two phase registers available in the AD9834 for
+        controlling the phase of the output waveform. It updates the control register to
+        select the appropriate phase register (PHASE_REG_0 or PHASE_REG_1).
+
+        :param PSEL: If False, selects PHASE_REG_0. If True, selects PHASE_REG_1.
+        """
+        if PSEL:
+            self.ctrl_reg |= AD9834_PSEL
+        else:
+            self.ctrl_reg &= ~AD9834_PSEL
+
+        self.ctrl_reg &= ~AD9834_PIN_SW
+        self.write(self.ctrl_reg)
 
     @kernel
     def enable_reset(self):
@@ -216,90 +260,101 @@ class AD9834:
         self.write(self.ctrl_reg)
 
     @kernel
-    def sleep(
-        self,
-        dac_powerdown: bool = False,
-        internal_clk_disable: bool = False,
-        pin_sw: bool = False,
-    ):
+    def sleep(self, dac_pd: bool = False, clk_dis: bool = False):
         """
-        Put the AD9834 into sleep mode based on specified conditions.
+        Put the AD9834 into sleep mode by selectively powering down the DAC and/or disabling the internal clock.
 
-        :param dac_powerdown: Power down the DAC (SLEEP12 bit).
-        :param internal_clk_disable: Disable the internal clock (SLEEP1 bit).
-        :param pin_sw: Control via PIN/SW (PIN/SW bit).
+        This method controls the sleep mode behavior of the AD9834 by setting or clearing the corresponding bits
+        in the control register. Two independent options can be specified:
+
+        - `dac_pd`: Power down the DAC, reducing power consumption (SLEEP12 bit).
+        - `clk_dis`: Disable the internal clock, stopping frequency generation but maintaining register
+          contents (SLEEP1 bit).
+
+        :param dac_pd: Set to True to power down the DAC (SLEEP12 bit is set). False will leave the DAC active.
+        :param clk_dis: Set to True to disable the internal clock (SLEEP1 bit is set). False will keep
+        the clock running.
+
+        Both options can be enabled independently, allowing the DAC and/or clock to be powered down as needed.
+        The method updates the control register and writes the changes to the AD9834 device.
         """
-        # Control PIN/SW bit
-        if pin_sw:
-            self.ctrl_reg |= AD9834_PIN_SW
-        else:
-            self.ctrl_reg &= ~AD9834_PIN_SW
-
-        # Handle SLEEP12 (DAC power-down)
-        if dac_powerdown:
+        if dac_pd:
             self.ctrl_reg |= AD9834_SLEEP12
         else:
             self.ctrl_reg &= ~AD9834_SLEEP12
 
-        # Handle SLEEP1 (internal clock disable)
-        if internal_clk_disable:
+        if clk_dis:
             self.ctrl_reg |= AD9834_SLEEP1
         else:
             self.ctrl_reg &= ~AD9834_SLEEP1
 
-        # Write the updated control register to the AD9834
         self.write(self.ctrl_reg)
 
     @kernel
-    def configure_sign_bit_out(
+    def awake(self):
+        """
+        Exit sleep mode and restore normal operation.
+
+        This method brings the AD9834 out of sleep mode by clearing any DAC power-down or
+        internal clock disable settings. It calls the `sleep()` method with no arguments,
+        effectively setting both `dac_powerdown` and `internal_clk_disable` to False.
+
+        The device will resume generating output based on the current frequency and phase
+        settings.
+        """
+        self.sleep()
+
+    @kernel
+    def config_sign_bit_out(
         self,
-        high_impedance: bool = False,
-        dac_data_msb_2: bool = False,
-        dac_data_msb: bool = False,
-        comparator_output: bool = False,
+        high_z: bool = False,
+        msb_2: bool = False,
+        msb: bool = False,
+        comp_out: bool = False,
     ):
         """
-        Configure the SIGN BIT OUT pin based on boolean flags.
+        Configure the SIGN BIT OUT pin for various output modes.
 
-        The user can pass True for one of the parameters to set the desired output mode.
+        This method sets the output mode for the SIGN BIT OUT pin of the AD9834 based on the provided flags.
+        The user can enable one of several modes, including high impedance, MSB/2 output, MSB output,
+        or comparator output. These modes are mutually exclusive, and passing `True` to one flag will
+        configure the corresponding mode, while other flags should be left as `False`.
 
-        :param high_impedance: Set to True for High Impedance mode.
-        :param dac_data_msb_2: Set to True for DAC Data MSB/2 output.
-        :param dac_data_msb: Set to True for DAC Data MSB output.
-        :param comparator_output: Set to True for Comparator output.
+        - `high_z`: High Impedance (disables output).
+        - `msb_2`: DAC Data MSB divided by 2.
+        - `msb`: DAC Data MSB.
+        - `comp_out`: Comparator output.
+
+        :param high_z: Set to True to place the SIGN BIT OUT pin in high impedance (disabled) mode.
+        :param msb_2: Set to True to output DAC Data MSB divided by 2 on the SIGN BIT OUT pin.
+        :param msb: Set to True to output DAC Data MSB on the SIGN BIT OUT pin.
+        :param comp_out: Set to True to output the comparator signal on the SIGN BIT OUT pin.
+
+        Only one flag should be set to True at a time. If no valid mode is selected, the SIGN BIT OUT pin
+        will default to high impedance mode.
+
+        The method updates the control register with the appropriate configuration and writes it to the AD9834.
         """
-
-        # Default to high impedance if nothing is explicitly enabled
-        if high_impedance:
-            # High impedance state, clear OPBITEN
+        if high_z:
             self.ctrl_reg &= ~AD9834_OPBITEN
-
-        elif dac_data_msb_2:
-            # DAC data MSB/2: OPBITEN = 1, MODE = 0, SIGN/PIB = 0, DIV2 = 0
+        elif msb_2:
             self.ctrl_reg |= AD9834_OPBITEN
             self.ctrl_reg &= ~AD9834_MODE
             self.ctrl_reg &= ~AD9834_SIGN_PIB
             self.ctrl_reg &= ~AD9834_DIV2
-
-        elif dac_data_msb:
-            # DAC data MSB: OPBITEN = 1, MODE = 0, SIGN/PIB = 0, DIV2 = 1
+        elif msb:
             self.ctrl_reg |= AD9834_OPBITEN
             self.ctrl_reg &= ~AD9834_MODE
             self.ctrl_reg &= ~AD9834_SIGN_PIB
             self.ctrl_reg |= AD9834_DIV2
-
-        elif comparator_output:
-            # Comparator output: OPBITEN = 1, MODE = 0, SIGN/PIB = 1, DIV2 = 1
+        elif comp_out:
             self.ctrl_reg |= AD9834_OPBITEN
             self.ctrl_reg &= ~AD9834_MODE
             self.ctrl_reg |= AD9834_SIGN_PIB
             self.ctrl_reg |= AD9834_DIV2
-
         else:
-            # Default to high impedance if no valid mode is selected
             self.ctrl_reg &= ~AD9834_OPBITEN
 
-        # Write the updated control register to the AD9834
         self.write(self.ctrl_reg)
 
     @kernel
