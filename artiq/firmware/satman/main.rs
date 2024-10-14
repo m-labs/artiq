@@ -55,9 +55,15 @@ fn drtiosat_reset_phy(reset: bool) {
 }
 
 fn drtiosat_link_rx_up() -> bool {
+    #[cfg(not(has_drtio_eem))]
     unsafe {
         csr::drtiosat::rx_up_read() == 1
     }
+
+    // RX is always up for satellite devices with EEM master
+    // See the OOB reset
+    #[cfg(has_drtio_eem)]
+    true
 }
 
 fn drtiosat_tsc_loaded() -> bool {
@@ -777,7 +783,16 @@ pub extern fn main() -> i32 {
     });
 
     #[cfg(has_drtio_eem)]
-    drtio_eem::init();
+    {
+        drtio_eem::init();
+        while !unsafe { drtio_eem::align_comma(0) } {
+            error!("comma alignment failed, retrying in 1s...");
+            clock::spin_us(1_000_000);
+        }
+        unsafe {
+            csr::eem_transceiver::rx_ready_en_write(1)
+        }
+    }
 
     #[cfg(has_drtio_routing)]
     let mut repeaters = [repeater::Repeater::default(); csr::DRTIOREP.len()];

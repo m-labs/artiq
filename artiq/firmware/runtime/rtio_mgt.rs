@@ -16,6 +16,8 @@ const ASYNC_ERROR_SEQUENCE_ERROR: u8 = 1 << 2;
 pub mod drtio {
     use super::*;
     use alloc::vec::Vec;
+    #[cfg(has_drtio_eem)]
+    use board_artiq::drtio_eem;
     use drtioaux;
     use proto_artiq::drtioaux_proto::{MASTER_PAYLOAD_MAX_SIZE, PayloadStatus};
     use rtio_dma::remote_dma;
@@ -23,6 +25,9 @@ pub mod drtio {
     use analyzer::remote_analyzer::RemoteBuffer;
     use kernel::subkernel;
     use sched::Error as SchedError;
+
+    #[cfg(has_drtio_eem)]
+    const DRTIO_EEM_LINKNOS: core::ops::Range<usize> = (csr::DRTIO.len()-csr::CONFIG_EEM_DRTIO_COUNT as usize)..csr::DRTIO.len();
 
     #[derive(Fail, Debug)]
     pub enum Error {
@@ -73,6 +78,14 @@ pub mod drtio {
 
     fn link_rx_up(linkno: u8) -> bool {
         let linkno = linkno as usize;
+        #[cfg(has_drtio_eem)]
+        {
+            if DRTIO_EEM_LINKNOS.contains(&linkno) {
+                return unsafe {
+                    csr::eem_transceiver::rx_alive_read() == 1
+                }
+            }
+        }
         unsafe {
             (csr::DRTIO[linkno].rx_up_read)() == 1
         }
@@ -418,6 +431,17 @@ pub mod drtio {
                 } else {
                     /* link was previously down */
                     if link_rx_up(linkno) {
+                        #[cfg(has_drtio_eem)]
+                        if DRTIO_EEM_LINKNOS.contains(&(linkno as usize)) {
+                            let eem_trx_no = linkno - DRTIO_EEM_LINKNOS.start as u8;
+                            if !unsafe {drtio_eem::align_comma(eem_trx_no)} {
+                                error!("[LINK#{}] link RX became up but comma alignment failed", linkno);
+                                continue;
+                            }
+                            unsafe {
+                                csr::eem_transceiver::rx_ready_en_write(1)
+                            }
+                        }
                         info!("[LINK#{}] link RX became up, pinging", linkno);
                         let ping_count = ping_remote(&io, aux_mutex, linkno);
                         if ping_count > 0 {
