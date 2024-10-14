@@ -279,7 +279,7 @@ Adding a custom EEM
 -------------------
 
 .. note::
-    Adding a custom EEM to a Kasli or Kasli-SoC system is not much more difficult than adding new gateware logic for existing hardware, and may in some cases be simpler, if no custom PHY is required. On the other hand, modifying hardware in systems with :ref:`devices with hardcoded variants <hardcoded-variant-devices>` is a different process, and gateware generation for these boards does not use the files and modules described below. Creating new variants for :ref:`devices with hardcoded variants <hardcoded-variant-devices>` is not directly addressed in this tutorial. That said, it would begin and end largely in the respective target file, where the variants are defined.
+    Adding a custom EEM to a Kasli or Kasli-SoC system is not much more difficult than adding new gateware logic for existing hardware, and may in some cases be simpler, if no custom PHY is required. On the other hand, modifying hardware in :ref:`devices with hardcoded variants <hardcoded-variant-devices>` is a different process, and gateware generation for these boards does not use the files and modules described below. Creating new variants for :ref:`devices with hardcoded variants <hardcoded-variant-devices>` is not directly addressed in this tutorial. That said, it would begin and end largely in the respective target file, where the variants are defined.
 
     Non-realtime hardware which does not need to connect directly to the core device or require gateware support should instead be handled through an NDSP, see :doc:`developing_a_ndsp`. This is a more accessible process in general and does not vary based on core device.
 
