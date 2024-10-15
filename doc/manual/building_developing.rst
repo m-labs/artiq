@@ -37,7 +37,7 @@ ARTIQ gateware and firmware binaries are dependent on the system configuration. 
 
 .. warning::
 
-    System description files are only used for :ref:`devices with JSON variants <json-variant-devices>`.  :ref:`hardcoded-variant-devices`, due to their relative rarity and specialization, are handled on a case-by-case basis and selected through a variant name such as ``nist_clock``, with no system description file necessary. See below in :ref:`building` for where to find the list of supported variants. Writing new variants for :ref:`devices with hardcoded variants <hardcoded-variant-devices>` is not a trivial task, and not particularly recommended, unless you are an FPGA developer and know what you're doing.
+    Not all core devices use system description files. Devices that use system description files for configuration are referred to as JSON variants (see :ref:`JSON variant devices <devices-table>`). Some rare or specialized boards use hardcoded variants, selected by a variant name such as ``nist_clock``, without needing a system description file (see :ref:`Hardcoded variant devices <devices-table>`). For the list of supported variants, see the :ref:`building` section. Writing new hardcoded variants is not a trivial task and is generally not recommended unless you are an experienced FPGA developer.
 
 If you already have your system description file on hand, you can edit it to reflect any changes in configuration. If you purchased your original system from M-Labs, or recently purchased new hardware to add to it, you can obtain your up-to-date system description file through AFWS at any time using the command ``$ afws_client get_json`` (see :ref:`AFWS client<afws-client>`). If you are starting from scratch, a close reading of ``coredevice_generic.schema.json`` in ``artiq/coredevice`` will be helpful.
 
@@ -104,7 +104,7 @@ Nix development environment
 
     - If using NixOS, instead make the equivalent changes to your ``configuration.nix``.
 
-* Clone `the ARTIQ Git repository <https://github.com/m-labs/artiq>`_, or `the ARTIQ-Zynq repository <https://git.m-labs.hk/M-Labs/artiq-zynq>`__ for :ref:`zynq-devices` (Kasli-SoC, ZC706, or EBAZ4205). By default, you are working with the ``master`` branch, which represents the beta version and is not stable (see :doc:`releases`). Checkout the most recent release (``git checkout release-[number]``) for a stable version.
+* Clone `the ARTIQ Git repository <https://github.com/m-labs/artiq>`_, or `the ARTIQ-Zynq repository <https://git.m-labs.hk/M-Labs/artiq-zynq>`__ for :ref:`Zynq devices <devices-table>` (Kasli-SoC, ZC706, or EBAZ4205). By default, you are working with the ``master`` branch, which represents the beta version and is not stable (see :doc:`releases`). Checkout the most recent release (``git checkout release-[number]``) for a stable version.
 * If your Vivado installation is not in its default location ``/opt``, open ``flake.nix`` and edit it accordingly (note that the edits must be made in the main ARTIQ flake, even if you are working with Zynq, see also tip below).
 * Run ``nix develop`` at the root of the repository, where ``flake.nix`` is.
 
@@ -174,7 +174,7 @@ This will create a directory ``artiq_kasli`` or ``artiq_kc705`` containing the b
 Kasli-SoC, ZC706 or EBAZ4205 (ARTIQ on Zynq)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The building process for :ref:`zynq-devices` is a little more complex. The easiest method is to leverage ``nix build`` and the ``makeArtiqZynqPackage`` utility provided by the official flake. The ensuing command is rather long, because it uses a multi-clause expression in the Nix language to describe the desired result; it can be executed piece-by-piece using the `Nix REPL <https://nix.dev/manual/nix/2.18/command-ref/new-cli/nix3-repl.html>`_, but ``nix build`` provides a lot of useful conveniences.
+The building process for :ref:`Zynq devices <devices-table>` is a little more complex. The easiest method is to leverage ``nix build`` and the ``makeArtiqZynqPackage`` utility provided by the official flake. The ensuing command is rather long, because it uses a multi-clause expression in the Nix language to describe the desired result; it can be executed piece-by-piece using the `Nix REPL <https://nix.dev/manual/nix/2.18/command-ref/new-cli/nix3-repl.html>`_, but ``nix build`` provides a lot of useful conveniences.
 
 For Kasli-SoC, run: ::
 
@@ -223,7 +223,7 @@ After a successful boot, the "FPGA DONE" light should be illuminated and the boa
 Booting over JTAG/Ethernet
 """"""""""""""""""""""""""
 
-It is also possible to boot :ref:`zynq-devices` over USB and Ethernet (EBAZ4205 not currently supported). Flip the DIP switches to JTAG. The scripts ``remote_run.sh`` and ``local_run.sh`` in the ARTIQ-Zynq repository, intended for use with a remote JTAG server or a local connection to the core device respectively, are used at M-Labs to accomplish this. Both make use of the netboot tool ``artiq_netboot``, see also its source `here <https://git.m-labs.hk/M-Labs/artiq-netboot>`__, which is included in the ARTIQ-Zynq development environment. Adapt the relevant script to your system or read it closely to understand the options and the commands being run; note for example that ``remote_run.sh`` as written only supports ZC706.
+It is also possible to boot :ref:`Zynq devices <devices-table>` over USB and Ethernet (EBAZ4205 not currently supported). Flip the DIP switches to JTAG. The scripts ``remote_run.sh`` and ``local_run.sh`` in the ARTIQ-Zynq repository, intended for use with a remote JTAG server or a local connection to the core device respectively, are used at M-Labs to accomplish this. Both make use of the netboot tool ``artiq_netboot``, see also its source `here <https://git.m-labs.hk/M-Labs/artiq-netboot>`__, which is included in the ARTIQ-Zynq development environment. Adapt the relevant script to your system or read it closely to understand the options and the commands being run; note for example that ``remote_run.sh`` as written only supports ZC706.
 
 You will need to generate the gateware, firmware and bootloader first, either through ``nix build`` or incrementally as below. After an incremental build add the option ``-i`` when running either of the scripts. If using ``nix build``, note that target names of the form ``<board>-<variant>-jtag`` (run ``nix flake show`` to see all targets) will output the three necessary files without combining them into ``boot.bin``.
 

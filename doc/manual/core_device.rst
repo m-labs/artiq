@@ -39,7 +39,7 @@ The core device reserves some storage space (either flash or directly on SD card
 ``device_map``
   If set, allows the core log to connect RTIO channels to device names and use device names as well as channel numbers in log output. A correctly formatted table can be automatically generated with :mod:`~artiq.frontend.artiq_rtiomap`, see :ref:`Utilities<rtiomap-tool>`.
 ``net_trace``
-  If set to ``1``, will activate net trace (print all packets sent and received to UART and core log). This will considerably slow down all network response from the core. Not applicable for ARTIQ-Zynq (:ref:`zynq-devices`).
+  If set to ``1``, will activate net trace (print all packets sent and received to UART and core log). This will considerably slow down all network response from the core. Not applicable for ARTIQ-Zynq (see :ref:`Zynq devices <devices-table>`).
 ``panic_reset``
   If set to ``1``, core device will restart automatically.  Not applicable for ARTIQ-Zynq.
 ``no_flash_boot``
@@ -115,37 +115,17 @@ To clarify the terminology used in ARTIQ, we can distinguish the boards into a f
 
 Below are the current groups of boards:
 
-.. _zynq-devices:
+.. _devices-table:
 
-Zynq devices
-^^^^^^^^^^^^
-
-These devices are compatible with ARTIQ-Zynq, which utilizes the Zynq-SoC platform.
-
-- Kasli-SoC
-- ZC706
-- EBAZ4205
-
-.. _json-variant-devices:
-
-Devices with JSON variants
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-These devices use a JSON system description file for configuration.
-
-- Kasli
-- Kasli-SoC
-
-.. _hardcoded-variant-devices:
-
-Devices with hardcoded variants
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-These devices do not use a JSON system description file for configuration.  The variants are hardcoded.
-
-- KC705
-- ZC706
-- EBAZ4205
++------------------------------+------------------------------+
+| **Device Type**              | **Devices**                  |
++==============================+==============================+
+| Zynq devices                 | Kasli-SoC, ZC706, EBAZ4205   |
++------------------------------+------------------------------+
+| JSON variant devices         | Kasli, Kasli-SoC             |
++------------------------------+------------------------------+
+| Hardcoded variant devices    | KC705, ZC706, EBAZ4205       |
++------------------------------+------------------------------+
 
 Board details
 -------------
