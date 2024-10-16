@@ -55,6 +55,9 @@ For Kasli-SoC:
 For ZC706:
     If the ``ip`` config is not set, ZC706 firmware defaults to using the IP address ``192.168.1.52``.
 
+For EBAZ4205:
+    If the ``ip`` config is not set, EBAZ4205 firmware defaults to using the IP address ``192.168.1.57``.
+
 For Kasli or KC705:
     If the ``ip`` config field is not set or set to ``use_dhcp``, the device will attempt to obtain an IP address and default gateway using DHCP. The chosen IP address will be in log output, which can be accessed via the :ref:`UART log <connecting-UART>`.
 

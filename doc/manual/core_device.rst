@@ -39,7 +39,7 @@ The core device reserves some storage space (either flash or directly on SD card
 ``device_map``
   If set, allows the core log to connect RTIO channels to device names and use device names as well as channel numbers in log output. A correctly formatted table can be automatically generated with :mod:`~artiq.frontend.artiq_rtiomap`, see :ref:`Utilities<rtiomap-tool>`.
 ``net_trace``
-  If set to ``1``, will activate net trace (print all packets sent and received to UART and core log). This will considerably slow down all network response from the core. Not applicable for ARTIQ-Zynq (Kasli-SoC, ZC706).
+  If set to ``1``, will activate net trace (print all packets sent and received to UART and core log). This will considerably slow down all network response from the core. Not applicable for ARTIQ-Zynq (see :ref:`Zynq devices <devices-table>`).
 ``panic_reset``
   If set to ``1``, core device will restart automatically.  Not applicable for ARTIQ-Zynq.
 ``no_flash_boot``
@@ -105,6 +105,27 @@ If not using WRPLL, PLL can also be bypassed entirely with the options
     * ``ext0_bypass_100`` (explicit alias)
 
 Bypassing the PLL ensures the skews between input clock, downstream clock outputs, and RTIO clock are deterministic across reboots of the system. This is useful when phase determinism is required in situations where the reference clock fans out to other devices before reaching the master.
+
+.. _types-of-boards:
+
+Types of boards
+---------------
+
+To clarify the terminology used in ARTIQ, we can distinguish the boards into a few key groups. There are two primary ways to categorize them. The first is based on the ARTIQ platform itself: either ARTIQ or ARTIQ-Zynq. ARTIQ-Zynq boards specifically refer to those that feature a Xilinx Zynq FPGA. The second distinction is based on how the boards are configured: some use a :ref:`JSON system description file <system-description>`, while others do not.
+
+Below are the current groups of boards:
+
+.. _devices-table:
+
++------------------------------+------------------------------+
+| **Device Type**              | **Devices**                  |
++==============================+==============================+
+| Zynq devices                 | Kasli-SoC, ZC706, EBAZ4205   |
++------------------------------+------------------------------+
+| JSON variant devices         | Kasli, Kasli-SoC             |
++------------------------------+------------------------------+
+| Hardcoded variant devices    | KC705, ZC706, EBAZ4205       |
++------------------------------+------------------------------+
 
 Board details
 -------------
