@@ -20,6 +20,7 @@ ARTIQ-9 (Unreleased)
 * Compiler can now give automatic suggestions for ``kernel_invariants``. 
 * Idle kernels now restart when written with ``artiq_coremgmt`` and stop when erased/removed from config.
 * New support for the EBAZ4205 Zynq-SoC control card.
+* New core device driver for AD9834 DDS.
 
 ARTIQ-8
 -------
