@@ -41,77 +41,77 @@ class AD9834Exp(EnvExperiment):
         self.set_dataset("ctrl_reg", self.dev.ctrl_reg)
 
     @kernel
-    def write_frequency_reg_fail1(self):
+    def set_frequency_reg_fail1(self):
         self.core.break_realtime()
         frequency = 10 * MHz
-        self.dev.write_frequency_reg(19, frequency)
+        self.dev.set_frequency_reg(19, frequency)
 
     @kernel
-    def write_frequency_reg_fail2(self):
+    def set_frequency_reg_fail2(self):
         self.core.break_realtime()
-        self.dev.write_frequency_reg(FREQ_REGS[0], 37.6 * MHz)
+        self.dev.set_frequency_reg(FREQ_REGS[0], 37.6 * MHz)
 
     @kernel
-    def write_frequency_reg(self):
+    def set_frequency_reg(self):
         self.core.break_realtime()
         self.dev.init()
-        self.dev.write_frequency_reg(FREQ_REGS[1], 19 * MHz)
+        self.dev.set_frequency_reg(FREQ_REGS[1], 19 * MHz)
         self.set_dataset("ctrl_reg", self.dev.ctrl_reg)
 
     @kernel
-    def write_frequency_reg_msb(self):
+    def set_frequency_reg_msb(self):
         self.core.break_realtime()
         self.dev.init()
         self.dev.ctrl_reg |= AD9834_B28
-        self.dev.write_frequency_reg_msb(FREQ_REGS[0], 0x1111)
+        self.dev.set_frequency_reg_msb(FREQ_REGS[0], 0x1111)
         self.set_dataset("ctrl_reg", self.dev.ctrl_reg)
 
     @kernel
-    def write_frequency_reg_lsb(self):
+    def set_frequency_reg_lsb(self):
         self.core.break_realtime()
         self.dev.init()
         self.dev.ctrl_reg |= AD9834_B28 | AD9834_HLB
-        self.dev.write_frequency_reg_lsb(FREQ_REGS[1], 0xFFFF)
+        self.dev.set_frequency_reg_lsb(FREQ_REGS[1], 0xFFFF)
         self.set_dataset("ctrl_reg", self.dev.ctrl_reg)
 
     @kernel
     def select_frequency_reg_0(self):
         self.core.break_realtime()
         self.dev.ctrl_reg |= AD9834_FSEL | AD9834_PIN_SW
-        self.dev.select_frequency_reg(False)
+        self.dev.select_frequency_reg(FREQ_REGS[0])
         self.set_dataset("ctrl_reg", self.dev.ctrl_reg)
 
     @kernel
     def select_frequency_reg_1(self):
         self.core.break_realtime()
         self.dev.ctrl_reg |= AD9834_PIN_SW
-        self.dev.select_frequency_reg(True)
+        self.dev.select_frequency_reg(FREQ_REGS[1])
         self.set_dataset("ctrl_reg", self.dev.ctrl_reg)
 
     @kernel
-    def write_phase_reg_fail(self):
+    def set_phase_reg_fail(self):
         self.core.break_realtime()
-        self.dev.write_phase_reg(19, 0x123)
+        self.dev.set_phase_reg(19, 0x123)
 
     @kernel
-    def write_phase_reg(self):
+    def set_phase_reg(self):
         self.core.break_realtime()
         self.dev.init()
-        self.dev.write_phase_reg(PHASE_REGS[0], 0x123)
+        self.dev.set_phase_reg(PHASE_REGS[0], 0x123)
         self.set_dataset("ctrl_reg", self.dev.ctrl_reg)
 
     @kernel
     def select_phase_reg_0(self):
         self.core.break_realtime()
         self.dev.ctrl_reg |= AD9834_PSEL | AD9834_PIN_SW
-        self.dev.select_phase_reg(False)
+        self.dev.select_phase_reg(PHASE_REGS[0])
         self.set_dataset("ctrl_reg", self.dev.ctrl_reg)
 
     @kernel
     def select_phase_reg_1(self):
         self.core.break_realtime()
         self.dev.ctrl_reg |= AD9834_PIN_SW
-        self.dev.select_phase_reg(True)
+        self.dev.select_phase_reg(PHASE_REGS[1])
         self.set_dataset("ctrl_reg", self.dev.ctrl_reg)
 
     @kernel
@@ -208,24 +208,24 @@ class AD9834Test(ExperimentCase):
         self.assertEqual(clk_freq, 75 * MHz)
         self.assertEqual(ctrl_reg, 0x0000 | AD9834_RESET)
 
-    def test_write_frequency_reg_fail(self):
+    def test_set_frequency_reg_fail(self):
         with self.assertRaises(ValueError):
-            self.execute(AD9834Exp, "write_frequency_reg_fail1")
+            self.execute(AD9834Exp, "set_frequency_reg_fail1")
         with self.assertRaises(AssertionError):
-            self.execute(AD9834Exp, "write_frequency_reg_fail2")
+            self.execute(AD9834Exp, "set_frequency_reg_fail2")
 
-    def test_write_frequency_reg(self):
-        self.execute(AD9834Exp, "write_frequency_reg")
+    def test_set_frequency_reg(self):
+        self.execute(AD9834Exp, "set_frequency_reg")
         ctrl_reg = self.dataset_mgr.get("ctrl_reg")
         self.assertEqual(ctrl_reg, 0x0000 | AD9834_RESET | AD9834_B28)
 
-    def test_write_frequency_reg_msb(self):
-        self.execute(AD9834Exp, "write_frequency_reg_msb")
+    def test_set_frequency_reg_msb(self):
+        self.execute(AD9834Exp, "set_frequency_reg_msb")
         ctrl_reg = self.dataset_mgr.get("ctrl_reg")
         self.assertEqual(ctrl_reg, 0x0000 | AD9834_RESET | AD9834_HLB)
 
-    def test_write_frequency_reg_lsb(self):
-        self.execute(AD9834Exp, "write_frequency_reg_lsb")
+    def test_set_frequency_reg_lsb(self):
+        self.execute(AD9834Exp, "set_frequency_reg_lsb")
         ctrl_reg = self.dataset_mgr.get("ctrl_reg")
         self.assertEqual(ctrl_reg, 0x0000 | AD9834_RESET)
 
@@ -239,12 +239,12 @@ class AD9834Test(ExperimentCase):
         ctrl_reg = self.dataset_mgr.get("ctrl_reg")
         self.assertEqual(ctrl_reg, 0x0000 | AD9834_FSEL)
 
-    def test_write_phase_reg_fail(self):
+    def test_set_phase_reg_fail(self):
         with self.assertRaises(ValueError):
-            self.execute(AD9834Exp, "write_phase_reg_fail")
+            self.execute(AD9834Exp, "set_phase_reg_fail")
 
-    def test_write_phase_reg(self):
-        self.execute(AD9834Exp, "write_phase_reg")
+    def test_set_phase_reg(self):
+        self.execute(AD9834Exp, "set_phase_reg")
         ctrl_reg = self.dataset_mgr.get("ctrl_reg")
         self.assertEqual(ctrl_reg, 0x0000 | AD9834_RESET)
 

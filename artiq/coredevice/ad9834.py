@@ -14,9 +14,6 @@ from artiq.language.types import *
 from artiq.language.units import *
 from artiq.coredevice import spi2 as spi
 
-from artiq.coredevice.spi2 import SPIMaster
-from artiq.coredevice.core import Core
-
 AD9834_B28 = 1 << 13
 AD9834_HLB = 1 << 12
 AD9834_FSEL = 1 << 11
@@ -64,12 +61,10 @@ class AD9834:
     ):
         self.core = dmgr.get(core_device)
         self.bus = dmgr.get(spi_device)
+        assert spi_freq <= 40 * MHz, "SPI frequency exceeds maximum value of 40 MHz"
         self.spi_freq = spi_freq
         self.clk_freq = clk_freq
         self.ctrl_reg = 0x0000
-        assert (
-            self.spi_freq <= 40 * MHz
-        ), "SPI frequency exceeds maximum value of 40 MHz"
 
     @kernel
     def init(self):
@@ -93,7 +88,7 @@ class AD9834:
         self.enable_reset()
 
     @kernel
-    def write_frequency_reg(self, freq_reg, frequency: TFloat):
+    def set_frequency_reg(self, freq_reg, frequency: TFloat):
         """
         Set the frequency for the specified frequency register.
 
@@ -125,7 +120,7 @@ class AD9834:
         self.write(freq_reg | msb)
 
     @kernel
-    def write_frequency_reg_msb(self, freq_reg, word: TInt32):
+    def set_frequency_reg_msb(self, freq_reg, word: TInt32):
         """
         Set the most significant byte (MSB) of the specified frequency register.
 
@@ -149,7 +144,7 @@ class AD9834:
         self.write(freq_reg | (word & 0x3FFF))
 
     @kernel
-    def write_frequency_reg_lsb(self, freq_reg, word: TInt32):
+    def set_frequency_reg_lsb(self, freq_reg, word: TInt32):
         """
         Set the least significant byte (LSB) of the specified frequency register.
 
@@ -172,26 +167,29 @@ class AD9834:
         self.write(freq_reg | (word & 0x3FFF))
 
     @kernel
-    def select_frequency_reg(self, FSEL: bool):
+    def select_frequency_reg(self, freq_reg):
         """
         Select the active frequency register for the phase accumulator.
 
-        This method chooses between the two frequency registers available in the AD9834 for
-        controlling the phase of the output waveform. It updates the control register to
-        select the appropriate frequency register (FREQ_REG_0 or FREQ_REG_1).
+        This method chooses between the two available frequency registers in the AD9834 to
+        control the frequency of the output waveform. The control register is updated
+        to reflect the selected frequency register.
 
-        :param FSEL: If False, selects FREQ_REG_0. If True, selects FREQ_REG_1.
+        :param freq_reg: The frequency register to select. Must be one of AD9834_FREQ_REG_0 or
+                         AD9834_FREQ_REG_1. Raises a ValueError if an invalid register is specified.
         """
-        if FSEL:
-            self.ctrl_reg |= AD9834_FSEL
-        else:
+        if freq_reg not in FREQ_REGS:
+            raise ValueError("Invalid frequency register")
+        if freq_reg == FREQ_REGS[0]:
             self.ctrl_reg &= ~AD9834_FSEL
+        else:
+            self.ctrl_reg |= AD9834_FSEL
 
         self.ctrl_reg &= ~AD9834_PIN_SW
         self.write(self.ctrl_reg)
 
     @kernel
-    def write_phase_reg(self, phase_reg, phase: TInt32):
+    def set_phase_reg(self, phase_reg, phase: TInt32):
         """
         Set the phase for the specified phase register.
 
@@ -211,20 +209,23 @@ class AD9834:
         self.write(phase_reg | phase_word)
 
     @kernel
-    def select_phase_reg(self, PSEL: bool):
+    def select_phase_reg(self, phase_reg):
         """
         Select the active phase register for the phase accumulator.
 
-        This method chooses between the two phase registers available in the AD9834 for
-        controlling the phase of the output waveform. It updates the control register to
-        select the appropriate phase register (PHASE_REG_0 or PHASE_REG_1).
+        This method chooses between the two available phase registers in the AD9834 to
+        control the phase of the output waveform. The control register is updated
+        to reflect the selected phase register.
 
-        :param PSEL: If False, selects PHASE_REG_0. If True, selects PHASE_REG_1.
+        :param phase_reg: The phase register to select. Must be one of AD9834_PHASE_REG_0 or
+                         AD9834_PHASE_REG_1. Raises a ValueError if an invalid register is specified.
         """
-        if PSEL:
-            self.ctrl_reg |= AD9834_PSEL
-        else:
+        if phase_reg not in PHASE_REGS:
+            raise ValueError("Invalid phase register")
+        if phase_reg == PHASE_REGS[0]:
             self.ctrl_reg &= ~AD9834_PSEL
+        else:
+            self.ctrl_reg |= AD9834_PSEL
 
         self.ctrl_reg &= ~AD9834_PIN_SW
         self.write(self.ctrl_reg)
