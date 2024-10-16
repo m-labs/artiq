@@ -1,22 +1,22 @@
-from artiq.experiment import *
-from artiq.test.hardware_testbench import ExperimentCase
-from artiq.language.units import MHz
 from artiq.coredevice.ad9834 import (
     AD9834_B28,
-    AD9834_HLB,
+    AD9834_DIV2,
     AD9834_FSEL,
-    AD9834_PSEL,
+    AD9834_HLB,
+    AD9834_MODE,
+    AD9834_OPBITEN,
     AD9834_PIN_SW,
+    AD9834_PSEL,
     AD9834_RESET,
+    AD9834_SIGN_PIB,
     AD9834_SLEEP1,
     AD9834_SLEEP12,
-    AD9834_OPBITEN,
-    AD9834_SIGN_PIB,
-    AD9834_DIV2,
-    AD9834_MODE,
     FREQ_REGS,
     PHASE_REGS,
 )
+from artiq.experiment import *
+from artiq.language.units import MHz
+from artiq.test.hardware_testbench import ExperimentCase
 
 
 class AD9834Exp(EnvExperiment):

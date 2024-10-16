@@ -6,13 +6,11 @@ RTIO Driver for the Analog Devices AD9834 DDS via 3-wire SPI interface.
 # https://www.analog.com/media/en/technical-documentation/data-sheets/AD9834.pdf
 # https://www.analog.com/media/en/technical-documentation/app-notes/an-1070.pdf
 
-from enum import Enum
-
+from artiq.coredevice import spi2 as spi
 from artiq.experiment import *
 from artiq.language.core import *
 from artiq.language.types import *
 from artiq.language.units import *
-from artiq.coredevice import spi2 as spi
 
 AD9834_B28 = 1 << 13
 AD9834_HLB = 1 << 12
