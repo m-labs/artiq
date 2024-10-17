@@ -2,7 +2,6 @@
 RTIO Driver for the Analog Devices AD9834 DDS via 3-wire SPI interface.
 """
 
-# https://github.com/analogdevicesinc/linux/blob/main/drivers/staging/iio/frequency/ad9834.c
 # https://www.analog.com/media/en/technical-documentation/data-sheets/AD9834.pdf
 # https://www.analog.com/media/en/technical-documentation/app-notes/an-1070.pdf
 
@@ -37,14 +36,14 @@ PHASE_REGS = [AD9834_PHASE_REG_0, AD9834_PHASE_REG_1]
 
 class AD9834:
     """
-    AD9834 DDS channel driver.
+    AD9834 DDS driver.
 
-    This class provides control for a single DDS channel on the AD9834.
+    This class provides control for the DDS AD9834.
 
-    The driver utilizes bit-controlled FSELECT, PSELECT, and RESET.
-    To pin control these, set AD9834_PIN_SW.
-    The `ctrl_reg` attribute is used to maintain the state of the control register,
-    enabling persistent management of various configurations.
+    The driver utilizes bit-controlled :const:`AD9834_FSEL`, :const:`AD9834_PSEL`, and
+    :const:`AD9834_RESET`. To pin control ``FSELECT``, ``PSELECT``, and ``RESET`` set
+    :const:`AD9834_PIN_SW`. The ``ctrl_reg`` attribute is used to maintain the state of
+    the control register, enabling persistent management of various configurations.
 
     :param spi_device: SPI bus device name.
     :param spi_freq: SPI bus clock frequency (default: 10 MHz, max: 40 MHz).
@@ -62,20 +61,20 @@ class AD9834:
         assert spi_freq <= 40 * MHz, "SPI frequency exceeds maximum value of 40 MHz"
         self.spi_freq = spi_freq
         self.clk_freq = clk_freq
-        self.ctrl_reg = 0x0000
+        self.ctrl_reg = 0x0000  # Reset control register
 
     @kernel
     def init(self):
         """
-        Initialize the AD9834, configure the SPI bus, and reset the DDS.
+        Initialize the AD9834: configure the SPI bus and reset the DDS.
 
         This method performs the necessary setup for the AD9834 device, including:
         - Configuring the SPI bus parameters (clock polarity, data width, and frequency).
         - Putting the AD9834 into a reset state to ensure proper initialization.
 
         The SPI bus is configured to use 16 bits of data width with the clock frequency
-        provided as a parameter when creating the `AD9834` instance. After configuring
-        the SPI bus, the method invokes the `enable_reset` method to reset the AD9834.
+        provided as a parameter when creating the AD9834 instance. After configuring
+        the SPI bus, the method invokes :meth:`enable_reset()` to reset the AD9834.
         This is an essential step to prepare the device for subsequent configuration
         of frequency and phase.
 
@@ -94,17 +93,19 @@ class AD9834:
         and writes it to the specified frequency register.
 
         :param freq_reg: The frequency register to write to, must be one of
-                         AD9834_FREQ_REG_0 or AD9834_FREQ_REG_1.
+                         :const:`AD9834_FREQ_REG_0` or :const:`AD9834_FREQ_REG_1`.
         :param frequency: The desired frequency in Hz, which will be converted to a
                          frequency word suitable for the AD9834.
 
         The frequency word is calculated using the formula:
-            freq_word = (frequency * (1 << 28)) / clk_freq
+
+            ``freq_word = (frequency * (1 << 28)) / clk_freq``
+
         The result is limited to the lower 28 bits for compatibility with the AD9834.
 
         The method first sets the control register to enable the appropriate settings,
-        then sends the least significant byte (LSB) and most significant byte (MSB) in
-        two consecutive writes to the specified frequency register.
+        then sends the fourteen least significant bits LSBs and fourteen most significant
+        bits MSBs in two consecutive writes to the specified frequency register.
         """
         if freq_reg not in FREQ_REGS:
             raise ValueError("Invalid frequency register")
@@ -120,17 +121,16 @@ class AD9834:
     @kernel
     def set_frequency_reg_msb(self, freq_reg, word: TInt32):
         """
-        Set the most significant byte (MSB) of the specified frequency register.
+        Set the fourteen most significant bits MSBs of the specified frequency register.
 
         This method updates the specified frequency register with the provided MSB value.
         It configures the control register to indicate that the MSB is being set.
 
         :param freq_reg: The frequency register to update, must be one of
-                         AD9834_FREQ_REG_0 or AD9834_FREQ_REG_1.
-        :param word: The MSB value to be written to the frequency register,
-                     limited to the lower 14 bits.
+                         :const:`AD9834_FREQ_REG_0` or :const:`AD9834_FREQ_REG_1`.
+        :param word: The value to be written to the fourteen MSBs of the frequency register.
 
-        The method first clears the appropriate control bits, sets the HLB bit to
+        The method first clears the appropriate control bits, sets :const:`AD9834_HLB` to
         indicate that the MSB is being sent, and then writes the updated control register
         followed by the MSB value to the specified frequency register.
         """
@@ -144,15 +144,14 @@ class AD9834:
     @kernel
     def set_frequency_reg_lsb(self, freq_reg, word: TInt32):
         """
-        Set the least significant byte (LSB) of the specified frequency register.
+        Set the fourteen least significant bits LSBs of the specified frequency register.
 
         This method updates the specified frequency register with the provided LSB value.
         It configures the control register to indicate that the LSB is being set.
 
         :param freq_reg: The frequency register to update, must be one of
-                         AD9834_FREQ_REG_0 or AD9834_FREQ_REG_1.
-        :param word: The LSB value to be written to the frequency register,
-                     limited to the lower 14 bits.
+                         :const:`AD9834_FREQ_REG_0` or :const:`AD9834_FREQ_REG_1`.
+        :param word: The value to be written to the fourteen LSBs of the frequency register.
 
         The method first clears the appropriate control bits and writes the updated control
         register followed by the LSB value to the specified frequency register.
@@ -173,8 +172,8 @@ class AD9834:
         control the frequency of the output waveform. The control register is updated
         to reflect the selected frequency register.
 
-        :param freq_reg: The frequency register to select. Must be one of AD9834_FREQ_REG_0 or
-                         AD9834_FREQ_REG_1. Raises a ValueError if an invalid register is specified.
+        :param freq_reg: The frequency register to select. Must be one of
+                        :const:`AD9834_FREQ_REG_0` or :const:`AD9834_FREQ_REG_1`.
         """
         if freq_reg not in FREQ_REGS:
             raise ValueError("Invalid frequency register")
@@ -194,9 +193,8 @@ class AD9834:
         This method updates the specified phase register with the provided phase value.
 
         :param phase_reg: The phase register to update, must be one of
-                          AD9834_PHASE_REG_0 or AD9834_PHASE_REG_1.
-        :param phase: The phase value to be written to the phase register,
-                      limited to the lower 12 bits.
+                          :const:`AD9834_PHASE_REG_0` or :const:`AD9834_PHASE_REG_1`.
+        :param phase: The value to be written to the phase register.
 
         The method masks the phase value to ensure it fits within the 12-bit limit
         and writes it to the specified phase register.
@@ -215,8 +213,8 @@ class AD9834:
         control the phase of the output waveform. The control register is updated
         to reflect the selected phase register.
 
-        :param phase_reg: The phase register to select. Must be one of AD9834_PHASE_REG_0 or
-                         AD9834_PHASE_REG_1. Raises a ValueError if an invalid register is specified.
+        :param phase_reg: The phase register to select. Must be one of
+                        :const:`AD9834_PHASE_REG_0` or :const:`AD9834_PHASE_REG_1`.
         """
         if phase_reg not in PHASE_REGS:
             raise ValueError("Invalid phase register")
@@ -233,9 +231,8 @@ class AD9834:
         """
         Enable the DDS reset.
 
-        This method sets the reset bit in the control register, putting the AD9834
-        into a reset state. While in this state, the digital-to-analog converter
-        (DAC) is not operational.
+        This method sets :const:`AD9834_RESET`, putting the AD9834 into a reset state.
+        While in this state, the digital-to-analog converter (DAC) is not operational.
 
         This method should be called during initialization or when a reset is required
         to reinitialize the device and ensure proper operation.
@@ -248,9 +245,9 @@ class AD9834:
         """
         Disable the DDS reset and start signal generation.
 
-        This method clears the reset bit in the control register, allowing the AD9834
-        to begin generating signals. Once this method is called, the device will
-        resume normal operation and output the generated waveform.
+        This method clears :const:`AD9834_RESET`, allowing the AD9834 to begin generating
+        signals. Once this method is called, the device will resume normal operation and
+        output the generated waveform.
 
         This method should be called after configuration of the frequency and phase
         settings to activate the output.
@@ -261,20 +258,19 @@ class AD9834:
     @kernel
     def sleep(self, dac_pd: bool = False, clk_dis: bool = False):
         """
-        Put the AD9834 into sleep mode by selectively powering down the DAC and/or disabling the internal clock.
+        Put the AD9834 into sleep mode by selectively powering down the DAC and/or disabling
+        the internal clock.
 
-        This method controls the sleep mode behavior of the AD9834 by setting or clearing the corresponding bits
-        in the control register. Two independent options can be specified:
+        This method controls the sleep mode behavior of the AD9834 by setting or clearing the
+        corresponding bits in the control register. Two independent options can be specified:
 
-        - `dac_pd`: Power down the DAC, reducing power consumption (SLEEP12 bit).
-        - `clk_dis`: Disable the internal clock, stopping frequency generation but maintaining register
-          contents (SLEEP1 bit).
-
-        :param dac_pd: Set to True to power down the DAC (SLEEP12 bit is set). False will leave the DAC active.
-        :param clk_dis: Set to True to disable the internal clock (SLEEP1 bit is set). False will keep
-        the clock running.
+        :param dac_pd: Set to ``True`` to power down the DAC (:const:`AD9834_SLEEP12` is set).
+            ``False`` will leave the DAC active.
+        :param clk_dis: Set to ``True`` to disable the internal clock (:const:`AD9834_SLEEP1` is set).
+            ``False`` will keep the clock running.
 
         Both options can be enabled independently, allowing the DAC and/or clock to be powered down as needed.
+
         The method updates the control register and writes the changes to the AD9834 device.
         """
         if dac_pd:
@@ -295,8 +291,8 @@ class AD9834:
         Exit sleep mode and restore normal operation.
 
         This method brings the AD9834 out of sleep mode by clearing any DAC power-down or
-        internal clock disable settings. It calls the `sleep()` method with no arguments,
-        effectively setting both `dac_powerdown` and `internal_clk_disable` to False.
+        internal clock disable settings. It calls :meth:`sleep()` with no arguments,
+        effectively setting both ``dac_powerdown`` and ``internal_clk_disable`` to ``False``.
 
         The device will resume generating output based on the current frequency and phase
         settings.
@@ -312,25 +308,20 @@ class AD9834:
         comp_out: bool = False,
     ):
         """
-        Configure the SIGN BIT OUT pin for various output modes.
+        Configure the ``SIGN BIT OUT`` pin for various output modes.
 
-        This method sets the output mode for the SIGN BIT OUT pin of the AD9834 based on the provided flags.
+        This method sets the output mode for the ``SIGN BIT OUT`` pin of the AD9834 based on the provided flags.
         The user can enable one of several modes, including high impedance, MSB/2 output, MSB output,
-        or comparator output. These modes are mutually exclusive, and passing `True` to one flag will
-        configure the corresponding mode, while other flags should be left as `False`.
+        or comparator output. These modes are mutually exclusive, and passing ``True`` to one flag will
+        configure the corresponding mode, while other flags should be left as ``False``.
 
-        - `high_z`: High Impedance (disables output).
-        - `msb_2`: DAC Data MSB divided by 2.
-        - `msb`: DAC Data MSB.
-        - `comp_out`: Comparator output.
+        :param high_z: Set to ``True`` to place the ``SIGN BIT OUT`` pin in high impedance (disabled) mode.
+        :param msb_2: Set to ``True`` to output DAC Data MSB divided by 2 on the ``SIGN BIT OUT`` pin.
+        :param msb: Set to ``True`` to output DAC Data MSB on the ``SIGN BIT OUT`` pin.
+        :param comp_out: Set to ``True`` to output the comparator signal on the ``SIGN BIT OUT`` pin.
 
-        :param high_z: Set to True to place the SIGN BIT OUT pin in high impedance (disabled) mode.
-        :param msb_2: Set to True to output DAC Data MSB divided by 2 on the SIGN BIT OUT pin.
-        :param msb: Set to True to output DAC Data MSB on the SIGN BIT OUT pin.
-        :param comp_out: Set to True to output the comparator signal on the SIGN BIT OUT pin.
-
-        Only one flag should be set to True at a time. If no valid mode is selected, the SIGN BIT OUT pin
-        will default to high impedance mode.
+        Only one flag should be set to ``True`` at a time. If no valid mode is selected, the ``SIGN BIT OUT``
+        pin will default to high impedance mode.
 
         The method updates the control register with the appropriate configuration and writes it to the AD9834.
         """
@@ -362,7 +353,7 @@ class AD9834:
         Enable triangular waveform generation.
 
         This method configures the AD9834 to output a triangular waveform. It does so
-        by clearing the OPBITEN bit in the control register and setting the MODE bit.
+        by clearing :const:`AD9834_OPBITEN` in the control register and setting :const:`AD9834_MODE`.
         Once this method is called, the AD9834 will begin generating a triangular waveform
         at the frequency set for the selected frequency register.
 
@@ -378,10 +369,9 @@ class AD9834:
         """
         Disable triangular waveform generation.
 
-        This method disables the triangular waveform output by clearing the MODE bit
-        in the control register. After invoking this method, the AD9834 will cease
-        generating a triangular waveform. The device can then be configured to output
-        other waveform types if needed.
+        This method disables the triangular waveform output by clearing :const:`AD9834_MODE`.
+        After invoking this method, the AD9834 will cease generating a triangular waveform.
+        The device can then be configured to output other waveform types if needed.
 
         This method should be called when switching to a different waveform type or
         when the triangular waveform is no longer required.
