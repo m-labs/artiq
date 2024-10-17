@@ -489,7 +489,7 @@ class Channel:
     def get_y_mu(self, profile):
         """Get a profile's IIR state (filter output, Y0) in machine units.
 
-        The IIR state is also know as the "integrator", or the DDS amplitude
+        The IIR state is also known as the "integrator", or the DDS amplitude
         scale factor. It is 17 bits wide and unsigned.
 
         This method does not advance the timeline but consumes all slack.
@@ -507,7 +507,7 @@ class Channel:
     def get_y(self, profile):
         """Get a profile's IIR state (filter output, Y0).
 
-        The IIR state is also know as the "integrator", or the DDS amplitude
+        The IIR state is also known as the "integrator", or the DDS amplitude
         scale factor. It is 17 bits wide and unsigned.
 
         This method does not advance the timeline but consumes all slack.
@@ -525,7 +525,7 @@ class Channel:
     def set_y_mu(self, profile, y):
         """Set a profile's IIR state (filter output, Y0) in machine units.
 
-        The IIR state is also know as the "integrator", or the DDS amplitude
+        The IIR state is also known as the "integrator", or the DDS amplitude
         scale factor. It is 17 bits wide and unsigned.
 
         This method must not be used when the servo could be writing to the
@@ -545,7 +545,7 @@ class Channel:
     def set_y(self, profile, y):
         """Set a profile's IIR state (filter output, Y0).
 
-        The IIR state is also know as the "integrator", or the DDS amplitude
+        The IIR state is also known as the "integrator", or the DDS amplitude
         scale factor. It is 17 bits wide and unsigned.
 
         This method must not be used when the servo could be writing to the

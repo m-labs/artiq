@@ -399,7 +399,7 @@ class _CompleterDelegate(QtWidgets.QStyledItemDelegate):
             # case, but causes unnecessary flickering and trashing of the user
             # selection when datasets are modified due to Qt's naive handler.
             # Doing this is of course convoluted due to Qt's arrogance
-            # about private fields and not letting users knows what
+            # about private fields and not letting users know what
             # slots are connected to signals, but thanks to the complicated
             # model system there is a short dirty hack in this particular case.
             nodatachanged_model = QtCore.QIdentityProxyModel()
