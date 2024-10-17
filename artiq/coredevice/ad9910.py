@@ -195,7 +195,7 @@ class AD9910:
           when changing frequency or phase. The DDS phase is the sum of the
           phase accumulator and the phase offset. The only discontinuous
           changes in the DDS output phase come from changes to the phase
-          offset. This mode is also knows as "relative phase mode".
+          offset. This mode is also known as "relative phase mode".
           :math:`\phi(t) = q(t^\prime) + p + (t - t^\prime) f`
 
         * :const:`PHASE_MODE_ABSOLUTE`: the phase accumulator is reset when
