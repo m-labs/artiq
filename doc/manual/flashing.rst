@@ -13,7 +13,7 @@ If you have an active firmware subscription with M-Labs or QUARTIQ, you can obta
 
 Run the command::
 
-  $ afws_client <username> build <afws_director> <variant>
+  $ afws_client <username> build <afws_directory> <variant>
 
 Replace ``<username>`` with the login name that was given to you with the subscription, ``<variant>`` with the name of your system variant, and ``<afws_directory>`` with the name of an empty directory, which will be created by the command if it does not exist. Enter your password when prompted and wait for the build (if applicable) and download to finish. If you experience issues with the AFWS client, write to the helpdesk@ email. For more information about :mod:`~artiq.frontend.afws_client` see also the corresponding entry on the :ref:`Utilities <afws-client>` page.
 
