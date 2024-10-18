@@ -363,17 +363,17 @@ impl Manager {
         unsafe { self.cache.unborrow() }
     }
 
-    pub fn run(&mut self, source: u8, id: u32) -> Result<(), Error> {
+    pub fn run(&mut self, source: u8, id: u32, timestamp: u64) -> Result<(), Error> {
         info!("starting subkernel #{}", id);
         if self.session.kernel_state != KernelState::Loaded
             || self.current_id != id {
             self.load(id)?;
-        }
+        } 
         self.session.source = source;
         self.session.kernel_state = KernelState::Running;
         cricon_select(RtioMaster::Kernel);
     
-        kern_acknowledge()
+        kern_send(&kern::UpdateNow(timestamp))
     }
 
     pub fn message_handle_incoming(&mut self, status: PayloadStatus, length: usize, id: u32, slice: &[u8; MASTER_PAYLOAD_MAX_SIZE]) {
@@ -825,21 +825,21 @@ impl Manager {
                     // ID equal to -1 indicates wildcard for receiving arguments
                     let id = if id == -1 { self.current_id } else { id as u32 };
                     self.session.kernel_state = KernelState::MsgAwait { 
-                        id: id, max_time: max_time, tags: tags.to_vec() };
+                        id, max_time, tags: tags.to_vec() };
                     Ok(())
                 },
 
-                &kern::SubkernelLoadRunRequest { id, destination: sk_destination, run } => {
+                &kern::SubkernelLoadRunRequest { id, destination: sk_destination, run, timestamp } => {
                     self.session.kernel_state = KernelState::SubkernelAwaitLoad;
                     router.route(drtioaux::Packet::SubkernelLoadRunRequest { 
-                        source: destination, destination: sk_destination, id: id, run: run 
+                        source: destination, destination: sk_destination, id, run, timestamp
                     }, routing_table, rank, destination);
                     Ok(())
                 }
 
-                &kern::SubkernelAwaitFinishRequest{ id, timeout } => {
+                &kern::SubkernelAwaitFinishRequest { id, timeout } => {
                     let max_time = if timeout > 0 { clock::get_ms() as i64 + timeout } else { timeout };
-                    self.session.kernel_state = KernelState::SubkernelAwaitFinish { max_time: max_time, id: id };
+                    self.session.kernel_state = KernelState::SubkernelAwaitFinish { max_time, id };
                     Ok(())
                 }
 
