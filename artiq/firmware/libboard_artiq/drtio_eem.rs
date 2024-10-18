@@ -147,44 +147,43 @@ unsafe fn assign_delay() -> SerdesConfig {
     }
 }
 
-unsafe fn align_comma() {
-    loop {
-        for slip in 1..=10 {
-            // The soft transceiver has 2 8b10b decoders, which receives lane
-            // 0/1 and lane 2/3 respectively. The decoder are time-multiplexed
-            // to decode exactly 1 lane each sysclk cycle.
-            //
-            // The decoder decodes lane 0/2 data on odd sysclk cycles, buffer
-            // on even cycles, and vice versa for lane 1/3. Data/Clock latency
-            // could change timing. The extend bit flips the decoding timing,
-            // so lane 0/2 data are decoded on even cycles, and lane 1/3 data
-            // are decoded on odd cycles.
-            //
-            // This is needed because transmitting/receiving a 8b10b character
-            // takes 2 sysclk cycles. Adjusting bitslip only via ISERDES
-            // limits the range to 1 cycle. The wordslip bit extends the range
-            // to 2 sysclk cycles.
-            csr::eem_transceiver::wordslip_write((slip > 5) as u8);
+pub unsafe fn align_comma(trx_no: u8) -> bool {
+    csr::eem_transceiver::transceiver_sel_write(trx_no);
 
-            // Apply a double bitslip since the ISERDES is 2x oversampled.
-            // Bitslip is used for comma alignment purposes once setup/hold
-            // timing is met.
-            csr::eem_transceiver::bitslip_write(1);
-            csr::eem_transceiver::bitslip_write(1);
-            clock::spin_us(1);
+    for slip in 1..=10 {
+        // The soft transceiver has 2 8b10b decoders, which receives lane
+        // 0/1 and lane 2/3 respectively. The decoder are time-multiplexed
+        // to decode exactly 1 lane each sysclk cycle.
+        //
+        // The decoder decodes lane 0/2 data on odd sysclk cycles, buffer
+        // on even cycles, and vice versa for lane 1/3. Data/Clock latency
+        // could change timing. The extend bit flips the decoding timing,
+        // so lane 0/2 data are decoded on even cycles, and lane 1/3 data
+        // are decoded on odd cycles.
+        //
+        // This is needed because transmitting/receiving a 8b10b character
+        // takes 2 sysclk cycles. Adjusting bitslip only via ISERDES
+        // limits the range to 1 cycle. The wordslip bit extends the range
+        // to 2 sysclk cycles.
+        csr::eem_transceiver::wordslip_write((slip > 5) as u8);
 
-            csr::eem_transceiver::comma_align_reset_write(1);
-            clock::spin_us(100);
+        // Apply a double bitslip since the ISERDES is 2x oversampled.
+        // Bitslip is used for comma alignment purposes once setup/hold
+        // timing is met.
+        csr::eem_transceiver::bitslip_write(1);
+        csr::eem_transceiver::bitslip_write(1);
+        clock::spin_us(1);
 
-            if csr::eem_transceiver::comma_read() == 1 {
-                debug!("comma alignment completed after {} bitslips", slip);
-                return;
-            }
+        csr::eem_transceiver::comma_align_reset_write(1);
+        clock::spin_us(100);
+
+        if csr::eem_transceiver::comma_read() == 1 {
+            debug!("comma alignment completed after {} bitslips", slip);
+            return true;
         }
-
-        error!("comma alignment failed, retrying in 1s...");
-        clock::spin_us(1_000_000);
     }
+
+    false
 }
 
 pub fn init() {
@@ -210,10 +209,5 @@ pub fn init() {
                 }
             }
         });
-
-        unsafe {
-            align_comma();
-            csr::eem_transceiver::rx_ready_write(1);
-        }
     }
 }

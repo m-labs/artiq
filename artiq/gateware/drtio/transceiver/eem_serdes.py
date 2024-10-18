@@ -1,4 +1,5 @@
 from migen import *
+from migen.genlib.cdc import MultiReg
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from misoc.interconnect.csr import *
 from misoc.cores.code_8b10b import SingleEncoder, Decoder
@@ -473,7 +474,8 @@ class OOBReset(Module):
 
 class EEMSerdes(Module, TransceiverInterface, AutoCSR):
     def __init__(self, platform, data_pads):
-        self.rx_ready = CSRStorage()
+        self.rx_ready_en = CSR()
+        self.rx_alive = CSRStatus()
 
         self.transceiver_sel = CSRStorage(max(1, log2_int(len(data_pads))))
         self.lane_sel = CSRStorage(2)
@@ -505,7 +507,12 @@ class EEMSerdes(Module, TransceiverInterface, AutoCSR):
             serdes_list.append(serdes)
 
             chan_if = ChannelInterface(serdes.encoder, serdes.decoders)
-            self.comb += chan_if.rx_ready.eq(self.rx_ready.storage)
+            self.sync += \
+                If(~chan_if.rx_ready,
+                    chan_if.rx_ready.eq(self.rx_ready_en.re & self.rx_alive.status),
+                ).Elif(~self.rx_alive.status,
+                    chan_if.rx_ready.eq(0),
+                )
             channel_interfaces.append(chan_if)
 
         # Route CSR signals using transceiver_sel
@@ -555,6 +562,8 @@ class EEMSerdes(Module, TransceiverInterface, AutoCSR):
         self.submodules.oob_reset = OOBReset(platform, serdes_list[0].rx_serdes.o[0])
         self.rst = self.oob_reset.rst
         self.rst.attr.add("no_retiming")
+
+        self.specials += MultiReg(~self.oob_reset.rst, self.rx_alive.status)
 
         TransceiverInterface.__init__(self, channel_interfaces, async_rx=False)
 
