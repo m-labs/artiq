@@ -132,6 +132,8 @@ If a subkernel is called on a satellite where a kernel is already running, the n
 
 If a subkernel is complex and its binary relatively large, the delay between the call and actually running the subkernel may be substantial. If it's necessary to minimize this delay, ``subkernel_preload(function)`` should be used before the call.
 
+Subkernels receive the value of the timeline cursor ``now_mu`` from the caller at the moment of the call. As there is a delay between calling the subkernel and its actual start, there will be a difference in ``now_mu`` that can be compensated with a delay in the subkernel. Additionally, preloading the subkernel would decrease the difference, as the subkernel does not have to be loaded before running.
+
 While a subkernel is running, the satellite is disconnected from the RTIO interface of the master. As a result, regardless of what devices the subkernel itself uses, none of the RTIO devices on that satellite will be available to the master, nor will messages be passed on to any further satellites downstream. This applies both to regular RTIO operations and DDMA. While a subkernel is running, a satellite may use its own local DMA, but an attempt by any other device to run DDMA through the satellite will fail. Control is returned to the master when no subkernel is running -- to be sure that a device will be accessible, await before performing any RTIO operations on the affected satellite.
 
 .. note::
