@@ -594,11 +594,14 @@ pub mod drtio {
     }
 
     pub fn subkernel_load(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
-            routing_table: &drtio_routing::RoutingTable, id: u32, destination: u8, run: bool
+            routing_table: &drtio_routing::RoutingTable, id: u32, destination: u8, run: bool, timestamp: u64
         ) -> Result<(), Error> {
         let linkno = routing_table.0[destination as usize][0] - 1;
         let reply = aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno, 
-            &drtioaux::Packet::SubkernelLoadRunRequest{ id: id, source: 0, destination: destination, run: run })?;
+            &drtioaux::Packet::SubkernelLoadRunRequest{ 
+                id: id, source: 0, destination: destination,
+                run: run, timestamp: timestamp
+            })?;
         match reply {
             drtioaux::Packet::SubkernelLoadRunReply { destination: 0, succeeded: true } => Ok(()),
             drtioaux::Packet::SubkernelLoadRunReply { destination: 0, succeeded: false } =>

@@ -427,7 +427,7 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             drtioaux::send(0,
                 &drtioaux::Packet::SubkernelAddDataReply { succeeded: succeeded })
         }
-        drtioaux::Packet::SubkernelLoadRunRequest { source, destination: _destination, id, run } => {
+        drtioaux::Packet::SubkernelLoadRunRequest { source, destination: _destination, id, run, timestamp } => {
             forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
             let mut succeeded = kernelmgr.load(id).is_ok();
             // allow preloading a kernel with delayed run
@@ -436,7 +436,7 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
                     // cannot run kernel while DDMA is running
                     succeeded = false;
                 } else {
-                    succeeded |= kernelmgr.run(source, id).is_ok();
+                    succeeded |= kernelmgr.run(source, id, timestamp).is_ok();
                 }
             }
             router.send(drtioaux::Packet::SubkernelLoadRunReply { 

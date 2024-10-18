@@ -194,14 +194,15 @@ pub mod subkernel {
     }
 
     pub fn load(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex, routing_table: &RoutingTable,
-            id: u32, run: bool) -> Result<(), Error> {
+            id: u32, run: bool, timestamp: u64) -> Result<(), Error> {
         let _lock = subkernel_mutex.lock(io)?;
         let subkernel = unsafe { SUBKERNELS.get_mut(&id).unwrap() };
         if subkernel.state != SubkernelState::Uploaded {
             error!("for id: {} expected Uploaded, got: {:?}", id, subkernel.state);
             return Err(Error::IncorrectState);
         }
-        drtio::subkernel_load(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, id, subkernel.destination, run)?;
+        drtio::subkernel_load(io, aux_mutex, ddma_mutex, subkernel_mutex, 
+            routing_table, id, subkernel.destination, run, timestamp)?;
         if run {
             subkernel.state = SubkernelState::Running;
         }

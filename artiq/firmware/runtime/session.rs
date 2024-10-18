@@ -661,9 +661,9 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 }
             }
             #[cfg(has_drtio)]
-            &kern::SubkernelLoadRunRequest { id, destination: _, run } => {
+            &kern::SubkernelLoadRunRequest { id, destination: _, run, timestamp } => {
                 let succeeded = match subkernel::load(
-                    io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, id, run) {
+                    io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, id, run, timestamp) {
                         Ok(()) => true,
                         Err(e) => { error!("Error loading subkernel: {}", e); false }
                     };

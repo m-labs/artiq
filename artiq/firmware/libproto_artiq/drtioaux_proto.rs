@@ -120,7 +120,7 @@ pub enum Packet {
 
     SubkernelAddDataRequest { destination: u8, id: u32, status: PayloadStatus, length: u16, data: [u8; MASTER_PAYLOAD_MAX_SIZE] },
     SubkernelAddDataReply { succeeded: bool },
-    SubkernelLoadRunRequest { source: u8, destination: u8, id: u32, run: bool },
+    SubkernelLoadRunRequest { source: u8, destination: u8, id: u32, run: bool, timestamp: u64 },
     SubkernelLoadRunReply { destination: u8, succeeded: bool },
     SubkernelFinished { destination: u8, id: u32, with_exception: bool, exception_src: u8 },
     SubkernelExceptionRequest { source: u8, destination: u8 },
@@ -354,7 +354,8 @@ impl Packet {
                 source: reader.read_u8()?,
                 destination: reader.read_u8()?,
                 id: reader.read_u32()?,
-                run: reader.read_bool()?
+                run: reader.read_bool()?,
+                timestamp: reader.read_u64()?
             },
             0xc5 => Packet::SubkernelLoadRunReply {
                 destination: reader.read_u8()?,
@@ -647,12 +648,13 @@ impl Packet {
                 writer.write_u8(0xc1)?;
                 writer.write_bool(succeeded)?;
             },
-            Packet::SubkernelLoadRunRequest { source, destination, id, run } => {
+            Packet::SubkernelLoadRunRequest { source, destination, id, run, timestamp } => {
                 writer.write_u8(0xc4)?;
                 writer.write_u8(source)?;
                 writer.write_u8(destination)?;
                 writer.write_u32(id)?;
                 writer.write_bool(run)?;
+                writer.write_u64(timestamp)?;
             },
             Packet::SubkernelLoadRunReply { destination, succeeded } => {
                 writer.write_u8(0xc5)?;
