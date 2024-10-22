@@ -511,6 +511,24 @@ class _QuickOpenDialog(QtWidgets.QDialog):
         self.close()
 
 
+class _LRUDict(OrderedDict):
+    def __init__(self, size_limit=1000):
+        super().__init__()
+        self.size_limit = size_limit
+
+    def __setitem__(self, key, value):
+        if key in self:
+            self.pop(key)
+        super().__setitem__(key, value)
+        if len(self) > self.size_limit:
+            self.popitem(last=False)
+
+    def __getitem__(self, key):
+        value = super().__getitem__(key)
+        self.move_to_end(key)
+        return value
+
+
 class ExperimentManager:
     #: Global registry for custom argument editor classes, indexed by the experiment
     #: `argument_ui` string; can be populated by dashboard plugins such as ndscan.
@@ -525,12 +543,12 @@ class ExperimentManager:
         self.schedule_ctl = schedule_ctl
         self.experiment_db_ctl = experiment_db_ctl
 
-        self.dock_states = dict()
-        self.submission_scheduling = dict()
-        self.submission_options = dict()
-        self.submission_arguments = dict()
-        self.argument_ui_names = dict()
-        self.colors = dict()
+        self.dock_states = _LRUDict()
+        self.submission_scheduling = _LRUDict()
+        self.submission_options = _LRUDict()
+        self.submission_arguments = _LRUDict()
+        self.argument_ui_names = _LRUDict()
+        self.colors = _LRUDict()
 
         self.datasets = dict()
         dataset_sub.add_setmodel_callback(self.set_dataset_model)
@@ -790,24 +808,24 @@ class ExperimentManager:
         for expurl, dock in self.open_experiments.items():
             self.dock_states[expurl] = dock.save_state()
         return {
-            "scheduling": self.submission_scheduling,
-            "options": self.submission_options,
-            "arguments": self.submission_arguments,
-            "docks": self.dock_states,
-            "argument_uis": self.argument_ui_names,
+            "scheduling": dict(self.submission_scheduling),
+            "options": dict(self.submission_options),
+            "arguments": dict(self.submission_arguments),
+            "docks": dict(self.dock_states),
+            "argument_uis": dict(self.argument_ui_names),
             "open_docks": set(self.open_experiments.keys()),
-            "colors": self.colors
+            "colors": dict(self.colors)
         }
 
     def restore_state(self, state):
         if self.open_experiments:
             raise NotImplementedError
-        self.dock_states = state["docks"]
-        self.submission_scheduling = state["scheduling"]
-        self.submission_options = state["options"]
-        self.submission_arguments = state["arguments"]
-        self.argument_ui_names = state.get("argument_uis", {})
-        self.colors = state.get("colors", {})
+        self.dock_states.update(state["docks"])
+        self.submission_scheduling.update(state["scheduling"])
+        self.submission_options.update(state["options"])
+        self.submission_arguments.update(state["arguments"])
+        self.argument_ui_names.update(state.get("argument_uis", {}))
+        self.colors.update(state.get("colors", {}))
         for expurl in state["open_docks"]:
             self.open_experiment(expurl)
 
