@@ -171,7 +171,6 @@ Now, in the same dock as 'Explorer', navigate to the tab 'Interactive Args'. You
 
 In order to request and supply multiple interactive arguments at once, simply place them in the same ``with`` block; see also the example ``interactive.py`` in ``examples/no_hardware``.
 
-
 .. _master-setting-up-git:
 
 Setting up Git integration
@@ -180,7 +179,7 @@ Setting up Git integration
 So far, we have used the bare filesystem for the experiment repository, without any version control. Using Git to host the experiment repository helps with tracking modifications to experiments and with the traceability to a particular version of an experiment.
 
 .. note::
-    The workflow we will describe in this tutorial corresponds to a situation where the computer running the ARTIQ master is also used as a Git server to which multiple users may contribute code. The Git setup can be customized according to your needs; the main point to remember is that when scanning or submitting, the ARTIQ master uses the internal Git data (*not* any working directory that may be present) to fetch the latest *fully completed commit* at the repository's head. See the :ref:`Management system <mgmt-git-integration>` page for notes on alternate workflows.
+    The workflow we will describe in this tutorial is designed for a situation where the computer running the ARTIQ master is also used as a Git server to which multiple users may contribute code. This is not the only way Git integration can be useful, and the setup can be customized according to your needs. The main point to remember is that when scanning or submitting, the ARTIQ master uses the internal Git data, *not* any checked-out files that may be present, to fetch the latest *fully completed commit* at the repository's head. See also :ref:`mgmt-git-integration`, especially if you are unfamiliar with Git.
 
 We will use our current ``repository`` folder as the working directory for making local modifications to the experiments, move it away from the master's data directory, and replace it with a new ``repository`` folder, which will hold only the Git data used by the master. Stop the master with Ctrl+C and enter the following commands: ::
 
@@ -207,7 +206,7 @@ and finally, connect the two repositories and push the commit upstream to the ma
     $ git push -u origin master
 
 .. tip::
-    If you are not familiar with command-line Git and would like to understand these commands in more detail, search for some tutorials in basic use of Git; there are many available online.
+    If you are not familiar with command-line Git and would like to understand these commands in more detail, look for tutorials on the basic use of Git; there are many available online.
 
 Start the master again with the ``-g`` flag, which tells it to treat its ``repository`` folder as a bare Git repository: ::
 
@@ -233,10 +232,10 @@ Then set its execution permissions: ::
 
 Let's now make a modification to the experiments. In the working directory ``artiq-work``, open ``mgmt_tutorial.py`` again and add an exclamation mark to the end of "Hello World". Before committing it, check that the experiment can still be executed correctly by submitting it directly from the working directory, using the command-line client: ::
 
-    $ artiq_client submit ~/artiq-work/mgmt_tutorial.py
+    $ artiq_client submit --content ~/artiq-work/mgmt_tutorial.py
 
 .. note::
-    Alternatively, right-click in the Explorer dock and select the 'Open file outside repository' option for the same effect.
+    The ``--content`` flag submits by content, that is, by sending a raw file rather than selecting an experiment from the master's local environment. Since you are likely running the client and the master on the same machine, it is probably not strictly necessary here. In a distributed setup across multiple machines, the master will not have access to the client's filesystem, and the ``--content`` flag is the only way to run experiments directly from a client file. See also :ref:`submission-details`.
 
 Verify the log in the GUI. If you are happy with the result, commit the new version and push it into the master's repository: ::
 
@@ -257,4 +256,4 @@ Arguments to the individual tools (including ``-s`` and ``--bind``) can still be
 
     $ artiq_session -m=-g
 
-to start the session with the master in Git mode. See also :mod:`~artiq.frontend.artiq_session`.
+to start the session with Git integration. See also :mod:`~artiq.frontend.artiq_session`.
