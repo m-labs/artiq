@@ -699,6 +699,25 @@ class ExperimentManager:
                 self.open_experiments[expurl].close()
             self.open_experiment(expurl)
 
+    def cleanup_state(self):
+        attributes = [
+            "submission_scheduling",
+            "submission_options",
+            "submission_arguments",
+            "argument_ui_names",
+            "dock_states",
+            "colors"
+        ]
+        for attr in attributes:
+            state_dict = getattr(self, attr)
+            for expurl in list(state_dict.keys()):
+                # Only clean up state for repository-managed experiments
+                # as file-based experiments are not tracked in explist
+                if expurl[:5] == "repo:" and expurl[5:] not in self.explist:
+                    if expurl in self.open_experiments:
+                        self.open_experiments[expurl].close()
+                    del state_dict[expurl]
+
     def save_state(self):
         for expurl, dock in self.open_experiments.items():
             self.dock_states[expurl] = dock.save_state()
@@ -719,8 +738,10 @@ class ExperimentManager:
         self.submission_options = state["options"]
         self.submission_arguments = state["arguments"]
         self.argument_ui_names = state.get("argument_uis", {})
+        self.colors = state.get("colors", {})
         for expurl in state["open_docks"]:
             self.open_experiment(expurl)
+        self.cleanup_state()
 
     def show_quick_open(self):
         if self.is_quick_open_shown:
