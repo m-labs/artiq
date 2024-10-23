@@ -777,7 +777,12 @@ pub extern fn main() -> i32 {
     });
 
     #[cfg(has_drtio_eem)]
-    drtio_eem::init();
+    {
+        drtio_eem::init();
+        unsafe {
+            csr::eem_transceiver::rx_ready_write(1)
+        }
+    }
 
     #[cfg(has_drtio_routing)]
     let mut repeaters = [repeater::Repeater::default(); csr::DRTIOREP.len()];

@@ -211,9 +211,6 @@ pub fn init() {
             }
         });
 
-        unsafe {
-            align_comma();
-            csr::eem_transceiver::rx_ready_write(1);
-        }
+        unsafe { align_comma(); }
     }
 }
