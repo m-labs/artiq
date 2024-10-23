@@ -187,6 +187,24 @@ unsafe fn align_comma() {
     }
 }
 
+pub unsafe fn align_wordslip(trx_no: u8) -> bool {
+    csr::eem_transceiver::transceiver_sel_write(trx_no);
+
+    for slip in 0..=1 {
+        csr::eem_transceiver::wordslip_write(slip as u8);
+        clock::spin_us(1);
+        csr::eem_transceiver::comma_align_reset_write(1);
+        clock::spin_us(100);
+
+        if csr::eem_transceiver::comma_read() == 1 {
+            debug!("comma alignment completed with {} wordslip", slip);
+            return true;
+        }
+    }
+
+    false
+}
+
 pub fn init() {
     for trx_no in 0..csr::CONFIG_EEM_DRTIO_COUNT {
         unsafe {

@@ -16,6 +16,8 @@ const ASYNC_ERROR_SEQUENCE_ERROR: u8 = 1 << 2;
 pub mod drtio {
     use super::*;
     use alloc::vec::Vec;
+    #[cfg(has_drtio_eem)]
+    use board_artiq::drtio_eem;
     use drtioaux;
     use proto_artiq::drtioaux_proto::{MASTER_PAYLOAD_MAX_SIZE, PayloadStatus};
     use rtio_dma::remote_dma;
@@ -23,6 +25,9 @@ pub mod drtio {
     use analyzer::remote_analyzer::RemoteBuffer;
     use kernel::subkernel;
     use sched::Error as SchedError;
+
+    #[cfg(has_drtio_eem)]
+    const DRTIO_EEM_LINKNOS: core::ops::Range<usize> = (csr::DRTIO.len()-csr::CONFIG_EEM_DRTIO_COUNT as usize)..csr::DRTIO.len();
 
     #[derive(Fail, Debug)]
     pub enum Error {
@@ -73,6 +78,18 @@ pub mod drtio {
 
     fn link_rx_up(linkno: u8) -> bool {
         let linkno = linkno as usize;
+        #[cfg(has_drtio_eem)]
+        if DRTIO_EEM_LINKNOS.contains(&linkno) {
+            let eem_trx_no = linkno - DRTIO_EEM_LINKNOS.start;
+            unsafe {
+                csr::eem_transceiver::transceiver_sel_write(eem_trx_no as u8);
+                csr::eem_transceiver::comma_align_reset_write(1);
+            }
+            clock::spin_us(100);
+            return unsafe {
+                csr::eem_transceiver::comma_read() == 1
+            };
+        }
         unsafe {
             (csr::DRTIO[linkno].rx_up_read)() == 1
         }
@@ -414,9 +431,27 @@ pub mod drtio {
                     } else {
                         info!("[LINK#{}] link is down", linkno);
                         up_links[linkno as usize] = false;
+
+                        #[cfg(has_drtio_eem)]
+                        if DRTIO_EEM_LINKNOS.contains(&(linkno as usize)) {
+                            unsafe { csr::eem_transceiver::rx_ready_write(0); }
+                            // Clear DRTIOAUX buffer
+                            while !matches!(drtioaux::recv(linkno), Ok(None)) {}
+                        }
                     }
                 } else {
                     /* link was previously down */
+                    #[cfg(has_drtio_eem)]
+                    if DRTIO_EEM_LINKNOS.contains(&(linkno as usize)) {
+                        let eem_trx_no = linkno - DRTIO_EEM_LINKNOS.start as u8;
+                        if !unsafe { drtio_eem::align_wordslip(eem_trx_no) } {
+                            continue;
+                        }
+                        unsafe {
+                            csr::eem_transceiver::rx_ready_write(1);
+                        }
+                    }
+
                     if link_rx_up(linkno) {
                         info!("[LINK#{}] link RX became up, pinging", linkno);
                         let ping_count = ping_remote(&io, aux_mutex, linkno);
