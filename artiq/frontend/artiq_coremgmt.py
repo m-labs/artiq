@@ -93,10 +93,6 @@ def get_argparser():
     t_flash = tools.add_parser("flash",
                                help="flash the running system")
 
-    p_zynq = t_flash.add_argument("-z", "--zynq", default=False,
-                                  help="target zynq device",
-                                  action="store_true")
-
     p_directory = t_flash.add_argument("directory",
                                        metavar="DIRECTORY", type=str,
                                        help="directory that contains the "
@@ -167,15 +163,36 @@ def main():
             mgmt.config_erase()
 
     if args.tool == "flash":
-        if args.zynq:
-            boot = os.path.join(args.directory, "boot.bin")
-            bins = [boot]
-        else:
-            gateware = fetch_bin(args.directory, "gateware", args.srcbuild)
-            bootloader = fetch_bin(args.directory, "bootloader", args.srcbuild)
-            firmware = fetch_bin(args.directory, ["runtime", "satman"], args.srcbuild)
-            bins = [gateware, bootloader, firmware]
+        retrieved_bins = []
+        bin_dict = {
+            "zynq":[
+                ["boot"]
+            ],
+            "riscv": [
+                ["gateware"],
+                ["bootloader"],
+                ["runtime", "satman"],
+            ],
+        }
 
+        for bin_list in bin_dict.values():
+            try:
+                bins = []
+                for bin_name in bin_list:
+                    bins.append(fetch_bin(
+                        args.directory, bin_name, args.srcbuild))
+                retrieved_bins.append(bins)
+            except FileNotFoundError:
+                pass
+
+        if retrieved_bins is None:
+            raise FileNotFoundError("both risc-v and zynq binaries not found")
+
+        if len(retrieved_bins) > 1:
+            raise ValueError("both risc-v and zynq binaries were found, "
+                             "please clean up your build directory. ")
+
+        bins = retrieved_bins[0]
         mgmt.flash(bins)
 
     if args.tool == "reboot":
