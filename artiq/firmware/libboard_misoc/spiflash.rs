@@ -124,7 +124,7 @@ pub unsafe fn flash_binary(origin: usize, payload: &[u8]) {
     write(origin, payload);
 }
 
-#[cfg(any(soc_platform = "kasli", soc_platform = "kc705"))]
+#[cfg(any(soc_platform = "kasli", soc_platform = "kc705", soc_platform = "efc"))]
 pub unsafe fn reload () -> ! {
     csr::icap::iprog_write(1);
     loop {}
