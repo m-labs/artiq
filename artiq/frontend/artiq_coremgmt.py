@@ -12,8 +12,7 @@ from artiq import __version__ as artiq_version
 from artiq.master.databases import DeviceDB
 from artiq.coredevice.comm_kernel import CommKernel
 from artiq.coredevice.comm_mgmt import CommMgmt
-from artiq.frontend.bit2bin import bit2bin
-from artiq.frontend.fetch_bin import fetch_bin
+from artiq.frontend.flash_tools import bit2bin, fetch_bin
 
 
 def get_argparser():

@@ -14,8 +14,7 @@ from sipyco import common_args
 
 from artiq import __version__ as artiq_version
 from artiq.remoting import SSHClient, LocalClient
-from artiq.frontend.bit2bin import bit2bin
-from artiq.frontend.fetch_bin import fetch_bin
+from artiq.frontend.flash_tools import artifact_path, bit2bin, fetch_bin
 
 
 def get_argparser():
@@ -305,10 +304,10 @@ def main():
 
     for action in args.action:
         if action == "gateware":
-            gateware_bin = fetch_bin(binary_dir, "gateware", args.srcbuild)
+            gateware_bin = fetch_bin(binary_dir, ["gateware"], args.srcbuild)
             programmer.write_binary(*config["gateware"], gateware_bin)
         elif action == "bootloader":
-            bootloader_bin = fetch_bin(binary_dir, "bootloader", args.srcbuild)
+            bootloader_bin = fetch_bin(binary_dir, ["bootloader"], args.srcbuild)
             programmer.write_binary(*config["bootloader"], bootloader_bin)
         elif action == "storage":
             storage_img = args.storage
