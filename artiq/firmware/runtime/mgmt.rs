@@ -546,9 +546,29 @@ mod remote_coremgmt {
         routing_table: &RoutingTable, linkno: u8,
         destination: u8, stream: &mut TcpStream, image: &[u8]) -> Result<(), Error<SchedError>> {
 
+        let alloc_reply = drtio::aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno,
+            &Packet::CoreMgmtFlashRequest {
+                destination: destination,
+                payload_length: image.len() as u32,
+            });
+
+        match alloc_reply {
+            Ok(Packet::CoreMgmtReply { succeeded: true }) => Ok(()),
+            Ok(packet) => {
+                error!("received unexpected aux packet: {:?}", packet);
+                Reply::Error.write_to(stream)?;
+                Err(drtio::Error::UnexpectedReply)
+            }
+            Err(e) => {
+                error!("aux packet error ({})", e);
+                Reply::Error.write_to(stream)?;
+                Err(e)
+            }
+        }?;
+
         match drtio::partition_data(&image, |slice, status, len: usize| {
             let reply = drtio::aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno, 
-                &Packet::CoreMgmtFlashRequest {
+                &Packet::CoreMgmtFlashAddDataRequest {
                     destination: destination, length: len as u16, last: status.is_last(), data: *slice});
             match reply {
                 Ok(Packet::CoreMgmtReply { succeeded: true }) => Ok(()),

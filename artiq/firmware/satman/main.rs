@@ -628,7 +628,13 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             warn!("restarting");
             unsafe { spiflash::reload(); }
         }
-        drtioaux::Packet::CoreMgmtFlashRequest { destination: _destination, last, length, data } => {
+        drtioaux::Packet::CoreMgmtFlashRequest { destination: _destination, payload_length } => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+
+            coremgr.allocate_image_buffer(payload_length as usize);
+            drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })
+        }
+        drtioaux::Packet::CoreMgmtFlashAddDataRequest { destination: _destination, last, length, data } => {
             forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
 
             coremgr.add_image_data(&data, length as usize);

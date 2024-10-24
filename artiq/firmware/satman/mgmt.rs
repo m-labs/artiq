@@ -106,6 +106,10 @@ impl Manager {
         drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded })
     }
 
+    pub fn allocate_image_buffer(&mut self, image_size: usize) {
+        self.image_payload = Cursor::new(Vec::with_capacity(image_size));
+    }
+
     pub fn add_image_data(&mut self, data: &[u8], data_len: usize) {
         self.image_payload.write_all(&data[..data_len]).unwrap();
     }
