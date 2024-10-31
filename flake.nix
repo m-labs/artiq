@@ -467,7 +467,11 @@
           #__impure = true;     # Nix 2.8+
 
           buildInputs = [
-            (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ artiq ps.paramiko ]))
+            (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [
+              artiq
+              ps.paramiko
+            ] ++ ps.paramiko.optional-dependencies.ed25519
+            ))
             pkgs.llvm_15
             pkgs.lld_15
             pkgs.openssh
