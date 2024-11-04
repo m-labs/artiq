@@ -35,7 +35,7 @@ mock_modules = ["artiq.gui.waitingspinnerwidget",
                 "artiq.dashboard.waveform",
                 "artiq.coredevice.jsondesc",
                 "qasync", "lmdb", "dateutil.parser", "prettytable", "PyQt6",
-                "h5py", "llvmlite", "pythonparser", "tqdm", "jsonschema"]
+                "h5py", "llvmlite", "pythonparser", "tqdm", "jsonschema", "platformdirs"]
 
 for module in mock_modules:
     sys.modules[module] = Mock()
