@@ -1,20 +1,42 @@
 {
   description = "A leading-edge control system for quantum information experiments";
 
-  inputs.nixpkgs.url = github:NixOS/nixpkgs/nixos-unstable;
-  inputs.rust-overlay = {
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+
+    rust-overlay = {
       url = "github:oxalica/rust-overlay?ref=snapshot/2024-08-01";
       inputs.nixpkgs.follows = "nixpkgs";
-  };
-  inputs.sipyco.url = github:m-labs/sipyco;
-  inputs.sipyco.inputs.nixpkgs.follows = "nixpkgs";
-  inputs.src-pythonparser = { url = github:m-labs/pythonparser; flake = false; };
-  inputs.artiq-comtools.url = github:m-labs/artiq-comtools;
-  inputs.artiq-comtools.inputs.nixpkgs.follows = "nixpkgs";
-  inputs.artiq-comtools.inputs.sipyco.follows = "sipyco";
+    };
 
-  inputs.src-migen = { url = github:m-labs/migen; flake = false; };
-  inputs.src-misoc = { type = "git"; url = "https://github.com/m-labs/misoc.git"; submodules = true; flake = false; };
+    artiq-comtools = {
+      url = "github:m-labs/artiq-comtools";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.sipyco.follows = "sipyco";
+    };
+
+    sipyco = {
+      url = "github:m-labs/sipyco";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    src-migen = {
+      url = "github:m-labs/migen";
+      flake = false; 
+    };
+
+    src-misoc = { 
+      url = "https://github.com/m-labs/misoc.git";
+      type = "git";
+      submodules = true; 
+      flake = false;
+    };
+
+    src-pythonparser = {
+      url = "github:m-labs/pythonparser";
+      flake = false;
+    };
+  };
 
   outputs = { self, nixpkgs, rust-overlay, sipyco, src-pythonparser, artiq-comtools, src-migen, src-misoc }:
     let
