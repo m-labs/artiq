@@ -166,6 +166,14 @@ EBAZ4205
 
 The `EBAZ4205 <https://github.com/xjtuecho/EBAZ4205>`_ Zynq-SoC control card, originally used in the Ebit E9+ BTC miner, is a low-cost development board (around $20-$30 USD), making it an ideal option for experimenting with ARTIQ. To use the EBAZ4205, it's important to carefully follow the board documentation to configure it to boot from the SD card, as network booting via ``artiq_netboot`` is currently unsupported. This is because the Ethernet PHY is routed through the EMIO, requiring the FPGA to be programmed before the board can establish a network connection.
 
+SD BOOT
+"""""""
+
+To enable the EBAZ4205 to boot from an SD card, you will need to modify the board's boot select resistors. By default, the board is set to boot from NAND, with a resistor placed on ``R2584``. To change the boot mode to SD card, move the resistor from ``R2584`` to ``R2577``. Be sure to carefully consult the `EBAZ4205 documentation <https://github.com/xjtuecho/EBAZ4205>`_ to confirm resistor locations and proper handling of the board.
+
+AD9834 DDS
+""""""""""
+
 One useful application of the EBAZ4205 is controlling external devices like the AD9834 DDS Module from ZonRi Technology Co., Ltd. To establish communication between the EBAZ4205 and the AD9834 module, proper configuration of the SPI interface pins is essential. The board's flexibility allows for straightforward control of the DDS once the correct pinout is known. The table below details the necessary connections between the EBAZ4205 and the AD9834 module, including power, ground, and SPI signals.
 
 +--------------------------+---------------------+----------------------------+
@@ -188,7 +196,7 @@ One useful application of the EBAZ4205 is controlling external devices like the 
 | RESET (Unused)           | RESET               | N/A: Bit Controlled        |
 +--------------------------+---------------------+----------------------------+
 
-For a step-by-step guide, see the `EBAZ4205 and AD9834 setup guide <https://newell.github.io/projects/ebaz4205>`_.
+For a guide, see the `EBAZ4205 and AD9834 setup guide <https://newell.github.io/projects/ebaz4205>`_.
 
 Variant details
 ---------------
