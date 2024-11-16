@@ -48,11 +48,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1731732011,
-        "narHash": "sha256-+TMO4LyDUR/NA7BQduPavWPfEXnKjl2qm4VP1oPFv6E=",
+        "lastModified": 1731735709,
+        "narHash": "sha256-7L5CB5skLRJ02KGPy4c1elEc83rhvYFsxgNGEBf5QXY=",
         "ref": "refs/heads/master",
-        "rev": "230982dc844fb6be1b91318c41dcbdf12eb9466d",
-        "revCount": 1376,
+        "rev": "2cee7604046e5433f4bfcabd5b964faca1cc5949",
+        "revCount": 1377,
         "type": "git",
         "url": "https://git.m-labs.hk/m-labs/nac3.git"
       },
