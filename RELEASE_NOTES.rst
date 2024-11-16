@@ -7,6 +7,7 @@ ARTIQ-9 (Unreleased)
 --------------------
 
 * Dashboard:
+   - Experiment windows can have different colors, selected by the user.
    - Zotino monitoring now displays the values in volts.
    - Schedule display columns can now be reordered and shown/hidden using the table
      header context menu.
