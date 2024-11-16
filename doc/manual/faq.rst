@@ -27,6 +27,21 @@ Substitute ``artiq-manual-pdf`` to get the LaTeX PDF version. The results will b
 
 The manual is written in `reStructured Text <https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html>`_; you can find the source files in the ARTIQ repository under ``doc/manual``. If you spot a mistake, a typo, or something that's out of date or missing -- in particular, if you want to add something to this FAQ -- feel free to clone the repository, edit the source RST files, and make a pull request with your version of an improvement. (If you're not a fan of or not familiar with command-line Git, both GitHub and Gitea support making edits and pull requests directly in the web interface; tutorial materials are easy to find online.) The second best thing is to open an issue to make M-Labs aware of the problem.
 
+roll back to older versions of ARTIQ, or obtain it through other installation methods?
+--------------------------------------------------------------------------------------
+
+At all times, three versions of ARTIQ are actively supported by M-Labs, released through the beta, stable, and legacy channels. See :doc:`releases`.
+
+If you are trying to rollback to stable or legacy, the process should be accordingly simple. See the respective :doc:`installing` page in the respective version of the manual. If you've previously used the version you are rolling back to, you can likely use the rollback methods described in :ref:`installing-upgrading`; otherwise you can always treat it as a fresh install. Remember that it will also be necessary to reflash core devices with corresponding legacy binaries.
+
+Regarding pre-legacy releases, note that being actively supported simply means that M-Labs makes prebuilt packages and binaries for these versions available via the supported installation methods and through AFWS. Outdated versions aren't automatically built or offered over these channels, but their source code remains available in the Git repository, and you are free to use it or adapt it in accordance with the terms of the license, including building whatever packages you prefer. In general, though, newer releases of ARTIQ offer more features, more stability, better performance, and better support. The legacy release is supported simply as a convenience for users who haven't been able to upgrade yet. For normal purposes, it is recommended to use the current stable release of ARTIQ if at all possible, or the beta to gain access to new features and improvements that are still in development.
+
+For more details, see also `Clarifications regarding the ARTIQ release model and AFWS <https://forum.m-labs.hk/d/823-clarifications-regarding-the-artiq-release-model-and-afws>`_.
+
+.. tip::
+
+    If you're particularly concerned with being able to precisely reproduce older experiments, even when you've moved on to newer ARTIQ versions, upgrade carefully and make your own local backups to be able to rollback to older versions of your system. Make sure to keep copies of older firmware binaries in order to be able to reflash your hardware. Older versions of ARTIQ will always continue working if left untouched, and you won't need to worry about rebuilding from the source if you keep your own prebuilt versions around.
+
 .. _faq-networking:
 
 troubleshoot networking problems?
