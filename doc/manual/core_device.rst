@@ -166,6 +166,9 @@ EBAZ4205
 
 The `EBAZ4205 <https://github.com/xjtuecho/EBAZ4205>`_ Zynq-SoC control card, originally used in the Ebit E9+ BTC miner, is a low-cost development board (around $20-$30 USD), making it an ideal option for experimenting with ARTIQ. To use the EBAZ4205, it's important to carefully follow the board documentation to configure it to boot from the SD card, as network booting via ``artiq_netboot`` is currently unsupported. This is because the Ethernet PHY is routed through the EMIO, requiring the FPGA to be programmed before the board can establish a network connection.
 
+.. note::
+  Although both ``int_100`` and ``int_125`` are supported, ``int_150`` -- used to synthesize a 150MHz RTIO clock -- is not currently compatible with the EBAZ4205.
+
 SD BOOT
 """""""
 
