@@ -130,6 +130,39 @@ This and other similar messages almost always indicate that your device database
 
 to let the controller manager start the necessary controllers automatically.
 
+fix ``address already in use`` when running ARTIQ commands?
+-----------------------------------------------------------
+
+A message like ``OSError: [Errno 98] error while attempting to bind on address ('127.0.0.1', 1067): [errno 98] address already in use`` indicates that the IP address and port number combination you're trying to use is already occupied by some other process. Often this simply means that the ARTIQ process you're trying to start is in fact already running. Note for example that trying to start a controller which is already being run by a controller manager will generally fail for this reason.
+
+.. note::
+    ARTIQ management system communications, whether distributed or local, run over TCP/IP, using TCP port numbers to identify their destinations. Generally speaking, client processes like the dashboard don't require fixed ports of their own, since they can simply reach out to the master when they want to establish a connection. Running multiple dashboards will never cause a port conflict. On the other hand, server processes like the ARTIQ master have to be 'listening' at a fixed, open port in order to be able to receive incoming connections. For more details, look into `ports in computer networking <https://en.wikipedia.org/wiki/Port_(computer_networking)>`_.
+
+    Most management system processes belong to the second category, and are bound to one or several fixed communication ports while they're running. See also :doc:`default_network_ports`.
+
+You can use the command ``netstat`` to list the ports currently in use on your system. To check the status of a specific port on Linux, try either of: ::
+
+    $ netstat -anp --inet | grep "<port-number>"
+    $ lsof -i:<port-number>
+
+On Windows, use ::
+
+    $ netstat -ano -p ip | find "<port-number>"
+
+In all cases, if there are no results, the port isn't in use and should be free for new processes.
+
+.. tip::
+    While it is possible to run, for example, two identical ARTIQ controllers on the same machine, they can't be bound to the same port numbers at the same time. If you're intentionally running multiple copies of the same ARTIQ processes, use the command-line ``--port`` options to set alternate ports for at least one of the two. See :doc:`main_frontend_tools` and :doc:`utilities` for exact flags to use. Controllers should have similar flags available and will also require updated :ref:`device database entries <ndsp-integration>`. Note that alternate ports must be consistent to be useful, e.g., a master and dashboard must have the same ``--port-notify`` set in order to communicate with each other!
+
+Otherwise, either the running process must be stopped, or you'll have to set different port numbers for the process you're trying to start. In some cases it might happen that a process is no longer accessible or has become unresponsive but is still occupying its ports. The easiest way to free the ports is to kill the process manually. On Linux, you can use the ``kill`` command with ``lsof``: ::
+
+    $ kill $(lsof -t -i:<port-number>)
+
+On Windows, use ``netstat`` again to identify the process ID, and then feed it into ``taskkill``, e.g.: ::
+
+    $ netstat -ano | find "<port-number>"
+    $ taskkill /F /PID <process-ID>
+
 diagnose and fix sequence errors?
 ---------------------------------
 
