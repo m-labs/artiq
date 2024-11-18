@@ -323,7 +323,6 @@ class _Annotation(EnvExperiment):
     def build(self):
         self.setattr_device("core")
 
-    # NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/101
     @kernel
     def overflow(self, x: int64) -> bool:
         return (x << 32) != int64(0)
@@ -334,7 +333,6 @@ class _Annotation(EnvExperiment):
 
 
 class AnnotationTest(ExperimentCase):
-    @unittest.skip("NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/101")
     def test_annotation(self):
         exp = self.create(_Annotation)
         self.assertEqual(exp.overflow(int64(1)), True)
