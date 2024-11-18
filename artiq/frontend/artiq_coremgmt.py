@@ -186,7 +186,7 @@ def main():
                 pass
 
         if retrieved_bins is None:
-            raise FileNotFoundError("both risc-v and zynq binaries not found")
+            raise FileNotFoundError("neither risc-v nor zynq binaries were found")
 
         if len(retrieved_bins) > 1:
             raise ValueError("both risc-v and zynq binaries were found, "
