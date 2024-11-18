@@ -123,6 +123,10 @@ class Core:
 
         self._run_compiled(kernel_library, embedding_map)
 
+        # set by NAC3
+        if embedding_map.expects_return:
+            return embedding_map.return_value
+
     def _run_compiled(self, kernel_library, embedding_map):
         if self.first_run:
             self.comm.check_system_info()

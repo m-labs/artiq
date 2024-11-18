@@ -689,7 +689,12 @@ class CommKernel:
 
         if service_id == 0:
             def service(*values):
-                counter = 0
+                if embedding_map.expects_return:
+                    embedding_map.return_value = values[0]
+                    counter = 1
+                else:
+                    counter = 0
+
                 for obj in embedding_map.attributes_writeback:
                     old_val = obj["obj"]
                     if "fields" in obj:
