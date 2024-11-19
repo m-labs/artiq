@@ -65,10 +65,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
     :ivar catch_clauses: (list of (:class:`ir.BasicBlock`, :class:`types.Type` or None))
         a list of catch clauses that should be appended to inner try block
         landingpad
-    :ivar final_branch: (function (target: :class:`ir.BasicBlock`, block: :class:`ir.BasicBlock)
-                         or None)
-        the function that appends to ``block`` a jump through the ``finally`` statement
-        to ``target``
 
     There is, additionally, some global state that is used to translate
     the results of analyses on AST level to IR level:
@@ -114,7 +110,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.return_target = None
         self.unwind_target = None
         self.catch_clauses = []
-        self.final_branch = None
         self.function_map = dict()
         self.variable_map = dict()
         self.method_map = defaultdict(lambda: [])
@@ -635,11 +630,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.append(ir.Branch(self.continue_target))
 
     def raise_exn(self, exn=None, loc=None):
-        if self.final_branch is not None:
-            raise_proxy = self.add_block("try.raise")
-            self.final_branch(raise_proxy, self.current_block)
-            self.current_block = raise_proxy
-
         if exn is not None:
             # if we need to raise the exception in a final body, we have to
             # lazy-evaluate the exception object to make sure that we generate
@@ -1114,13 +1104,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
             entry = self.add_block("entry")
             old_block, self.current_block = self.current_block, entry
 
-            old_final_branch, self.final_branch = self.final_branch, None
             old_unwind, self.unwind_target = self.unwind_target, None
             self.raise_exn(lambda: exn_gen(*args[1:]), loc=loc)
         finally:
             self.current_function = old_func
             self.current_block = old_block
-            self.final_branch = old_final_branch
             self.unwind_target = old_unwind
 
         # cond:    bool Value, condition
@@ -1539,7 +1527,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
             entry = self.add_block("entry")
             old_block, self.current_block = self.current_block, entry
 
-            old_final_branch, self.final_branch = self.final_branch, None
             old_unwind, self.unwind_target = self.unwind_target, None
 
             shape = self.append(ir.GetAttr(arg, "shape"))
@@ -1565,7 +1552,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.current_loc = old_loc
             self.current_function = old_func
             self.current_block = old_block
-            self.final_branch = old_final_branch
             self.unwind_target = old_unwind
 
     def _get_array_unaryop(self, name, make_op, result_type, arg_type):
@@ -1666,7 +1652,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
             entry = self.add_block("entry")
             old_block, self.current_block = self.current_block, entry
 
-            old_final_branch, self.final_branch = self.final_branch, None
             old_unwind, self.unwind_target = self.unwind_target, None
 
             body_gen(result, lhs, rhs)
@@ -1677,7 +1662,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.current_loc = old_loc
             self.current_function = old_func
             self.current_block = old_block
-            self.final_branch = old_final_branch
             self.unwind_target = old_unwind
 
     def _make_array_elementwise_binop(self, name, result_type, lhs_type,
@@ -2820,7 +2804,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             entry = self.add_block("entry")
             old_block, self.current_block = self.current_block, entry
-            old_final_branch, self.final_branch = self.final_branch, None
             old_unwind, self.unwind_target = self.unwind_target, None
 
             exn = self.alloc_exn(builtins.TException("AssertionError"),
@@ -2833,7 +2816,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
         finally:
             self.current_function = old_func
             self.current_block = old_block
-            self.final_branch = old_final_branch
             self.unwind_target = old_unwind
 
         self.raise_assert_func = func
