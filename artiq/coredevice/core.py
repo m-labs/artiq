@@ -102,7 +102,11 @@ class Core:
             raise NotImplementedError
 
         if not self.analyzed:
-            self.compiler.analyze(core_language._registered_functions, core_language._registered_classes)
+            self.compiler.analyze(
+                core_language._registered_functions,
+                core_language._registered_classes,
+                core_language._registered_modules
+            )
             self.analyzed = True
 
         if hasattr(method, "__self__"):

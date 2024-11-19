@@ -30,7 +30,9 @@ from artiq.master.worker_db import DeviceManager, DatasetManager, DummyDevice
 from artiq.language.environment import (
     is_public_experiment, TraceArgumentManager, ProcessArgumentManager
 )
-from artiq.language.core import set_watchdog_factory, TerminationRequested
+from artiq.language.core import (
+    register_content_module, set_watchdog_factory, TerminationRequested
+)
 from artiq.language import import_cache
 from artiq import __version__ as artiq_version
 
@@ -166,6 +168,7 @@ def get_experiment_from_content(content, class_name):
         StringLoader(fake_filename, content)
     )
     module = importlib.util.module_from_spec(spec)
+    register_content_module(module)
     spec.loader.exec_module(module)
     linecache.lazycache(fake_filename, module.__dict__)
     return tools.get_experiment(module, class_name)
