@@ -703,7 +703,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 return_action.append(ir.Return(value))
                 final_branch(return_action, return_proxy)
         else:
-            landingpad.has_cleanup = False
+            landingpad.has_cleanup = self.unwind_target is not None
 
         # we should propagate the clauses to nested try catch blocks
         # so nested try catch will jump to our clause if the inner one does not
@@ -767,7 +767,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self.continue_target = old_continue
             self.return_target = old_return
 
-        if any(node.finalbody):
             # create new unwind target for cleanup
             final_dispatcher = self.add_block("try.final.dispatch")
             final_landingpad = ir.LandingPad(cleanup)
@@ -776,7 +775,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
             # make sure that exception clauses are unwinded to the finally block
             old_unwind, self.unwind_target = self.unwind_target, final_dispatcher
 
-        if any(node.finalbody):
             # if we have a while:try/finally continue must execute finally
             # before continuing the while
             redirect = final_branch
