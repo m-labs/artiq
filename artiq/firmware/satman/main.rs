@@ -6,21 +6,25 @@ extern crate log;
 #[macro_use]
 extern crate board_misoc;
 extern crate board_artiq;
+extern crate logger_artiq;
 extern crate riscv;
 extern crate alloc;
 extern crate proto_artiq;
+extern crate byteorder;
+extern crate crc;
 extern crate cslice;
 extern crate io;
 extern crate eh;
 
 use core::convert::TryFrom;
-use board_misoc::{csr, ident, clock, config, uart_logger, i2c, pmp};
+use board_misoc::{csr, ident, clock, config, i2c, pmp};
 #[cfg(has_si5324)]
 use board_artiq::si5324;
 #[cfg(has_si549)]
 use board_artiq::si549;
 #[cfg(soc_platform = "kasli")]
 use board_misoc::irq;
+use board_misoc::{boot, spiflash};
 use board_artiq::{spi, drtioaux, drtio_routing};
 #[cfg(soc_platform = "efc")]
 use board_artiq::ad9117;
@@ -30,6 +34,7 @@ use board_artiq::drtio_eem;
 use riscv::register::{mcause, mepc, mtval};
 use dma::Manager as DmaManager;
 use kernel::Manager as KernelManager;
+use mgmt::Manager as CoreManager;
 use analyzer::Analyzer;
 
 #[global_allocator]
@@ -41,6 +46,7 @@ mod dma;
 mod analyzer;
 mod kernel;
 mod cache;
+mod mgmt;
 
 fn drtiosat_reset(reset: bool) {
     unsafe {
@@ -129,7 +135,7 @@ macro_rules! forward {
     ($router:expr, $routing_table:expr, $destination:expr, $rank:expr, $self_destination:expr, $repeaters:expr, $packet:expr) => {}
 }
 
-fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmgr: &mut KernelManager,
+fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmgr: &mut KernelManager, coremgr: &mut CoreManager,
         _repeaters: &mut [repeater::Repeater], _routing_table: &mut drtio_routing::RoutingTable, rank: &mut u8,
         router: &mut routing::Router, self_destination: &mut u8, packet: drtioaux::Packet
 ) -> Result<(), drtioaux::Error<!>> {
@@ -495,6 +501,167 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             Ok(())
         }
 
+        drtioaux::Packet::CoreMgmtGetLogRequest { destination: _destination, clear } => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+
+            let mut data_slice = [0; SAT_PAYLOAD_MAX_SIZE];
+            if let Ok(meta) = coremgr.log_get_slice(&mut data_slice, clear) {
+                drtioaux::send(
+                    0,
+                    &drtioaux::Packet::CoreMgmtGetLogReply {
+                        last: meta.status.is_last(),
+                        length: meta.len as u16,
+                        data: data_slice,
+                    },
+                )
+            } else {
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false })
+            }
+        }
+        drtioaux::Packet::CoreMgmtClearLogRequest { destination: _destination } => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+
+            drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: mgmt::clear_log().is_ok() })
+        }
+        drtioaux::Packet::CoreMgmtSetLogLevelRequest {destination: _destination, log_level } => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+
+            if let Ok(level_filter) = mgmt::byte_to_level_filter(log_level) {
+                info!("changing log level to {}", level_filter);
+                log::set_max_level(level_filter);
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })
+            } else {
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false })
+            }
+        }
+        drtioaux::Packet::CoreMgmtSetUartLogLevelRequest { destination: _destination, log_level } => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+
+            if let Ok(level_filter) = mgmt::byte_to_level_filter(log_level) {
+                info!("changing UART log level to {}", level_filter);
+                logger_artiq::BufferLogger::with(|logger|
+                    logger.set_uart_log_level(level_filter));
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })
+            } else {
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false })
+            }
+        }
+        drtioaux::Packet::CoreMgmtConfigReadRequest {
+            destination: _destination,
+            length,
+            key,
+        } => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+
+            let mut value_slice = [0; SAT_PAYLOAD_MAX_SIZE];
+
+            let key_slice = &key[..length as usize];
+            if !key_slice.is_ascii() {
+                error!("invalid key");
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false })
+            } else {
+                let key = core::str::from_utf8(key_slice).unwrap();
+                if coremgr.fetch_config_value(key).is_ok() {
+                    let meta = coremgr.get_config_value_slice(&mut value_slice);
+                    drtioaux::send(
+                        0,
+                        &drtioaux::Packet::CoreMgmtConfigReadReply {
+                            length: meta.len as u16,
+                            last: meta.status.is_last(),
+                            value: value_slice,
+                        },
+                    )
+                } else {
+                    drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false })
+                }
+            }
+        }
+        drtioaux::Packet::CoreMgmtConfigReadContinue {
+            destination: _destination,
+        } => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+
+            let mut value_slice = [0; SAT_PAYLOAD_MAX_SIZE];
+            let meta = coremgr.get_config_value_slice(&mut value_slice);
+            drtioaux::send(
+                0,
+                &drtioaux::Packet::CoreMgmtConfigReadReply {
+                    length: meta.len as u16,
+                    last: meta.status.is_last(),
+                    value: value_slice,
+                },
+            )
+        }
+        drtioaux::Packet::CoreMgmtConfigWriteRequest { destination: _destination, last, length, data }  => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+
+            coremgr.add_config_data(&data, length as usize);
+            if last {
+                coremgr.write_config()
+            } else {
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })
+            }
+        }
+        drtioaux::Packet::CoreMgmtConfigRemoveRequest { destination: _destination, length, key } => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+
+            let key = core::str::from_utf8(&key[..length as usize]).unwrap();
+            let succeeded = config::remove(key)
+                .map_err(|err| warn!("error on removing config: {:?}", err))
+                .is_ok();
+
+            drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded })
+        }
+        drtioaux::Packet::CoreMgmtConfigEraseRequest { destination: _destination } => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+
+            let succeeded = config::erase()
+                .map_err(|err| warn!("error on erasing config: {:?}", err))
+                .is_ok();
+
+            drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded })
+        }
+        drtioaux::Packet::CoreMgmtRebootRequest { destination: _destination } => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+
+            drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })?;
+            warn!("restarting");
+            unsafe { spiflash::reload(); }
+        }
+        drtioaux::Packet::CoreMgmtFlashRequest { destination: _destination, payload_length } => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+
+            coremgr.allocate_image_buffer(payload_length as usize);
+            drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })
+        }
+        drtioaux::Packet::CoreMgmtFlashAddDataRequest { destination: _destination, last, length, data } => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+
+            coremgr.add_image_data(&data, length as usize);
+            if last {
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtDropLink)
+            } else {
+                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })
+            }
+        }
+        drtioaux::Packet::CoreMgmtDropLinkAck { destination: _destination } => {
+            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
+
+            #[cfg(not(has_drtio_eem))]
+            unsafe {
+                csr::gt_drtio::txenable_write(0);
+            }
+
+            #[cfg(has_drtio_eem)]
+            unsafe {
+                csr::eem_transceiver::txenable_write(0);
+            }
+
+            coremgr.flash_image();
+            warn!("restarting");
+            unsafe { spiflash::reload(); }
+        }
+
         _ => {
             warn!("received unexpected aux packet");
             Ok(())
@@ -503,13 +670,13 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
 }
 
 fn process_aux_packets(dma_manager: &mut DmaManager, analyzer: &mut Analyzer,
-        kernelmgr: &mut KernelManager, repeaters: &mut [repeater::Repeater],
+        kernelmgr: &mut KernelManager, coremgr: &mut CoreManager, repeaters: &mut [repeater::Repeater],
         routing_table: &mut drtio_routing::RoutingTable, rank: &mut u8, router: &mut routing::Router,
         destination: &mut u8) {
     let result =
         drtioaux::recv(0).and_then(|packet| {
             if let Some(packet) = packet.or_else(|| router.get_local_packet()) {
-                process_aux_packet(dma_manager, analyzer, kernelmgr, 
+                process_aux_packet(dma_manager, analyzer, kernelmgr, coremgr,
                     repeaters, routing_table, rank, router, destination, packet)
             } else {
                 Ok(())
@@ -664,6 +831,27 @@ fn sysclk_setup() {
     }
 }
 
+fn setup_log_levels() {
+    match config::read_str("log_level", |r| r.map(|s| s.parse())) {
+        Ok(Ok(log_level_filter)) => {
+            info!("log level set to {} by `log_level` config key",
+                  log_level_filter);
+            log::set_max_level(log_level_filter);
+        }
+        _ => info!("log level set to INFO by default")
+    }
+    match config::read_str("uart_log_level", |r| r.map(|s| s.parse())) {
+        Ok(Ok(uart_log_level_filter)) => {
+            info!("UART log level set to {} by `uart_log_level` config key",
+                  uart_log_level_filter);
+            logger_artiq::BufferLogger::with(|logger|
+                logger.set_uart_log_level(uart_log_level_filter));
+        }
+        _ => info!("UART log level set to INFO by default")
+    }
+}
+
+static mut LOG_BUFFER: [u8; 1<<17] = [0; 1<<17];
 
 #[no_mangle]
 pub extern fn main() -> i32 {
@@ -683,11 +871,20 @@ pub extern fn main() -> i32 {
     irq::enable(csr::WRPLL_INTERRUPT);
 
     clock::init();
-    uart_logger::ConsoleLogger::register();
+    unsafe {
+        logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(||
+            boot::start_user(startup as usize));
+    }
 
+    0
+}
+
+fn startup() {
     info!("ARTIQ satellite manager starting...");
     info!("software ident {}", csr::CONFIG_IDENTIFIER_STR);
     info!("gateware ident {}", ident::read(&mut [0; 64]));
+
+    setup_log_levels();
 
     #[cfg(has_i2c)]
     i2c::init().expect("I2C initialization failed");
@@ -834,6 +1031,7 @@ pub extern fn main() -> i32 {
         let mut dma_manager = DmaManager::new();
         let mut analyzer = Analyzer::new();
         let mut kernelmgr = KernelManager::new();
+        let mut coremgr = CoreManager::new();
 
         cricon_select(RtioMaster::Drtio);
         drtioaux::reset(0);
@@ -843,7 +1041,7 @@ pub extern fn main() -> i32 {
         while drtiosat_link_rx_up() {
             drtiosat_process_errors();
             process_aux_packets(&mut dma_manager, &mut analyzer, 
-                &mut kernelmgr, &mut repeaters, &mut routing_table,
+                &mut kernelmgr, &mut coremgr, &mut repeaters, &mut routing_table,
                 &mut rank, &mut router, &mut destination);
             for rep in repeaters.iter_mut() {
                 rep.service(&routing_table, rank, destination, &mut router);

@@ -1,5 +1,7 @@
 from enum import Enum
+import binascii
 import logging
+import io
 import struct
 
 from sipyco.keepalive import create_connection
@@ -22,6 +24,8 @@ class Request(Enum):
     Reboot = 5
 
     DebugAllocator = 8
+
+    Flash = 9
 
 
 class Reply(Enum):
@@ -46,15 +50,17 @@ class LogLevel(Enum):
 
 
 class CommMgmt:
-    def __init__(self, host, port=1380):
+    def __init__(self, host, port=1380, drtio_dest=0):
         self.host = host
         self.port = port
+        self.drtio_dest = drtio_dest
 
     def open(self):
         if hasattr(self, "socket"):
             return
         self.socket = create_connection(self.host, self.port)
         self.socket.sendall(b"ARTIQ management\n")
+        self._write_int8(self.drtio_dest)
         endian = self._read(1)
         if endian == b"e":
             self.endian = "<"
@@ -194,3 +200,22 @@ class CommMgmt:
 
     def debug_allocator(self):
         self._write_header(Request.DebugAllocator)
+
+    def flash(self, bin_paths):
+        self._write_header(Request.Flash)
+
+        with io.BytesIO() as image_buf:
+            for filename in bin_paths:
+                with open(filename, "rb") as fi:
+                    bin_ = fi.read()
+                    if (len(bin_paths) > 1):
+                        image_buf.write(
+                            struct.pack(self.endian + "I", len(bin_)))
+                    image_buf.write(bin_)
+
+            crc = binascii.crc32(image_buf.getvalue())
+            image_buf.write(struct.pack(self.endian + "I", crc))
+
+            self._write_bytes(image_buf.getvalue())
+
+        self._read_expect(Reply.RebootImminent)
