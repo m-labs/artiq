@@ -1,6 +1,7 @@
 import atexit
 import os
 import tempfile
+import struct
 
 
 def artifact_path(this_binary_dir, *path_filename, srcbuild=False):
@@ -64,9 +65,6 @@ def fetch_bin(binary_dir, components, srcbuild=False):
 # Copyright 2014-2017 Robert Jordens <jordens@gmail.com>
 # after
 # https://github.com/mfischer/fpgadev-zynq/blob/master/top/python/bit_to_zynq_bin.py
-
-import struct
-
 
 def flip32(data):
     sl = struct.Struct("<I")
