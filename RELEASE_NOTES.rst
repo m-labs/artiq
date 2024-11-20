@@ -22,6 +22,7 @@ ARTIQ-9 (Unreleased)
 * Idle kernels now restart when written with ``artiq_coremgmt`` and stop when erased/removed from config.
 * New support for the EBAZ4205 Zynq-SoC control card.
 * New core device driver for the AD9834 DDS, tested with the ZonRi Technology Co., Ltd. AD9834-Module.
+* artiq.coredevice.fmcdio_vhdci_eem has been removed.
 
 ARTIQ-8
 -------
