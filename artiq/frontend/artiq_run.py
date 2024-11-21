@@ -161,7 +161,7 @@ def get_argparser(with_file=True):
         parser.add_argument("file", metavar="FILE",
                             help="file containing the experiment to run")
     parser.add_argument("arguments", metavar="ARGUMENTS", nargs="*",
-                        help="run arguments")
+                        help="run arguments, use format KEY=VALUE")
 
     return parser
 
