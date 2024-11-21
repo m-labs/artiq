@@ -317,7 +317,7 @@
         inherit (pkgs.texlive)
           scheme-basic latexmk cmap collection-fontsrecommended fncychap
           titlesec tabulary varwidth framed fancyvrb float wrapfig parskip
-          upquote capt-of needspace etoolbox booktabs;
+          upquote capt-of needspace etoolbox booktabs xcolor;
       };
 
       artiq-frontend-dev-wrappers = pkgs.runCommandNoCC "artiq-frontend-dev-wrappers" {}
