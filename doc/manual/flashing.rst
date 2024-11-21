@@ -78,29 +78,25 @@ On Windows
 Writing the flash
 -----------------
 
-First ensure the board is connected to your computer. In the case of Kasli, the JTAG adapter is integrated into the Kasli board; for flashing (and debugging) you can simply connect your computer to the micro-USB connector on the Kasli front panel. For :ref:`Zynq devices <devices-table>`, which use :mod:`~artiq.frontend.artiq_coremgmt` to flash over network, an Ethernet connection and an IP address, supplied either with the ``-D`` option or in your :ref:`device database <device-db>`, are sufficient.
+If your device is already accessible over the network, all you need is an Ethernet connection and a correct IP address (supplied either with the ``-D`` option or in :ref:`your device database <device-db>`). ::
 
-For Kasli-SoC, ZC706 or EBAZ4205:
-    ::
+    $ artiq_coremgmt [-D IP_address] flash <afws_directory>
+    $ artiq_coremgmt [-D IP_address] reboot
 
-        $ artiq_coremgmt [-D IP_address] config write -f boot <afws_directory>/boot.bin
-        $ artiq_coremgmt reboot
+If the device is not reachable due to corrupted firmware or networking problems, binaries can be loaded manually. On Kasli or KC705, connect the board directly to your computer by JTAG USB and use :mod:`~artiq.frontend.artiq_flash`, as follows: ::
 
-    If the device is not reachable due to corrupted firmware or networking problems, extract the SD card and copy ``boot.bin`` onto it manually.
+        $ artiq_flash [-t kc705] -d <afws_directory>
 
-For Kasli:
-    ::
+Note the micro-USB in the Kasli front panel. On KC705, the SW13 switches need to be set to 00001.
 
-        $ artiq_flash -d <afws_directory>
+For Zynq devices (Kasli-SoC, ZC706 or EBAZ4205), extract the SD card and copy ``boot.bin`` onto it manually.
 
-For KC705:
-    ::
+Writing to satellite devices
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-        $ artiq_flash -t kc705 -d <afws_directory>
+Satellite devices can at any time be flashed directly through the SD card or :mod:`~artiq.frontend.artiq_flash`, as applicable. Satellite devices do not support individual networking and do not have IP addresses. If your DRTIO system is up and running and the routing table is in place, on the other hand, they can be flashed through the master's network connection: ::
 
-    The SW13 switches need to be set to 00001.
-
-Flashing over network is also possible for Kasli and KC705, assuming IP networking has already been set up. In this case, the ``-H HOSTNAME`` option is used; see the entry for :mod:`~artiq.frontend.artiq_flash` in the :ref:`Utilities <flashing-loading-tool>` reference.
+  $ artiq_coremgmt [-D IP_address] -s <destination_number> flash <afws_directory>
 
 .. _connecting-uart:
 
