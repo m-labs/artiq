@@ -140,7 +140,7 @@ The parallel command does exist for ARTIQ-Zynq: ::
 
 but if you are building ARTIQ-Zynq without intention to change the source, it is not actually necessary to enter the development environment at all; Nix is capable of accessing the official flake remotely for the build itself, eliminating the requirement for any particular environment.
 
-This is equally possible for original ARTIQ, but not as useful, as the development environment (specifically the ``#boards`` shell) is still the easiest way to access the necessary tools for flashing the board. On the other hand, with Zynq, it is normally recommended to boot from SD card, which requires no further special tools. As long as you have a functioning Nix installation with flakes enabled, you can progress directly to the building instructions below.
+This is equally possible for original ARTIQ, but not as useful, as the development environment (specifically the ``#boards`` shell) is still the easiest way to access the necessary tools for flashing the board. On the other hand, Zynq boards can also be flashed by writing to the SD card directly, which requires no further special tools. As long as you have a functioning Nix/Vivado installation with flakes enabled, you can progress directly to the building instructions below.
 
 .. _building:
 
@@ -160,8 +160,9 @@ With KC705, use: ::
 
     $ python -m artiq.gateware.targets.kc705 -V <variant>
 
-This will create a directory ``artiq_kasli`` or ``artiq_kc705`` containing the binaries in a subdirectory named after your description file or variant. Flash the board as described in :ref:`writing-flash`, adding the option ``--srcbuild``, e.g., assuming your board is already connected by JTAG USB: ::
+This will create a directory ``artiq_kasli`` or ``artiq_kc705`` containing the binaries in a subdirectory named after your description file or variant. Flash the board as described in :ref:`writing-flash`, adding the option ``--srcbuild``, e.g., assuming your board is connected by network or JTAG USB respectively: ::
 
+    $ artiq_coremgmt flash --srcbuild artiq_<board>/<variant>
     $ artiq_flash --srcbuild [-t kc705] -d artiq_<board>/<variant>
 
 .. note::
@@ -190,20 +191,24 @@ or you can use the more direct version: ::
 
     $ nix build --print-build-logs git+https://git.m-labs.hk/m-labs/artiq-zynq\?ref=release-[number]#<target>-<variant>-sd
 
-(which is possible for ZC706 or EBAZ4205 because there is no need to be able to specify a system description file in the arguments.)
+(which is possible for ZC706 and EBAZ4205 because there is no need to be able to specify a system description file in the arguments.)
 
 .. note::
-    To see supported ZC706 variants (for EBAZ4205 variants, replace ``zc706`` with ``ebaz4205``), you can run the following at the root of the repository: ::
+    To see supported variants for ZC705 or EBA4205, you can run the following at the root of the repository: ::
 
-        $ src/gateware/zc706.py --help
+        $ src/gateware/<target>.py --help
 
     Look for the option ``-V VARIANT, --variant VARIANT``. If you have not cloned the repository or are not in the development environment, try: ::
 
-        $ nix flake show git+https://git.m-labs.hk/m-labs/artiq-zynq\?ref=release-[number] | grep "package 'zc706.*sd"
+        $ nix flake show git+https://git.m-labs.hk/m-labs/artiq-zynq\?ref=release-[number] | grep "package '<target>.*sd"
 
     to see the list of suitable build targets directly.
 
-Any of these commands should produce a directory ``result`` which contains a file ``boot.bin``. As described in :ref:`writing-flash`, if your core device is currently accessible over the network, it can be flashed with :mod:`~artiq.frontend.artiq_coremgmt`. If it is not connected to the network:
+Any of these commands should produce a directory ``result`` which contains a file ``boot.bin``. If your core device is accessible by network, flash with: ::
+
+    $ artiq_coremgmt flash result
+
+Otherwise:
 
 1. Power off the board, extract the SD card and load ``boot.bin`` onto it manually.
 2. Insert the SD card back into the board.
@@ -244,17 +249,11 @@ For Kasli-SoC:
     $ gateware/kasli_soc.py -g ../build/gateware <description.json>
     $ make TARGET=kasli_soc GWARGS="path/to/description.json" <fw-type>
 
-For ZC706:
+For ZC706 or EBAZ4205:
     ::
 
-    $ gateware/zc706.py -g ../build/gateware -V <variant>
-    $ make TARGET=zc706 GWARGS="-V <variant>" <fw-type>
-
-For EBAZ4205:
-    ::
-
-    $ gateware/ebaz4205.py -g ../build/gateware -V <variant>
-    $ make TARGET=ebaz4205 GWARGS="-V <variant>" <fw-type>
+    $ gateware/<target>.py -g ../build/gateware -V <variant>
+    $ make TARGET=<target> GWARGS="-V <variant>" <fw-type>
 
 where ``fw-type`` is ``runtime`` for standalone or DRTIO master builds and ``satman`` for DRTIO satellites. Both the gateware and the firmware will generate into the ``../build`` destination directory. At this stage, if supported, you can :ref:`boot from JTAG <zynq-jtag-boot>`; either of the ``*_run.sh`` scripts will expect the gateware and firmware files at their default locations, and the ``szl.elf`` bootloader is retrieved automatically.
 

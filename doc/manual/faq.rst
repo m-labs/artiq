@@ -75,13 +75,6 @@ Either reflash your core device with a newer version of ARTIQ (see :doc:`flashin
 
     Minor version mismatches are common, even in stable ARTIQ versions, but should not cause any issues. The ARTIQ release system ensures breaking changes are strictly limited to new release versions, or to the beta branch (which explicitly makes no promises of stability.) Updates that *are* applied to the stable version are usually bug fixes, documentation improvements, or other quality-of-life changes. As long as gateware and software are using the same stable release version of ARTIQ, even if there is a minor mismatch, no warning will be displayed.
 
-change configuration settings of satellite devices?
----------------------------------------------------
-
-Currently, it is not possible to reach satellites through ``artiq_coremgmt config``, although this is being worked on. On Kasli, use :class:`~artiq.frontend.artiq_mkfs` and :class:`~artiq.frontend.artiq_flash`; on Kasli-SoC, preload the SD card with a ``config.txt``, formatted as a list of ``key=value`` pairs, one per line.
-
-Don't worry about individually flashing idle or startup kernels. If your idle or startup kernel contains subkernels, it will automatically compile as a ``.tar``, which you only need to flash to the master.
-
 fix unreliable DRTIO master-satellite links?
 --------------------------------------------
 
