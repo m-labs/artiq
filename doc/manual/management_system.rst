@@ -156,6 +156,11 @@ Accessing the :meth:`pause` and :meth:`~artiq.master.scheduler.Scheduler.check_p
 
 :meth:`~artiq.master.scheduler.Scheduler.check_pause` can be called (via RPC) from a kernel, but :meth:`pause` cannot be.
 
+Scheduler attributes
+^^^^^^^^^^^^^^^^^^^^
+
+The ``scheduler`` virtual device also exposes information about an experiment's scheduling status through the attributes ``rid``, ``pipeline_name``, ``priority``, and ``expid``. This allows e.g. access to an experiment's current RID as ``self.scheduler.rid``.
+
 Internal details
 ----------------
 
