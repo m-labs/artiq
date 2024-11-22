@@ -145,9 +145,11 @@ You can use the command ``netstat`` to list the ports currently in use on your s
     $ netstat -anp --inet | grep "<port-number>"
     $ lsof -i:<port-number>
 
-On Windows, use ::
+On Windows, you can list ports with: ::
 
-    $ netstat -ano -p ip | find "<port-number>"
+    $ netstat -ano -p TCP
+
+Use your preferred method to search through the output; suitable commands will vary by environment (e.g. ``grep`` in an MSYS2 shell, ``Select-String`` in PowerShell, ``find`` in the Windows command line, etc.)
 
 In all cases, if there are no results, the port isn't in use and should be free for new processes.
 
@@ -160,7 +162,7 @@ Otherwise, either the running process must be stopped, or you'll have to set dif
 
 On Windows, use ``netstat`` again to identify the process ID, and then feed it into ``taskkill``, e.g.: ::
 
-    $ netstat -ano | find "<port-number>"
+    $ netstat -ano -p TCP
     $ taskkill /F /PID <process-ID>
 
 diagnose and fix sequence errors?
