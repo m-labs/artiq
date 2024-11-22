@@ -24,7 +24,7 @@ ARTIQ-9 (Unreleased)
 * New core device driver for the AD9834 DDS, tested with the ZonRi Technology Co., Ltd. AD9834-Module.
 * Support for coredevice reflashing through the new ``flash`` tool in ``artiq_coremgmt``.
 * ``artiq_coremgmt`` now supports configuring satellites.
-* artiq.coredevice.fmcdio_vhdci_eem has been removed.
+* ``artiq.coredevice.fmcdio_vhdci_eem`` has been removed.
 
 ARTIQ-8
 -------
