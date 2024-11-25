@@ -49,6 +49,11 @@
       artiqVersion = (builtins.toString artiqVersionMajor) + "." + (builtins.toString artiqVersionMinor) + "+" + artiqVersionId + ".beta";
       artiqRev = self.sourceInfo.rev or "unknown";
 
+      qtPaths = {
+        QT_PLUGIN_PATH = "${pkgs.qt6.qtbase}/${pkgs.qt6.qtbase.dev.qtPluginPrefix}:${pkgs.qt6.qtsvg}/${pkgs.qt6.qtbase.dev.qtPluginPrefix}";
+        QML2_IMPORT_PATH = "${pkgs.qt6.qtbase}/${pkgs.qt6.qtbase.dev.qtQmlPrefix}";
+      };
+
       rust = pkgs.rust-bin.nightly."2021-09-01".default.override {
         extensions = [ "rust-src" ];
         targets = [ ];
@@ -414,7 +419,7 @@
         };
       };
 
-      inherit makeArtiqBoardPackage openocd-bscanspi-f;
+      inherit qtPaths makeArtiqBoardPackage openocd-bscanspi-f;
 
       defaultPackage.x86_64-linux = pkgs.python3.withPackages(ps: [ packages.x86_64-linux.artiq ]);
 
@@ -446,8 +451,8 @@
         ];
         shellHook = ''
           export LIBARTIQ_SUPPORT=`libartiq-support`
-          export QT_PLUGIN_PATH=${pkgs.qt6.qtbase}/${pkgs.qt6.qtbase.dev.qtPluginPrefix}:${pkgs.qt6.qtsvg}/${pkgs.qt6.qtbase.dev.qtPluginPrefix}
-          export QML2_IMPORT_PATH=${pkgs.qt6.qtbase}/${pkgs.qt6.qtbase.dev.qtQmlPrefix}
+          export QT_PLUGIN_PATH=${qtPaths.QT_PLUGIN_PATH}
+          export QML2_IMPORT_PATH=${qtPaths.QML2_IMPORT_PATH}
           export PYTHONPATH=`git rev-parse --show-toplevel`:$PYTHONPATH
         '';
       };
