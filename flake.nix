@@ -24,6 +24,11 @@
       artiqVersion = (builtins.toString artiqVersionMajor) + "." + (builtins.toString artiqVersionMinor) + "+" + artiqVersionId;
       artiqRev = self.sourceInfo.rev or "unknown";
 
+      qtPaths = {
+        QT_PLUGIN_PATH = "${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}:${pkgs.qt5.qtsvg.bin}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}";
+        QML2_IMPORT_PATH = "${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtQmlPrefix}";
+      };
+
       rustManifest = pkgs.fetchurl {
         url = "https://static.rust-lang.org/dist/2021-09-01/channel-rust-nightly.toml";
         sha256 = "sha256-KYLZHfOkotnM6BZd7CU+vBA3w/VtiWxth3ngJlmA41U=";
@@ -390,7 +395,7 @@
         };
       };
 
-      inherit makeArtiqBoardPackage openocd-bscanspi-f;
+      inherit qtPaths makeArtiqBoardPackage openocd-bscanspi-f;
 
       defaultPackage.x86_64-linux = pkgs.python3.withPackages(ps: [ packages.x86_64-linux.artiq ]);
 
@@ -421,8 +426,8 @@
         ];
         shellHook = ''
           export LIBARTIQ_SUPPORT=`libartiq-support`
-          export QT_PLUGIN_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}:${pkgs.qt5.qtsvg.bin}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}
-          export QML2_IMPORT_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtQmlPrefix}
+          export QT_PLUGIN_PATH=${qtPaths.QT_PLUGIN_PATH}
+          export QML2_IMPORT_PATH=${qtPaths.QML2_IMPORT_PATH}
           export PYTHONPATH=`git rev-parse --show-toplevel`:$PYTHONPATH
         '';
       };
