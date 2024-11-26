@@ -215,7 +215,21 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             drtioaux::send(0, &reply)
         },
         drtioaux::Packet::InjectionRequest { destination: _destination, channel, overrd, value } => {
-            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
+            #[cfg(has_drtio_routing)]
+            {
+                let hop = _routing_table.0[_destination as usize][*_rank as usize];
+                if hop != 0 {
+                    let repno = (hop - 1) as usize;
+                    if repno < _repeaters.len() {
+                        if _repeaters[repno].state != repeater::RepeaterState::Up {
+                            return Err(drtioaux::Error::LinkDown);
+                        }
+                        return drtioaux::send(_repeaters[repno].auxno, &packet);
+                    } else {
+                        return Err(drtioaux::Error::RoutingError);
+                    }
+                }
+            }
             #[cfg(has_rtio_moninj)]
             unsafe {
                 csr::rtio_moninj::inj_chan_sel_write(channel as _);

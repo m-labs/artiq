@@ -12,7 +12,7 @@ fn rep_link_rx_up(repno: u8) -> bool {
 
 #[cfg(has_drtio_routing)]
 #[derive(Clone, Copy, PartialEq)]
-enum RepeaterState {
+pub enum RepeaterState {
     Down,
     SendPing { ping_count: u16 },
     WaitPingReply { ping_count: u16, timeout: u64 },
@@ -29,8 +29,8 @@ impl Default for RepeaterState {
 #[derive(Clone, Copy, Default)]
 pub struct Repeater {
     repno: u8,
-    auxno: u8,
-    state: RepeaterState
+    pub auxno: u8,
+    pub state: RepeaterState
 }
 
 #[cfg(has_drtio_routing)]
