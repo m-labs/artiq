@@ -726,7 +726,7 @@ impl Packet {
             Packet::DmaAddTraceReply { .. } | Packet::DmaRemoveTraceReply { .. } |
                 Packet::DmaPlaybackReply { .. } | Packet::SubkernelLoadRunReply { .. } |
                 Packet::SubkernelMessageAck { .. } | Packet::DmaPlaybackStatus { .. } |
-                Packet::SubkernelFinished { .. } => false,
+                Packet::SubkernelFinished { .. } | Packet::InjectionRequest { .. } => false,
             _ => true
         }
     }
