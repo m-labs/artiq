@@ -79,13 +79,16 @@ class Client:
         self.writer.write((" ".join(command) + "\n").encode())
 
     async def read_line(self):
-        return (await self.reader.readline()).decode("ascii")
+        line = (await self.reader.readline()).decode("ascii")
+        if not line and self.reader.at_eof():
+            raise ConnectionError("connection was closed unexpectedly")
+        return line
 
     async def read_reply(self):
-        return (await self.reader.readline()).decode("ascii").split()
+        return (await self.read_line()).split()
 
     async def read_json(self):
-        return json.loads((await self.reader.readline()).decode("ascii"))
+        return json.loads((await self.read_line()))
 
     async def login(self, username, password):
         await self.send_command("LOGIN", username, password)
