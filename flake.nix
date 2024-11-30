@@ -423,52 +423,66 @@
 
       defaultPackage.x86_64-linux = pkgs.python3.withPackages(ps: [ packages.x86_64-linux.artiq ]);
 
-      # Main development shell with everything you need to develop ARTIQ on Linux.
-      # The current copy of the ARTIQ sources is added to PYTHONPATH so changes can be tested instantly.
-      # Additionally, executable wrappers that import the current ARTIQ sources for the ARTIQ frontends
-      # are added to PATH.
-      devShells.x86_64-linux.default = pkgs.mkShell {
-        name = "artiq-dev-shell";
-        buildInputs = [
-          (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc ps.paramiko microscope ps.packaging ] ++ artiq.propagatedBuildInputs ))
-          rust
-          pkgs.llvmPackages_15.clang-unwrapped
-          pkgs.llvm_15
-          pkgs.lld_15
-          pkgs.git
-          artiq-frontend-dev-wrappers
-          # To manually run compiler tests:
-          pkgs.lit
-          pkgs.outputcheck
-          libartiq-support
-          # use the vivado-env command to enter a FHS shell that lets you run the Vivado installer
-          packages.x86_64-linux.vivadoEnv
-          packages.x86_64-linux.vivado
-          packages.x86_64-linux.openocd-bscanspi
-          pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme pkgs.pdf2svg
-          pkgs.python3Packages.sphinx-argparse pkgs.python3Packages.sphinxcontrib-wavedrom latex-artiq-manual
-          pkgs.python3Packages.sphinxcontrib-tikz
-        ];
-        shellHook = ''
-          export LIBARTIQ_SUPPORT=`libartiq-support`
-          export QT_PLUGIN_PATH=${qtPaths.QT_PLUGIN_PATH}
-          export QML2_IMPORT_PATH=${qtPaths.QML2_IMPORT_PATH}
-          export PYTHONPATH=`git rev-parse --show-toplevel`:$PYTHONPATH
-        '';
-      };
+      devShells.x86_64-linux = {
+        # Main development shell with everything you need to develop ARTIQ on Linux.
+        # The current copy of the ARTIQ sources is added to PYTHONPATH so changes can be tested instantly.
+        # Additionally, executable wrappers that import the current ARTIQ sources for the ARTIQ frontends
+        # are added to PATH.
+        default = pkgs.mkShell {
+          name = "artiq-dev-shell";
+          packages = with pkgs; [
+            git
+            lit
+            lld_15
+            llvm_15
+            llvmPackages_15.clang-unwrapped
+            outputcheck
+            pdf2svg
 
-      # Lighter development shell optimized for building firmware and flashing boards.
-      devShells.x86_64-linux.boards = pkgs.mkShell {
-        name = "artiq-boards-shell";
-        buildInputs = [
-          (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ps.packaging ps.paramiko ]))
-          rust
-          pkgs.llvmPackages_15.clang-unwrapped
-          pkgs.llvm_15
-          pkgs.lld_15
-          packages.x86_64-linux.vivado
-          packages.x86_64-linux.openocd-bscanspi
-        ];
+            python3Packages.sphinx
+            python3Packages.sphinx-argparse
+            python3Packages.sphinxcontrib-tikz
+            python3Packages.sphinxcontrib-wavedrom 
+            python3Packages.sphinx_rtd_theme
+
+            (python3.withPackages(ps: [ migen misoc microscope ps.packaging ps.paramiko ] ++ artiq.propagatedBuildInputs ))
+          ] ++ 
+          [
+            latex-artiq-manual
+            rust
+            artiq-frontend-dev-wrappers
+
+            # To manually run compiler tests:
+            libartiq-support
+
+            # use the vivado-env command to enter a FHS shell that lets you run the Vivado installer
+            packages.x86_64-linux.vivadoEnv
+            packages.x86_64-linux.vivado
+            packages.x86_64-linux.openocd-bscanspi
+          ];
+          shellHook = ''
+            export LIBARTIQ_SUPPORT=`libartiq-support`
+            export QT_PLUGIN_PATH=${qtPaths.QT_PLUGIN_PATH}
+            export QML2_IMPORT_PATH=${qtPaths.QML2_IMPORT_PATH}
+            export PYTHONPATH=`git rev-parse --show-toplevel`:$PYTHONPATH
+          '';
+        };
+        # Lighter development shell optimized for building firmware and flashing boards.
+        boards = pkgs.mkShell {
+          name = "artiq-boards-shell";
+          packages = [
+            rust
+
+            pkgs.llvmPackages_15.clang-unwrapped
+            pkgs.llvm_15
+            pkgs.lld_15
+
+            packages.x86_64-linux.vivado
+            packages.x86_64-linux.openocd-bscanspi
+
+            (pkgs.python3.withPackages(ps:  [ migen misoc artiq ps.packaging ps.paramiko ]))
+          ];
+        };
       };
 
       packages.aarch64-linux = {
