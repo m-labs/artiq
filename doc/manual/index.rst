@@ -60,5 +60,6 @@ ARTIQ manual
     :caption: Addenda
     :maxdepth: 2
 
+    nuc_handbook
     extending_rtio
     faq
