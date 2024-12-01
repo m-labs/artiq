@@ -421,7 +421,7 @@
 
       inherit qtPaths makeArtiqBoardPackage openocd-bscanspi-f;
 
-      defaultPackage.x86_64-linux = pkgs.python3.withPackages(ps: [ packages.x86_64-linux.artiq ]);
+      packages.x86_64-linux.default = pkgs.python3.withPackages(_: [ packages.x86_64-linux.artiq ]);
 
       # Main development shell with everything you need to develop ARTIQ on Linux.
       # The current copy of the ARTIQ sources is added to PYTHONPATH so changes can be tested instantly.
