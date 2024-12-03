@@ -35,23 +35,38 @@ class WishboneReader(Module):
         # # #
 
         bus_stb = Signal()
-        data_reg_loaded = Signal()
+
+        transfer_cyc = Signal(max=64, reset=64-1)
+        transfer_cyc_ce = Signal()
+        transfer_cyc_rst = Signal()
+        self.sync += [
+            If(transfer_cyc_rst,
+                transfer_cyc.eq(transfer_cyc.reset),
+            ).Elif(transfer_cyc_ce,
+                transfer_cyc.eq(transfer_cyc - 1),
+            )
+        ]
+
+        last = Signal()
 
         self.comb += [
-            bus_stb.eq(self.sink.stb & (~data_reg_loaded | self.source.ack)),
+            # source ack (from FIFO) signals FIFO space availability
+            bus_stb.eq(self.sink.stb & self.source.ack),
+            last.eq(transfer_cyc == 0),
+
+            transfer_cyc_rst.eq(self.source.stb & self.source.ack & (self.sink.eop | last)),
+            transfer_cyc_ce.eq(self.source.stb & self.source.ack),
+
             bus.cyc.eq(bus_stb),
             bus.stb.eq(bus_stb),
+            bus.cti.eq(Mux((self.sink.eop | last), 0b111, 0b010)),
             bus.adr.eq(self.sink.address),
+
             self.sink.ack.eq(bus.ack),
-            self.source.stb.eq(data_reg_loaded),
-        ]
-        self.sync += [
-            If(self.source.ack, data_reg_loaded.eq(0)),
-            If(bus.ack,
-                data_reg_loaded.eq(1),
-                self.source.data.eq(convert_signal(bus.dat_r, cpu_dw//8)),
-                self.source.eop.eq(self.sink.eop)
-            )
+            self.source.stb.eq(bus.ack),
+
+            self.source.data.eq(convert_signal(bus.dat_r, cpu_dw//8)),
+            self.source.eop.eq(self.sink.eop),
         ]
 
 
@@ -341,13 +356,16 @@ class DMA(Module):
 
         flow_enable = Signal()
         self.submodules.dma = DMAReader(membus, flow_enable, cpu_dw)
+        self.submodules.fifo = stream.SyncFIFO(
+            [("data", len(membus.dat_w))], 128, True, lo_wm=64)
         self.submodules.slicer = RecordSlicer(len(membus.dat_w))
         self.submodules.time_offset = TimeOffset()
         self.submodules.cri_master = CRIMaster()
         self.cri = self.cri_master.cri
 
         self.comb += [
-            self.dma.source.connect(self.slicer.sink),
+            self.dma.source.connect(self.fifo.sink),
+            self.fifo.source.connect(self.slicer.sink),
             self.slicer.source.connect(self.time_offset.sink),
             self.time_offset.source.connect(self.cri_master.sink)
         ]
