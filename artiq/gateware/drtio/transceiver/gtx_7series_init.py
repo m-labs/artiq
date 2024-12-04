@@ -59,7 +59,7 @@ class GTXInit(Module):
             MultiReg(self.Xxdlysresetdone, Xxdlysresetdone),
             MultiReg(self.Xxphaligndone, Xxphaligndone),
         ]
-        if mode != "single":
+        if mode != "single" and not rx:
             txphinitdone = Signal()
             self.specials += MultiReg(self.txphinitdone, txphinitdone)
 
