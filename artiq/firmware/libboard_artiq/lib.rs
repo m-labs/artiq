@@ -37,5 +37,5 @@ pub mod drtio_routing;
 #[cfg(all(has_drtio_eem, feature = "alloc"))]
 pub mod drtio_eem;
 
-#[cfg(soc_platform = "efc")]
+#[cfg(all(soc_platform = "efc", has_converter_spi))]
 pub mod ad9117;
