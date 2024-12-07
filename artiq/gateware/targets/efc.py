@@ -83,7 +83,7 @@ class Satellite(BaseSoC, AMPSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, gateware_identifier_str=None, efc_hw_rev="v1.1", afe_hw_rev="v1.3", **kwargs):
+    def __init__(self, gateware_identifier_str=None, efc_hw_rev="v1.1", afe_hw_rev="v1.3", rtio_clk_freq=125e6, variant="shuttler", **kwargs):
         BaseSoC.__init__(self,
                  cpu_type="vexriscv",
                  hw_rev=efc_hw_rev,
@@ -91,7 +91,7 @@ class Satellite(BaseSoC, AMPSoC):
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
                  l2_line_size=64,
-                 clk_freq=125e6,
+                 clk_freq=rtio_clk_freq,
                  **kwargs)
         AMPSoC.__init__(self)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
@@ -162,7 +162,7 @@ class Satellite(BaseSoC, AMPSoC):
         fix_serdes_timing_path(platform)
 
         self.config["DRTIO_ROLE"] = "satellite"
-        self.config["RTIO_FREQUENCY"] = "125.0"
+        self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
 
         if(variant == "shuttler"):
             if afe_hw_rev in ("v1.0", "v1.1", "v1.2"):
@@ -273,12 +273,15 @@ def main():
                         default="v1.3", help="AFE hardware revision")
     parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
+    parser.add_argument("--drtio100mhz", action="store_true",
+                        help="Set RTIO clock frequency to 100 MHz (default is 125 MHz)")
     args = parser.parse_args()
 
     argdict = dict()
     argdict["gateware_identifier_str"] = args.gateware_identifier_str
     argdict["efc_hw_rev"] = args.efc_hw_rev
     argdict["afe_hw_rev"] = args.afe_hw_rev
+    argdict["rtio_clk_freq"] = 100e6 if args.drtio100mhz else 125e6
     argdict["variant"] = args.variant.lower()
 
     soc = Satellite(**argdict)
