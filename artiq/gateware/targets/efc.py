@@ -18,8 +18,58 @@ from artiq.gateware.drtio.transceiver import eem_serdes
 from artiq.gateware.drtio.rx_synchronizer import NoRXSynchronizer
 from artiq.gateware.drtio import *
 from artiq.gateware.shuttler import Shuttler
+from artiq.gateware.targets.ltc2000 import LTC2000DDSModule
 from artiq.build_soc import *
 
+ltc2000_pads = [
+    ("ltc2000", 0,
+        Subsignal("clk_p", Pins("fmc0:LA07_P"), IOStandard("LVDS_25")),
+        Subsignal("clk_n", Pins("fmc0:LA07_N"), IOStandard("LVDS_25")),
+        Subsignal("dcko_p", Pins("fmc0:LA01_CC_P"), IOStandard("LVDS_25")),
+        Subsignal("dcko_n", Pins("fmc0:LA01_CC_N"), IOStandard("LVDS_25")),
+        Subsignal("data_p", Pins(
+            "fmc0:LA15_P fmc0:LA16_P fmc0:LA14_P",
+            "fmc0:LA13_P fmc0:LA11_P fmc0:LA12_P",
+            "fmc0:LA09_P fmc0:LA10_P fmc0:LA08_P",
+            "fmc0:LA05_P fmc0:LA04_P fmc0:LA06_P",
+            "fmc0:LA03_P fmc0:LA02_P fmc0:LA00_CC_P",
+            "C18"), #H4, externally terminated on EFC, it's called fmc_clk_m2c !!!MAY NEED TO REMOVE R24 of FMC BOARD!!!
+            IOStandard("LVDS_25")),
+        Subsignal("data_n", Pins(
+            "fmc0:LA15_N fmc0:LA16_N fmc0:LA14_N",
+            "fmc0:LA13_N fmc0:LA11_N fmc0:LA12_N",
+            "fmc0:LA09_N fmc0:LA10_N fmc0:LA08_N",
+            "fmc0:LA05_N fmc0:LA04_N fmc0:LA06_N",
+            "fmc0:LA03_N fmc0:LA02_N fmc0:LA00_CC_N",
+            "C19"), #H5, externally terminated on EFC, it's called fmc_clk_m2c !!!MAY NEED TO REMOVE R24 of FMC BOARD!!!
+            IOStandard("LVDS_25")),
+        Subsignal("datb_p", Pins(
+            "fmc0:LA32_P fmc0:LA33_P fmc0:LA30_P",
+            "fmc0:LA31_P fmc0:LA28_P fmc0:LA29_P",
+            "fmc0:LA24_P fmc0:LA25_P fmc0:LA26_P",
+            "fmc0:LA27_P fmc0:LA21_P fmc0:LA22_P",
+            "fmc0:LA23_P fmc0:LA19_P fmc0:LA20_P",
+            "fmc0:LA17_CC_P"),
+            IOStandard("LVDS_25")),
+        Subsignal("datb_n", Pins(
+            "fmc0:LA32_N fmc0:LA33_N fmc0:LA30_N",
+            "fmc0:LA31_N fmc0:LA28_N fmc0:LA29_N",
+            "fmc0:LA24_N fmc0:LA25_N fmc0:LA26_N",
+            "fmc0:LA27_N fmc0:LA21_N fmc0:LA22_N",
+            "fmc0:LA23_N fmc0:LA19_N fmc0:LA20_N",
+            "fmc0:LA17_CC_N"),
+            IOStandard("LVDS_25"))
+    )
+]
+
+ltc2000_spi = [
+    ("ltc2000_spi", 0,
+        Subsignal("cs_n", Pins("fmc0:HA21_N"), IOStandard("LVCMOS25")),
+        Subsignal("clk", Pins("fmc0:HA17_CC_P"), IOStandard("LVCMOS25")),
+        Subsignal("mosi", Pins("fmc0:HA17_CC_N"), IOStandard("LVCMOS25")),
+        Subsignal("miso", Pins("fmc0:HA21_P"), IOStandard("LVCMOS25"), Misc("PULLUP=TRUE"))
+    )
+]
 shuttler_io = [
     ('dac_spi', 0,
         Subsignal('clk', Pins('fmc0:HB16_N')),
@@ -222,6 +272,50 @@ class Satellite(BaseSoC, AMPSoC):
             self.submodules += adc_spi
             print("SHUTTLER ADC at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
             self.rtio_channels.append(rtio.Channel.from_phy(adc_spi))
+
+        if(variant == "ltc"):
+            platform.add_extension(ltc2000_spi)
+            ltc2000_spi_phy = rtio_spi.SPIMaster(self.platform.request("ltc2000_spi", 0))
+            self.submodules += ltc2000_spi_phy
+            print("LTC2000 DAC SPI at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
+            self.rtio_channels.append(rtio.Channel.from_phy(ltc2000_spi_phy))
+
+            ltc2000_dds = LTC2000DDSModule(self.platform, ltc2000_pads)
+            self.submodules += ltc2000_dds
+            print("LTC2000 DAC at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
+            self.rtio_channels.append(rtio.Channel.from_phy(ltc2000_dds))
+
+            self.clock_domains.cd_sys2x = ClockDomain(reset_less=True)
+            self.clock_domains.cd_sys6x = ClockDomain(reset_less=True)
+
+            mmcm_fb_in = Signal()
+            mmcm_fb_out = Signal()
+            mmcm_sys2x = Signal()
+            mmcm_sys6x = Signal()
+            self.specials += [
+                Instance("MMCME2_BASE",
+                    p_CLKIN1_PERIOD=10.0,
+                    i_CLKIN1=ClockSignal(),
+
+                    i_RST=ResetSignal(),
+
+                    i_CLKFBIN=mmcm_fb_in,
+                    o_CLKFBOUT=mmcm_fb_out,
+                    #o_LOCKED=,
+
+                    # VCO @ 1.2GHz with MULT=12
+                    p_CLKFBOUT_MULT_F=12, p_DIVCLK_DIVIDE=1,
+
+                    # 200MHz
+                    p_CLKOUT0_DIVIDE_F=6, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=mmcm_sys2x,
+
+                    # 600MHz
+                    p_CLKOUT1_DIVIDE=2, p_CLKOUT1_PHASE=0.0, o_CLKOUT1=mmcm_sys6x,
+                ),
+                Instance("BUFG", i_I=mmcm_sys2x, o_O=self.cd_sys2x.clk),
+                Instance("BUFG", i_I=mmcm_sys6x, o_O=self.cd_sys6x.clk),
+                Instance("BUFG", i_I=mmcm_fb_out, o_O=mmcm_fb_in)
+            ]
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
