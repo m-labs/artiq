@@ -49,9 +49,12 @@
       artiqVersion = (builtins.toString artiqVersionMajor) + "." + (builtins.toString artiqVersionMinor) + "+" + artiqVersionId + ".beta";
       artiqRev = self.sourceInfo.rev or "unknown";
 
-      qtPaths = {
-        QT_PLUGIN_PATH = "${pkgs.qt6.qtbase}/${pkgs.qt6.qtbase.dev.qtPluginPrefix}:${pkgs.qt6.qtsvg}/${pkgs.qt6.qtbase.dev.qtPluginPrefix}";
-        QML2_IMPORT_PATH = "${pkgs.qt6.qtbase}/${pkgs.qt6.qtbase.dev.qtQmlPrefix}";
+      qtPaths = let 
+        inherit (pkgs.qt6) qtbase qtsvg;
+        inherit (qtbase.dev) qtPluginPrefix qtQmlPrefix;
+      in {
+        QT_PLUGIN_PATH = "${qtbase}/${qtPluginPrefix}:${qtsvg}/${qtPluginPrefix}";
+        QML2_IMPORT_PATH = "${qtbase}/${qtQmlPrefix}";
       };
 
       rust = pkgs.rust-bin.nightly."2021-09-01".default.override {
