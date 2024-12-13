@@ -426,6 +426,8 @@
 
       packages.x86_64-linux.default = pkgs.python3.withPackages(_: [ packages.x86_64-linux.artiq ]);
 
+      formatter.x86_64-linux = pkgs.alejandra;
+
       devShells.x86_64-linux = {
         # Main development shell with everything you need to develop ARTIQ on Linux.
         # The current copy of the ARTIQ sources is added to PYTHONPATH so changes can be tested instantly.
