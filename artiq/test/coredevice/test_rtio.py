@@ -676,11 +676,17 @@ class CoredeviceTest(ExperimentCase):
         self.assertEqual(dt, 8000)
 
 
+@nac3
 class RPCTiming(EnvExperiment):
+    core: KernelInvariant[Core]
+    repeats: KernelInvariant[int32]
+    ts: Kernel[list[float]]
+
     def build(self, repeats=100):
         self.setattr_device("core")
         self.repeats = repeats
 
+    @rpc
     def nop(self):
         pass
 
