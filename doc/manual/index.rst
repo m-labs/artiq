@@ -59,4 +59,5 @@ ARTIQ manual
     :caption: Addenda
     :maxdepth: 2
 
+    nixos_handbook
     faq
