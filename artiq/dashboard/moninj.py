@@ -412,7 +412,7 @@ def setup_from_ddb(ddb):
                         bus_channel = ddb[spi_dev]["arguments"]["channel"]
                         pll = v["arguments"]["pll_n"]
                         refclk = ddb[dds_cpld]["arguments"]["refclk"]
-                        clk_div = v["arguments"].get("clk_div", 0)
+                        clk_div = ddb[dds_cpld]["arguments"].get("clk_div", 0)
                         widget = _WidgetDesc(k, comment, _DDSWidget,
                                              (k, bus_channel, channel, v["class"],
                                               refclk, dds_cpld, pll, clk_div))
