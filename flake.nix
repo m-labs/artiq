@@ -34,11 +34,6 @@
       submodules = true; 
       flake = false;
     };
-
-    src-pythonparser = {
-      url = "github:m-labs/pythonparser";
-      flake = false;
-    };
   };
 
   outputs = { self, rust-overlay, sipyco, nac3, artiq-comtools, src-migen, src-misoc }:
