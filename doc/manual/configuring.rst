@@ -6,6 +6,9 @@ Networking and configuration
 Setting up core device networking
 ---------------------------------
 
+.. note::
+    Satellite core devices (in a DRTIO setting, see :doc:`using_drtio_subkernels`) do not support independent networking and this section does not apply to them. Follow the instructions on this page for your master core device, and proceed to :ref:`configuring-satellite` once DRTIO communications are established.
+
 For Kasli, insert a SFP/RJ45 transceiver (normally included with purchases from M-Labs and QUARTIQ) into the SFP0 port and connect it to an Ethernet port in your network. If the port is 10Mbps or 100Mbps and not 1000Mbps, make sure that the SFP/RJ45 transceiver supports the lower rate. Many SFP/RJ45 transceivers only support the 1000Mbps rate. If you do not have a SFP/RJ45 transceiver that supports 10Mbps and 100Mbps rates, you may instead use a gigabit Ethernet switch in the middle to perform rate conversion.
 
 You can also insert other types of SFP transceivers into Kasli if you wish to use it directly in e.g. an optical fiber Ethernet network. Kasli-SoC already directly features RJ45 10/100/1000 Ethernet.
@@ -54,6 +57,9 @@ For Kasli-SoC:
 
 For ZC706:
     If the ``ip`` config is not set, ZC706 firmware defaults to using the IP address ``192.168.1.52``.
+
+For EBAZ4205:
+    If the ``ip`` config is not set, EBAZ4205 firmware defaults to using the IP address ``192.168.1.57``.
 
 For Kasli or KC705:
     If the ``ip`` config field is not set or set to ``use_dhcp``, the device will attempt to obtain an IP address and default gateway using DHCP. The chosen IP address will be in log output, which can be accessed via the :ref:`UART log <connecting-UART>`.
@@ -127,3 +133,16 @@ Load the DRTIO routing table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you are using DRTIO and the default routing table (for a star topology) is not suitable to your needs, you will first need to prepare and load a different routing table. See :ref:`Using DRTIO <drtio-routing>`.
+
+.. _configuring-satellite:
+
+Configuring DRTIO satellites
+----------------------------
+
+Once DRTIO communications are online, any satellite devices can be accessed as normal using :mod:`~artiq.frontend.artiq_coremgmt`, e.g.: ::
+
+  $ artiq_coremgmt -s <destination_number> log
+
+The destination number corresponds to the number assigned to that satellite both in the device database and, earlier, in the system configuration file. See the notes in :ref:`drtio-routing` if you are not sure what destination number to use.
+
+It is also possible to set configuration values, reflash, or reboot the device. Notably, :ref:`event spreading <sed-event-spreading>` is a per-device setting considered particularly useful on satellites. Most other configuration settings, e.g. networking, clocking, will not be used in practice in a satellite context -- satellites do not support direct network connections and are always bound to the master's clock.

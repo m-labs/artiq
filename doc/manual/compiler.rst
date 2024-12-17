@@ -48,35 +48,37 @@ ARTIQ types
 
 Python/NumPy types correspond to ARTIQ types as follows:
 
-+---------------+-------------------------+
-| Python        | ARTIQ                   |
-+===============+=========================+
-| NoneType      | TNone                   |
-+---------------+-------------------------+
-| bool          | TBool                   |
-+---------------+-------------------------+
-| int           | TInt32 or TInt64        |
-+---------------+-------------------------+
-| float         | TFloat                  |
-+---------------+-------------------------+
-| str           | TStr                    |
-+---------------+-------------------------+
-| bytes         | TBytes                  |
-+---------------+-------------------------+
-| bytearray     | TByteArray              |
-+---------------+-------------------------+
-| list of T     | TList(T)                |
-+---------------+-------------------------+
-| NumPy array   | TArray(T, num_dims)     |
-+---------------+-------------------------+
-| range         | TRange32, TRange64      |
-+---------------+-------------------------+
-| numpy.int32   | TInt32                  |
-+---------------+-------------------------+
-| numpy.int64   | TInt64                  |
-+---------------+-------------------------+
-| numpy.float64 | TFloat                  |
-+---------------+-------------------------+
++------------------------+-------------------------+
+| Python                 | ARTIQ                   |
++========================+=========================+
+| NoneType               | TNone                   |
++------------------------+-------------------------+
+| bool                   | TBool                   |
++------------------------+-------------------------+
+| int                    | TInt32 or TInt64        |
++------------------------+-------------------------+
+| float                  | TFloat                  |
++------------------------+-------------------------+
+| str                    | TStr                    |
++------------------------+-------------------------+
+| bytes                  | TBytes                  |
++------------------------+-------------------------+
+| bytearray              | TByteArray              |
++------------------------+-------------------------+
+| list of T              | TList(T)                |
++------------------------+-------------------------+
+| NumPy array            | TArray(T, num_dims)     |
++------------------------+-------------------------+
+| tuple of (T1, T2, ...) | TTuple([T1, T2, ...])   |
++------------------------+-------------------------+
+| range                  | TRange32, TRange64      |
++------------------------+-------------------------+
+| numpy.int32            | TInt32                  |
++------------------------+-------------------------+
+| numpy.int64            | TInt64                  |
++------------------------+-------------------------+
+| numpy.float64          | TFloat                  |
++------------------------+-------------------------+
 
 Integers are 32-bit by default but may be converted to 64-bit with ``numpy.int64``.
 
@@ -87,7 +89,11 @@ The ARTIQ compiler can be thought of as overriding all built-in Python types, an
 
 Multidimensional arrays are allowed (using NumPy syntax). Element-wise operations (e.g. ``+``, ``/``), matrix multiplication (``@``) and multidimensional indexing are supported; slices and views (currently) are not.
 
+Tuples may contain a mixture of different types. They cannot be iterated over or dynamically indexed, although they may be indexed by constants and multiple assignment is supported.
+
 User-defined classes are supported, provided their attributes are of other supported types (attributes that are not used in the kernel are ignored and thus unrestricted). When several instances of a user-defined class are referenced from the same kernel, every attribute must have the same type in every instance of the class.
+
+.. _basic-artiq-python:
 
 Basic ARTIQ Python
 ^^^^^^^^^^^^^^^^^^
@@ -98,6 +104,14 @@ Kernel code can call host functions without any additional ceremony. However, su
 
     def return_four() -> TInt32:
         return 4
+
+.. tip::
+    Multiple variables of different types can be sent in one RPC call by returning a tuple, e.g. ::
+
+        def return_many() -> TTuple([TInt32, TFloat, TStr]):
+            return (4, 12.34, "hello",)
+
+    Which can be retrieved from a kernel with ``(a, b, c) = return_many()``
 
 Kernels can freely modify attributes of objects shared with the host. However, by necessity, these modifications are actually applied to local copies of the objects, as the latency of immediate writeback would be unsupportable in a real-time environment. Instead, modifications are written back *when the kernel completes;* notably, this means RPCs called by a kernel itself will only have access to the unmodified host version of the object, as the kernel hasn't finished execution yet. In some cases, accessing data on the host is better handled by calling RPCs specifically to make the desired modifications.
 
@@ -117,7 +131,7 @@ Kernels can freely modify attributes of objects shared with the host. However, b
                 # results in memory corruption
                 return func([1, 2, 3])
 
-    will compile, **but corrupts at runtime.** On the other hand, lists, arrays, or strings can and should be used as inputs for RPCs, and this is the preferred method of returning data to the host. In this way the data is inherently read and sent before the kernel completes and there are no allocation issues.
+    will compile, **but corrupts at runtime.** On the other hand, lists, arrays, or strings can and should be used as inputs for RPCs, and this is the preferred method of returning data to the host. In this way the data is sent before the kernel completes and there are no allocation issues.
 
 Available built-in functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -253,3 +267,7 @@ In the synthetic example above, the compiler will be able to detect that the res
             for _ in range(100):
                 delay_mu(precomputed_delay_mu)
                 self.worker.work()
+
+Kernel invariants are defined for every object by the ``kernel_invariants`` atttribute, which is a set containing the names of every invariant attribute of this object.
+
+At compile time it is possible to automatically detect attributes that are never altered in a kernel, and thus may be good candidates for inclusion into ``kernel_invariants``. This is done by specifying ``report_invariants=True`` when initializing the core device driver (in the dashboard you can do this using the "Override device arguments" option).

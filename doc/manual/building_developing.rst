@@ -33,13 +33,13 @@ Download and run the official installer. If using NixOS, note that this will req
 System description file
 -----------------------
 
-ARTIQ gateware and firmware binaries are dependent on the system configuration. In other words, a specific set of ARTIQ binaries is bound to the exact arrangement of real-time hardware it was generated for: the core device itself, its role in a DRTIO context (master, satellite, or standalone), the (real-time) peripherals in use, the physical EEM ports they will be connected to, and various other basic specifications. This information is normally provided to the software in the form of a JSON file called the system description or system configuration file.
+ARTIQ gateware and firmware binaries are dependent on the system configuration. In other words, a specific set of ARTIQ binaries is bound to the exact arrangement of real-time hardware it was generated for: the core device itself, its role in a DRTIO context (master, satellite, or standalone), the (real-time) peripherals in use, the physical EEM ports they will be connected to, and various other basic specifications. This information is normally provided to the software in the form of a JSON file called the system description file.
 
 .. warning::
 
-    System configuration files are only used with Kasli and Kasli-SoC boards. KC705 and ZC706 ARTIQ configurations, due to their relative rarity and specialization, are handled on a case-by-case basis and selected through a variant name such as ``nist_clock``, with no system description file necessary. See below in :ref:`building` for where to find the list of supported variants. Writing new KC705 or ZC706 variants is not a trivial task, and not particularly recommended, unless you are an FPGA developer and know what you're doing.
+    Not all core devices use system description files. Devices that use system description files for configuration are referred to as JSON variants (see :ref:`JSON variant devices <devices-table>`). Some rare or specialized boards use hardcoded variants, selected by a variant name such as ``nist_clock``, without needing a system description file (see :ref:`Hardcoded variant devices <devices-table>`). For the list of supported variants, see the :ref:`building` section. Writing new hardcoded variants is not a trivial task and is generally not recommended unless you are an experienced FPGA developer.
 
-If you already have your system configuration file on hand, you can edit it to reflect any changes in configuration. If you purchased your original system from M-Labs, or recently purchased new hardware to add to it, you can obtain your up-to-date system configuration file through AFWS at any time using the command ``$ afws_client get_json`` (see :ref:`AFWS client<afws-client>`). If you are starting from scratch, a close reading of ``coredevice_generic.schema.json`` in ``artiq/coredevice`` will be helpful.
+If you already have your system description file on hand, you can edit it to reflect any changes in configuration. If you purchased your original system from M-Labs, or recently purchased new hardware to add to it, you can obtain your up-to-date system description file through AFWS at any time using the command ``$ afws_client get_json`` (see :ref:`AFWS client<afws-client>`). If you are starting from scratch, a close reading of ``coredevice_generic.schema.json`` in ``artiq/coredevice`` will be helpful.
 
 System descriptions do not need to be very complex. At its most basic, a system description looks something like: ::
 
@@ -82,11 +82,31 @@ Nix development environment
 ---------------------------
 
 * Install `Nix <http://nixos.org/nix/>`_ if you haven't already. Prefer a single-user installation for simplicity.
-* Enable flakes in Nix, for example by adding ``experimental-features = nix-command flakes`` to ``nix.conf``; see the `NixOS Wiki on flakes <https://nixos.wiki/wiki/flakes>`_ for details and more options.
-* Clone `the ARTIQ Git repository <https://github.com/m-labs/artiq>`_, or `the ARTIQ-Zynq repository <https://git.m-labs.hk/M-Labs/artiq-zynq>`__ for Zynq devices (Kasli-SoC or ZC706). By default, you are working with the ``master`` branch, which represents the beta version and is not stable (see :doc:`releases`). Checkout the most recent release (``git checkout release-[number]``) for a stable version.
+* Configure Nix to support building ARTIQ:
+
+    - Enable flakes, for example by adding ``experimental-features = nix-command flakes`` to ``nix.conf``. See also the `NixOS Wiki on flakes <https://nixos.wiki/wiki/flakes>`_.
+    - Add ``/opt`` (or your Vivado location) as an Nix sandbox, for example by adding ``extra-sandbox-paths = /opt`` to ``nix.conf``.
+    - Create a file called ``trusted-settings.json`` in ``~/.local/share/nix/``, if it doesn't exist already. Make sure it contains the following:
+
+    ::
+
+        {
+            "extra-sandbox-paths":{
+                "/opt":true
+            },
+            "extra-substituters":{
+                "https://nixbld.m-labs.hk":true
+            },
+            "extra-trusted-public-keys":{
+                "nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc=":true
+            }
+        }
+
+    - If using NixOS, instead make the equivalent changes to your ``configuration.nix``.
+
+* Clone `the ARTIQ Git repository <https://github.com/m-labs/artiq>`_, or `the ARTIQ-Zynq repository <https://git.m-labs.hk/M-Labs/artiq-zynq>`__ for :ref:`Zynq devices <devices-table>` (Kasli-SoC, ZC706, or EBAZ4205). By default, you are working with the ``master`` branch, which represents the beta version and is not stable (see :doc:`releases`). Checkout the most recent release (``git checkout release-[number]``) for a stable version.
 * If your Vivado installation is not in its default location ``/opt``, open ``flake.nix`` and edit it accordingly (note that the edits must be made in the main ARTIQ flake, even if you are working with Zynq, see also tip below).
 * Run ``nix develop`` at the root of the repository, where ``flake.nix`` is.
-* Answer ``y``/'yes' to any Nix configuration questions if necessary, as in :ref:`installing-troubleshooting`.
 
 .. note::
     You can also target legacy versions of ARTIQ; use Git to checkout older release branches. Note however that older releases of ARTIQ required different processes for developing and building, which you are broadly more likely to figure out by (also) consulting the corresponding older versions of the manual.
@@ -120,7 +140,7 @@ The parallel command does exist for ARTIQ-Zynq: ::
 
 but if you are building ARTIQ-Zynq without intention to change the source, it is not actually necessary to enter the development environment at all; Nix is capable of accessing the official flake remotely for the build itself, eliminating the requirement for any particular environment.
 
-This is equally possible for original ARTIQ, but not as useful, as the development environment (specifically the ``#boards`` shell) is still the easiest way to access the necessary tools for flashing the board. On the other hand, with Zynq, it is normally recommended to boot from SD card, which requires no further special tools. As long as you have a functioning Nix installation with flakes enabled, you can progress directly to the building instructions below.
+This is equally possible for original ARTIQ, but not as useful, as the development environment (specifically the ``#boards`` shell) is still the easiest way to access the necessary tools for flashing the board. On the other hand, Zynq boards can also be flashed by writing to the SD card directly, which requires no further special tools. As long as you have a functioning Nix/Vivado installation with flakes enabled, you can progress directly to the building instructions below.
 
 .. _building:
 
@@ -140,8 +160,9 @@ With KC705, use: ::
 
     $ python -m artiq.gateware.targets.kc705 -V <variant>
 
-This will create a directory ``artiq_kasli`` or ``artiq_kc705`` containing the binaries in a subdirectory named after your description file or variant. Flash the board as described in :ref:`writing-flash`, adding the option ``--srcbuild``, e.g., assuming your board is already connected by JTAG USB: ::
+This will create a directory ``artiq_kasli`` or ``artiq_kc705`` containing the binaries in a subdirectory named after your description file or variant. Flash the board as described in :ref:`writing-flash`, adding the option ``--srcbuild``, e.g., assuming your board is connected by network or JTAG USB respectively: ::
 
+    $ artiq_coremgmt flash --srcbuild artiq_<board>/<variant>
     $ artiq_flash --srcbuild [-t kc705] -d artiq_<board>/<variant>
 
 .. note::
@@ -151,10 +172,10 @@ This will create a directory ``artiq_kasli`` or ``artiq_kc705`` containing the b
 
     Look for the option ``-V VARIANT, --variant VARIANT``.
 
-Kasli-SoC or ZC706 (ARTIQ on Zynq)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Kasli-SoC, ZC706 or EBAZ4205 (ARTIQ on Zynq)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The building process for Zynq devices is a little more complex. The easiest method is to leverage ``nix build`` and the ``makeArtiqZynqPackage`` utility provided by the official flake. The ensuing command is rather long, because it uses a multi-clause expression in the Nix language to describe the desired result; it can be executed piece-by-piece using the `Nix REPL <https://nix.dev/manual/nix/2.18/command-ref/new-cli/nix3-repl.html>`_, but ``nix build`` provides a lot of useful conveniences.
+The building process for :ref:`Zynq devices <devices-table>` is a little more complex. The easiest method is to leverage ``nix build`` and the ``makeArtiqZynqPackage`` utility provided by the official flake. The ensuing command is rather long, because it uses a multi-clause expression in the Nix language to describe the desired result; it can be executed piece-by-piece using the `Nix REPL <https://nix.dev/manual/nix/2.18/command-ref/new-cli/nix3-repl.html>`_, but ``nix build`` provides a lot of useful conveniences.
 
 For Kasli-SoC, run: ::
 
@@ -162,32 +183,40 @@ For Kasli-SoC, run: ::
 
 Replace ``<variant>`` with ``master``, ``satellite``, or ``standalone``, depending on your targeted DRTIO role. Remove ``?ref=release-[number]`` to use the current beta version rather than a numbered release. If you have cloned the repository and prefer to use your local copy of the flake, replace the corresponding clause with ``builtins.getFlake "/absolute/path/to/your/artiq-zynq"``.
 
-For ZC706, you can use a command of the same form: ::
+For ZC706 or EBAZ4205, you can use a command of the same form (replace ``<target>`` with ``zc706`` or ``ebaz4205``): ::
 
-    $ nix build --print-build-logs --impure --expr 'let fl = builtins.getFlake "git+https://git.m-labs.hk/m-labs/artiq-zynq?ref=release-[number]"; in (fl.makeArtiqZynqPackage {target="zc706"; variant="<variant>";}).zc706-<variant>-sd'
+    $ nix build --print-build-logs --impure --expr 'let fl = builtins.getFlake "git+https://git.m-labs.hk/m-labs/artiq-zynq?ref=release-[number]"; in (fl.makeArtiqZynqPackage {target="<target>"; variant="<variant>";}).<target>-<variant>-sd'
 
 or you can use the more direct version: ::
 
-    $ nix build --print-build-logs git+https://git.m-labs.hk/m-labs/artiq-zynq\?ref=release-[number]#zc706-<variant>-sd
+    $ nix build --print-build-logs git+https://git.m-labs.hk/m-labs/artiq-zynq\?ref=release-[number]#<target>-<variant>-sd
 
-(which is possible for ZC706 because there is no need to be able to specify a system description file in the arguments.)
+(which is possible for ZC706 and EBAZ4205 because there is no need to be able to specify a system description file in the arguments.)
 
 .. note::
-    To see supported ZC706 variants, you can run the following at the root of the repository: ::
+    To see supported variants for ZC705 or EBA4205, you can run the following at the root of the repository: ::
 
-        $ src/gateware/zc706.py --help
+        $ src/gateware/<target>.py --help
 
     Look for the option ``-V VARIANT, --variant VARIANT``. If you have not cloned the repository or are not in the development environment, try: ::
 
-        $ nix flake show git+https://git.m-labs.hk/m-labs/artiq-zynq\?ref=release-[number] | grep "package 'zc706.*sd"
+        $ nix flake show git+https://git.m-labs.hk/m-labs/artiq-zynq\?ref=release-[number] | grep "package '<target>.*sd"
 
     to see the list of suitable build targets directly.
 
-Any of these commands should produce a directory ``result`` which contains a file ``boot.bin``. As described in :ref:`writing-flash`, if your core device is currently accessible over the network, it can be flashed with :mod:`~artiq.frontend.artiq_coremgmt`. If it is not connected to the network:
+Any of these commands should produce a directory ``result`` which contains a file ``boot.bin``. If your core device is accessible by network, flash with: ::
+
+    $ artiq_coremgmt flash result
+
+Otherwise:
 
 1. Power off the board, extract the SD card and load ``boot.bin`` onto it manually.
 2. Insert the SD card back into the board.
-3. Ensure that the DIP switches (labeled BOOT MODE) are set correctly, to SD.
+3. Set to boot from SD card:
+
+   - For Kasli-SoC or ZC706, ensure that the DIP switches (labeled BOOT MODE) are set correctly, to SD.
+   - For EBAZ4205, set up the `boot select resistor <https://github.com/xjtuecho/EBAZ4205>`_ to boot from SD card.
+
 4. Power the board back on.
 
 Optionally, the SD card may also be loaded at the same time with an additional file ``config.txt``, which can contain preset configuration values in the format ``key=value``, one per line. The keys are those used with :mod:`~artiq.frontend.artiq_coremgmt`. This allows e.g. presetting an IP address and any other configuration information.
@@ -199,7 +228,7 @@ After a successful boot, the "FPGA DONE" light should be illuminated and the boa
 Booting over JTAG/Ethernet
 """"""""""""""""""""""""""
 
-It is also possible to boot Zynq devices over USB and Ethernet. Flip the DIP switches to JTAG. The scripts ``remote_run.sh`` and ``local_run.sh`` in the ARTIQ-Zynq repository, intended for use with a remote JTAG server or a local connection to the core device respectively, are used at M-Labs to accomplish this. Both make use of the netboot tool ``artiq_netboot``, see also its source `here <https://git.m-labs.hk/M-Labs/artiq-netboot>`__, which is included in the ARTIQ-Zynq development environment. Adapt the relevant script to your system or read it closely to understand the options and the commands being run; note for example that ``remote_run.sh`` as written only supports ZC706.
+It is also possible to boot :ref:`Zynq devices <devices-table>` over USB and Ethernet (EBAZ4205 not currently supported). Flip the DIP switches to JTAG. The scripts ``remote_run.sh`` and ``local_run.sh`` in the ARTIQ-Zynq repository, intended for use with a remote JTAG server or a local connection to the core device respectively, are used at M-Labs to accomplish this. Both make use of the netboot tool ``artiq_netboot``, see also its source `here <https://git.m-labs.hk/M-Labs/artiq-netboot>`__, which is included in the ARTIQ-Zynq development environment. Adapt the relevant script to your system or read it closely to understand the options and the commands being run; note for example that ``remote_run.sh`` as written only supports ZC706.
 
 You will need to generate the gateware, firmware and bootloader first, either through ``nix build`` or incrementally as below. After an incremental build add the option ``-i`` when running either of the scripts. If using ``nix build``, note that target names of the form ``<board>-<variant>-jtag`` (run ``nix flake show`` to see all targets) will output the three necessary files without combining them into ``boot.bin``.
 
@@ -220,16 +249,13 @@ For Kasli-SoC:
     $ gateware/kasli_soc.py -g ../build/gateware <description.json>
     $ make TARGET=kasli_soc GWARGS="path/to/description.json" <fw-type>
 
-For ZC706:
+For ZC706 or EBAZ4205:
     ::
 
-    $ gateware/zc706.py -g ../build/gateware -V <variant>
-    $ make TARGET=zc706 GWARGS="-V <variant>" <fw-type>
+    $ gateware/<target>.py -g ../build/gateware -V <variant>
+    $ make TARGET=<target> GWARGS="-V <variant>" <fw-type>
 
-where ``fw-type`` is ``runtime`` for standalone or DRTIO master builds and ``satman`` for DRTIO satellites. Both the gateware and the firmware will generate into the ``../build`` destination directory. At this stage you can :ref:`boot from JTAG <zynq-jtag-boot>`; either of the ``*_run.sh`` scripts will expect the gateware and firmware files at their default locations, and the ``szl.elf`` bootloader is retrieved automatically.
-
-.. warning::
-    Note that in between runs of ``make`` it is necessary to manually clear ``build``, even for different targets, or ``make`` will do nothing.
+where ``fw-type`` is ``runtime`` for standalone or DRTIO master builds and ``satman`` for DRTIO satellites. Both the gateware and the firmware will generate into the ``../build`` destination directory. At this stage, if supported, you can :ref:`boot from JTAG <zynq-jtag-boot>`; either of the ``*_run.sh`` scripts will expect the gateware and firmware files at their default locations, and the ``szl.elf`` bootloader is retrieved automatically.
 
 If you prefer to boot from SD card, you will need to construct your own ``boot.bin``. Build ``szl.elf`` from source by running a command of the form: ::
 

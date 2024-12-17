@@ -27,6 +27,21 @@ Substitute ``artiq-manual-pdf`` to get the LaTeX PDF version. The results will b
 
 The manual is written in `reStructured Text <https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html>`_; you can find the source files in the ARTIQ repository under ``doc/manual``. If you spot a mistake, a typo, or something that's out of date or missing -- in particular, if you want to add something to this FAQ -- feel free to clone the repository, edit the source RST files, and make a pull request with your version of an improvement. (If you're not a fan of or not familiar with command-line Git, both GitHub and Gitea support making edits and pull requests directly in the web interface; tutorial materials are easy to find online.) The second best thing is to open an issue to make M-Labs aware of the problem.
 
+roll back to older versions of ARTIQ, or obtain it through other installation methods?
+--------------------------------------------------------------------------------------
+
+At all times, three versions of ARTIQ are actively supported by M-Labs, released through the beta, stable, and legacy channels. See :doc:`releases`.
+
+If you are trying to rollback to stable or legacy, the process should be accordingly simple. See the respective :doc:`installing` page in the respective version of the manual. If you've previously used the version you are rolling back to, you can likely use the rollback methods described in :ref:`installing-upgrading`; otherwise you can always treat it as a fresh install. Remember that it will also be necessary to reflash core devices with corresponding legacy binaries.
+
+Regarding pre-legacy releases, note that being actively supported simply means that M-Labs makes prebuilt packages and binaries for these versions available via the supported installation methods and through AFWS. Outdated versions aren't automatically built or offered over these channels, but their source code remains available in the Git repository, and you are free to use it or adapt it in accordance with the terms of the license, including building whatever packages you prefer. In general, though, newer releases of ARTIQ offer more features, more stability, better performance, and better support. The legacy release is supported simply as a convenience for users who haven't been able to upgrade yet. For normal purposes, it is recommended to use the current stable release of ARTIQ if at all possible, or the beta to gain access to new features and improvements that are still in development.
+
+For more details, see also `Clarifications regarding the ARTIQ release model and AFWS <https://forum.m-labs.hk/d/823-clarifications-regarding-the-artiq-release-model-and-afws>`_.
+
+.. tip::
+
+    If you're particularly concerned with being able to precisely reproduce older experiments, even when you've moved on to newer ARTIQ versions, upgrade carefully and make your own local backups to be able to rollback to older versions of your system. Make sure to keep copies of older firmware binaries in order to be able to reflash your hardware. Older versions of ARTIQ will always continue working if left untouched, and you won't need to worry about rebuilding from the source if you keep your own prebuilt versions around.
+
 .. _faq-networking:
 
 troubleshoot networking problems?
@@ -59,13 +74,6 @@ Either reflash your core device with a newer version of ARTIQ (see :doc:`flashin
     You can check the specific versions you are using at any time by comparing the gateware version given in the core startup log and the output given by adding ``--version`` to any of the standard ARTIQ front-end commands. This is especially useful when e.g. seeking help in the forum or at the helpdesk, where your running ARTIQ version is often crucial information to diagnose a problem.
 
     Minor version mismatches are common, even in stable ARTIQ versions, but should not cause any issues. The ARTIQ release system ensures breaking changes are strictly limited to new release versions, or to the beta branch (which explicitly makes no promises of stability.) Updates that *are* applied to the stable version are usually bug fixes, documentation improvements, or other quality-of-life changes. As long as gateware and software are using the same stable release version of ARTIQ, even if there is a minor mismatch, no warning will be displayed.
-
-change configuration settings of satellite devices?
----------------------------------------------------
-
-Currently, it is not possible to reach satellites through ``artiq_coremgmt config``, although this is being worked on. On Kasli, use :class:`~artiq.frontend.artiq_mkfs` and :class:`~artiq.frontend.artiq_flash`; on Kasli-SoC, preload the SD card with a ``config.txt``, formatted as a list of ``key=value`` pairs, one per line.
-
-Don't worry about individually flashing idle or startup kernels. If your idle or startup kernel contains subkernels, it will automatically compile as a ``.tar``, which you only need to flash to the master.
 
 fix unreliable DRTIO master-satellite links?
 --------------------------------------------
@@ -106,9 +114,44 @@ fix ``failed to connect to moninj`` in the dashboard?
 
 This and other similar messages almost always indicate that your device database lists controllers (for example, ``aqctl_moninj_proxy``) that either haven't been started or aren't reachable at the given host and port. See :ref:`mgmt-ctlmgr`, or simply run: ::
 
-    $ artiq_ctlgmr
+    $ artiq_ctlmgr
 
 to let the controller manager start the necessary controllers automatically.
+
+fix ``address already in use`` when running ARTIQ commands?
+-----------------------------------------------------------
+
+A message like ``OSError: [Errno 98] error while attempting to bind on address ('127.0.0.1', 1067): [errno 98] address already in use`` indicates that the IP address and port number combination you're trying to use is already occupied by some other process. Often this simply means that the ARTIQ process you're trying to start is in fact already running. Note for example that trying to start a controller which is already being run by a controller manager will generally fail for this reason.
+
+.. note::
+    ARTIQ management system communications, whether distributed or local, run over TCP/IP, using TCP port numbers to identify their destinations. Generally speaking, client processes like the dashboard don't require fixed ports of their own, since they can simply reach out to the master when they want to establish a connection. Running multiple dashboards will never cause a port conflict. On the other hand, server processes like the ARTIQ master have to be 'listening' at a fixed, open port in order to be able to receive incoming connections. For more details, look into `ports in computer networking <https://en.wikipedia.org/wiki/Port_(computer_networking)>`_.
+
+    Most management system processes belong to the second category, and are bound to one or several fixed communication ports while they're running. See also :doc:`default_network_ports`.
+
+You can use the command ``netstat`` to list the ports currently in use on your system. To check the status of a specific port on Linux, try either of: ::
+
+    $ netstat -anp --inet | grep "<port-number>"
+    $ lsof -i:<port-number>
+
+On Windows, you can list ports with: ::
+
+    $ netstat -ano -p TCP
+
+Use your preferred method to search through the output; suitable commands will vary by environment (e.g. ``grep`` in an MSYS2 shell, ``Select-String`` in PowerShell, ``find`` in the Windows command line, etc.)
+
+In all cases, if there are no results, the port isn't in use and should be free for new processes.
+
+.. tip::
+    While it is possible to run, for example, two identical ARTIQ controllers on the same machine, they can't be bound to the same port numbers at the same time. If you're intentionally running multiple copies of the same ARTIQ processes, use the command-line ``--port`` options to set alternate ports for at least one of the two. See :doc:`main_frontend_tools` and :doc:`utilities` for exact flags to use. Controllers should have similar flags available and will also require updated :ref:`device database entries <ndsp-integration>`. Note that alternate ports must be consistent to be useful, e.g., a master and dashboard must have the same ``--port-notify`` set in order to communicate with each other!
+
+Otherwise, either the running process must be stopped, or you'll have to set different port numbers for the process you're trying to start. In some cases it might happen that a process is no longer accessible or has become unresponsive but is still occupying its ports. The easiest way to free the ports is to kill the process manually. On Linux, you can use the ``kill`` command with ``lsof``: ::
+
+    $ kill $(lsof -t -i:<port-number>)
+
+On Windows, use ``netstat`` again to identify the process ID, and then feed it into ``taskkill``, e.g.: ::
+
+    $ netstat -ano -p TCP
+    $ taskkill /F /PID <process-ID>
 
 diagnose and fix sequence errors?
 ---------------------------------
@@ -195,6 +238,24 @@ create and use variable-length arrays in kernels?
 -------------------------------------------------
 
 You can't, in general; see the corresponding notes under :ref:`compiler-types`. ARTIQ kernels do not support heap allocation, meaning in particular that lists, arrays, and strings must be of constant size. One option is to preallocate everything, as mentioned on the Compiler page; another option is to chunk it and e.g. read 100 events per function call, push them upstream and retry until the gate time closes.
+
+understand how best to send data between kernel and host?
+---------------------------------------------------------
+
+See also :ref:`basic-artiq-python`. Let's run down the options for kernel-host data transfer:
+
+    - Kernels can return single values directly. They *cannot* return lists, arrays or strings, because of the way these values are allocated, which prevents values of these types from outliving the kernel they are created in. This is still true when the values in question are wrapped in functions or objects, in which case they may be missed by lifetime tracking and accepted by the compiler, but will cause memory corruption when run.
+
+    - Kernels can freely make changes to attributes of objects shared with the host, including ``self``. However, these changes will be made to a kernel-owned copy of the object, which is only synchronized with the host copy when the kernel completes. This means that host-side operations executed during the runtime of the kernel, including RPCs, will be handling an unmodified version of the object, and modifications made by those operations will simply be overwritten when the kernel returns.
+
+    .. note::
+        Attribute writeback happens *once per kernel*, that is, if your experiment contains many separate kernels called from the host, modifications will be written back when each separate kernel completes. This is generally not suitable for data transfer, however, as new kernels are costly to create, and experiments often try to avoid doing so. It is also important to specify that kernels called *from* a kernel will not write back to the host upon completion. Attribute writeback is only executed upon return to the host.
+
+    - Kernels can interact with datasets, either as attributes (if :meth:`~artiq.language.environment.HasEnvironment.setattr_dataset` is used) or by RPC of the get and set methods (:meth:`~artiq.language.environment.HasEnvironment.get_dataset`, :meth:`~artiq.language.environment.HasEnvironment.set_dataset`, etc.). In this case note that, like certain other host-side methods, :meth:`~artiq.language.environment.HasEnvironment.get_dataset` will not actually be accepted by the compiler, because its return type is not specified. To call it as an RPC, simply wrap it in another function which *does* specify a return type. :meth:`~artiq.language.environment.HasEnvironment.set_dataset` can be similarly wrapped to make it asynchronous.
+
+    - Kernels can of course also call arbitrary RPCs. When sending data to the host, these can be asynchronous, and this is normally the recommended way of transferring data back to the host, resulting in a relatively minor amount of delay in the kernel. Keep in mind however that asynchronous RPCs may still block execution for some time if the arguments are very large or if many RPCs are submitted in close succession. When receiving data from the host, RPCs must be synchronous, which is still considerably faster than starting a new kernel. Note that if data is being both (asynchronously) sent and received, there is a small possibility of minor race conditions (i.e. retrieved data may not yet show updates sent in an earlier RPC).
+
+Kernel attributes and data transfer remain somewhat of an open area of development. Many such developments are or will be implemented in `NAC3 <https://forum.m-labs.hk/d/392-nac3-new-artiq-compiler-3-prealpha-release>`_, the next-generation ARTIQ compiler. The overhead for starting new kernels, which is largely dominated by compile time, should be significantly reduced (NAC3 can be expected to complete compilations 6x - 30x faster than currently).
 
 write part of my experiment as a coroutine/asyncio task/generator?
 ------------------------------------------------------------------

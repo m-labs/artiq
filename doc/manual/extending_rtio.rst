@@ -5,7 +5,7 @@ Extending RTIO
 
     This page is for users who want to extend or modify ARTIQ RTIO. Broadly speaking, one of the core intentions of ARTIQ is to provide a high-level, easy-to-use interface for experimentation, while the infrastructure handles the technological challenges of the high-resolution, timing-critical operations required. Rather than worrying about the details of timing in hardware, users can outline tasks quickly and efficiently in ARTIQ Python, and trust the system to carry out those tasks in real time. It is not normally, or indeed ever, necessary to make modifications on a gateware level.
 
-    However, ARTIQ is an open-source project, and welcomes interest and agency from its users, as well as from experienced developers. This page is intended to serve firstly as a broad introduction to the internal structure of ARTIQ, and secondly as a tutorial for how RTIO extensions in ARTIQ can be made. Experience with FPGAs or hardware description languages is not strictly necessary, but additional research on the topic will likely be required to make serious modifications of your own.
+    However, ARTIQ is an open-source project, and welcomes innovation and contribution from its users, as well as from experienced developers. This page is intended to serve firstly as a broad introduction to the internal structure of ARTIQ, and secondly as a tutorial for how RTIO extensions in ARTIQ can be made. Experience with FPGAs or hardware description languages is not strictly necessary, but additional research on the topic will likely be required to make serious modifications of your own.
 
     For instructions on setting up the ARTIQ development environment and on building gateware and firmware binaries, first see :doc:`building_developing` in the main part of the manual.
 
@@ -37,7 +37,7 @@ Introduction to the ARTIQ internal stack
     \draw[primary, -Stealth] (gateware) to (firmware);
     \draw[primary, -Stealth] (hardware) to (gateware);
 
-Like any other modern piece of software, kernel code running on an ARTIQ core device rests upon a layered infrastructure, starting with the hardware: the physical carrier board and its peripherals. Generally, though not exclusively, this is the `Sinara device family <https://m-labs.hk/experiment-control/sinara-core/>`_, which is designed to work with ARTIQ. Other carrier boards, such as the Xilinx KC705 and ZC706, are also supported.
+Like any other modern piece of software, kernel code running on an ARTIQ core device rests upon a layered infrastructure, starting with the hardware: the physical carrier board and its peripherals. Generally, though not exclusively, this is the `Sinara device family <https://m-labs.hk/experiment-control/sinara-core/>`_, which is designed to work with ARTIQ. Other carrier boards, such as the :ref:`Hardcoded variant devices <devices-table>`, are also supported.
 
 All of the ARTIQ core device carrier boards necessarily center around a physical field-programmable gate array, or FPGA. If you have never worked with FPGAs before, it is easiest to understand them as 'rearrangeable' circuits. Ideally, they are capable of approaching the tremendous speed and timing precision advantages of custom-designed, application-specific hardware, while still being reprogrammable, allowing development and revision to continue after manufacturing.
 
@@ -45,9 +45,11 @@ The 'configuration' of an FPGA, the circuit design it is programmed with, is its
 
 The low-level software that runs directly on the core device's CPU, softcore or hardcore, is its *firmware.* This is the 'operating system' of the core device. The firmware is tasked, among other things, with handling the low-level communication between the core device and the host machine, as well as between the core devices in a DRTIO setting. It is written in bare-metal `Rust <https://www.rust-lang.org/>`__. There are currently two active versions of the ARTIQ firmware (the version used for ARTIQ-Zynq, NAR3, is more modern than that used on Kasli and KC705, and will likely eventually replace it) but they are functionally equivalent except for internal details.
 
-Experiment kernels themselves -- ARTIQ Python, processed by the ARTIQ compiler and loaded from the host machine -- rest on top of and are framed and supported by the firmware, in the same sense way that application software on your PC rests on top of an operating system. All together, software kernels communicate with the firmware to set parameters for the gateware, which passes signals directly to the hardware.
+Experiment kernels themselves -- ARTIQ Python, processed by the ARTIQ compiler and loaded from the host machine -- rest on top of and are framed and supported by the firmware, in the same way that application software on your PC rests on top of an operating system. All together, software kernels communicate with the firmware to set parameters for the gateware, which passes signals directly to the hardware.
 
 These frameworks are built to be self-contained and extensible. To make additions to the gateware and software, for example, we do not need to make changes to the firmware; we can interact purely with the interfaces provided on either side.
+
+.. _extending-gateware-logic:
 
 Extending gateware logic
 ------------------------
@@ -57,9 +59,11 @@ As briefly explained in :doc:`rtio`, when we talk about RTIO infrastructure, we 
 .. warning::
     Note that FPGA resources are finite, and buffer sizes, lane counts, etc., are generally chosen to maximize available resources already, with different values depending on the core device in use. Depending on the peripherals you include (some are more resource-intensive than others) blanket increases will likely quickly outstrip the capacity of your FPGA and fail to build. Increasing the depth of a particular channel you know to be heavily used is more likely to succeed; the easiest way to find out is to attempt the build and observe what results.
 
-Gateware in ARTIQ is housed in ``artiq/gateware`` on the main ARTIQ repository and (for Zynq-specific additions) in ``artiq-zynq/src/gateware`` on ARTIQ-Zynq. The starting point for figuring out your changes will often be the *target file*, which is core device-specific and which you may recognize as the primary module called when building gateware. Depending on your core device, simply track down the file named after it, as in ``kasli.py``, ``kasli_soc.py``, and so on. Note that the Kasli and Kasli-SoC targets are designed to take JSON description files as input, whereas their KC705 and ZC706 equivalents work with hardcoded variants instead.
+Gateware in ARTIQ is housed in ``artiq/gateware`` on the main ARTIQ repository and (for Zynq-specific additions) in ``artiq-zynq/src/gateware`` on ARTIQ-Zynq. The starting point for figuring out your changes will often be the *target file*, which is core device-specific and which you may recognize as the primary module called when building gateware. Depending on your core device, simply track down the file named after it, as in ``kasli.py``, ``kasli_soc.py``, and so on. Note that the Kasli and Kasli-SoC targets are designed to take JSON description files as input (see :ref:`JSON variant devices <devices-table>`), whereas their KC705, ZC706 and EBAZ4205 (see :ref:`Hardcoded variant devices <devices-table>`) equivalents work with hardcoded variants instead.
 
 To change parameters related to particular peripherals, see also the files ``eem.py`` and ``eem_7series.py``, which describe the core device's interface with other EEM cards in Migen terms, and contain ``add_std`` methods that in turn reference specific gateware modules and assign RTIO channels.
+
+.. _adding-phy:
 
 Adding a module to gateware
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -146,13 +150,15 @@ Add the combinatorial block as follows: ::
     self.comb += [
         pad0.eq(pad0_o),
         If(reg,
-            pad1.eq(pad0_k)
+            pad1.eq(pad0_o)
         )
     ]
 
 The output ``pad0`` is continuously connected to the value of the ``pad0_o`` register. The output of ``pad1`` is set equal to that of ``pad0``, but only if the ``reg`` register is high, or ``1``.
 
 The module is now capable of accepting RTIO output events and applying them to the hardware outputs. What we can't yet do is generate these output events in an ARTIQ kernel. To do that, we need to add a core device driver.
+
+.. _adding-core-driver:
 
 Adding a core device driver
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -234,7 +240,7 @@ Now, before you can access your new core device driver from a kernel, it must be
 .. warning::
     Channel numbers are assigned sequentially each time ``rtio_channels.append()`` is called. Since we assigned the channel for our linked LEDs in the same location as the old user LEDs, the correct channel number is likely simply the one previously used in your device database for the first LED. In any other case, however, the ``print()`` statement we added to the target file should tell us the exact canonical channel. Search through the console logs produced when generating the gateware to find the line starting with ``Linked LEDs at:``.
 
-    Depending on how your device database was written, note that the channel numbers for other peripherals, if they are present, *will have changed*, and :meth:`~artiq.frontend.artiq_ddb_template` will not generate their numbers correctly unless it is edited to match the new assignments of the user LEDs. For a longer-term gateware change, especially the addition of a new EEM card, ``artiq/frontend/artiq_ddb_template.py`` and ``artiq/coredevice/coredevice_generic.schema`` should be edited accordingly, so that system descriptions and device databases can continue to be parsed and generated correctly.
+    Depending on how your device database was written, note that the channel numbers for other peripherals, if they are present, *will have changed*, and :meth:`~artiq.frontend.artiq_ddb_template` will not generate their numbers correctly unless it is edited to match the new assignments of the user LEDs. For a more long-term gateware change, ``artiq/frontend/artiq_ddb_template.py`` and ``artiq/coredevice/coredevice_generic.schema`` should be edited accordingly, so that system descriptions and device databases can continue to be parsed and generated correctly. See also :ref:`extending-system-description` below.
 
 Test experiments
 ^^^^^^^^^^^^^^^^
@@ -269,4 +275,133 @@ and ``linkup.py``: ::
 
 Run these and observe the results. Congratulations! You have successfully constructed an extension to the ARTIQ RTIO.
 
-.. + 'Adding custom EEMs' and 'Merging support'
+Adding a custom EEM
+-------------------
+
+.. note::
+    Adding a custom EEM to a Kasli or Kasli-SoC system is not much more difficult than adding new gateware logic for existing hardware, and may in some cases be simpler, if no custom PHY is required. On the other hand, modifying :ref:`Hardcoded variant devices <devices-table>` is a different process, and gateware generation for these boards does not use the files and modules described below. Creating new hardcoded variants is not directly addressed in this tutorial. That said, it would begin and end largely in the respective target file, where the variants are defined.
+
+    Non-realtime hardware which does not need to connect directly to the core device or require gateware support should instead be handled through an NDSP, see :doc:`developing_a_ndsp`. This is a more accessible process in general and does not vary based on core device.
+
+Extending gateware support
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The first and most important file to look into is ``eem.py``, found in ``artiq/gateware``. This is where the classes for ARTIQ-supported EEM peripherals are defined, and where you can add your own class for a new EEM, following the model of the preexisting classes.
+
+Your custom EEM class should subclass :class:`artiq.gateware.eem._EEM` and provide the two methods ``io()`` and ``add_std()``. The second, ``add_std()``, will be called to add this EEM to a gateware build. The first is called by ``add_extension()`` in :class:`~artiq.gateware.eem._EEM` itself. Your class should look something like: ::
+
+    class CustomEEM(_EEM):
+        @staticmethod
+        def io(*args, **kwargs iostandard=default_iostandard):
+            io = [ ... ] # A sequence of pad assignments
+            return io
+
+        @classmethod
+        def add_std(cls, target, *args, **kwargs):
+            cls.add_extension(target, *args, **kwargs) # calls CustomEEM.io(*args, **kwargs)
+
+            # Request IO pads that were added in CustomEEM.io()
+            target.platform.request(...)
+            
+            # Add submodule for PHY (pass IO pads in arguments)
+            phy = ...
+            phys.append(phy)
+            target.submodules += phy
+            
+            # Add RTIO channel(s) for PHY
+            target.rtio_channels.append(rtio.Channel.from_phy(...))
+
+Note that the pad assignments ``io()`` returns should be in Migen, usually comprised out of Migen ``Subsignal`` and ``Pin`` constructs. The predefined :func:`~artiq.gateware.eem._eem_signal` and :func:`~artiq.gateware.eem._eem_pin` functions (also provided in ``eem.py``) may be useful. Note also that ``add_std()`` covers essentially the same territory as the modifications we simply made directly to the target file for the LED tutorial. Depending on your use case, you may need to write a custom PHY for your hardware, or you may be able to make use of the PHYs ARTIQ already makes available. See :ref:`adding-phy`, if you haven't already. A single EEM may also generate several PHYs and/or claim several RTIO channels.
+
+Now find the file ``eem_7series.py``, also in ``artiq/gateware``. The functions defined in this file mostly serve as wrappers for ``add_std()``, with some additional interpretation and checks on the parameters. Your own ``peripheral`` function should look something like: ::
+
+    def peripheral_custom(module, peripheral):
+        ... # (interpret peripheral arguments)
+        CustomEEM.add_std(module, *args, **kwargs)
+
+Once you have written this function, add it to the ``peripheral_processors`` dictionary at the end of the file, as: ::
+
+    peripheral_processors["custom_eem"] = peripheral_custom
+
+Now your EEM is fully supported by the ARTIQ gateware infrastructure. All that remains is to add it to a build configuration.
+
+.. _extending-system-description:
+
+Target file and system description
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In the :ref:`extending-gateware-logic` tutorial above, we made modifications directly to the target file, to hardcode a certain PHY for a certain set of pads. This is reasonable to do in the case of the core device LEDs, which are always present and cannot be rearranged. It is theoretically possible to hardcode the addition of your new EEM in the same way. In this case it would not be necessary to make modifications to ``eem.py`` and ``eem_7series.py``; the pad assignments, requisite PHYs, and RTIO channels could all be defined directly in the target file. This is essentially how things are done for :ref:`Hardcoded variant devices <devices-table>`.
+
+However, with EEM cards, which can be present in different numbers and rearranged at will, it is preferable to be more flexible. This is the reason system description files are used. Assuming you have added your EEM to ``eem.py`` and the ``peripheral_processors`` dictionary, no modifications to the target file are actually necessarily. All Kasli and Kasli-SoC targets already contain the line: ::
+
+    eem_7series.add_peripherals(self, description["peripherals"], iostandard=eem_iostandard)
+
+In other words, your custom EEM will be automatically included if it is in the ``description`` dictionary, which is interpreted directly from the JSON system description. Simply add an entry to your system description: ::
+
+    {
+        "type": "custom_eem",
+        "ports": [0]
+        # any other args to pass to add_std or io later:
+        ...
+    }
+
+Note however that before a build system descriptions are always checked against the corresponding JSON schema, which you can find as ``coredevice_generic_schema.json`` in ``artiq/coredevice``. Add the new format for your entry here as well, under ``definition``, ``peripheral``, and ``allOf``: ::
+
+    {
+        "title": "CustomEEM",
+        "if": {
+            "properties": {
+                "type": {
+                    "const": "custom_eem"
+                }
+            }
+        },
+        "then": {
+            "properties": {
+                "ports": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    },
+                    "minItems": ...,
+                    "maxItems": ...
+                },
+                ...
+            },
+            "required": ["ports", ...]
+        }
+    },
+
+Now it should be possible to :doc:`build the binaries <building_developing>`, using your system description and its custom entry.
+
+Device database and driver
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+As usual, before you can use your hardware from a kernel, you will need to add an entry to your device database. You can use one of the existing ARTIQ core drivers, if applicable, or you can write your own custom driver, as we did in :ref:`adding-core-driver`.
+
+There are a few options to determine the correct channel number. You can figure it out from the structure of your system description; you can add a print statement to ``add_std()``; or, most preferably, you can add support for your custom EEM in :mod:`~artiq.frontend.artiq_ddb_template`, so that the channel number can be handled automatically as it is for other peripherals.
+
+The relevant file is in ``artiq/frontend``, named simply ``artiq_ddb_template.py``. You will want to add a method within ``PeripheralManager``, in the format: ::
+
+    def process_custom_eem(self, rtio_offset, peripheral):
+        self.gen("""
+                device_db["{name}"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.custom_eem",
+                    "class": "CustomDriver",
+                    "arguments": {{"channel": 0x{channel:06x}}}
+                }}""",
+            name=self.get_name("custom_eem"),
+            channel=rtio_offset + next(channel))
+        return next(channel)
+
+Further arguments can be passed on through ``arguments`` if necessary. Note that the peripheral manager's ``process`` method chooses which method to use by performing a simple string check, so your ``process_`` method *must* use the same name for your custom hardware as given in the system description's ``"type"``.
+
+You should now be able to use :mod:`~artiq.frontend.artiq_ddb_template` to generate your device database, and from there, compile and run experiments with your new hardware. Congratulations!
+
+Merging support
+---------------
+
+Being an open-source project, ARTIQ welcomes contributions from outside sources. If you have successfully integrated additional gateware or new hardware into ARTIQ, and you think this might be useful to other ARTIQ users in the community, you might consider merging support -- having your additions incorporated into the canonical ARTIQ codebase. See `this pull request <https://github.com/m-labs/artiq/pull/1800>`_ for one example of such a community addition.
+
+Merging support also means the opportunity to have your code reviewed by experts, and if your addition is accepted, that maintaining these additions and keeping them up-to-date through new ARTIQ versions may be handled by the developers of ARTIQ directly, instead of being solely your responsibility. Clean up your code, test it well, be sure that it plays well with existing ARTIQ features and interfaces, and follow the `contribution guidelines <https://github.com/m-labs/artiq/blob/master/CONTRIBUTING.rst#contributing-code>`_. Your effort is appreciated!

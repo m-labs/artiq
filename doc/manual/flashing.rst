@@ -13,11 +13,11 @@ If you have an active firmware subscription with M-Labs or QUARTIQ, you can obta
 
 Run the command::
 
-  $ afws_client <username> build <afws_director> <variant>
+  $ afws_client <username> build <afws_directory> <variant>
 
 Replace ``<username>`` with the login name that was given to you with the subscription, ``<variant>`` with the name of your system variant, and ``<afws_directory>`` with the name of an empty directory, which will be created by the command if it does not exist. Enter your password when prompted and wait for the build (if applicable) and download to finish. If you experience issues with the AFWS client, write to the helpdesk@ email. For more information about :mod:`~artiq.frontend.afws_client` see also the corresponding entry on the :ref:`Utilities <afws-client>` page.
 
-For certain configurations (KC705 or ZC706 only) it is also possible to source firmware from `the M-Labs Hydra server <https://nixbld.m-labs.hk/project/artiq>`_ (in ``main`` and ``zynq`` respectively).
+For :ref:`hardcoded variant devices <devices-table>` it is also possible to source firmware from `the M-Labs Hydra server <https://nixbld.m-labs.hk/project/artiq>`_ (in ``main`` and ``zynq``).
 
 Without a subscription, you may build the firmware yourself from the open source code. See the section :doc:`building_developing`.
 
@@ -25,7 +25,7 @@ Installing and configuring OpenOCD
 ----------------------------------
 
 .. warning::
-  These instructions are not applicable to Zynq devices (Kasli-SoC or ZC706), which do not use the utility :mod:`~artiq.frontend.artiq_flash`. If your core device is a Zynq device, skip straight to :ref:`writing-flash`.
+  These instructions are not applicable to :ref:`Zynq devices <devices-table>`, which do not use the utility :mod:`~artiq.frontend.artiq_flash`. If your core device is a Zynq device, skip straight to :ref:`writing-flash`.
 
 ARTIQ supplies the utility :mod:`~artiq.frontend.artiq_flash`, which uses OpenOCD to write the binary images into an FPGA board's flash memory. For both Nix and MSYS2, OpenOCD are included with the installation by default. Note that in the case of Nix this is the package ``artiq.openocd-bscanspi`` and not ``pkgs.openocd``; the second is OpenOCD from the Nix package collection, which does not support ARTIQ/Sinara boards.
 
@@ -78,29 +78,25 @@ On Windows
 Writing the flash
 -----------------
 
-First ensure the board is connected to your computer. In the case of Kasli, the JTAG adapter is integrated into the Kasli board; for flashing (and debugging) you can simply connect your computer to the micro-USB connector on the Kasli front panel. For Kasli-SoC, which uses :mod:`~artiq.frontend.artiq_coremgmt` to flash over network, an Ethernet connection and an IP address, supplied either with the ``-D`` option or in your :ref:`device database <device-db>`, are sufficient.
+If your device is already accessible over the network, all you need is an Ethernet connection and a correct IP address (supplied either with the ``-D`` option or in :ref:`your device database <device-db>`). ::
 
-For Kasli-SoC or ZC706:
-    ::
+    $ artiq_coremgmt [-D IP_address] flash <afws_directory>
+    $ artiq_coremgmt [-D IP_address] reboot
 
-        $ artiq_coremgmt [-D IP_address] config write -f boot <afws_directory>/boot.bin
-        $ artiq_coremgmt reboot
+If the device is not reachable due to corrupted firmware or networking problems, binaries can be loaded manually. On Kasli or KC705, connect the board directly to your computer by JTAG USB and use :mod:`~artiq.frontend.artiq_flash`, as follows: ::
 
-    If the device is not reachable due to corrupted firmware or networking problems, extract the SD card and copy ``boot.bin`` onto it manually.
+        $ artiq_flash [-t kc705] -d <afws_directory>
 
-For Kasli:
-    ::
+Note the micro-USB in the Kasli front panel. On KC705, the SW13 switches need to be set to 00001.
 
-        $ artiq_flash -d <afws_directory>
+For Zynq devices (Kasli-SoC, ZC706 or EBAZ4205), extract the SD card and copy ``boot.bin`` onto it manually.
 
-For KC705:
-    ::
+Writing to satellite devices
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-        $ artiq_flash -t kc705 -d <afws_directory>
+Satellite devices can at any time be flashed directly through the SD card or :mod:`~artiq.frontend.artiq_flash`, as applicable. Satellite devices do not support individual networking and do not have IP addresses. If your DRTIO system is up and running and the routing table is in place, on the other hand, they can be flashed through the master's network connection: ::
 
-    The SW13 switches need to be set to 00001.
-
-Flashing over network is also possible for Kasli and KC705, assuming IP networking has already been set up. In this case, the ``-H HOSTNAME`` option is used; see the entry for :mod:`~artiq.frontend.artiq_flash` in the :ref:`Utilities <flashing-loading-tool>` reference.
+  $ artiq_coremgmt [-D IP_address] -s <destination_number> flash <afws_directory>
 
 .. _connecting-uart:
 

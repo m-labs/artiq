@@ -661,9 +661,9 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 }
             }
             #[cfg(has_drtio)]
-            &kern::SubkernelLoadRunRequest { id, destination: _, run } => {
+            &kern::SubkernelLoadRunRequest { id, destination: _, run, timestamp } => {
                 let succeeded = match subkernel::load(
-                    io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, id, run) {
+                    io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, id, run, timestamp) {
                         Ok(()) => true,
                         Err(e) => { error!("Error loading subkernel: {}", e); false }
                     };
@@ -839,7 +839,7 @@ fn flash_kernel_worker(io: &Io, aux_mutex: &Mutex,
                        routing_table: &drtio_routing::RoutingTable,
                        up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
                        ddma_mutex: &Mutex, subkernel_mutex: &Mutex, congress: &mut Congress,
-                       config_key: &str) -> Result<(), Error<SchedError>> {
+                       config_key: &str, restart_idle: Option<&Urc<Cell<bool>>>) -> Result<(), Error<SchedError>> {
     let mut session = Session::new(congress);
 
     config::read(config_key, |result| {
@@ -859,10 +859,15 @@ fn flash_kernel_worker(io: &Io, aux_mutex: &Mutex,
         }
     })?;
     kern_run(&mut session)?;
-
     loop {
         if !rpc_queue::empty() {
             unexpected!("unexpected background RPC in flash kernel")
+        }
+        
+        if let Some(r_idle) = restart_idle {
+            if r_idle.get() {
+                return Err(Error::KernelNotFound) 
+            }
         }
 
         if mailbox::receive() != 0 {
@@ -897,7 +902,7 @@ fn respawn<F>(io: &Io, handle: &mut Option<ThreadHandle>, f: F)
 pub fn thread(io: Io, aux_mutex: &Mutex,
         routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
-        ddma_mutex: &Mutex, subkernel_mutex: &Mutex) {
+        ddma_mutex: &Mutex, subkernel_mutex: &Mutex, restart_idle: &Urc<Cell<bool>>) {
     let listener = TcpListener::new(&io, 65535);
     listener.listen(1381).expect("session: cannot listen");
     info!("accepting network sessions");
@@ -910,7 +915,7 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
         let mut congress = congress.borrow_mut();
         info!("running startup kernel");
         match flash_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, 
-                ddma_mutex, subkernel_mutex, &mut congress, "startup_kernel") {
+                ddma_mutex, subkernel_mutex, &mut congress, "startup_kernel", None) {
             Ok(()) =>
                 info!("startup kernel finished"),
             Err(Error::KernelNotFound) =>
@@ -994,11 +999,12 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
             let congress = congress.clone();
             let ddma_mutex = ddma_mutex.clone();
             let subkernel_mutex = subkernel_mutex.clone();
+            let restart_idle = restart_idle.clone();
             respawn(&io, &mut kernel_thread, move |io| {
                 let routing_table = routing_table.borrow();
                 let mut congress = congress.borrow_mut();
                 match flash_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, 
-                    &ddma_mutex, &subkernel_mutex, &mut *congress, "idle_kernel") {
+                    &ddma_mutex, &subkernel_mutex, &mut *congress, "idle_kernel", Some(&restart_idle)) {
                     Ok(()) =>
                         info!("idle kernel finished, standing by"),
                     Err(Error::Protocol(host::Error::Io(
@@ -1010,7 +1016,8 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
                     }
                     Err(Error::KernelNotFound) => {
                         debug!("no idle kernel found");
-                        while io.relinquish().is_ok() {}
+                        while !restart_idle.get() && io.relinquish().is_ok() {}
+                        restart_idle.set(false);
                     }
                     Err(err) => {
                         error!("idle kernel aborted: {}", err);

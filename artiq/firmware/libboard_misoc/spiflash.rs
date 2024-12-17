@@ -114,7 +114,17 @@ pub unsafe fn write(mut addr: usize, mut data: &[u8]) {
     }
 }
 
-#[cfg(any(soc_platform = "kasli", soc_platform = "kc705"))]
+pub unsafe fn flash_binary(origin: usize, payload: &[u8]) {
+    assert!((origin & (SECTOR_SIZE - 1)) == 0);
+    let mut offset = 0;
+    while offset < payload.len() {
+        erase_sector(origin + offset);
+        offset += SECTOR_SIZE;
+    }
+    write(origin, payload);
+}
+
+#[cfg(any(soc_platform = "kasli", soc_platform = "kc705", soc_platform = "efc"))]
 pub unsafe fn reload () -> ! {
     csr::icap::iprog_write(1);
     loop {}

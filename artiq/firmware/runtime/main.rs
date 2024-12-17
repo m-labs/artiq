@@ -1,6 +1,7 @@
 #![feature(lang_items, panic_info_message, const_btree_new, iter_advance_by, never_type)]
 #![no_std]
 
+extern crate crc;
 extern crate dyld;
 extern crate eh;
 #[macro_use]
@@ -29,9 +30,10 @@ extern crate riscv;
 extern crate tar_no_std;
 
 use alloc::collections::BTreeMap;
-use core::cell::RefCell;
+use core::cell::{RefCell, Cell};
 use core::convert::TryFrom;
 use smoltcp::wire::HardwareAddress;
+use urc::Urc;
 
 use board_misoc::{csr, ident, clock, spiflash, config, net_settings, pmp, boot};
 #[cfg(has_ethmac)]
@@ -196,6 +198,7 @@ fn startup() {
 
     let ddma_mutex = sched::Mutex::new();
     let subkernel_mutex = sched::Mutex::new();
+    let restart_idle = Urc::new(Cell::new(false));
 
     let mut scheduler = sched::Scheduler::new(interface);
     let io = scheduler.io();
@@ -205,15 +208,22 @@ fn startup() {
     }
 
     rtio_mgt::startup(&io, &aux_mutex, &drtio_routing_table, &up_destinations, &ddma_mutex, &subkernel_mutex);
-
-    io.spawn(4096, mgmt::thread);
+    {
+        let restart_idle = restart_idle.clone();
+        let aux_mutex = aux_mutex.clone();
+        let ddma_mutex = ddma_mutex.clone();
+        let subkernel_mutex = subkernel_mutex.clone();
+        let drtio_routing_table = drtio_routing_table.clone();
+        io.spawn(4096, move |io| { mgmt::thread(io, &restart_idle, &aux_mutex, &ddma_mutex, &subkernel_mutex, &drtio_routing_table) });
+    }
     {
         let aux_mutex = aux_mutex.clone();
         let drtio_routing_table = drtio_routing_table.clone();
         let up_destinations = up_destinations.clone();
         let ddma_mutex = ddma_mutex.clone();
         let subkernel_mutex = subkernel_mutex.clone();
-        io.spawn(32768, move |io| { session::thread(io, &aux_mutex, &drtio_routing_table, &up_destinations, &ddma_mutex, &subkernel_mutex) });
+        let restart_idle = restart_idle.clone();
+        io.spawn(32768, move |io| { session::thread(io, &aux_mutex, &drtio_routing_table, &up_destinations, &ddma_mutex, &subkernel_mutex, &restart_idle) });
     }
     #[cfg(any(has_rtio_moninj, has_drtio))]
     {

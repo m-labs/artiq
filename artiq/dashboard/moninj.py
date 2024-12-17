@@ -847,7 +847,7 @@ class _MonInjDock(QDockWidgetCloseDetect):
         delete_action = QtGui.QAction("Delete widget", menu)
         delete_action.triggered.connect(partial(self.delete_widget, index))
         menu.addAction(delete_action)
-        menu.exec_(self.flow.mapToGlobal(pos))
+        menu.exec(self.flow.mapToGlobal(pos))
 
     def delete_all_widgets(self):
         for index in reversed(range(self.flow.count())):

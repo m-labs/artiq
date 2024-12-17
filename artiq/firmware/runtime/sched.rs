@@ -402,16 +402,18 @@ impl<'a> TcpListener<'a> {
             socket.may_send() || socket.may_recv()
         })?;
 
-        let accepted = self.handle.get();
+        let accepted = TcpStream {
+            io: self.io,
+            handle: self.handle.get(),
+        };
+        accepted.with_lower(|s| s.set_nagle_enabled(false));
+
         self.handle.set(Self::new_lower(self.io, self.buffer_size.get()));
         match self.listen(self.endpoint.get()) {
             Ok(()) => (),
             _ => unreachable!()
         }
-        Ok(TcpStream {
-            io:     self.io,
-            handle: accepted
-        })
+        Ok(accepted)
     }
 
     pub fn close(&self) {

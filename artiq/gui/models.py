@@ -84,20 +84,20 @@ class DictSyncModel(QtCore.QAbstractTableModel):
             key=lambda k: self.sort_key(k, self.backing_store[k]))
         QtCore.QAbstractTableModel.__init__(self)
 
-    def rowCount(self, parent):
+    def rowCount(self, parent=QtCore.QModelIndex()):
         return len(self.backing_store)
 
-    def columnCount(self, parent):
+    def columnCount(self, parent=QtCore.QModelIndex()):
         return len(self.headers)
 
-    def data(self, index, role):
+    def data(self, index, role=QtCore.Qt.ItemDataRole.DisplayRole):
         if not index.isValid() or role != QtCore.Qt.ItemDataRole.DisplayRole:
             return None
         else:
             k = self.row_to_key[index.row()]
             return self.convert(k, self.backing_store[k], index.column())
 
-    def headerData(self, col, orientation, role):
+    def headerData(self, col, orientation, role=QtCore.Qt.ItemDataRole.DisplayRole):
         if (orientation == QtCore.Qt.Orientation.Horizontal and
                 role == QtCore.Qt.ItemDataRole.DisplayRole):
             return self.headers[col]

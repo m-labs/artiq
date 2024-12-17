@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
 import argparse
+import os
 import struct
+import tempfile
+import atexit
 
 from sipyco import common_args
 
@@ -9,6 +12,7 @@ from artiq import __version__ as artiq_version
 from artiq.master.databases import DeviceDB
 from artiq.coredevice.comm_kernel import CommKernel
 from artiq.coredevice.comm_mgmt import CommMgmt
+from artiq.frontend.flash_tools import bit2bin, fetch_bin
 
 
 def get_argparser():
@@ -85,6 +89,20 @@ def get_argparser():
     t_boot = tools.add_parser("reboot",
                               help="reboot the running system")
 
+    # flashing
+    t_flash = tools.add_parser("flash",
+                               help="flash the running system")
+
+    p_directory = t_flash.add_argument("directory",
+                                       metavar="DIRECTORY", type=str,
+                                       help="directory that contains the "
+                                            "binaries")
+
+    p_srcbuild = t_flash.add_argument("--srcbuild",
+                                      help="board binaries directory is laid "
+                                           "out as a source build tree",
+                                      default=False, action="store_true")
+
     # misc debug
     t_debug = tools.add_parser("debug",
                                help="specialized debug functions")
@@ -94,6 +112,12 @@ def get_argparser():
 
     p_allocator = subparsers.add_parser("allocator",
                                         help="show heap layout")
+
+    # manage target
+    p_drtio_dest = parser.add_argument("-s", "--drtio-dest", default=0,
+                                       metavar="DRTIO_DEST", type=int,
+                                       help="specify DRTIO destination that "
+                                            "receives this command")
 
     return parser
 
@@ -107,7 +131,7 @@ def main():
         core_addr = ddb.get("core", resolve_alias=True)["arguments"]["host"]
     else:
         core_addr = args.device
-    mgmt = CommMgmt(core_addr)
+    mgmt = CommMgmt(core_addr, drtio_dest=args.drtio_dest)
 
     if args.tool == "log":
         if args.action == "set_level":
@@ -137,6 +161,39 @@ def main():
                 mgmt.config_remove(key)
         if args.action == "erase":
             mgmt.config_erase()
+
+    if args.tool == "flash":
+        retrieved_bins = []
+        bin_dict = {
+            "zynq":[
+                ["boot"]
+            ],
+            "riscv": [
+                ["gateware"],
+                ["bootloader"],
+                ["runtime", "satman"],
+            ],
+        }
+
+        for bin_list in bin_dict.values():
+            try:
+                bins = []
+                for bin_name in bin_list:
+                    bins.append(fetch_bin(
+                        args.directory, bin_name, args.srcbuild))
+                retrieved_bins.append(bins)
+            except FileNotFoundError:
+                pass
+
+        if retrieved_bins is None:
+            raise FileNotFoundError("neither risc-v nor zynq binaries were found")
+
+        if len(retrieved_bins) > 1:
+            raise ValueError("both risc-v and zynq binaries were found, "
+                             "please clean up your build directory. ")
+
+        bins = retrieved_bins[0]
+        mgmt.flash(bins)
 
     if args.tool == "reboot":
         mgmt.reboot()

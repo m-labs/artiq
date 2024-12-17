@@ -103,7 +103,7 @@ pub enum Message<'a> {
     SpiReadReply { succeeded: bool, data: u32 },
     SpiBasicReply { succeeded: bool },
 
-    SubkernelLoadRunRequest { id: u32, destination: u8, run: bool },
+    SubkernelLoadRunRequest { id: u32, destination: u8, run: bool, timestamp: u64 },
     SubkernelLoadRunReply { succeeded: bool },
     SubkernelAwaitFinishRequest { id: u32, timeout: i64 },
     SubkernelAwaitFinishReply,
@@ -111,6 +111,8 @@ pub enum Message<'a> {
     SubkernelMsgRecvRequest { id: i32, timeout: i64, tags: &'a [u8] },
     SubkernelMsgRecvReply { count: u8 },
     SubkernelError(SubkernelStatus<'a>),
+
+    UpdateNow(u64),
 
     Log(fmt::Arguments<'a>),
     LogSlice(&'a str)

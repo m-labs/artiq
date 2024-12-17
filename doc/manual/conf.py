@@ -30,7 +30,7 @@ mock_modules = ["artiq.gui.waitingspinnerwidget",
                 "artiq.coredevice.jsondesc",
                 "nac3artiq",
                 "qasync", "lmdb", "dateutil.parser", "prettytable", "PyQt6",
-                "h5py", "llvmlite", "pythonparser", "tqdm", "jsonschema"]
+                "h5py", "llvmlite", "pythonparser", "tqdm", "jsonschema", "platformdirs"]
 
 for module in mock_modules:
     sys.modules[module] = Mock()
@@ -147,6 +147,10 @@ nitpick_ignore_regex = [
     (r'py:.*', r'artiq.gateware.*'),
     ('py:mod', r'artiq.test.*'),
     ('py:mod', r'artiq.applets.*'),
+    # we can't use artiq.master.* because we shouldn't ignore the scheduler
+    ('py:class', r'artiq.master.experiments.*'),
+    ('py:class', r'artiq.master.databases.*'),
+    ('py:.*', r'artiq.master.worker.*'),
     ('py:class', 'dac34H84'),
     ('py:class', 'trf372017'),
     ('py:class', r'list(.*)'),

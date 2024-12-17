@@ -75,7 +75,7 @@ def get_argparser():
     parser_add.add_argument("file", metavar="FILE",
                             help="file containing the experiment to run")
     parser_add.add_argument("arguments", metavar="ARGUMENTS", nargs="*",
-                            help="run arguments")
+                            help="run arguments, use format KEY=VALUE")
 
     parser_delete = subparsers.add_parser("delete",
                                           help="delete an experiment "

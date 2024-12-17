@@ -55,6 +55,8 @@ class Core:
         (optional).
     :param analyze_at_run_end: automatically trigger the core device analyzer
         proxy after the Experiment's run stage finishes.
+    :param report_invariants: report variables which are not changed inside
+        kernels and are thus candidates for KernelInvariant annotation
     """
     ref_period: KernelInvariant[float]
     ref_multiplier: KernelInvariant[int32]
@@ -64,7 +66,8 @@ class Core:
                  host, ref_period,
                  analyzer_proxy=None, analyze_at_run_end=False,
                  ref_multiplier=8,
-                 target="rv32g", satellite_cpu_targets={}):
+                 target="rv32g", satellite_cpu_targets={},
+                 report_invariants=False):
         self.ref_period = ref_period
         self.ref_multiplier = ref_multiplier
         
@@ -86,6 +89,7 @@ class Core:
         self.analyzer_proxy_name = analyzer_proxy
         self.analyze_at_run_end = analyze_at_run_end
         self.analyzer_proxy = None
+        self.report_invariants = report_invariants
 
     def notify_run_end(self):
         if self.analyze_at_run_end:
@@ -116,6 +120,7 @@ class Core:
             obj = method
             name = ""
 
+        # NAC3TODO: handle self.report_invariants
         if file_output is None:
             return self.compiler.compile_method_to_mem(obj, name, args, embedding_map)
         else:

@@ -1,19 +1,45 @@
 {
   description = "A leading-edge control system for quantum information experiments";
 
-  inputs.nac3 = { type = "git"; url = "https://git.m-labs.hk/m-labs/nac3.git"; };
-  inputs.rust-overlay = {
+  inputs = {
+    nac3 = {
+      url = "https://git.m-labs.hk/m-labs/nac3.git";
+      type = "git";
+    };
+
+    rust-overlay = {
       url = "github:oxalica/rust-overlay?ref=snapshot/2024-08-01";
       inputs.nixpkgs.follows = "nac3/nixpkgs";
-  };
-  inputs.sipyco.url = github:m-labs/sipyco;
-  inputs.sipyco.inputs.nixpkgs.follows = "nac3/nixpkgs";
-  inputs.artiq-comtools.url = github:m-labs/artiq-comtools;
-  inputs.artiq-comtools.inputs.nixpkgs.follows = "nac3/nixpkgs";
-  inputs.artiq-comtools.inputs.sipyco.follows = "sipyco";
+    };
 
-  inputs.src-migen = { url = github:m-labs/migen; flake = false; };
-  inputs.src-misoc = { type = "git"; url = "https://github.com/m-labs/misoc.git"; submodules = true; flake = false; };
+    artiq-comtools = {
+      url = "github:m-labs/artiq-comtools";
+      inputs.nixpkgs.follows = "nac3/nixpkgs";
+      inputs.sipyco.follows = "sipyco";
+    };
+
+    sipyco = {
+      url = "github:m-labs/sipyco";
+      inputs.nixpkgs.follows = "nac3/nixpkgs";
+    };
+
+    src-migen = {
+      url = "github:m-labs/migen";
+      flake = false; 
+    };
+
+    src-misoc = { 
+      url = "https://github.com/m-labs/misoc.git";
+      type = "git";
+      submodules = true; 
+      flake = false;
+    };
+
+    src-pythonparser = {
+      url = "github:m-labs/pythonparser";
+      flake = false;
+    };
+  };
 
   outputs = { self, rust-overlay, sipyco, nac3, artiq-comtools, src-migen, src-misoc }:
     let
@@ -25,6 +51,14 @@
       artiqVersionId = self.sourceInfo.shortRev or "unknown";
       artiqVersion = (builtins.toString artiqVersionMajor) + "." + (builtins.toString artiqVersionMinor) + "+" + artiqVersionId + ".beta";
       artiqRev = self.sourceInfo.rev or "unknown";
+
+      qtPaths = let 
+        inherit (pkgs.qt6) qtbase qtsvg;
+        inherit (qtbase.dev) qtPluginPrefix qtQmlPrefix;
+      in {
+        QT_PLUGIN_PATH = "${qtbase}/${qtPluginPrefix}:${qtsvg}/${qtPluginPrefix}";
+        QML2_IMPORT_PATH = "${qtbase}/${qtQmlPrefix}";
+      };
 
       rust = pkgs.rust-bin.nightly."2021-09-01".default.override {
         extensions = [ "rust-src" ];
@@ -139,12 +173,12 @@
 
       asyncserial = pkgs.python3Packages.buildPythonPackage rec {
         pname = "asyncserial";
-        version = "0.1";
+        version = "1.0";
         src = pkgs.fetchFromGitHub {
           owner = "m-labs";
           repo = "asyncserial";
-          rev = "d95bc1d6c791b0e9785935d2f62f628eb5cdf98d";
-          sha256 = "0yzkka9jk3612v8gx748x6ziwykq5lr7zmr9wzkcls0v2yilqx9k";
+          rev = version;
+          sha256 = "sha256-ZHzgJnbsDVxVcp09LXq9JZp46+dorgdP8bAiTB59K28=";
         };
         propagatedBuildInputs = [ pkgs.python3Packages.pyserial ];
       };
@@ -343,51 +377,65 @@
 
       packages.x86_64-w64-mingw32 = import ./windows { inherit sipyco nac3 artiq-comtools; artiq = self; };
 
-      inherit makeArtiqBoardPackage openocd-bscanspi-f;
+      inherit qtPaths makeArtiqBoardPackage openocd-bscanspi-f;
 
-      defaultPackage.x86_64-linux = packages.x86_64-linux.python3-mimalloc.withPackages(ps: [ packages.x86_64-linux.artiq ]);
+      defaultPackage.x86_64-linux = packages.x86_64-linux.python3-mimalloc.withPackages(_: [ packages.x86_64-linux.artiq ]);
 
-      # Main development shell with everything you need to develop ARTIQ on Linux.
-      # The current copy of the ARTIQ sources is added to PYTHONPATH so changes can be tested instantly.
-      # Additionally, executable wrappers that import the current ARTIQ sources for the ARTIQ frontends
-      # are added to PATH.
-      devShells.x86_64-linux.default = pkgs.mkShell {
-        name = "artiq-dev-shell";
-        buildInputs = [
-          (packages.x86_64-linux.python3-mimalloc.withPackages(ps: with packages.x86_64-linux; [ migen misoc ps.paramiko microscope ps.packaging ] ++ artiq.propagatedBuildInputs))
-          rust
-          pkgs.llvmPackages_14.clang-unwrapped
-          pkgs.llvm_14
-          pkgs.lld_14
-          pkgs.git
-          artiq-frontend-dev-wrappers
-          # use the vivado-env command to enter a FHS shell that lets you run the Vivado installer
-          packages.x86_64-linux.vivadoEnv
-          packages.x86_64-linux.vivado
-          packages.x86_64-linux.openocd-bscanspi
-          pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme pkgs.pdf2svg
-          pkgs.python3Packages.sphinx-argparse pkgs.python3Packages.sphinxcontrib-wavedrom latex-artiq-manual
-          pkgs.python3Packages.sphinxcontrib-tikz
-        ];
-        shellHook = ''
-          export QT_PLUGIN_PATH=${pkgs.qt6.qtbase}/${pkgs.qt6.qtbase.dev.qtPluginPrefix}:${pkgs.qt6.qtsvg}/${pkgs.qt6.qtbase.dev.qtPluginPrefix}
-          export QML2_IMPORT_PATH=${pkgs.qt6.qtbase}/${pkgs.qt6.qtbase.dev.qtQmlPrefix}
-          export PYTHONPATH=`git rev-parse --show-toplevel`:$PYTHONPATH
-        '';
-      };
+      devShells.x86_64-linux = {
+        # Main development shell with everything you need to develop ARTIQ on Linux.
+        # The current copy of the ARTIQ sources is added to PYTHONPATH so changes can be tested instantly.
+        # Additionally, executable wrappers that import the current ARTIQ sources for the ARTIQ frontends
+        # are added to PATH.
+        default = pkgs.mkShell {
+          name = "artiq-dev-shell";
+          packages = with pkgs; [
+            git
+            lit
+            lld_14
+            llvm_14
+            llvmPackages_14.clang-unwrapped
+            pdf2svg
 
-      # Lighter development shell optimized for building firmware and flashing boards.
-      devShells.x86_64-linux.boards = pkgs.mkShell {
-        name = "artiq-boards-shell";
-        buildInputs = [
-          (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ps.packaging ]))
-          rust
-          pkgs.llvmPackages_14.clang-unwrapped
-          pkgs.llvm_14
-          pkgs.lld_14
-          packages.x86_64-linux.vivado
-          packages.x86_64-linux.openocd-bscanspi
-        ];
+            python3Packages.sphinx
+            python3Packages.sphinx-argparse
+            python3Packages.sphinxcontrib-tikz
+            python3Packages.sphinxcontrib-wavedrom 
+            python3Packages.sphinx_rtd_theme
+
+            (packages.x86_64-linux.python3-mimalloc.withPackages(ps: [ migen misoc microscope ps.packaging ] ++ artiq.propagatedBuildInputs ))
+          ] ++ 
+          [
+            latex-artiq-manual
+            rust
+            artiq-frontend-dev-wrappers
+
+            # use the vivado-env command to enter a FHS shell that lets you run the Vivado installer
+            packages.x86_64-linux.vivadoEnv
+            packages.x86_64-linux.vivado
+            packages.x86_64-linux.openocd-bscanspi
+          ];
+          shellHook = ''
+            export QT_PLUGIN_PATH=${qtPaths.QT_PLUGIN_PATH}
+            export QML2_IMPORT_PATH=${qtPaths.QML2_IMPORT_PATH}
+            export PYTHONPATH=`git rev-parse --show-toplevel`:$PYTHONPATH
+          '';
+        };
+        # Lighter development shell optimized for building firmware and flashing boards.
+        boards = pkgs.mkShell {
+          name = "artiq-boards-shell";
+          packages = [
+            rust
+
+            pkgs.llvmPackages_14.clang-unwrapped
+            pkgs.llvm_14
+            pkgs.lld_14
+
+            packages.x86_64-linux.vivado
+            packages.x86_64-linux.openocd-bscanspi
+
+            (pkgs.python3.withPackages(ps: [ migen misoc artiq ps.packaging ]))
+          ];
+        };
       };
 
       packages.aarch64-linux = {
@@ -421,7 +469,11 @@
           #__impure = true;     # Nix 2.8+
 
           buildInputs = [
-            (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ artiq ps.paramiko ]))
+            (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [
+              artiq
+              ps.paramiko
+            ] ++ ps.paramiko.optional-dependencies.ed25519
+            ))
             pkgs.llvm_14
             pkgs.openssh
             packages.x86_64-linux.openocd-bscanspi  # for the bscanspi bitstreams
