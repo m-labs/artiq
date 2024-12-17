@@ -5,10 +5,12 @@ RTIO Driver for the Analog Devices AD9834 DDS via 3-wire SPI interface.
 # https://www.analog.com/media/en/technical-documentation/data-sheets/AD9834.pdf
 # https://www.analog.com/media/en/technical-documentation/app-notes/an-1070.pdf
 
-from artiq.coredevice import spi2 as spi
+from numpy import int32
+
+from artiq.coredevice.core import Core
+from artiq.coredevice.spi2 import *
 from artiq.experiment import *
 from artiq.language.core import *
-from artiq.language.types import *
 from artiq.language.units import *
 
 AD9834_B28 = 1 << 13
@@ -34,6 +36,7 @@ AD9834_PHASE_REG_1 = AD9834_PHASE_REG | (1 << 13)
 PHASE_REGS = [AD9834_PHASE_REG_0, AD9834_PHASE_REG_1]
 
 
+@nac3
 class AD9834:
     """
     AD9834 DDS driver.
@@ -51,14 +54,18 @@ class AD9834:
     :param core_device: Core device name (default: "core").
     """
 
-    kernel_invariants = {"core", "bus", "spi_freq", "clk_freq"}
+    core: KernelInvariant[Core]
+    bus: KernelInvariant[SPIMaster]
+    spi_freq: KernelInvariant[float]
+    clk_freq: KernelInvariant[float]
+    ctrl_reg: Kernel[int32]
 
     def __init__(
-        self, dmgr, spi_device, spi_freq=10 * MHz, clk_freq=75 * MHz, core_device="core"
+        self, dmgr, spi_device, spi_freq=10. * MHz, clk_freq=75. * MHz, core_device="core"
     ):
         self.core = dmgr.get(core_device)
         self.bus = dmgr.get(spi_device)
-        assert spi_freq <= 40 * MHz, "SPI frequency exceeds maximum value of 40 MHz"
+        assert spi_freq <= 40. * MHz, "SPI frequency exceeds maximum value of 40 MHz"
         self.spi_freq = spi_freq
         self.clk_freq = clk_freq
         self.ctrl_reg = 0x0000  # Reset control register
@@ -81,11 +88,11 @@ class AD9834:
         This method should be called before any other operations are performed
         on the AD9834 to ensure that the device is in a known state.
         """
-        self.bus.set_config(spi.SPI_CLK_POLARITY | spi.SPI_END, 16, self.spi_freq, 1)
+        self.bus.set_config(SPI_CLK_POLARITY | SPI_END, 16, self.spi_freq, 1)
         self.enable_reset()
 
     @kernel
-    def set_frequency_reg(self, freq_reg, frequency: TFloat):
+    def set_frequency_reg(self, freq_reg: int32, frequency: float):
         """
         Set the frequency for the specified frequency register.
 
@@ -107,10 +114,11 @@ class AD9834:
         then sends the fourteen least significant bits LSBs and fourteen most significant
         bits MSBs in two consecutive writes to the specified frequency register.
         """
-        if freq_reg not in FREQ_REGS:
-            raise ValueError("Invalid frequency register")
+        # NAC3TODO
+        #if freq_reg not in FREQ_REGS:
+        #    raise ValueError("Invalid frequency register")
         assert frequency <= 37.5 * MHz, "Frequency exceeds maximum value of 37.5 MHz"
-        freq_word = int((frequency * (1 << 28)) / self.clk_freq) & 0x0FFFFFFF
+        freq_word = int32((frequency * float(1 << 28)) / self.clk_freq) & 0x0FFFFFFF
         self.ctrl_reg |= AD9834_B28
         self.write(self.ctrl_reg)
         lsb = freq_word & 0x3FFF
@@ -119,7 +127,7 @@ class AD9834:
         self.write(freq_reg | msb)
 
     @kernel
-    def set_frequency_reg_msb(self, freq_reg, word: TInt32):
+    def set_frequency_reg_msb(self, freq_reg: int32, word: int32):
         """
         Set the fourteen most significant bits MSBs of the specified frequency register.
 
@@ -134,15 +142,16 @@ class AD9834:
         indicate that the MSB is being sent, and then writes the updated control register
         followed by the MSB value to the specified frequency register.
         """
-        if freq_reg not in FREQ_REGS:
-            raise ValueError("Invalid frequency register")
+        # NAC3TODO
+        #if freq_reg not in FREQ_REGS:
+        #    raise ValueError("Invalid frequency register")
         self.ctrl_reg &= ~AD9834_B28
         self.ctrl_reg |= AD9834_HLB
         self.write(self.ctrl_reg)
         self.write(freq_reg | (word & 0x3FFF))
 
     @kernel
-    def set_frequency_reg_lsb(self, freq_reg, word: TInt32):
+    def set_frequency_reg_lsb(self, freq_reg: int32, word: int32):
         """
         Set the fourteen least significant bits LSBs of the specified frequency register.
 
@@ -156,15 +165,16 @@ class AD9834:
         The method first clears the appropriate control bits and writes the updated control
         register followed by the LSB value to the specified frequency register.
         """
-        if freq_reg not in FREQ_REGS:
-            raise ValueError("Invalid frequency register")
+        # NAC3TODO
+        #if freq_reg not in FREQ_REGS:
+        #    raise ValueError("Invalid frequency register")
         self.ctrl_reg &= ~AD9834_B28
         self.ctrl_reg &= ~AD9834_HLB
         self.write(self.ctrl_reg)
         self.write(freq_reg | (word & 0x3FFF))
 
     @kernel
-    def select_frequency_reg(self, freq_reg):
+    def select_frequency_reg(self, freq_reg: int32):
         """
         Select the active frequency register for the phase accumulator.
 
@@ -175,8 +185,9 @@ class AD9834:
         :param freq_reg: The frequency register to select. Must be one of
                         :const:`AD9834_FREQ_REG_0` or :const:`AD9834_FREQ_REG_1`.
         """
-        if freq_reg not in FREQ_REGS:
-            raise ValueError("Invalid frequency register")
+        # NAC3TODO
+        #if freq_reg not in FREQ_REGS:
+        #    raise ValueError("Invalid frequency register")
         if freq_reg == FREQ_REGS[0]:
             self.ctrl_reg &= ~AD9834_FSEL
         else:
@@ -186,7 +197,7 @@ class AD9834:
         self.write(self.ctrl_reg)
 
     @kernel
-    def set_phase_reg(self, phase_reg, phase: TInt32):
+    def set_phase_reg(self, phase_reg: int32, phase: int32):
         """
         Set the phase for the specified phase register.
 
@@ -199,13 +210,14 @@ class AD9834:
         The method masks the phase value to ensure it fits within the 12-bit limit
         and writes it to the specified phase register.
         """
-        if phase_reg not in PHASE_REGS:
-            raise ValueError("Invalid phase register")
+        # NAC3TODO
+        #if phase_reg not in PHASE_REGS:
+        #    raise ValueError("Invalid phase register")
         phase_word = phase & 0x0FFF
         self.write(phase_reg | phase_word)
 
     @kernel
-    def select_phase_reg(self, phase_reg):
+    def select_phase_reg(self, phase_reg: int32):
         """
         Select the active phase register for the phase accumulator.
 
@@ -216,8 +228,9 @@ class AD9834:
         :param phase_reg: The phase register to select. Must be one of
                         :const:`AD9834_PHASE_REG_0` or :const:`AD9834_PHASE_REG_1`.
         """
-        if phase_reg not in PHASE_REGS:
-            raise ValueError("Invalid phase register")
+        # NAC3TODO
+        #if phase_reg not in PHASE_REGS:
+        #    raise ValueError("Invalid phase register")
         if phase_reg == PHASE_REGS[0]:
             self.ctrl_reg &= ~AD9834_PSEL
         else:
@@ -380,7 +393,7 @@ class AD9834:
         self.write(self.ctrl_reg)
 
     @kernel
-    def write(self, data: TInt32):
+    def write(self, data: int32):
         """
         Write a 16-bit word to the AD9834.
 
