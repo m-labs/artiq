@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
-import os, sys, io, tarfile, logging, argparse
+import os, io, tarfile, logging, contextlib, argparse
 
 from sipyco import common_args
+from sipyco.pc_rpc import Client
 
 from artiq import __version__ as artiq_version
 from artiq.master.databases import DeviceDB, DatasetDB
@@ -26,6 +27,10 @@ def get_argparser():
                         help="device database file (default: '%(default)s')")
     parser.add_argument("--dataset-db", default="dataset_db.mdb",
                         help="dataset file (default: '%(default)s')")
+    parser.add_argument("-s", "--server",
+                        help="hostname or IP of the master to connect to")
+    parser.add_argument("--port", default=3251, type=int,
+                        help="TCP port to use to connect to the master")
 
     parser.add_argument("-c", "--class-name", default=None,
                         help="name of the class to compile")
@@ -44,9 +49,19 @@ def main():
     args = get_argparser().parse_args()
     common_args.init_logger_from_args(args)
 
-    device_mgr = DeviceManager(DeviceDB(args.device_db))
-    dataset_db = DatasetDB(args.dataset_db)
-    try:
+    with contextlib.ExitStack() as cleanup:
+        if args.server is not None:
+            devices = Client(args.server, args.port, "device_db")
+            cleanup.callback(devices.close_rpc)
+
+            dataset_db = Client(args.server, args.port, "dataset_db")
+            cleanup.callback(dataset_db.close_rpc)
+        else:
+            devices = DeviceDB(args.device_db)
+            dataset_db = DatasetDB(args.dataset_db)
+            cleanup.callback(dataset_db.close_db)
+
+        device_mgr = DeviceManager(devices)
         dataset_mgr = DatasetManager(dataset_db)
 
         try:
@@ -86,8 +101,6 @@ def main():
             return
         finally:
             device_mgr.close_devices()
-    finally:
-        dataset_db.close_db()
 
     if object_map.has_rpc():
         raise ValueError("Experiment must not use RPC")
