@@ -1,31 +1,35 @@
 Installing ARTIQ
 ================
 
-ARTIQ can be installed using the Nix (on Linux) or MSYS2 (on Windows) package managers. Using Conda is also possible on both platforms but not recommended.
+M-Labs recommends installing ARTIQ through Nix (on Linux) or MSYS2 (on Windows). It is also possible to use Conda (on either platform), but this is not preferred, and likely to become unsupported in the near future.
 
 Installing via Nix (Linux)
 --------------------------
 
-First install the Nix package manager. Some distributions provide a package for it; otherwise, it can be installed via the script on the `Nix website <http://nixos.org/nix/>`_. Make sure you get Nix version 2.4 or higher. Prefer a single-user installation for simplicity.
+First, install the Nix package manager. Some distributions provide a package for it. Otherwise, use the official install script, as described on the `Nix website <https://nixos.org/download/>`_, e.g.: ::
 
-Once Nix is installed, enable flakes, for example by running: ::
+  $ sh <(curl -L https://nixos.org/nix/install) --no-daemon
+
+Prefer the single-user installation for simplicity. Enable `Nix flakes <https://nixos.wiki/wiki/flakes>`_, for example by running: ::
 
   $ mkdir -p ~/.config/nix
   $ echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
 
-See also the different options for enabling flakes on `the NixOS wiki <https://nixos.wiki/wiki/flakes>`_.
+User environment installation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The easiest way to obtain ARTIQ is to install it into the user environment with ::
+There are few options for accessing ARTIQ through Nix. The easiest way is to install it into the user environment: ::
 
   $ nix profile install git+https://github.com/m-labs/artiq.git
 
-Answer "Yes" to the questions about setting Nix configuration options (for more details see 'Troubleshooting' below.) You should now have a minimal installation of ARTIQ, where the usual front-end commands (:mod:`~artiq.frontend.artiq_run`, :mod:`~artiq.frontend.artiq_master`, :mod:`~artiq.frontend.artiq_dashboard`, etc.) are all available to you.
+Answer "Yes" to the questions about setting Nix configuration options (for more details see :ref:`installing-details` below.) You should now have a minimal installation of ARTIQ, where the usual front-end commands (:mod:`~artiq.frontend.artiq_run`, :mod:`~artiq.frontend.artiq_master`, :mod:`~artiq.frontend.artiq_dashboard`, etc.) are all available to you.
 
-This installation is however quite limited, as Nix creates a dedicated Python environment for the ARTIQ commands alone. This means that other useful Python packages, which ARTIQ is not dependent on but which you may want to use in your experiments (pandas, matplotlib...), are not available.
+This installation is however relatively limited. Without further instructions, Nix takes its cues from the main ARTIQ flake (the ``flake.nix`` file at the root of the repository linked in the command) and creates a dedicated Python environment for the ARTIQ commands alone. This means that other useful Python packages, which are not necessary to run ARTIQ but which you might want to use in experiments (pandas, matplotlib...), are not available.
 
-Installing multiple packages and making them visible to the ARTIQ commands requires using the Nix language. Create an empty directory with a file ``flake.nix`` with the following contents:
+Flake custom environments
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
-::
+Modifying the environment and making additional packages visible to the ARTIQ commands requires using the Nix language and writing your own flake. Create an empty directory with a file ``flake.nix`` containing the following: ::
 
   {
     inputs.extrapkg.url = "git+https://git.m-labs.hk/M-Labs/artiq-extrapkg.git";
@@ -34,13 +38,14 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
         pkgs = extrapkg.pkgs;
         artiq = extrapkg.packages.x86_64-linux;
       in {
-        defaultPackage.x86_64-linux = pkgs.buildEnv {
+        # This section defines the new environment
+        packages.x86_64-linux.default = pkgs.buildEnv {
           name = "artiq-env";
           paths = [
             # ========================================
-            # EDIT BELOW
+            # ADD PACKAGES BELOW
             # ========================================
-            (pkgs.python3.withPackages(ps: [
+            (pkgs.python3.withPackages(_: [
               # List desired Python packages here.
               artiq.artiq
               #ps.paramiko  # needed if and only if flashing boards remotely (artiq_flash -H)
@@ -60,35 +65,42 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
               #ps.qiskit
               # Note that NixOS also provides packages ps.numpy and ps.scipy, but it is
               # not necessary to explicitly add these, since they are dependencies of
-              # ARTIQ and available with an ARTIQ install anyway.
+              # ARTIQ and incorporated with an ARTIQ install anyway.
             ]))
+            # List desired non-Python packages here
+            # Additional NDSPs can be included:
             #artiq.korad_ka3005p
             #artiq.novatech409b
-            # List desired non-Python packages here
             # Other potentially interesting non-Python packages from the NixOS package collection:
             #pkgs.gtkwave
             #pkgs.spyder
             #pkgs.R
             #pkgs.julia
             # ========================================
-            # EDIT ABOVE
+            # ADD PACKAGES ABOVE
             # ========================================
           ];
         };
       };
+    # This section configures additional settings to be able to use M-Labs binary caches
     nixConfig = {  # work around https://github.com/NixOS/nix/issues/6771
       extra-trusted-public-keys = "nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc=";
       extra-substituters = "https://nixbld.m-labs.hk";
     };
   }
 
-You can now spawn a shell containing these packages by running ``$ nix shell`` in the directory containing the ``flake.nix``. This should make both the ARTIQ commands and all the additional packages available to you. You can exit the shell with Control+D or with the command  ``exit``. A first execution of ``$ nix shell`` may take some time, but for any future repetitions Nix will use cached packages and startup should be much faster.
+To spawn a shell in this environment, navigate to the directory containing the ``flake.nix`` and run: ::
 
-You might be interested in creating multiple directories containing different ``flake.nix`` files which represent different sets of packages for different purposes. If you are familiar with Conda, using Nix in this way is similar to having multiple Conda environments.
+  $ nix shell
+
+The resulting shell will have access to ARTIQ as well as any additional packages you may have added. You can exit this shell at any time with CTRL+D or with the command ``exit``. Note that a first execution of ``nix shell`` on a given flake may take some time; repetitions of the same command will use stored versions of packages and run much more quickly.
+
+You might be interested in creating multiple directories containing separate ``flake.nix`` files to represent different sets of packages for different purposes. If you are familiar with Conda, using Nix in this way is similar to having multiple Conda environments.
 
 To find more packages you can browse the `Nix package search <https://search.nixos.org/packages>`_ website. If your favorite package is not available with Nix, contact M-Labs using the helpdesk@ email.
 
 .. note::
+
   If you find you prefer using flakes to your original ``nix profile`` installation, you can remove it from your system by running: ::
 
     $ nix profile list
@@ -97,35 +109,39 @@ To find more packages you can browse the `Nix package search <https://search.nix
 
     $ nix profile remove [index]
 
-  While using flakes, ARTIQ is not 'installed' as such in any permanent way. However, Nix will preserve independent cached packages in ``/nix/store`` for each flake, which over time or with many different flakes and versions can take up large amounts of storage space. To clear this cache, run ``$ nix-collect-garbage``.
+  While using flakes, ARTIQ is not strictly 'installed' in a permanent way. However, Nix will keep collected packages in ``/nix/store`` for each flake, which over time or with many different flakes and versions can take up large amounts of storage space. To clear this cache, run ``nix-collect-garbage``. (After a garbage collection, ``nix shell`` will require some time again when first used).
 
-.. _installing-troubleshooting:
+.. _installing-details:
 
-Troubleshooting
-^^^^^^^^^^^^^^^
+Installation details
+^^^^^^^^^^^^^^^^^^^^
 
 "Do you want to allow configuration setting... (y/N)?"
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
 
-When installing and initializing ARTIQ using commands like ``nix shell``, ``nix develop``, or ``nix profile install``, you may encounter prompts to modify certain configuration settings. These settings correspond to the ``nixConfig`` flag within the ARTIQ flake: ::
+When installing and initializing ARTIQ using commands like ``nix shell``, ``nix develop``, or ``nix profile install``, you may encounter prompts to modify certain configuration settings. These settings correspond to the ``nixConfig`` section in the ARTIQ flake: ::
 
   do you want to allow configuration setting 'extra-sandbox-paths' to be set to '/opt' (y/N)?
   do you want to allow configuration setting 'extra-substituters' to be set to 'https://nixbld.m-labs.hk' (y/N)?
   do you want to allow configuration setting 'extra-trusted-public-keys' to be set to 'nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc=' (y/N)?
 
-We recommend accepting these settings by responding with ``y``. If asked to permanently mark these values as trusted, choose ``y`` again. This action saves the configuration to ``~/.local/share/nix/trusted-settings.json``, allowing future prompts to be bypassed.
+.. note::
+  The first is necessary in order to be able to use Vivado to build ARTIQ gateware (e.g. :doc:`building_developing`). The latter two are necessary in order to use the M-Labs nixbld server as a binary cache; refusing these will result in Nix attempting to build these binaries from source, which is possible to do, but requires a considerable amount of time (on the order of hours) on most machines.
 
-Alternatively, you can also use the option `accept-flake-config <https://nix.dev/manual/nix/stable/command-ref/conf-file#conf-accept-flake-config>`_ by appending ``--accept-flake-config`` to your nix command, for example: ::
+It is recommended to accept all three settings by responding with ``y``. If asked to permanently mark these values as trusted, choose ``y`` again. This action saves the configuration to ``~/.local/share/nix/trusted-settings.json``, allowing future prompts to be bypassed.
 
-  nix develop --accept-flake-config
+Alternatively, you can also use the option `accept-flake-config <https://nix.dev/manual/nix/stable/command-ref/conf-file#conf-accept-flake-config>`_ on a per-command basis by appending ``--accept-flake-config``, for example: ::
 
-Or add the option to ``~/.config/nix/nix.conf`` to make the setting more permanent: ::
+  nix shell --accept-flake-config
+
+Or add the option to ``~/.config/nix/nix.conf`` to make the setting apply to all commands by default: ::
 
   extra-experimental-features = flakes
   accept-flake-config = true
 
 .. note::
-  Should you wish to revert to the default settings, you can do so by editing the appropriate options in the aforementioned configuration files.
+
+  Should you wish to revert to the default settings, you can do so at any time by editing the appropriate options in the aforementioned configuration files.
 
 "Ignoring untrusted substituter, you are not a trusted user"
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -135,7 +151,7 @@ If the following message displays when running ``nix shell`` or ``nix develop`` 
   warning: ignoring untrusted substituter 'https://nixbld.m-labs.hk', you are not a trusted user.
   Run `man nix.conf` for more information on the `substituters` configuration option.
 
-and Nix proceeds to build some packages from source, this means that you are using `multi-user mode <https://nix.dev/manual/nix/stable/installation/multi-user>`_ in Nix, which may be the case for example when Nix is installed via ``pacman`` in Arch Linux. By default, users accessing Nix in multi-user mode are "unprivileged" and cannot use untrusted substituters. To change this, edit ``/etc/nix/nix.conf`` and add the following line (or append to the key if the key already exists): ::
+and Nix tries to build some packages from source, this means that you are using `multi-user mode <https://nix.dev/manual/nix/stable/installation/multi-user>`_ in Nix, which may be the case for example when Nix is installed via ``pacman`` in Arch Linux. By default, users accessing Nix in multi-user mode are "unprivileged" and cannot use untrusted substituters. To change this, edit ``/etc/nix/nix.conf`` and add the following line (or append to the key if the key already exists): ::
 
   trusted-substituters = https://nixbld.m-labs.hk
 
@@ -143,9 +159,9 @@ This will add the substituter as a trusted substituter for all users using Nix.
 
 Alternatively, add the following line: ::
 
-  trusted-users = <username>  # Replace <username> with the user invoking `nix`
+  trusted-users = <username>  # Replace <username> with your username
 
-This will set your user as a trusted user, allowing the use of any untrusted substituters.
+This will set your user as a trusted user, allowing you to specify untrusted substituters.
 
 .. warning::
 
@@ -216,9 +232,9 @@ Upgrading ARTIQ
 Upgrading with Nix
 ^^^^^^^^^^^^^^^^^^
 
-Run ``$ nix profile upgrade`` if you installed ARTIQ into your user profile. If you used a ``flake.nix`` shell environment, make a back-up copy of the ``flake.lock`` file to enable rollback, then run ``$ nix flake update`` and re-enter the environment with ``$ nix shell``.
+Run ``$ nix profile upgrade`` if you installed ARTIQ into your user profile. If you use a ``flake.nix`` shell environment, make a back-up copy of the ``flake.lock`` file to enable rollback, then run ``$ nix flake update`` and re-enter the environment with ``$ nix shell``. If you use multiple flakes, each has its own ``flake.lock`` and can be updated or rolled back separately.
 
-To rollback to the previous version, respectively use ``$ nix profile rollback`` or restore the backed-up version of the ``flake.lock`` file.
+To rollback to the previous version, respectively use ``$ nix profile rollback`` or restore the backed-up versions of the ``flake.lock`` files.
 
 Upgrading with MSYS2
 ^^^^^^^^^^^^^^^^^^^^
