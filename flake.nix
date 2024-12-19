@@ -200,7 +200,7 @@
       ## Modifies PATH to pass the wrapped python environment (i.e. python3.withPackages(...) to subprocesses.
       ## Allows subprocesses using python to find all packages you have installed
       makeWrapperArgs = [
-        ''--run 'if [ ! -z "$NIX_PYTHONPREFIX" ]; then export PATH=$NIX_PYTHONPREFIX/bin:$PATH;fi' ''
+        ''--run 'if [ ! -z "$NIX_PYTHONPREFIX" ]; then export PYTHONPATH=`pwd`:$PYTHONPATH; export PATH=$NIX_PYTHONPREFIX/bin:$PATH;fi' ''
         "--set FONTCONFIG_FILE ${pkgs.fontconfig.out}/etc/fonts/fonts.conf"
       ];
 
@@ -390,7 +390,7 @@
             progname=`basename -s .py $program`
             outname=$out/bin/$progname
             echo "#!${pkgs.bash}/bin/bash" >> $outname
-            echo "PYTHONPATH=`pwd`:$PYTHONPATH exec python3 -m artiq.frontend.$progname \"\$@\"" >> $outname
+            echo "exec python3 -m artiq.frontend.$progname \"\$@\"" >> $outname
             chmod 755 $outname
           fi
         done
