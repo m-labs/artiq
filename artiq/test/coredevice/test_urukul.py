@@ -1,12 +1,12 @@
+from artiq.coredevice import urukul
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
-from artiq.coredevice import urukul
 
 
 class UrukulExp(EnvExperiment):
     def build(self, runner):
         self.setattr_device("core")
-        self.dev = self.get_device("urukul_cpld")
+        self.dev = self.get_device("urukul1_cpld")
         self.runner = runner
 
     def run(self):
@@ -35,12 +35,17 @@ class UrukulExp(EnvExperiment):
         self.set_dataset("sta", sta)
 
     @kernel
-    def switches(self):
+    def io_rst(self):
         self.core.break_realtime()
         self.dev.init()
         self.dev.io_rst()
+
+    @kernel
+    def switches(self):
+        self.core.break_realtime()
+        self.dev.init()
         self.dev.cfg_sw(0, False)
-        self.dev.cfg_sw(0, True)
+        self.dev.cfg_sw(1, True)
         self.dev.cfg_sw(3, True)
         self.dev.cfg_switches(0b1010)
 
@@ -51,9 +56,10 @@ class UrukulExp(EnvExperiment):
         n = 10
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
-            self.dev.cfg_sw(3, bool(i & 1))
-        self.set_dataset("dt", self.core.mu_to_seconds(
-            self.core.get_rtio_counter_mu() - t0) / n)
+            self.dev.cfg_sw(2, bool(i & 1))
+        self.set_dataset(
+            "dt", self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / n
+        )
 
     @kernel
     def switches_readback(self):
@@ -66,10 +72,33 @@ class UrukulExp(EnvExperiment):
         self.set_dataset("sta_get", sta_get)
 
     @kernel
+    def att_enables(self):
+        if self.dev.proto_rev == urukul.STA_PROTO_REV_9:
+            self.core.break_realtime()
+            self.dev.init()
+            self.dev.cfg_att_en(0, False)
+            self.dev.cfg_att_en(2, True)
+            self.dev.cfg_att_en(3, True)
+            self.dev.cfg_att_en_all(0b1010)
+
+    @kernel
+    def att_enable_speed(self):
+        if self.dev.proto_rev == urukul.STA_PROTO_REV_9:
+            self.core.break_realtime()
+            self.dev.init()
+            n = 10
+            t0 = self.core.get_rtio_counter_mu()
+            for i in range(n):
+                self.dev.cfg_att_en(1, bool(i & 1))
+            self.set_dataset(
+                "dt", self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / n
+            )
+        self.set_dataset("dt", None)
+
+    @kernel
     def att(self):
         self.core.break_realtime()
         self.dev.init()
-        # clear backing state
         self.dev.att_reg = 0
         att_set = 0x12345678
         self.dev.set_all_att_mu(att_set)
@@ -107,8 +136,7 @@ class UrukulExp(EnvExperiment):
         self.dev.init()
         # clear backing state
         self.dev.att_reg = 0
-        att_set = [int32(0x21), int32(0x43),
-                   int32(0x65), int32(0x87)]
+        att_set = [int32(0x21), int32(0x43), int32(0x65), int32(0x87)]
         # set individual attenuators
         for i in range(len(att_set)):
             self.dev.set_att_mu(i, att_set[i])
@@ -131,9 +159,107 @@ class UrukulExp(EnvExperiment):
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
             self.dev.set_att(3, 30 * dB)
-        self.set_dataset("dt", self.core.mu_to_seconds(
-            self.core.get_rtio_counter_mu() - t0) / n)
+        self.set_dataset(
+            "dt", self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / n
+        )
 
+    @kernel
+    def osk(self):
+        if self.dev.proto_rev == urukul.STA_PROTO_REV_9:
+            self.core.break_realtime()
+            self.dev.init()
+            self.dev.cfg_osk(0, False)
+            self.dev.cfg_osk(2, True)
+            self.dev.cfg_osk(3, True)
+            self.dev.cfg_osk_all(0b1010)
+
+    @kernel
+    def osk_speed(self):
+        if self.dev.proto_rev == urukul.STA_PROTO_REV_9:
+            self.core.break_realtime()
+            self.dev.init()
+            n = 10
+            t0 = self.core.get_rtio_counter_mu()
+            for i in range(n):
+                self.dev.cfg_osk(1, bool(i & 1))
+            self.set_dataset(
+                "dt", self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / n
+            )
+        self.set_dataset("dt", None)
+
+    @kernel
+    def drctl(self):
+        if self.dev.proto_rev == urukul.STA_PROTO_REV_9:
+            self.core.break_realtime()
+            self.dev.init()
+            self.dev.cfg_drctl(0, False)
+            self.dev.cfg_drctl(1, True)
+            self.dev.cfg_drctl(3, True)
+            self.dev.cfg_drctl_all(0b1010)
+
+    @kernel
+    def drctl_speed(self):
+        if self.dev.proto_rev == urukul.STA_PROTO_REV_9:
+            self.core.break_realtime()
+            self.dev.init()
+            n = 10
+            t0 = self.core.get_rtio_counter_mu()
+            for i in range(n):
+                self.dev.cfg_drctl(2, bool(i & 1))
+            self.set_dataset(
+                "dt", self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / n
+            )
+        self.set_dataset("dt", None)
+
+    @kernel
+    def drhold(self):
+        if self.dev.proto_rev == urukul.STA_PROTO_REV_9:
+            self.core.break_realtime()
+            self.dev.init()
+            self.dev.cfg_drhold(0, False)
+            self.dev.cfg_drhold(2, True)
+            self.dev.cfg_drhold(3, True)
+            self.dev.cfg_drhold_all(0b1010)
+
+    @kernel
+    def drhold_speed(self):
+        if self.dev.proto_rev == urukul.STA_PROTO_REV_9:
+            self.core.break_realtime()
+            self.dev.init()
+            n = 10
+            t0 = self.core.get_rtio_counter_mu()
+            for i in range(n):
+                self.dev.cfg_drhold(1, bool(i & 1))
+            self.set_dataset(
+                "dt", self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / n
+            )
+        self.set_dataset("dt", None)
+
+    @kernel
+    def mask_nu(self):
+        if self.dev.proto_rev == urukul.STA_PROTO_REV_9:
+            self.core.break_realtime()
+            self.dev.init()
+            self.dev.cfg_mask_nu(0, False)
+            self.dev.cfg_mask_nu(1, True)
+            self.dev.cfg_mask_nu(3, True)
+            self.dev.cfg_mask_nu_all(0b1010)
+
+    @kernel
+    def mask_nu_speed(self):
+        if self.dev.proto_rev == urukul.STA_PROTO_REV_9:
+            self.core.break_realtime()
+            self.dev.init()
+            n = 10
+            t0 = self.core.get_rtio_counter_mu()
+            for i in range(n):
+                self.dev.cfg_mask_nu(2, bool(i & 1))
+            self.set_dataset(
+                "dt", self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / n
+            )
+        self.set_dataset("dt", None)
+
+    # Note, cfg_io_update is tested in test_ad9910.py
     @kernel
     def io_update(self):
         self.core.break_realtime()
@@ -150,8 +276,19 @@ class UrukulExp(EnvExperiment):
     def profile(self):
         self.core.break_realtime()
         self.dev.init()
-        self.dev.set_profile(7)
-        self.dev.set_profile(0)
+        self.dev.set_profile(0, 7)
+        self.dev.set_profile(0, 0)
+
+    @kernel
+    def cfg_profile(self):
+        if self.dev.proto_rev == urukul.STA_PROTO_REV_9:
+            self.core.break_realtime()
+            self.dev.init()
+            self.dev.set_profile(0, 7)
+            self.dev.set_profile(1, 0)
+            self.dev.set_profile(2, 3)
+            self.dev.set_profile(3, 5)
+            self.dev.cfg_drctl_all(0b1111)
 
 
 class UrukulTest(ExperimentCase):
@@ -168,7 +305,9 @@ class UrukulTest(ExperimentCase):
         self.execute(UrukulExp, "sta_read")
         sta = self.dataset_mgr.get("sta")
         print(hex(sta))
-        # self.assertEqual(urukul.urukul_sta_ifc_mode(sta), 0b0001)
+
+    def test_io_rst(self):
+        self.execute(UrukulExp, "io_rst")
 
     def test_switches(self):
         self.execute(UrukulExp, "switches")
@@ -184,6 +323,16 @@ class UrukulTest(ExperimentCase):
         sw_get = urukul.urukul_sta_rf_sw(self.dataset_mgr.get("sta_get"))
         sw_set = self.dataset_mgr.get("sw_set")
         self.assertEqual(sw_get, sw_set)
+
+    def test_att_enables(self):
+        self.execute(UrukulExp, "att_enables")
+
+    def test_att_enable_speed(self):
+        self.execute(UrukulExp, "att_enable_speed")
+        dt = self.dataset_mgr.get("dt")
+        if dt:
+            print(dt)
+            self.assertLess(dt, 5 * us)
 
     def test_att(self):
         self.execute(UrukulExp, "att")
@@ -203,7 +352,7 @@ class UrukulTest(ExperimentCase):
         self.assertListEqual(att_set, self.dataset_mgr.get("att_get"))
         att_reg = self.dataset_mgr.get("att_reg")
         for att in att_set:
-            self.assertEqual(att, att_reg & 0xff)
+            self.assertEqual(att, att_reg & 0xFF)
             att_reg >>= 8
 
     def test_att_speed(self):
@@ -211,6 +360,46 @@ class UrukulTest(ExperimentCase):
         dt = self.dataset_mgr.get("dt")
         print(dt)
         self.assertLess(dt, 5 * us)
+
+    def test_osk(self):
+        self.execute(UrukulExp, "osk")
+
+    def test_osk_speed(self):
+        self.execute(UrukulExp, "osk_speed")
+        dt = self.dataset_mgr.get("dt")
+        if dt:
+            print(dt)
+            self.assertLess(dt, 5 * us)
+
+    def test_drctl(self):
+        self.execute(UrukulExp, "drctl")
+
+    def test_drctl_speed(self):
+        self.execute(UrukulExp, "drctl_speed")
+        dt = self.dataset_mgr.get("dt")
+        if dt:
+            print(dt)
+            self.assertLess(dt, 5 * us)
+
+    def test_drhold(self):
+        self.execute(UrukulExp, "drhold")
+
+    def test_drhold_speed(self):
+        self.execute(UrukulExp, "drhold_speed")
+        dt = self.dataset_mgr.get("dt")
+        if dt:
+            print(dt)
+            self.assertLess(dt, 5 * us)
+
+    def test_mask_nu(self):
+        self.execute(UrukulExp, "mask_nu")
+
+    def test_mask_nu_speed(self):
+        self.execute(UrukulExp, "mask_nu_speed")
+        dt = self.dataset_mgr.get("dt")
+        if dt:
+            print(dt)
+            self.assertLess(dt, 5 * us)
 
     def test_io_update(self):
         self.execute(UrukulExp, "io_update")
