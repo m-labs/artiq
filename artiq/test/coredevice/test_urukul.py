@@ -6,7 +6,7 @@ from artiq.test.hardware_testbench import ExperimentCase
 class UrukulExp(EnvExperiment):
     def build(self, runner):
         self.setattr_device("core")
-        self.dev = self.get_device("urukul1_cpld")
+        self.dev = self.get_device("urukul_cpld")
         self.runner = runner
 
     def run(self):
