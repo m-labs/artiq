@@ -106,7 +106,7 @@ class _RegIOUpdate:
 
         The time cursor is advanced by the specified duration."""
         cfg = self.cpld.cfg_reg
-        if self.cpld.proto_rev == 0x08:
+        if self.cpld.proto_rev == STA_PROTO_REV_8:
             self.cpld.cfg_write(cfg | (1 << ProtoRev8.CFG_IO_UPDATE))
         else:
             self.cpld.cfg_write(
@@ -122,7 +122,7 @@ class _RegIOUpdate:
 
         The time cursor is advanced by the specified duration."""
         cfg = self.cpld.cfg_reg
-        if self.cpld.proto_rev == 0x08:
+        if self.cpld.proto_rev == STA_PROTO_REV_8:
             self.cpld.cfg_write(cfg | (1 << ProtoRev8.CFG_IO_UPDATE))
         else:
             self.cpld.cfg_write(
@@ -162,17 +162,22 @@ class CPLDVersionManager(ABC):
     def io_rst(self, cpld):
         pass
 
+    @abstractmethod
+    @kernel
+    def set_profile(self, cpld, channel, profile):
+        pass
+
     def _not_implemented(self, *args, **kwargs):
         raise NotImplementedError(
             "This function is not implemented for this Urukul version."
         )
 
     @kernel
-    def configure_bit(self, cpld, bit_offset: TInt32, channel: TInt32, on: TBool):
+    def _configure_bit(self, cpld, bit_offset: TInt32, channel: TInt32, on: TBool):
         self._not_implemented()
 
     @kernel
-    def configure_all_bits(self, cpld, bit_offset: TInt32, state: TInt32):
+    def _configure_all_bits(self, cpld, bit_offset: TInt32, state: TInt32):
         self._not_implemented()
 
     @kernel
@@ -314,6 +319,18 @@ class ProtoRev8(CPLDVersionManager):
         cpld.cfg_write(cpld.cfg_reg | (1 << ProtoRev8.CFG_IO_RST))
         cpld.cfg_write(cpld.cfg_reg & ~(1 << ProtoRev8.CFG_IO_RST))
 
+    @kernel
+    def set_profile(self, cpld, channel: TInt32, profile: TInt32):
+        """Set the PROFILE pins.
+
+        The PROFILE pins are common to all four DDS channels.
+
+        :param profile: PROFILE pins in numeric representation (0-7).
+        """
+        cfg = cpld.cfg_reg & ~(7 << CFG_PROFILE)
+        cfg |= (profile & 7) << CFG_PROFILE
+        cpld.cfg_write(cfg)
+
 
 class ProtoRev9(CPLDVersionManager):
 
@@ -431,6 +448,17 @@ class ProtoRev9(CPLDVersionManager):
         """Pulse IO_RST"""
         cpld.cfg_write(cpld.cfg_reg | (1 << ProtoRev9.CFG_IO_RST))
         cpld.cfg_write(cpld.cfg_reg & ~(1 << ProtoRev9.CFG_IO_RST))
+
+    @kernel
+    def set_profile(self, cpld, channel: TInt32, profile: TInt32):
+        """Set the CFG.PROFILE[0:2] pins for a channel.
+
+        :param profile: PROFILE pins in numeric representation (0-7).
+        :param channel: Channel (0-3).
+        """
+        cfg = cpld.cfg_reg & ~(7 << (CFG_PROFILE + channel * 3))
+        cfg |= (profile & 7) << (CFG_PROFILE + channel * 3)
+        cpld.cfg_write(cfg)
 
     @kernel
     def _configure_bit(self, cpld, bit_offset: TInt32, channel: TInt32, on: TBool):
@@ -635,7 +663,6 @@ class CPLD:
             assert sync_div is None
             sync_div = 0
 
-        # proto_rev = 0x09  # urukul_sta_proto_rev(self.sta_read())
         self.proto_rev = proto_rev
         self.version_manager = CPLDVersionManagerFactory.get_version(proto_rev)
 
@@ -692,12 +719,16 @@ class CPLD:
         self.version_manager.io_rst(self)
 
     @kernel
-    def configure_bit(self, bit_offset: TInt32, channel: TInt32, on: TBool):
-        self.version_manager.configure_bit(self, bit_offset, channel, on)
+    def set_profile(self, channel, profile):
+        self.version_manager.set_profile(self, channel, profile)
 
     @kernel
-    def configure_all_bits(self, bit_offset: TInt32, state: TInt32):
-        self.version_manager.configure_all_bits(self, bit_offset, state)
+    def _configure_bit(self, bit_offset: TInt32, channel: TInt32, on: TBool):
+        self.version_manager._configure_bit(self, bit_offset, channel, on)
+
+    @kernel
+    def _configure_all_bits(self, bit_offset: TInt32, state: TInt32):
+        self.version_manager._configure_all_bits(self, bit_offset, state)
 
     @kernel
     def cfg_att_en(self, channel: TInt32, on: TBool):
@@ -887,14 +918,3 @@ class CPLD:
         ftw = ftw_max // div
         assert ftw * div == ftw_max
         self.sync.set_mu(ftw)
-
-    @kernel
-    def set_profile(self, channel: TInt32, profile: TInt32):
-        """Set the CFG.PROFILE[0:2] pins for a channel.
-
-        :param channel: Channel (0-3).
-        :param profile: PROFILE pins in numeric representation (0-7).
-        """
-        cfg = self.cfg_reg & ~(7 << (CFG_PROFILE + channel * 3))
-        cfg |= (profile & 7) << (CFG_PROFILE + channel * 3)
-        self.cfg_write(cfg)
