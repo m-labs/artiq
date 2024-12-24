@@ -36,6 +36,7 @@ class Satellite(BaseSoC, AMPSoC):
                  cpu_bus_width=64,
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
+                 l2_line_size=64,
                  clk_freq=125e6,
                  **kwargs)
         AMPSoC.__init__(self)
