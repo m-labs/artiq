@@ -240,7 +240,7 @@ fn startup() {
         let subkernel_mutex = subkernel_mutex.clone();
         let drtio_routing_table = drtio_routing_table.clone();
         let up_destinations = up_destinations.clone();
-        io.spawn(8192, move |io| { analyzer::thread(io, &aux_mutex, &ddma_mutex, &subkernel_mutex, &drtio_routing_table, &up_destinations) });
+        io.spawn(16384, move |io| { analyzer::thread(io, &aux_mutex, &ddma_mutex, &subkernel_mutex, &drtio_routing_table, &up_destinations) });
     }
 
     #[cfg(has_grabber)]
