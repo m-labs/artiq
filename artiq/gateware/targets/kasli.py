@@ -68,6 +68,7 @@ class StandaloneBase(MiniSoC, AMPSoC):
                          cpu_bus_width=cpu_bus_width,
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
+                         l2_line_size=64,
                          integrated_sram_size=8192,
                          ethmac_nrxslots=4,
                          ethmac_ntxslots=4,
@@ -176,6 +177,7 @@ class MasterBase(MiniSoC, AMPSoC):
                          cpu_bus_width=cpu_bus_width,
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
+                         l2_line_size=64,
                          integrated_sram_size=8192,
                          ethmac_nrxslots=4,
                          ethmac_ntxslots=4,
@@ -427,6 +429,7 @@ class SatelliteBase(BaseSoC, AMPSoC):
                  cpu_bus_width=cpu_bus_width,
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
+                 l2_line_size=64,
                  clk_freq=rtio_clk_freq,
                  rtio_sys_merge=True,
                  **kwargs)
