@@ -8,16 +8,10 @@ from artiq.language.core import at_mu, delay, kernel, now_mu, portable
 from artiq.language.types import TBool, TFloat, TInt32, TInt64
 from artiq.language.units import ms, us
 
-SPI_CONFIG = (
-    0 * spi.SPI_OFFLINE
-    | 0 * spi.SPI_END
-    | 0 * spi.SPI_INPUT
-    | 1 * spi.SPI_CS_POLARITY
-    | 0 * spi.SPI_CLK_POLARITY
-    | 0 * spi.SPI_CLK_PHASE
-    | 0 * spi.SPI_LSB_FIRST
-    | 0 * spi.SPI_HALF_DUPLEX
-)
+SPI_CONFIG = (0 * spi.SPI_OFFLINE | 0 * spi.SPI_END |
+              0 * spi.SPI_INPUT | 1 * spi.SPI_CS_POLARITY |
+              0 * spi.SPI_CLK_POLARITY | 0 * spi.SPI_CLK_PHASE |
+              0 * spi.SPI_LSB_FIRST | 0 * spi.SPI_HALF_DUPLEX)
 
 # SPI clock write and read dividers
 SPIT_CFG_WR = 2
@@ -693,23 +687,11 @@ class CPLD:
 
     kernel_invariants = {"refclk", "bus", "core", "io_update", "clk_div"}
 
-    def __init__(
-        self,
-        dmgr,
-        spi_device,
-        io_update_device=None,
-        dds_reset_device=None,
-        sync_device=None,
-        sync_sel=0,
-        clk_sel=0,
-        clk_div=0,
-        rf_sw=0,
-        refclk=125e6,
-        att=0x00000000,
-        sync_div=None,
-        proto_rev=0x08,
-        core_device="core",
-    ):
+    def __init__(self, dmgr, spi_device, io_update_device=None,
+                 dds_reset_device=None, sync_device=None,
+                 sync_sel=0, clk_sel=0, clk_div=0, rf_sw=0,
+                 refclk=125e6, att=0x00000000, sync_div=None,
+                 proto_rev=0x08, core_device="core"):
 
         self.core = dmgr.get(core_device)
         self.refclk = refclk
@@ -901,13 +883,14 @@ class CPLD:
         self.set_all_att_mu(a)
 
     @kernel
-    def set_all_att_mu(self, att_reg: TInt32):
+    def set_all_att_mu(self, att_reg: TInt32): 
         """Set all four digital step attenuators (in machine units).
         See also :meth:`set_att_mu`.
 
         :param att_reg: Attenuator setting string (32-bit)
         """
-        self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END, 32, SPIT_ATT_WR, CS_ATT)
+        self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END, 32,
+                               SPIT_ATT_WR, CS_ATT)
         self.bus.write(att_reg)
         self.att_reg = att_reg
 
@@ -935,9 +918,11 @@ class CPLD:
 
         :return: 32-bit attenuator settings
         """
-        self.bus.set_config_mu(SPI_CONFIG | spi.SPI_INPUT, 32, SPIT_ATT_RD, CS_ATT)
+        self.bus.set_config_mu(SPI_CONFIG | spi.SPI_INPUT, 32,
+                               SPIT_ATT_RD, CS_ATT)
         self.bus.write(0)  # shift in zeros, shift out current value
-        self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END, 32, SPIT_ATT_WR, CS_ATT)
+        self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END, 32,
+                               SPIT_ATT_WR, CS_ATT)
         delay(10 * us)
         self.att_reg = self.bus.read()
         self.bus.write(self.att_reg)  # shift in current value again and latch

@@ -59,9 +59,8 @@ class UrukulExp(EnvExperiment):
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
             self.dev.cfg_sw(2, bool(i & 1))
-        self.set_dataset(
-            "dt", self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / n
-        )
+        self.set_dataset("dt", self.core.mu_to_seconds(
+            self.core.get_rtio_counter_mu() - t0) / n)
 
     @kernel
     def switches_readback(self):
@@ -90,9 +89,8 @@ class UrukulExp(EnvExperiment):
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
             self.dev.cfg_att_en(1, bool(i & 1))
-        self.set_dataset(
-            "dt", self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / n
-        )
+        self.set_dataset("dt", self.core.mu_to_seconds(
+            self.core.get_rtio_counter_mu() - t0) / n)
 
     @kernel
     def att(self):
@@ -135,7 +133,8 @@ class UrukulExp(EnvExperiment):
         self.dev.init()
         # clear backing state
         self.dev.att_reg = 0
-        att_set = [int32(0x21), int32(0x43), int32(0x65), int32(0x87)]
+        att_set = [int32(0x21), int32(0x43), 
+                   int32(0x65), int32(0x87)]
         # set individual attenuators
         for i in range(len(att_set)):
             self.dev.set_att_mu(i, att_set[i])
@@ -158,9 +157,8 @@ class UrukulExp(EnvExperiment):
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
             self.dev.set_att(3, 30 * dB)
-        self.set_dataset(
-            "dt", self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / n
-        )
+        self.set_dataset("dt", self.core.mu_to_seconds(
+            self.core.get_rtio_counter_mu() - t0) / n)
 
     @kernel
     def osk(self):
@@ -179,9 +177,8 @@ class UrukulExp(EnvExperiment):
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
             self.dev.cfg_osk(1, bool(i & 1))
-        self.set_dataset(
-            "dt", self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / n
-        )
+        self.set_dataset("dt", self.core.mu_to_seconds(
+            self.core.get_rtio_counter_mu() - t0) / n)
 
     @kernel
     def drctl(self):
@@ -200,9 +197,8 @@ class UrukulExp(EnvExperiment):
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
             self.dev.cfg_drctl(2, bool(i & 1))
-        self.set_dataset(
-            "dt", self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / n
-        )
+        self.set_dataset("dt", self.core.mu_to_seconds(
+            self.core.get_rtio_counter_mu() - t0) / n)
 
     @kernel
     def drhold(self):
@@ -221,9 +217,8 @@ class UrukulExp(EnvExperiment):
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
             self.dev.cfg_drhold(1, bool(i & 1))
-        self.set_dataset(
-            "dt", self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / n
-        )
+        self.set_dataset("dt", self.core.mu_to_seconds(
+            self.core.get_rtio_counter_mu() - t0) / n)
 
     @kernel
     def mask_nu(self):
@@ -242,9 +237,8 @@ class UrukulExp(EnvExperiment):
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
             self.dev.cfg_mask_nu(2, bool(i & 1))
-        self.set_dataset(
-            "dt", self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / n
-        )
+        self.set_dataset("dt", self.core.mu_to_seconds(
+            self.core.get_rtio_counter_mu() - t0) / n)
 
     # Note, cfg_io_update is tested in test_ad9910.py
     @kernel
@@ -339,7 +333,7 @@ class UrukulTest(ExperimentCase):
         self.assertListEqual(att_set, self.dataset_mgr.get("att_get"))
         att_reg = self.dataset_mgr.get("att_reg")
         for att in att_set:
-            self.assertEqual(att, att_reg & 0xFF)
+            self.assertEqual(att, att_reg & 0xff)
             att_reg >>= 8
 
     def test_att_speed(self):
