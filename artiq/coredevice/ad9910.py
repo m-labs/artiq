@@ -16,7 +16,7 @@ __all__ = [
     "PHASE_MODE_CONTINUOUS", "PHASE_MODE_ABSOLUTE", "PHASE_MODE_TRACKING",
     "RAM_DEST_FTW", "RAM_DEST_POW", "RAM_DEST_ASF", "RAM_DEST_POWASF",
     "RAM_MODE_DIRECTSWITCH", "RAM_MODE_RAMPUP", "RAM_MODE_BIDIR_RAMP",
-    "RAM_MODE_CONT_BIDIR_RAMP", "RAM_MODE_CONT_RAMPUP", 
+    "RAM_MODE_CONT_BIDIR_RAMP", "RAM_MODE_CONT_RAMPUP",
 ]
 
 _PHASE_MODE_DEFAULT = -1
@@ -32,12 +32,12 @@ _AD9910_REG_IO_UPDATE = 0x04
 _AD9910_REG_FTW = 0x07
 _AD9910_REG_POW = 0x08
 _AD9910_REG_ASF = 0x09
-_AD9910_REG_SYNC = 0x0A
-_AD9910_REG_RAMP_LIMIT = 0x0B
-_AD9910_REG_RAMP_STEP = 0x0C
-_AD9910_REG_RAMP_RATE = 0x0D
-_AD9910_REG_PROFILE0 = 0x0E
-_AD9910_REG_PROFILE1 = 0x0F
+_AD9910_REG_SYNC = 0x0a
+_AD9910_REG_RAMP_LIMIT = 0x0b
+_AD9910_REG_RAMP_STEP = 0x0c
+_AD9910_REG_RAMP_RATE = 0x0d
+_AD9910_REG_PROFILE0 = 0x0e
+_AD9910_REG_PROFILE1 = 0x0f
 _AD9910_REG_PROFILE2 = 0x10
 _AD9910_REG_PROFILE3 = 0x11
 _AD9910_REG_PROFILE4 = 0x12
@@ -90,10 +90,10 @@ class SyncDataEeprom:
         word = self.eeprom_device.read_i32(self.eeprom_offset) >> 16
         sync_delay_seed = word >> 8
         if sync_delay_seed >= 0:
-            io_update_delay = word & 0xFF
+            io_update_delay = word & 0xff
         else:
             io_update_delay = 0
-        if io_update_delay == 0xFF:  # unprogrammed EEPROM
+        if io_update_delay == 0xff:  # unprogrammed EEPROM
             io_update_delay = 0
         # With Numpy, type(int32(-1) >> 1) == int64
         self.sync_delay_seed = int32(sync_delay_seed)
@@ -238,7 +238,7 @@ class AD9910:
         """
         self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, 24,
                                urukul.SPIT_DDS_WR, self.chip_select)
-        self.bus.write((addr << 24) | ((data & 0xFFFF) << 8))
+        self.bus.write((addr << 24) | ((data & 0xffff) << 8))
 
     @kernel
     def write32(self, addr: TInt32, data: TInt32):
@@ -485,7 +485,7 @@ class AD9910:
         if not blind:
             # Use the AUX DAC setting to identify and confirm presence
             aux_dac = self.read32(_AD9910_REG_AUX_DAC)
-            if aux_dac & 0xFF != 0x7F:
+            if aux_dac & 0xff != 0x7f:
                 raise ValueError("Urukul AD9910 AUX_DAC mismatch")
             delay(50 * us)  # slack
         # Configure PLL settings and bring up PLL
@@ -529,7 +529,7 @@ class AD9910:
         self.cpld.io_update.pulse(1 * us)
 
     @kernel
-    def set_mu(self, ftw: TInt32 = 0, pow_: TInt32 = 0, asf: TInt32 = 0x3FFF,
+    def set_mu(self, ftw: TInt32 = 0, pow_: TInt32 = 0, asf: TInt32 = 0x3fff,
                phase_mode: TInt32 = _PHASE_MODE_DEFAULT,
                ref_time_mu: TInt64 = int64(-1),
                profile: TInt32 = DEFAULT_PROFILE,
@@ -584,7 +584,7 @@ class AD9910:
                 pow_ += dt * ftw * self.sysclk_per_mu >> 16
         if ram_destination == -1:
             self.write64(_AD9910_REG_PROFILE0 + profile,
-                         (asf << 16) | (pow_ & 0xFFFF), ftw)
+                         (asf << 16) | (pow_ & 0xffff), ftw)
         else:
             if not ram_destination == RAM_DEST_FTW:
                 self.set_ftw(ftw)
@@ -617,8 +617,8 @@ class AD9910:
         data = int64(self.read64(_AD9910_REG_PROFILE0 + profile))
         # Extract and return fields
         ftw = int32(data)
-        pow_ = int32((data >> 32) & 0xFFFF)
-        asf = int32((data >> 48) & 0x3FFF)
+        pow_ = int32((data >> 32) & 0xffff)
+        asf = int32((data >> 48) & 0x3fff)
         return ftw, pow_, asf
 
     @kernel
@@ -720,7 +720,7 @@ class AD9910:
     def turns_to_pow(self, turns: TFloat) -> TInt32:
         """Return the 16-bit phase offset word corresponding to the given phase
         in turns."""
-        return int32(round(turns * 0x10000)) & int32(0xFFFF)
+        return int32(round(turns * 0x10000)) & int32(0xffff)
 
     @portable(flags={"fast-math"})
     def pow_to_turns(self, pow_: TInt32) -> TFloat:
@@ -732,8 +732,8 @@ class AD9910:
     def amplitude_to_asf(self, amplitude: TFloat) -> TInt32:
         """Return 14-bit amplitude scale factor corresponding to given
         fractional amplitude."""
-        code = int32(round(amplitude * 0x3FFF))
-        if code < 0 or code > 0x3FFF:
+        code = int32(round(amplitude * 0x3fff))
+        if code < 0 or code > 0x3fff:
             raise ValueError("Invalid AD9910 fractional amplitude!")
         return code
 
@@ -741,7 +741,7 @@ class AD9910:
     def asf_to_amplitude(self, asf: TInt32) -> TFloat:
         """Return amplitude as a fraction of full scale corresponding to given
         amplitude scale factor."""
-        return asf / float(0x3FFF)
+        return asf / float(0x3fff)
 
     @portable(flags={"fast-math"})
     def frequency_to_ram(self, frequency: TList(TFloat), ram: TList(TInt32)):
