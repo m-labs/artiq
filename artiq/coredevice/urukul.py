@@ -142,6 +142,13 @@ class _DummySync:
 
 
 class CPLDVersionManager(ABC):
+    """
+    Base class for managing CPLD version-specific configurations.
+
+    Subclasses should implement the required methods based on the specific
+    version of the CPLD being used.
+    """
+
     @abstractmethod
     @kernel
     def cfg_write(self, cpld, cfg):
@@ -167,18 +174,26 @@ class CPLDVersionManager(ABC):
     def set_profile(self, cpld, channel, profile):
         pass
 
+    @kernel
+    def _configure_bit(self, cpld, bit_offset: TInt32, channel: TInt32, on: TBool):
+        pass
+
+    @kernel
+    def _configure_all_bits(self, cpld, bit_offset: TInt32, state: TInt32):
+        pass
+
+    @kernel
+    def cfg_mask_nu(self, cpld, channel: TInt32, on: TBool):
+        pass
+
+    @kernel
+    def cfg_mask_nu_all(self, cpld, state: TInt32):
+        pass
+
     def _not_implemented(self, *args, **kwargs):
         raise NotImplementedError(
             "This function is not implemented for this Urukul version."
         )
-
-    @kernel
-    def _configure_bit(self, cpld, bit_offset: TInt32, channel: TInt32, on: TBool):
-        self._not_implemented()
-
-    @kernel
-    def _configure_all_bits(self, cpld, bit_offset: TInt32, state: TInt32):
-        self._not_implemented()
 
     @kernel
     def cfg_att_en(self, cpld, channel: TInt32, on: TBool):
@@ -212,16 +227,14 @@ class CPLDVersionManager(ABC):
     def cfg_drhold_all(self, cpld, state: TInt32):
         self._not_implemented()
 
-    @kernel
-    def cfg_mask_nu(self, cpld, channel: TInt32, on: TBool):
-        self._not_implemented()
-
-    @kernel
-    def cfg_mask_nu_all(self, cpld, state: TInt32):
-        self._not_implemented()
-
 
 class ProtoRev8(CPLDVersionManager):
+    """
+    Implementation of the CPLD for Urkul ProtoRev8.
+
+    This class extends `CPLDVersionManager` and provides methods to configure
+    and interact with the ProtoRev8 version of the CPLD.
+    """
 
     # ProtoRev8 CFG configuration register bit offsets
     CFG_IO_UPDATE = 12
@@ -297,10 +310,9 @@ class ProtoRev8(CPLDVersionManager):
 
     @kernel
     def init(self, cpld):
-        """Initialize and detect Urukul.
+        """Initialize Urukul with ProtoRev8.
 
-        Resets the DDS I/O interface and verifies correct CPLD gateware
-        version.
+        Resets the DDS I/O interface.
         Does not pulse the DDS ``MASTER_RESET`` as that confuses the AD9910.
         """
         cfg = cpld.cfg_reg
@@ -325,14 +337,64 @@ class ProtoRev8(CPLDVersionManager):
 
         The PROFILE pins are common to all four DDS channels.
 
+        :param channel: Channel index (0-3). Unused (here for backwards compatability).
         :param profile: PROFILE pins in numeric representation (0-7).
         """
         cfg = cpld.cfg_reg & ~(7 << CFG_PROFILE)
         cfg |= (profile & 7) << CFG_PROFILE
         cpld.cfg_write(cfg)
 
+    @kernel
+    def _configure_bit(self, cpld, bit_offset: TInt32, channel: TInt32, on: TBool):
+        """Configure a single bit in the configuration register.
+
+        :param bit_offset: Base bit offset for the configuration type
+        :param channel: Channel index (0-3)
+        :param on: Switch value
+        """
+        c = cpld.cfg_reg
+        if on:
+            c |= 1 << (bit_offset + channel)
+        else:
+            c &= ~(1 << (bit_offset + channel))
+        cpld.cfg_write(c)
+
+    @kernel
+    def _configure_all_bits(self, cpld, bit_offset: TInt32, state: TInt32):
+        """Configure all four bits at a specific bit offset in the configuration register.
+
+        :param bit_offset: bit offset for the configuration bits
+        :param state: State as a 4-bit integer
+        """
+        cpld.cfg_write(
+            (cpld.cfg_reg & ~(0xF << bit_offset)) | (int64(state) << bit_offset)
+        )
+
+    @kernel
+    def cfg_mask_nu(self, cpld, channel: TInt32, on: TBool):
+        """Configure the MASK_NU bit for the given channel in the configuration register.
+
+        :param channel: Channel index (0-3)
+        :param on: Switch value
+        """
+        cpld._configure_bit(ProtoRev8.CFG_MASK_NU, channel, on)
+
+    @kernel
+    def cfg_mask_nu_all(self, cpld, state: TInt32):
+        """Configure all four MASK_NU bits in the configuration register.
+
+        :param state: MASK_NU state as a 4-bit integer.
+        """
+        cpld._configure_all_bits(ProtoRev8.CFG_MASK_NU, state)
+
 
 class ProtoRev9(CPLDVersionManager):
+    """
+    Implementation of the CPLD for Urkul ProtoRev9.
+
+    This class extends `CPLDVersionManager` and provides methods to configure
+    and interact with the ProtoRev9 version of the CPLD.
+    """
 
     # ProtoRev9 CFG configuration register bit offsets
     CFG_OSK = 20
@@ -427,10 +489,9 @@ class ProtoRev9(CPLDVersionManager):
 
     @kernel
     def init(self, cpld):
-        """Initialize and detect Urukul.
+        """Initialize Urukul with ProtoRev9.
 
-        Resets the DDS I/O interface and verifies correct CPLD gateware
-        version.
+        Resets the DDS I/O interface.
         Does not pulse the DDS ``MASTER_RESET`` as that confuses the AD9910.
         """
         cfg = cpld.cfg_reg
@@ -451,7 +512,7 @@ class ProtoRev9(CPLDVersionManager):
 
     @kernel
     def set_profile(self, cpld, channel: TInt32, profile: TInt32):
-        """Set the CFG.PROFILE[0:2] pins for a channel.
+        """Set the CFG.PROFILE[0:2] pins for the given channel.
 
         :param profile: PROFILE pins in numeric representation (0-7).
         :param channel: Channel (0-3).
@@ -477,9 +538,9 @@ class ProtoRev9(CPLDVersionManager):
 
     @kernel
     def _configure_all_bits(self, cpld, bit_offset: TInt32, state: TInt32):
-        """Configure all four bits of a specific type in the configuration register.
+        """Configure all four bits at a specific bit offset in the configuration register.
 
-        :param bit_offset: Base bit offset for the configuration type
+        :param bit_offset: bit offset for the configuration bits
         :param state: State as a 4-bit integer
         """
         cpld.cfg_write(
@@ -487,76 +548,8 @@ class ProtoRev9(CPLDVersionManager):
         )
 
     @kernel
-    def cfg_att_en(self, cpld, channel: TInt32, on: TBool):
-        """Configure the ATT_EN bit through the configuration register.
-
-        :param channel: Channel index (0-3)
-        :param on: Switch value
-        """
-        cpld._configure_bit(ProtoRev9.CFG_ATT_EN, channel, on)
-
-    @kernel
-    def cfg_att_en_all(self, cpld, state: TInt32):
-        """Configure all four ATT_EN bits through the configuration register.
-
-        :param state: OSK state as a 4-bit integer.
-        """
-        cpld._configure_all_bits(ProtoRev9.CFG_ATT_EN, state)
-
-    @kernel
-    def cfg_osk(self, cpld, channel: TInt32, on: TBool):
-        """Configure the OSK bit through the configuration register.
-
-        :param channel: Channel index (0-3)
-        :param on: Switch value
-        """
-        cpld._configure_bit(ProtoRev9.CFG_OSK, channel, on)
-
-    @kernel
-    def cfg_osk_all(self, cpld, state: TInt32):
-        """Configure all four OSK bits through the configuration register.
-
-        :param state: OSK state as a 4-bit integer.
-        """
-        cpld._configure_all_bits(ProtoRev9.CFG_OSK, state)
-
-    @kernel
-    def cfg_drctl(self, cpld, channel: TInt32, on: TBool):
-        """Configure the DRCTL bit through the configuration register.
-
-        :param channel: Channel index (0-3)
-        :param on: Switch value
-        """
-        cpld._configure_bit(ProtoRev9.CFG_DRCTL, channel, on)
-
-    @kernel
-    def cfg_drctl_all(self, cpld, state: TInt32):
-        """Configure all four DRCTL bits through the configuration register.
-
-        :param state: DRCTL state as a 4-bit integer.
-        """
-        cpld._configure_all_bits(ProtoRev9.CFG_DRCTL, state)
-
-    @kernel
-    def cfg_drhold(self, cpld, channel: TInt32, on: TBool):
-        """Configure the DRHOLD bit through the configuration register.
-
-        :param channel: Channel index (0-3)
-        :param on: Switch value
-        """
-        cpld._configure_bit(ProtoRev9.CFG_DRHOLD, channel, on)
-
-    @kernel
-    def cfg_drhold_all(self, cpld, state: TInt32):
-        """Configure all four DRHOLD bits through the configuration register.
-
-        :param state: DRHOLD state as a 4-bit integer.
-        """
-        cpld._configure_all_bits(ProtoRev9.CFG_DRHOLD, state)
-
-    @kernel
     def cfg_mask_nu(self, cpld, channel: TInt32, on: TBool):
-        """Configure the MASK_NU bits through the configuration register.
+        """Configure the MASK_NU bit for the given channel in the configuration register.
 
         :param channel: Channel index (0-3)
         :param on: Switch value
@@ -565,14 +558,89 @@ class ProtoRev9(CPLDVersionManager):
 
     @kernel
     def cfg_mask_nu_all(self, cpld, state: TInt32):
-        """Configure all four MASK_NU bits through the configuration register.
+        """Configure all four MASK_NU bits in the configuration register.
 
         :param state: MASK_NU state as a 4-bit integer.
         """
         cpld._configure_all_bits(ProtoRev9.CFG_MASK_NU, state)
 
+    @kernel
+    def cfg_att_en(self, cpld, channel: TInt32, on: TBool):
+        """Configure the ATT_EN bit for the given channel in the configuration register.
+
+        :param channel: Channel index (0-3)
+        :param on: Switch value
+        """
+        cpld._configure_bit(ProtoRev9.CFG_ATT_EN, channel, on)
+
+    @kernel
+    def cfg_att_en_all(self, cpld, state: TInt32):
+        """Configure all four ATT_EN bits in the configuration register.
+
+        :param state: OSK state as a 4-bit integer.
+        """
+        cpld._configure_all_bits(ProtoRev9.CFG_ATT_EN, state)
+
+    @kernel
+    def cfg_osk(self, cpld, channel: TInt32, on: TBool):
+        """Configure the OSK bit for the given channel in the configuration register.
+
+        :param channel: Channel index (0-3)
+        :param on: Switch value
+        """
+        cpld._configure_bit(ProtoRev9.CFG_OSK, channel, on)
+
+    @kernel
+    def cfg_osk_all(self, cpld, state: TInt32):
+        """Configure all four OSK bits in the configuration register.
+
+        :param state: OSK state as a 4-bit integer.
+        """
+        cpld._configure_all_bits(ProtoRev9.CFG_OSK, state)
+
+    @kernel
+    def cfg_drctl(self, cpld, channel: TInt32, on: TBool):
+        """Configure the DRCTL bit for the given channel in the configuration register.
+
+        :param channel: Channel index (0-3)
+        :param on: Switch value
+        """
+        cpld._configure_bit(ProtoRev9.CFG_DRCTL, channel, on)
+
+    @kernel
+    def cfg_drctl_all(self, cpld, state: TInt32):
+        """Configure all four DRCTL bits in the configuration register.
+
+        :param state: DRCTL state as a 4-bit integer.
+        """
+        cpld._configure_all_bits(ProtoRev9.CFG_DRCTL, state)
+
+    @kernel
+    def cfg_drhold(self, cpld, channel: TInt32, on: TBool):
+        """Configure the DRHOLD bit for the given channel in the configuration register.
+
+        :param channel: Channel index (0-3)
+        :param on: Switch value
+        """
+        cpld._configure_bit(ProtoRev9.CFG_DRHOLD, channel, on)
+
+    @kernel
+    def cfg_drhold_all(self, cpld, state: TInt32):
+        """Configure all four DRHOLD bits in the configuration register.
+
+        :param state: DRHOLD state as a 4-bit integer.
+        """
+        cpld._configure_all_bits(ProtoRev9.CFG_DRHOLD, state)
+
 
 class CPLDVersionManagerFactory:
+    """
+    Factory class for creating CPLD version managers.
+
+    This class provides a method to instantiate the appropriate `CPLDVersionManager` subclass
+    based on the CPLD protocol revision.
+    """
+
     @staticmethod
     def get_version(proto_rev: int) -> CPLDVersionManager:
         if proto_rev == STA_PROTO_REV_8:
@@ -615,6 +683,7 @@ class CPLD:
     :param sync_div: ``SYNC_IN`` generator divider. The ratio between the coarse
         RTIO frequency and the ``SYNC_IN`` generator frequency (default: 2 if
         `sync_device` was specified).
+    :param proto_rev: CPLD protocol revision
     :param core_device: Core device name
 
     If the clocking is incorrect (for example, setting ``clk_sel`` to the
@@ -731,6 +800,14 @@ class CPLD:
         self.version_manager._configure_all_bits(self, bit_offset, state)
 
     @kernel
+    def cfg_mask_nu(self, channel: TInt32, on: TBool):
+        self.version_manager.cfg_mask_nu(self, channel, on)
+
+    @kernel
+    def cfg_mask_nu_all(self, state: TInt32):
+        self.version_manager.cfg_mask_nu_all(self, state)
+
+    @kernel
     def cfg_att_en(self, channel: TInt32, on: TBool):
         self.version_manager.cfg_att_en(self, channel, on)
 
@@ -761,14 +838,6 @@ class CPLD:
     @kernel
     def cfg_drhold_all(self, state: TInt32):
         self.version_manager.cfg_drhold_all(self, state)
-
-    @kernel
-    def cfg_mask_nu(self, channel: TInt32, on: TBool):
-        self.version_manager.cfg_mask_nu(self, channel, on)
-
-    @kernel
-    def cfg_mask_nu_all(self, state: TInt32):
-        self.version_manager.cfg_mask_nu_all(self, state)
 
     @kernel
     def cfg_sw(self, channel: TInt32, on: TBool):
