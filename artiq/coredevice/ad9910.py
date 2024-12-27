@@ -534,8 +534,16 @@ class AD9910:
         After the SPI transfer, the shared IO update pin is pulsed to
         activate the data.
 
-        .. seealso: :meth:`AD9910.set_phase_mode` for a definition of the different
+        .. seealso:: :meth:`AD9910.set_phase_mode` for a definition of the different
             phase modes.
+
+        .. warning::
+            Deterministic phase control depends on correct alignment of operations
+            to a 4ns grid (``SYNC_CLK``). This function uses :meth:`~artiq.language.core.now_mu()`
+            to ensure such alignment automatically. When replayed over DMA, however, the ensuing
+            event sequence *must* be started at the same offset relative to ``SYNC_CLK``, or
+            unstable ``SYNC_CLK`` cycle assignment (i.e. inconsistent delays of exactly 4ns) will
+            result.
 
         :param ftw: Frequency tuning word: 32-bit.
         :param pow_: Phase tuning word: 16-bit unsigned.
