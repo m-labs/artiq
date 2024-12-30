@@ -30,7 +30,12 @@ OSError = builtins.OSError
 
 
 class CoreException:
-    """Information about an exception raised or passed through the core device."""
+    """Information about an exception raised or passed through the core device.
+
+     If the exception message contains positional format arguments, it
+     will attempt to substitute them with the provided parameters.
+     If the substitution fails, the original message will remain unchanged.
+    """
     def __init__(self, exceptions, exception_info, traceback, stack_pointers):
         self.exceptions = exceptions
         self.exception_info = exception_info
@@ -92,7 +97,10 @@ class CoreException:
             exn_id = int(exn_id)
         else:
             exn_id = 0
-        lines.append("{}({}): {}".format(name, exn_id, message.format(*params)))
+        try:
+            lines.append("{}({}): {}".format(name, exn_id, message.format(*params)))
+        except:
+            lines.append("{}({}): {}".format(name, exn_id, message))
         zipped.append(((exception[3], exception[4], exception[5], exception[6],
                        None, []), None))
 
