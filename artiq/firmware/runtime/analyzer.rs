@@ -10,7 +10,7 @@ use core::cell::RefCell;
 
 const BUFFER_SIZE: usize = 512 * 1024;
 
-#[repr(align(64))]
+#[repr(align(2048))]
 struct Buffer {
     data: [u8; BUFFER_SIZE],
 }
