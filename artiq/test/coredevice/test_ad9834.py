@@ -39,10 +39,10 @@ class AD9834Exp(EnvExperiment):
         self.set_dataset("ctrl_reg", self.dev.ctrl_reg)
 
     @kernel
-    def freq_to_word_fail(self):
+    def frequency_to_ftw_fail(self):
         self.core.reset()
         self.dev.init()
-        self.dev.freq_to_word(37.6 * MHz)
+        self.dev.frequency_to_ftw(37.6 * MHz)
 
     @kernel
     def turns_to_phase_fail(self):
@@ -54,13 +54,13 @@ class AD9834Exp(EnvExperiment):
     def set_frequency_reg_fail(self):
         self.core.reset()
         self.dev.init()
-        self.dev.set_frequency_reg(19, self.dev.freq_to_word(10 * MHz))
+        self.dev.set_frequency_reg(19, self.dev.frequency_to_ftw(10 * MHz))
 
     @kernel
     def set_frequency_reg(self):
         self.core.reset()
         self.dev.init()
-        self.dev.set_frequency_reg(1, self.dev.freq_to_word(19 * MHz))
+        self.dev.set_frequency_reg(1, self.dev.frequency_to_ftw(19 * MHz))
         self.set_dataset("ctrl_reg", self.dev.ctrl_reg)
 
     @kernel
@@ -210,7 +210,7 @@ class AD9834Exp(EnvExperiment):
     def single_tone(self):
         self.core.reset()
         self.dev.init()
-        self.dev.set_frequency_reg(0, self.dev.freq_to_word(1 * MHz))
+        self.dev.set_frequency_reg(0, self.dev.frequency_to_ftw(1 * MHz))
         self.dev.select_frequency_reg(0)
         self.dev.output_enable()
         delay(5 * s)
@@ -221,8 +221,8 @@ class AD9834Exp(EnvExperiment):
     def toggle_frequency(self):
         self.core.reset()
         self.dev.init()
-        self.dev.set_frequency_reg(0, self.dev.freq_to_word(1 * MHz))
-        self.dev.set_frequency_reg(1, self.dev.freq_to_word(2 * MHz))
+        self.dev.set_frequency_reg(0, self.dev.frequency_to_ftw(1 * MHz))
+        self.dev.set_frequency_reg(1, self.dev.frequency_to_ftw(2 * MHz))
         self.dev.select_frequency_reg(0)
         self.dev.output_enable()
 
@@ -239,7 +239,7 @@ class AD9834Exp(EnvExperiment):
     def toggle_phase(self):
         self.core.reset()
         self.dev.init()
-        self.dev.set_frequency_reg(0, self.dev.freq_to_word(1 * MHz))
+        self.dev.set_frequency_reg(0, self.dev.frequency_to_ftw(1 * MHz))
         self.dev.select_frequency_reg(0)
         self.dev.set_phase_reg(0, 0x0)
         self.dev.set_phase_reg(1, 0x7FF)
@@ -258,7 +258,7 @@ class AD9834Exp(EnvExperiment):
     def set_mu(self):
         self.core.reset()
         self.dev.init()
-        freq_word = self.dev.freq_to_word(1 * MHz)
+        freq_word = self.dev.frequency_to_ftw(1 * MHz)
         phase_word = self.dev.turns_to_phase(0.5)
         self.dev.set_mu(freq_word, phase_word, 0, 1)
 
@@ -292,9 +292,9 @@ class AD9834Test(ExperimentCase):
         self.assertEqual(clk_freq, 75 * MHz)
         self.assertEqual(ctrl_reg, 0x0000 | AD9834_RESET)
 
-    def test_freq_to_word_fail(self):
+    def test_frequency_to_ftw_fail(self):
         with self.assertRaises(AssertionError):
-            self.execute(AD9834Exp, "freq_to_word_fail")
+            self.execute(AD9834Exp, "frequency_to_ftw_fail")
 
     def test_turns_to_phase_fail(self):
         with self.assertRaises(AssertionError):

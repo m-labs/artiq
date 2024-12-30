@@ -192,27 +192,17 @@ class AD9834:
         self.write(FREQ_REGS[freq_reg] | msb)
 
     @portable(flags={"fast-math"})
-    def freq_to_word(self, frequency: TFloat) -> TInt32:
-        """
-        Calculate the frequency word for a given frequency in Hz.
-
-        :param frequency: Frequency in Hz.
-        :return: The frequency word as a 32-bit integer, limited to the lower 28 bits.
+    def frequency_to_ftw(self, frequency: TFloat) -> TInt32:
+        """Return the 28-bit frequency tuning word corresponding to the given
+        frequency.
         """
         assert frequency <= 37.5 * MHz, "Frequency exceeds maximum value of 37.5 MHz"
         return int((frequency * (1 << 28)) / self.clk_freq) & 0x0FFFFFFF
 
     @portable(flags={"fast-math"})
-    def turns_to_phase(self, turns: TFloat) -> TInt32:
-        """
-        Convert a phase offset in fractional turns to a 12-bit phase word.
-
-        A full turn (1.0) corresponds to 360 degrees. The result is a 12-bit integer
-        phase word in the range [0x0000, 0x0FFF].
-
-        :param turns: Phase offset in fractional turns (e.g., 0.5 for 180 degrees).
-        :return: 12-bit phase word as an integer.
-        """
+    def turns_to_pow(self, turns: TFloat) -> TInt32:
+        """Return the 12-bit phase offset word corresponding to the given phase
+        in turns."""
         assert 0.0 <= turns <= 1.0, "Turns exceeds range 0.0 - 1.0"
         return int32(round(turns * 0x1000)) & int32(0x0FFF)
 
@@ -442,6 +432,6 @@ class AD9834:
         assert 0 <= freq_reg <= 1, "Invalid frequency register index"
         assert 0 <= phase_reg <= 1, "Invalid phase register index"
 
-        freq_word = self.freq_to_word(frequency)
-        phase_word = self.turns_to_phase(phase)
+        freq_word = self.frequency_to_ftw(frequency)
+        phase_word = self.turns_to_pow(phase)
         self.set_mu(freq_word, phase_word, freq_reg, phase_reg)
