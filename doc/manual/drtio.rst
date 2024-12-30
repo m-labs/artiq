@@ -1,4 +1,4 @@
-DRTIO system 
+DRTIO system
 ============
 
 DRTIO is the time and data transfer system that allows ARTIQ RTIO channels to be distributed among several satellite devices, synchronized and controlled by a central core device. The main source of DRTIO traffic is the remote control of RTIO output and input channels. The protocol is optimized to maximize throughput and minimize latency, and handles flow control and error conditions (underflows, overflows, etc.)
@@ -30,12 +30,12 @@ The routing table
 
 The routing table defines, for each destination, the list of hops ("route") that must be taken from the root in order to reach it.
 
-It is stored in a binary format that can be generated and manipulated with the :ref:`artiq_route utility <routing-table-tool>`, see :ref:`drtio-routing`. The binary file is programmed into the flash storage of the core device under the ``routing_table`` key. It is automatically distributed to downstream devices when the connections are established. Modifying the routing table requires rebooting the core device for the new table to be taken into account.
+It is stored in a binary format that can be generated and manipulated with the utility :mod:`~artiq.frontend.artiq_route`, see :ref:`drtio-routing`. The binary file is programmed into the flash storage of the core device under the ``routing_table`` key. It is automatically distributed to downstream devices when the connections are established. Modifying the routing table requires rebooting the core device for the new table to be taken into account.
 
 Internal details
 ----------------
 
-Bits 16-24 of the RTIO channel number (assigned to a respective device in the initial system description JSON, and specified again for use of the ARTIQ front-end in the device database) define the destination. Bits 0-15 of the RTIO channel number select the channel within the destination.
+Bits 16-24 of the RTIO channel number (assigned to a respective device in the initial :ref:`system description JSON <system-description>`, and specified again for use of the ARTIQ front-end in the device database) define the destination. Bits 0-15 of the RTIO channel number select the channel within the destination.
 
 Real-time and auxiliary packets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -58,7 +58,7 @@ A real-time packet is defined by a series of D characters containing the packet'
 
 K characters, which are transmitted whenever there is no real-time data to transmit and to delimit real-time packets, are chosen using a 3-bit K selection word. If this K character is the first character in the set of N characters processed by the transceiver in the logic clock cycle, the mapping between the K selection word and the 8b/10b K space contains commas. If the K character is any of the subsequent characters processed by the transceiver, a different mapping is used that does not contain any commas. This scheme allows the receiver to align its logic clock with that of the transmitter, simply by shifting its logic clock so that commas are received into the first character position.
 
-.. note:: 
+.. note::
     Due to the shoddy design of transceiver hardware, this simple process of clock and comma alignment is difficult to perform in practice. The paper "High-speed, fixed-latency serial links with Xilinx FPGAs" (by Xue LIU, Qing-xu DENG, Bo-ning HOU and Ze-ke WANG) discusses techniques that can be used. The ARTIQ implementation simply keeps resetting the receiver until the comma is aligned, since relatively long lock times are acceptable.
 
 The series of K selection words is then used to form auxiliary packets and the idle pattern. When there is no auxiliary packet to transfer or to delimitate auxiliary packets, the K selection word ``100`` is used. To transfer data from an auxiliary packet, the K selection word ``0ab`` is used, with ``ab`` containing two bits of data from the packet. An auxiliary packet is delimited by at least one ``100`` K selection word.

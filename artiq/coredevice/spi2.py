@@ -4,7 +4,7 @@ Driver for generic SPI on RTIO.
 This ARTIQ coredevice driver corresponds to the "new" MiSoC SPI core (v2).
 
 Output event replacement is not supported and issuing commands at the same
-time is an error.
+time results in collision errors.
 """
 
 from artiq.language.core import syscall, kernel, portable, delay_mu
@@ -51,7 +51,7 @@ class SPIMaster:
       event (``SPI_INPUT`` set), then :meth:`read` the ``data``.
     * If ``SPI_END`` was not set, repeat the transfer sequence.
 
-    A **transaction** consists of one or more **transfers**. The chip select
+    A *transaction* consists of one or more *transfers*. The chip select
     pattern is asserted for the entire length of the transaction. All but the
     last transfer are submitted with ``SPI_END`` cleared in the configuration
     register.
@@ -138,10 +138,10 @@ class SPIMaster:
         * :const:`SPI_LSB_FIRST`: LSB is the first bit on the wire (reset=0)
         * :const:`SPI_HALF_DUPLEX`: 3-wire SPI, in/out on ``mosi`` (reset=0)
 
-        :param flags: A bit map of `SPI_*` flags.
+        :param flags: A bit map of :const:`SPI_*` flags.
         :param length: Number of bits to write during the next transfer.
             (reset=1)
-        :param freq: Desired SPI clock frequency. (reset=f_rtio/2)
+        :param freq: Desired SPI clock frequency. (reset= ``f_rtio/2``)
         :param cs: Bit pattern of chip selects to assert.
             Or number of the chip select to assert if ``cs`` is decoded
             downstream. (reset=0)
@@ -152,16 +152,15 @@ class SPIMaster:
     def set_config_mu(self, flags, length, div, cs):
         """Set the ``config`` register (in SPI bus machine units).
 
-        .. seealso:: :meth:`set_config`
+        See also :meth:`set_config`.
 
         :param flags: A bit map of `SPI_*` flags.
         :param length: Number of bits to write during the next transfer.
             (reset=1)
         :param div: Counter load value to divide the RTIO
-          clock by to generate the SPI clock. (minimum=2, reset=2)
-          ``f_rtio_clk/f_spi == div``. If ``div`` is odd,
-          the setup phase of the SPI clock is one coarse RTIO clock cycle
-          longer than the hold phase.
+          clock by to generate the SPI clock; ``f_rtio_clk/f_spi == div``. 
+          If ``div`` is odd, the setup phase of the SPI clock is one 
+          coarse RTIO clock cycle longer than the hold phase. (minimum=2, reset=2)
         :param cs: Bit pattern of chip selects to assert.
             Or number of the chip select to assert if ``cs`` is decoded
             downstream. (reset=0)
@@ -188,7 +187,7 @@ class SPIMaster:
         experiments and are known.
 
         This method is portable and can also be called from e.g.
-        :meth:`__init__`.
+        ``__init__``.
 
         .. warning:: If this method is called while recording a DMA
            sequence, the playback of the sequence will not update the
@@ -208,7 +207,7 @@ class SPIMaster:
         * The ``data`` register and the shift register are 32 bits wide.
         * Data writes take one ``ref_period`` cycle.
         * A transaction consisting of a single transfer (``SPI_END``) takes
-          :attr:`xfer_duration_mu` ``=(n + 1)*div`` cycles RTIO time where
+          :attr:`xfer_duration_mu` `` = (n + 1) * div`` cycles RTIO time, where
           ``n`` is the number of bits and ``div`` is the SPI clock divider.
         * Transfers in a multi-transfer transaction take up to one SPI clock
           cycle less time depending on multiple parameters. Advanced users may

@@ -1,4 +1,4 @@
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt6 import QtCore, QtWidgets, QtGui
 
 from artiq.gui.flowlayout import FlowLayout
 
@@ -10,7 +10,7 @@ class VDragDropSplitter(QtWidgets.QSplitter):
         QtWidgets.QSplitter.__init__(self, parent=parent)
         self.setAcceptDrops(True)
         self.setContentsMargins(0, 0, 0, 0)
-        self.setOrientation(QtCore.Qt.Vertical)
+        self.setOrientation(QtCore.Qt.Orientation.Vertical)
         self.setChildrenCollapsible(False)
 
     def resetSizes(self):
@@ -24,7 +24,7 @@ class VDragDropSplitter(QtWidgets.QSplitter):
         e.accept()
 
     def dragMoveEvent(self, e):
-        pos = e.pos()
+        pos = e.position()
         src = e.source()
         src_i = self.indexOf(src)
         self.setRubberBand(self.height())
@@ -48,7 +48,7 @@ class VDragDropSplitter(QtWidgets.QSplitter):
 
     def dropEvent(self, e):
         self.setRubberBand(-1)
-        pos = e.pos()
+        pos = e.position()
         src = e.source()
         src_i = self.indexOf(src)
         for n in range(self.count()):
@@ -78,10 +78,10 @@ class VDragScrollArea(QtWidgets.QScrollArea):
         self._speed = speed
 
     def eventFilter(self, obj, e):
-        if e.type() == QtCore.QEvent.DragMove:
+        if e.type() == QtCore.QEvent.Type.DragMove:
             val = self.verticalScrollBar().value()
             height = self.viewport().height()
-            y = e.pos().y()
+            y = e.position().y()
             self._direction = 0
             if y < val + self._margin:
                 self._direction = -1
@@ -89,7 +89,7 @@ class VDragScrollArea(QtWidgets.QScrollArea):
                 self._direction = 1
             if not self._timer.isActive():
                 self._timer.start()
-        elif e.type() in (QtCore.QEvent.Drop, QtCore.QEvent.DragLeave):
+        elif e.type() in (QtCore.QEvent.Type.Drop, QtCore.QEvent.Type.DragLeave):
             self._timer.stop()
         return False
 
@@ -117,9 +117,9 @@ class DragDropFlowLayoutWidget(QtWidgets.QWidget):
         return -1
 
     def mousePressEvent(self, event):
-        if event.buttons() == QtCore.Qt.LeftButton \
-           and event.modifiers() == QtCore.Qt.ShiftModifier:
-            index = self._get_index(event.pos())
+        if event.buttons() == QtCore.Qt.MouseButton.LeftButton \
+           and event.modifiers() == QtCore.Qt.KeyboardModifier.ShiftModifier:
+            index = self._get_index(event.position())
             if index == -1:
                 return
             drag = QtGui.QDrag(self)
@@ -127,7 +127,7 @@ class DragDropFlowLayoutWidget(QtWidgets.QWidget):
             mime.setData("index", str(index).encode())
             drag.setMimeData(mime)
             pixmapi = QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_FileIcon)
+                QtWidgets.QStyle.StandardPixmap.SP_FileIcon)
             drag.setPixmap(pixmapi.pixmap(32))
             drag.exec_(QtCore.Qt.MoveAction)
         event.accept()
@@ -136,7 +136,7 @@ class DragDropFlowLayoutWidget(QtWidgets.QWidget):
         event.accept()
 
     def dropEvent(self, event):
-        index = self._get_index(event.pos())
+        index = self._get_index(event.position())
         source_layout = event.source()
         source_index = int(bytes(event.mimeData().data("index")).decode())
         if source_layout == self:

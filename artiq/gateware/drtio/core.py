@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 from migen import *
+from migen.genlib.cdc import MultiReg
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from misoc.interconnect.csr import *
 
@@ -51,6 +52,7 @@ class SyncRTIO(Module):
     def __init__(self, tsc, channels, lane_count=8, fifo_depth=128):
         self.cri = cri.Interface()
         self.async_errors = Record(async_errors_layout)
+        self.sed_spread_enable = Signal()
 
         chan_fine_ts_width = max(max(rtlink.get_fine_ts_width(channel.interface.o)
                                      for channel in channels),
@@ -61,10 +63,11 @@ class SyncRTIO(Module):
         self.submodules.outputs = ClockDomainsRenamer("rio")(
             SED(channels, tsc.glbl_fine_ts_width,
                 lane_count=lane_count, fifo_depth=fifo_depth,
-                enable_spread=True, fifo_high_watermark=0.75,
-                report_buffer_space=True, interface=self.cri))
+                fifo_high_watermark=0.75, report_buffer_space=True,
+                interface=self.cri))
         self.comb += self.outputs.coarse_timestamp.eq(tsc.coarse_ts)
         self.sync += self.outputs.minimum_coarse_timestamp.eq(tsc.coarse_ts + 16)
+        self.specials += MultiReg(self.sed_spread_enable, self.outputs.enable_spread, "rio")
 
         self.submodules.inputs = ClockDomainsRenamer("rio")(
             InputCollector(tsc, channels, interface=self.cri))
@@ -78,6 +81,7 @@ class DRTIOSatellite(Module):
         self.reset = CSRStorage(reset=1)
         self.reset_phy = CSRStorage(reset=1)
         self.tsc_loaded = CSR()
+        self.sed_spread_enable = CSRStorage()
         # master interface in the sys domain
         self.cri = cri.Interface()
         self.async_errors = Record(async_errors_layout)
@@ -143,7 +147,7 @@ class DRTIOSatellite(Module):
             self.rt_packet, tsc, self.async_errors)
 
     def get_csrs(self):
-        return ([self.reset, self.reset_phy, self.tsc_loaded] +
+        return ([self.reset, self.sed_spread_enable, self.reset_phy, self.tsc_loaded] +
                 self.link_layer.get_csrs() + self.link_stats.get_csrs() +
                 self.rt_errors.get_csrs())
 

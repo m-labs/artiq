@@ -1,6 +1,7 @@
 import asyncio
 from collections import OrderedDict
 import logging
+import shutil
 
 from sipyco.asyncio_tools import TaskObject
 from sipyco import pyon
@@ -45,6 +46,8 @@ class StateManager(TaskObject):
             logger.info("State database '%s' not found, using defaults",
                         self.filename)
             return
+        else:
+            shutil.copy2(self.filename, self.filename + ".backup")
         # The state of one object may depend on the state of another,
         # e.g. the display state may create docks that are referenced in
         # the area state.

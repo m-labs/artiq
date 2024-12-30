@@ -1,8 +1,8 @@
-""""RTIO driver for the Analog Devices AD53[67][0123] family of multi-channel
+"""RTIO driver for the Analog Devices AD53[67][0123] family of multi-channel
 Digital to Analog Converters.
 
 Output event replacement is not supported and issuing commands at the same
-time is an error.
+time results in a collision error.
 """
 
 # Designed from the data sheets and somewhat after the linux kernel
@@ -131,10 +131,10 @@ class AD53xx:
       optimized for speed; datasheet says t22: 25ns min SCLK edge to SDO
       valid, and suggests the SPI speed for reads should be <=20 MHz)
     :param vref: DAC reference voltage (default: 5.)
-    :param offset_dacs: Initial register value for the two offset DACs, device
-      dependent and must be set correctly for correct voltage to mu
-      conversions. Knowledge of his state is not transferred between
-      experiments. (default: 8192)
+    :param offset_dacs: Initial register value for the two offset DACs 
+      (default: 8192). Device dependent and must be set correctly for 
+      correct voltage-to-mu conversions. Knowledge of this state is 
+      not transferred between experiments.
     :param core_device: Core device name (default: "core")
     """
     kernel_invariants = {"bus", "ldac", "clr", "chip_select", "div_write",
@@ -202,7 +202,7 @@ class AD53xx:
         :param op: Operation to perform, one of :const:`AD53XX_READ_X1A`,
           :const:`AD53XX_READ_X1B`, :const:`AD53XX_READ_OFFSET`,
           :const:`AD53XX_READ_GAIN` etc. (default: :const:`AD53XX_READ_X1A`).
-        :return: The 16 bit register value
+        :return: The 16-bit register value
         """
         self.bus.write(ad53xx_cmd_read_ch(channel, op) << 8)
         self.bus.set_config_mu(SPI_AD53XX_CONFIG | spi.SPI_INPUT, 24,
@@ -309,7 +309,7 @@ class AD53xx:
 
         This method does not advance the timeline; write events are scheduled
         in the past. The DACs will synchronously start changing their output
-        levels `now`.
+        levels ``now``.
 
         If no LDAC device was defined, the LDAC pulse is skipped.
 
@@ -364,8 +364,8 @@ class AD53xx:
         high) can be calibrated in this fashion.
 
         :param channel: The number of the calibrated channel
-        :params vzs: Measured voltage with the DAC set to zero-scale (0x0000)
-        :params vfs: Measured voltage with the DAC set to full-scale (0xffff)
+        :param vzs: Measured voltage with the DAC set to zero-scale (0x0000)
+        :param vfs: Measured voltage with the DAC set to full-scale (0xffff)
         """
         offset_err = voltage_to_mu(vzs, self.offset_dacs, self.vref)
         gain_err = voltage_to_mu(vfs, self.offset_dacs, self.vref) - (

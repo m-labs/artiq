@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from artiq.gui import applets
 
@@ -13,58 +13,58 @@ class AppletsCCBDock(applets.AppletsDock):
     def __init__(self, *args, **kwargs):
         applets.AppletsDock.__init__(self, *args, **kwargs)
 
-        sep = QtWidgets.QAction(self.table)
+        sep = QtGui.QAction(self.table)
         sep.setSeparator(True)
         self.table.addAction(sep)
 
-        ccbp_group_menu = QtWidgets.QMenu()
-        actiongroup = QtWidgets.QActionGroup(self.table)
+        ccbp_group_menu = QtWidgets.QMenu(self.table)
+        actiongroup = QtGui.QActionGroup(self.table)
         actiongroup.setExclusive(True)
-        self.ccbp_group_none = QtWidgets.QAction("No policy", self.table)
+        self.ccbp_group_none = QtGui.QAction("No policy", self.table)
         self.ccbp_group_none.setCheckable(True)
         self.ccbp_group_none.triggered.connect(lambda: self.set_ccbp(""))
         ccbp_group_menu.addAction(self.ccbp_group_none)
         actiongroup.addAction(self.ccbp_group_none)
-        self.ccbp_group_ignore = QtWidgets.QAction("Ignore requests", self.table)
+        self.ccbp_group_ignore = QtGui.QAction("Ignore requests", self.table)
         self.ccbp_group_ignore.setCheckable(True)
         self.ccbp_group_ignore.triggered.connect(lambda: self.set_ccbp("ignore"))
         ccbp_group_menu.addAction(self.ccbp_group_ignore)
         actiongroup.addAction(self.ccbp_group_ignore)
-        self.ccbp_group_create = QtWidgets.QAction("Create applets", self.table)
+        self.ccbp_group_create = QtGui.QAction("Create applets", self.table)
         self.ccbp_group_create.setCheckable(True)
         self.ccbp_group_create.triggered.connect(lambda: self.set_ccbp("create"))
         ccbp_group_menu.addAction(self.ccbp_group_create)
         actiongroup.addAction(self.ccbp_group_create)
-        self.ccbp_group_enable = QtWidgets.QAction("Create and enable/disable applets",
-                                                   self.table)
+        self.ccbp_group_enable = QtGui.QAction("Create and enable/disable applets",
+                                               self.table)
         self.ccbp_group_enable.setCheckable(True)
         self.ccbp_group_enable.triggered.connect(lambda: self.set_ccbp("enable"))
         ccbp_group_menu.addAction(self.ccbp_group_enable)
         actiongroup.addAction(self.ccbp_group_enable)
-        self.ccbp_group_action = QtWidgets.QAction("Group CCB policy", self.table)
+        self.ccbp_group_action = QtGui.QAction("Group CCB policy", self.table)
         self.ccbp_group_action.setMenu(ccbp_group_menu)
         self.table.addAction(self.ccbp_group_action)
         self.table.itemSelectionChanged.connect(self.update_group_ccbp_menu)
         self.update_group_ccbp_menu()
 
-        ccbp_global_menu = QtWidgets.QMenu()
-        actiongroup = QtWidgets.QActionGroup(self.table)
+        ccbp_global_menu = QtWidgets.QMenu(self.table)
+        actiongroup = QtGui.QActionGroup(self.table)
         actiongroup.setExclusive(True)
-        self.ccbp_global_ignore = QtWidgets.QAction("Ignore requests", self.table)
+        self.ccbp_global_ignore = QtGui.QAction("Ignore requests", self.table)
         self.ccbp_global_ignore.setCheckable(True)
         ccbp_global_menu.addAction(self.ccbp_global_ignore)
         actiongroup.addAction(self.ccbp_global_ignore)
-        self.ccbp_global_create = QtWidgets.QAction("Create applets", self.table)
+        self.ccbp_global_create = QtGui.QAction("Create applets", self.table)
         self.ccbp_global_create.setCheckable(True)
         self.ccbp_global_create.setChecked(True)
         ccbp_global_menu.addAction(self.ccbp_global_create)
         actiongroup.addAction(self.ccbp_global_create)
-        self.ccbp_global_enable = QtWidgets.QAction("Create and enable/disable applets",
-                                                    self.table)
+        self.ccbp_global_enable = QtGui.QAction("Create and enable/disable applets",
+                                                self.table)
         self.ccbp_global_enable.setCheckable(True)
         ccbp_global_menu.addAction(self.ccbp_global_enable)
         actiongroup.addAction(self.ccbp_global_enable)
-        ccbp_global_action = QtWidgets.QAction("Global CCB policy", self.table)
+        ccbp_global_action = QtGui.QAction("Global CCB policy", self.table)
         ccbp_global_action.setMenu(ccbp_global_menu)
         self.table.addAction(ccbp_global_action)
 
@@ -196,7 +196,7 @@ class AppletsCCBDock(applets.AppletsDock):
                 logger.debug("Applet %s already exists and no update required", name)
 
         if ccbp == "enable":
-            applet.setCheckState(0, QtCore.Qt.Checked)
+            applet.setCheckState(0, QtCore.Qt.CheckState.Checked)
 
     def ccb_disable_applet(self, name, group=None):
         """Disables an applet.
@@ -216,7 +216,7 @@ class AppletsCCBDock(applets.AppletsDock):
             return
         parent, applet = self.locate_applet(name, group, False)
         if applet is not None:
-            applet.setCheckState(0, QtCore.Qt.Unchecked)
+            applet.setCheckState(0, QtCore.Qt.CheckState.Unchecked)
 
     def ccb_disable_applet_group(self, group):
         """Disables all the applets in a group.
@@ -246,7 +246,7 @@ class AppletsCCBDock(applets.AppletsDock):
                 return
             else:
                 wi = nwi
-        wi.setCheckState(0, QtCore.Qt.Unchecked)
+        wi.setCheckState(0, QtCore.Qt.CheckState.Unchecked)
 
     def ccb_notify(self, message):
         try:

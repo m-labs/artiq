@@ -2,7 +2,7 @@ import logging
 from collections import OrderedDict
 from functools import partial
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 from artiq.gui.tools import LayoutWidget, disable_scroll_wheel, WheelFilter
 from artiq.gui.scanwidget import ScanWidget
@@ -23,13 +23,13 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
             set_resize_mode = self.header().setSectionResizeMode
         else:
             set_resize_mode = self.header().setResizeMode
-        set_resize_mode(0, QtWidgets.QHeaderView.ResizeToContents)
-        set_resize_mode(1, QtWidgets.QHeaderView.Stretch)
-        set_resize_mode(2, QtWidgets.QHeaderView.ResizeToContents)
+        set_resize_mode(0, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        set_resize_mode(1, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        set_resize_mode(2, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
         self.header().setVisible(False)
-        self.setSelectionMode(self.NoSelection)
-        self.setHorizontalScrollMode(self.ScrollPerPixel)
-        self.setVerticalScrollMode(self.ScrollPerPixel)
+        self.setSelectionMode(self.SelectionMode.NoSelection)
+        self.setHorizontalScrollMode(self.ScrollMode.ScrollPerPixel)
+        self.setVerticalScrollMode(self.ScrollMode.ScrollPerPixel)
 
         self.setStyleSheet("QTreeWidget {background: " +
                            self.palette().midlight().color().name() + " ;}")
@@ -82,14 +82,14 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
         reset_entry.setToolTip("Reset to default value")
         reset_entry.setIcon(
             QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_BrowserReload))
+                QtWidgets.QStyle.StandardPixmap.SP_BrowserReload))
         reset_entry.clicked.connect(partial(self.reset_entry, key))
 
         disable_other_scans = QtWidgets.QToolButton()
         widgets["disable_other_scans"] = disable_other_scans
         disable_other_scans.setIcon(
             QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_DialogResetButton))
+                QtWidgets.QStyle.StandardPixmap.SP_DialogResetButton))
         disable_other_scans.setToolTip("Disable other scans")
         disable_other_scans.clicked.connect(
             partial(self._disable_other_scans, key))
@@ -109,7 +109,6 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
         group = QtWidgets.QTreeWidgetItem([key])
         for col in range(3):
             group.setBackground(col, self.palette().mid())
-            group.setForeground(col, self.palette().brightText())
             font = group.font(col)
             font.setBold(True)
             group.setFont(col, font)
@@ -540,7 +539,8 @@ class _ExplicitScan(LayoutWidget):
 
         float_regexp = r"(([+-]?\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?)"
         regexp = "(float)?( +float)* *".replace("float", float_regexp)
-        self.value.setValidator(QtGui.QRegExpValidator(QtCore.QRegExp(regexp)))
+        self.value.setValidator(QtGui.QRegularExpressionValidator(
+            QtCore.QRegularExpression(regexp)))
 
         self.value.setText(" ".join([str(x) for x in state["sequence"]]))
         def update(text):

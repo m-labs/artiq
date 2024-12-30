@@ -114,27 +114,27 @@ class AD9910:
         (as configured through CFG_MASK_NU), 4-7 for individual channels.
     :param cpld_device: Name of the Urukul CPLD this device is on.
     :param sw_device: Name of the RF switch device. The RF switch is a
-        TTLOut channel available as the :attr:`sw` attribute of this instance.
+        TTLOut channel available as the ``sw`` attribute of this instance.
     :param pll_n: DDS PLL multiplier. The DDS sample clock is
-        f_ref/clk_div*pll_n where f_ref is the reference frequency and
-        clk_div is the reference clock divider (both set in the parent
+        ``f_ref / clk_div * pll_n`` where ``f_ref`` is the reference frequency and
+        ``clk_div`` is the reference clock divider (both set in the parent
         Urukul CPLD instance).
     :param pll_en: PLL enable bit, set to 0 to bypass PLL (default: 1).
         Note that when bypassing the PLL the red front panel LED may remain on.
     :param pll_cp: DDS PLL charge pump setting.
     :param pll_vco: DDS PLL VCO range selection.
-    :param sync_delay_seed: SYNC_IN delay tuning starting value.
-        To stabilize the SYNC_IN delay tuning, run :meth:`tune_sync_delay` once
+    :param sync_delay_seed: ``SYNC_IN`` delay tuning starting value.
+        To stabilize the ``SYNC_IN`` delay tuning, run :meth:`tune_sync_delay` once
         and set this to the delay tap number returned (default: -1 to signal no
         synchronization and no tuning during :meth:`init`).
-        Can be a string of the form "eeprom_device:byte_offset" to read the
-        value from a I2C EEPROM; in which case, `io_update_delay` must be set
+        Can be a string of the form ``eeprom_device:byte_offset`` to read the
+        value from a I2C EEPROM, in which case ``io_update_delay`` must be set
         to the same string value.
-    :param io_update_delay: IO_UPDATE pulse alignment delay.
-        To align IO_UPDATE to SYNC_CLK, run :meth:`tune_io_update_delay` and
+    :param io_update_delay: ``IO_UPDATE`` pulse alignment delay.
+        To align ``IO_UPDATE`` to ``SYNC_CLK``, run :meth:`tune_io_update_delay` and
         set this to the delay tap number returned.
-        Can be a string of the form "eeprom_device:byte_offset" to read the
-        value from a I2C EEPROM; in which case, `sync_delay_seed` must be set
+        Can be a string of the form ``eeprom_device:byte_offset`` to read the
+        value from a I2C EEPROM, in which case ``sync_delay_seed`` must be set
         to the same string value.
     """
 
@@ -188,16 +188,14 @@ class AD9910:
 
     @kernel
     def set_phase_mode(self, phase_mode: TInt32):
-        r"""Set the default phase mode.
-
-        for future calls to :meth:`set` and
+        r"""Set the default phase mode for future calls to :meth:`set` and
         :meth:`set_mu`. Supported phase modes are:
 
         * :const:`PHASE_MODE_CONTINUOUS`: the phase accumulator is unchanged
           when changing frequency or phase. The DDS phase is the sum of the
           phase accumulator and the phase offset. The only discontinuous
           changes in the DDS output phase come from changes to the phase
-          offset. This mode is also knows as "relative phase mode".
+          offset. This mode is also known as "relative phase mode".
           :math:`\phi(t) = q(t^\prime) + p + (t - t^\prime) f`
 
         * :const:`PHASE_MODE_ABSOLUTE`: the phase accumulator is reset when
@@ -233,7 +231,7 @@ class AD9910:
 
     @kernel
     def write16(self, addr: TInt32, data: TInt32):
-        """Write to 16 bit register.
+        """Write to 16-bit register.
 
         :param addr: Register address
         :param data: Data to be written
@@ -244,7 +242,7 @@ class AD9910:
 
     @kernel
     def write32(self, addr: TInt32, data: TInt32):
-        """Write to 32 bit register.
+        """Write to 32-bit register.
 
         :param addr: Register address
         :param data: Data to be written
@@ -258,7 +256,7 @@ class AD9910:
 
     @kernel
     def read16(self, addr: TInt32) -> TInt32:
-        """Read from 16 bit register.
+        """Read from 16-bit register.
 
         :param addr: Register address
         """
@@ -273,7 +271,7 @@ class AD9910:
 
     @kernel
     def read32(self, addr: TInt32) -> TInt32:
-        """Read from 32 bit register.
+        """Read from 32-bit register.
 
         :param addr: Register address
         """
@@ -288,10 +286,10 @@ class AD9910:
 
     @kernel
     def read64(self, addr: TInt32) -> TInt64:
-        """Read from 64 bit register.
+        """Read from 64-bit register.
 
         :param addr: Register address
-        :return: 64 bit integer register value
+        :return: 64-bit integer register value
         """
         self.bus.set_config_mu(
             urukul.SPI_CONFIG, 8,
@@ -311,10 +309,10 @@ class AD9910:
 
     @kernel
     def write64(self, addr: TInt32, data_high: TInt32, data_low: TInt32):
-        """Write to 64 bit register.
+        """Write to 64-bit register.
 
         :param addr: Register address
-        :param data_high: High (MSB) 32 bits of the data
+        :param data_high: High (MSB) 32 data bits 
         :param data_low: Low (LSB) 32 data bits
         """
         self.bus.set_config_mu(urukul.SPI_CONFIG, 8,
@@ -332,8 +330,9 @@ class AD9910:
         """Write data to RAM.
 
         The profile to write to and the step, start, and end address
-        need to be configured before and separately using
-        :meth:`set_profile_ram` and the parent CPLD `set_profile`.
+        need to be configured in advance and separately using
+        :meth:`set_profile_ram` and the parent CPLD
+        :meth:`~artiq.coredevice.urukul.CPLD.set_profile`.
 
         :param data: Data to be written to RAM.
         """
@@ -354,7 +353,8 @@ class AD9910:
 
         The profile to read from and the step, start, and end address
         need to be configured before and separately using
-        :meth:`set_profile_ram` and the parent CPLD `set_profile`.
+        :meth:`set_profile_ram` and the parent CPLD 
+        :meth:`~artiq.coredevice.urukul.CPLD.set_profile`.
 
         :param data: List to be filled with data read from RAM.
         """
@@ -390,9 +390,9 @@ class AD9910:
                  manual_osk_external: TInt32 = 0,
                  osk_enable: TInt32 = 0,
                  select_auto_osk: TInt32 = 0):
-        """Set CFR1. See the AD9910 datasheet for parameter meanings.
+        """Set CFR1. See the AD9910 datasheet for parameter meanings and sizes.
 
-        This method does not pulse IO_UPDATE.
+        This method does not pulse ``IO_UPDATE.``
 
         :param power_down: Power down bits.
         :param phase_autoclear: Autoclear phase accumulator.
@@ -429,9 +429,9 @@ class AD9910:
                  effective_ftw: TInt32 = 1,
                  sync_validation_disable: TInt32 = 0, 
                  matched_latency_enable: TInt32 = 0):
-        """Set CFR2. See the AD9910 datasheet for parameter meanings.
+        """Set CFR2. See the AD9910 datasheet for parameter meanings and sizes.
 
-        This method does not pulse IO_UPDATE.
+        This method does not pulse ``IO_UPDATE``.
 
         :param asf_profile_enable: Enable amplitude scale from single tone profiles.
         :param drg_enable: Digital ramp enable.
@@ -456,14 +456,14 @@ class AD9910:
         """Initialize and configure the DDS.
 
         Sets up SPI mode, confirms chip presence, powers down unused blocks,
-        configures the PLL, waits for PLL lock. Uses the
-        IO_UPDATE signal multiple times.
+        configures the PLL, waits for PLL lock. Uses the ``IO_UPDATE`` 
+        signal multiple times.
 
         :param blind: Do not read back DDS identity and do not wait for lock.
         """
         self.sync_data.init()
         if self.sync_data.sync_delay_seed >= 0 and not self.cpld.sync_div:
-            raise ValueError("parent cpld does not drive SYNC")
+            raise ValueError("parent CPLD does not drive SYNC")
         if self.sync_data.sync_delay_seed >= 0:
             if self.sysclk_per_mu != self.sysclk * self.core.ref_period:
                 raise ValueError("incorrect clock ratio for synchronization")
@@ -514,7 +514,7 @@ class AD9910:
     def power_down(self, bits: TInt32 = 0b1111):
         """Power down DDS.
 
-        :param bits: Power down bits, see datasheet
+        :param bits: Power-down bits, see datasheet
         """
         self.set_cfr1(power_down=bits)
         self.cpld.io_update.pulse(1 * us)
@@ -534,23 +534,23 @@ class AD9910:
         After the SPI transfer, the shared IO update pin is pulsed to
         activate the data.
 
-        .. seealso: :meth:`set_phase_mode` for a definition of the different
+        .. seealso: :meth:`AD9910.set_phase_mode` for a definition of the different
             phase modes.
 
-        :param ftw: Frequency tuning word: 32 bit.
-        :param pow_: Phase tuning word: 16 bit unsigned.
-        :param asf: Amplitude scale factor: 14 bit unsigned.
+        :param ftw: Frequency tuning word: 32-bit.
+        :param pow_: Phase tuning word: 16-bit unsigned.
+        :param asf: Amplitude scale factor: 14-bit unsigned.
         :param phase_mode: If specified, overrides the default phase mode set
             by :meth:`set_phase_mode` for this call.
         :param ref_time_mu: Fiducial time used to compute absolute or tracking
-            phase updates. In machine units as obtained by `now_mu()`.
+            phase updates. In machine units as obtained by :meth:`~artiq.language.core.now_mu()`.
         :param profile: Single tone profile number to set (0-7, default: 7).
-            Ineffective if `ram_destination` is specified.
+            Ineffective if ``ram_destination`` is specified.
         :param ram_destination: RAM destination (:const:`RAM_DEST_FTW`,
             :const:`RAM_DEST_POW`, :const:`RAM_DEST_ASF`,
             :const:`RAM_DEST_POWASF`). If specified, write free DDS parameters
             to the ASF/FTW/POW registers instead of to the single tone profile
-            register (default behaviour, see `profile`).
+            register (default behaviour, see ``profile``).
         :return: Resulting phase offset word after application of phase
             tracking offset. When using :const:`PHASE_MODE_CONTINUOUS` in
             subsequent calls, use this value as the "current" phase.
@@ -598,10 +598,10 @@ class AD9910:
         """Get the frequency tuning word, phase offset word,
         and amplitude scale factor.
 
-        .. seealso:: :meth:`get`
+        See also :meth:`AD9910.get`.
 
         :param profile: Profile number to get (0-7, default: 7)
-        :return: A tuple ``(ftw, pow, asf)``
+        :return: A tuple (FTW, POW, ASF)
         """
 
         # Read data
@@ -617,12 +617,12 @@ class AD9910:
                         profile: TInt32 = _DEFAULT_PROFILE_RAM,
                         nodwell_high: TInt32 = 0, zero_crossing: TInt32 = 0,
                         mode: TInt32 = 1):
-        """Set the RAM profile settings.
+        """Set the RAM profile settings. See also AD9910 datasheet.
 
-        :param start: Profile start address in RAM.
-        :param end: Profile end address in RAM (last address).
-        :param step: Profile time step in units of t_DDS, typically 4 ns
-            (default: 1).
+        :param start: Profile start address in RAM (10-bit).
+        :param end: Profile end address in RAM, inclusive (10-bit).
+        :param step: Profile time step, counted in DDS sample clock
+            cycles, typically 4 ns (16-bit, default: 1)
         :param profile: Profile index (0 to 7) (default: 0).
         :param nodwell_high: No-dwell high bit (default: 0,
             see AD9910 documentation).
@@ -850,7 +850,7 @@ class AD9910:
             ram_destination: TInt32 = -1) -> TFloat:
         """Set DDS data in SI units.
 
-        .. seealso:: :meth:`set_mu`
+        See also :meth:`AD9910.set_mu`.
 
         :param frequency: Frequency in Hz
         :param phase: Phase tuning word in turns
@@ -871,10 +871,10 @@ class AD9910:
             ) -> TTuple([TFloat, TFloat, TFloat]):
         """Get the frequency, phase, and amplitude.
 
-        .. seealso:: :meth:`get_mu`
+        See also :meth:`AD9910.get_mu`.
 
         :param profile: Profile number to get (0-7, default: 7)
-        :return: A tuple ``(frequency, phase, amplitude)``
+        :return: A tuple (frequency, phase, amplitude)
         """
 
         # Get values
@@ -887,11 +887,10 @@ class AD9910:
     def set_att_mu(self, att: TInt32):
         """Set digital step attenuator in machine units.
 
-        This method will write the attenuator settings of all four channels.
+        This method will write the attenuator settings of all four channels. See also
+        :meth:`CPLD.get_channel_att <artiq.coredevice.urukul.CPLD.set_att_mu>`.
 
-        .. seealso:: :meth:`artiq.coredevice.urukul.CPLD.set_att_mu`
-
-        :param att: Attenuation setting, 8 bit digital.
+        :param att: Attenuation setting, 8-bit digital.
         """
         self.cpld.set_att_mu(self.chip_select - 4, att)
 
@@ -899,9 +898,8 @@ class AD9910:
     def set_att(self, att: TFloat):
         """Set digital step attenuator in SI units.
 
-        This method will write the attenuator settings of all four channels.
-
-        .. seealso:: :meth:`artiq.coredevice.urukul.CPLD.set_att`
+        This method will write the attenuator settings of all four channels. See also 
+        :meth:`CPLD.get_channel_att <artiq.coredevice.urukul.CPLD.set_att>`.
 
         :param att: Attenuation in dB.
         """
@@ -909,19 +907,17 @@ class AD9910:
 
     @kernel
     def get_att_mu(self) -> TInt32:
-        """Get digital step attenuator value in machine units.
+        """Get digital step attenuator value in machine units. See also
+        :meth:`CPLD.get_channel_att <artiq.coredevice.urukul.CPLD.get_channel_att_mu>`.
 
-        .. seealso:: :meth:`artiq.coredevice.urukul.CPLD.get_channel_att_mu`
-
-        :return: Attenuation setting, 8 bit digital.
+        :return: Attenuation setting, 8-bit digital.
         """
         return self.cpld.get_channel_att_mu(self.chip_select - 4)
 
     @kernel
     def get_att(self) -> TFloat:
-        """Get digital step attenuator value in SI units.
-
-        .. seealso:: :meth:`artiq.coredevice.urukul.CPLD.get_channel_att`
+        """Get digital step attenuator value in SI units. See also 
+        :meth:`CPLD.get_channel_att <artiq.coredevice.urukul.CPLD.get_channel_att>`.
 
         :return: Attenuation in dB.
         """
@@ -943,16 +939,16 @@ class AD9910:
                  window: TInt32, 
                  en_sync_gen: TInt32 = 0):
         """Set the relevant parameters in the multi device synchronization
-        register. See the AD9910 datasheet for details. The SYNC clock
-        generator preset value is set to zero, and the SYNC_OUT generator is
+        register. See the AD9910 datasheet for details. The ``SYNC`` clock
+        generator preset value is set to zero, and the ``SYNC_OUT`` generator is
         disabled by default.
 
-        :param in_delay: SYNC_IN delay tap (0-31) in steps of ~75ps
-        :param window: Symmetric SYNC_IN validation window (0-15) in
+        :param in_delay: ``SYNC_IN`` delay tap (0-31) in steps of ~75ps
+        :param window: Symmetric ``SYNC_IN`` validation window (0-15) in
             steps of ~75ps for both hold and setup margin.
         :param en_sync_gen: Whether to enable the DDS-internal sync generator
-            (SYNC_OUT, cf. sync_sel == 1). Should be left off for the normal
-            use case, where the SYNC clock is supplied by the core device.
+            (``SYNC_OUT``, cf. ``sync_sel == 1``). Should be left off for the normal
+            use case, where the ``SYNC`` clock is supplied by the core device.
         """
         self.write32(_AD9910_REG_SYNC,
                      (window << 28) |  # SYNC S/H validation delay
@@ -965,9 +961,9 @@ class AD9910:
 
     @kernel
     def clear_smp_err(self):
-        """Clear the SMP_ERR flag and enables SMP_ERR validity monitoring.
+        """Clear the ``SMP_ERR`` flag and enables ``SMP_ERR`` validity monitoring.
 
-        Violations of the SYNC_IN sample and hold margins will result in
+        Violations of the ``SYNC_IN`` sample and hold margins will result in
         SMP_ERR being asserted. This then also activates the red LED on
         the respective Urukul channel.
 
@@ -982,9 +978,9 @@ class AD9910:
     @kernel
     def tune_sync_delay(self,
                         search_seed: TInt32 = 15) -> TTuple([TInt32, TInt32]):
-        """Find a stable SYNC_IN delay.
+        """Find a stable ``SYNC_IN`` delay.
 
-        This method first locates a valid SYNC_IN delay at zero validation
+        This method first locates a valid ``SYNC_IN`` delay at zero validation
         window size (setup/hold margin) by scanning around `search_seed`. It
         then looks for similar valid delays at successively larger validation
         window sizes until none can be found. It then decreases the validation
@@ -993,7 +989,7 @@ class AD9910:
 
         This method and :meth:`tune_io_update_delay` can be run in any order.
 
-        :param search_seed: Start value for valid SYNC_IN delay search.
+        :param search_seed: Start value for valid ``SYNC_IN`` delay search.
             Defaults to 15 (half range).
         :return: Tuple of optimal delay and window size.
         """
@@ -1040,16 +1036,16 @@ class AD9910:
     def measure_io_update_alignment(self, delay_start: TInt64,
                                     delay_stop: TInt64) -> TInt32:
         """Use the digital ramp generator to locate the alignment between
-        IO_UPDATE and SYNC_CLK.
+        ``IO_UPDATE`` and ``SYNC_CLK``.
 
         The ramp generator is set up to a linear frequency ramp
-        (dFTW/t_SYNC_CLK=1) and started at a coarse RTIO time stamp plus
-        `delay_start` and stopped at a coarse RTIO time stamp plus
-        `delay_stop`.
+        ``(dFTW/t_SYNC_CLK=1)`` and started at a coarse RTIO time stamp plus
+        ``delay_start`` and stopped at a coarse RTIO time stamp plus
+        ``delay_stop``.
 
-        :param delay_start: Start IO_UPDATE delay in machine units.
-        :param delay_stop: Stop IO_UPDATE delay in machine units.
-        :return: Odd/even SYNC_CLK cycle indicator.
+        :param delay_start: Start ``IO_UPDATE`` delay in machine units.
+        :param delay_stop: Stop ``IO_UPDATE`` delay in machine units.
+        :return: Odd/even ``SYNC_CLK`` cycle indicator.
         """
         # set up DRG
         self.set_cfr1(drg_load_lrr=1, drg_autoclear=1)
@@ -1081,19 +1077,19 @@ class AD9910:
 
     @kernel
     def tune_io_update_delay(self) -> TInt32:
-        """Find a stable IO_UPDATE delay alignment.
+        """Find a stable ``IO_UPDATE`` delay alignment.
 
-        Scan through increasing IO_UPDATE delays until a delay is found that
-        lets IO_UPDATE be registered in the next SYNC_CLK cycle. Return a
-        IO_UPDATE delay that is as far away from that SYNC_CLK edge
+        Scan through increasing ``IO_UPDATE`` delays until a delay is found that
+        lets ``IO_UPDATE`` be registered in the next ``SYNC_CLK`` cycle. Return a
+        ``IO_UPDATE`` delay that is as far away from that ``SYNC_CLK`` edge
         as possible.
 
-        This method assumes that the IO_UPDATE TTLOut device has one machine
+        This method assumes that the ``IO_UPDATE`` TTLOut device has one machine
         unit resolution (SERDES).
 
         This method and :meth:`tune_sync_delay` can be run in any order.
 
-        :return: Stable IO_UPDATE delay to be passed to the constructor
+        :return: Stable ``IO_UPDATE`` delay to be passed to the constructor
             :class:`AD9910` via the device database.
         """
         period = self.sysclk_per_mu * 4  # SYNC_CLK period

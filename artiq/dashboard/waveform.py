@@ -5,7 +5,7 @@ import bisect
 import itertools
 import math
 
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt6 import QtCore, QtWidgets, QtGui
 
 import pyqtgraph as pg
 import numpy as np
@@ -130,7 +130,7 @@ class _BaseWaveform(pg.PlotWidget):
         self.setMinimumHeight(WAVEFORM_MIN_HEIGHT)
         self.setMaximumHeight(WAVEFORM_MAX_HEIGHT)
         self.setMenuEnabled(False)
-        self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
 
         self.name = name
         self.width = width
@@ -200,24 +200,27 @@ class _BaseWaveform(pg.PlotWidget):
             self.cursor_y = self.y_data[ind]
 
     def mouseMoveEvent(self, e):
-        if e.buttons() == QtCore.Qt.LeftButton \
-           and e.modifiers() == QtCore.Qt.ShiftModifier:
+        if e.buttons() == QtCore.Qt.MouseButton.LeftButton \
+           and e.modifiers() == QtCore.Qt.KeyboardModifier.ShiftModifier:
             drag = QtGui.QDrag(self)
             mime = QtCore.QMimeData()
             drag.setMimeData(mime)
             pixmapi = QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_FileIcon)
+                QtWidgets.QStyle.StandardPixmap.SP_FileIcon)
             drag.setPixmap(pixmapi.pixmap(32))
-            drag.exec_(QtCore.Qt.MoveAction)
+            drag.exec(QtCore.Qt.DropAction.MoveAction)
         else:
             super().mouseMoveEvent(e)
 
     def wheelEvent(self, e):
-        if e.modifiers() & QtCore.Qt.ControlModifier:
+        if e.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier:
             super().wheelEvent(e)
+        else:
+            e.ignore()
+
 
     def mouseDoubleClickEvent(self, e):
-        pos = self.view_box.mapSceneToView(e.pos())
+        pos = self.view_box.mapSceneToView(e.position())
         self.cursorMove.emit(pos.x())
 
 
@@ -393,6 +396,13 @@ class LogWaveform(_BaseWaveform):
             self.plot_data_item.setData(x=[], y=[])
 
 
+# pg.GraphicsView ignores dragEnterEvent but not dragLeaveEvent
+# https://github.com/pyqtgraph/pyqtgraph/blob/1e98704eac6b85de9c35371079f561042e88ad68/pyqtgraph/widgets/GraphicsView.py#L388
+class _RefAxis(pg.PlotWidget):
+    def dragLeaveEvent(self, ev):
+        ev.ignore()
+
+
 class _WaveformView(QtWidgets.QWidget):
     cursorMove = QtCore.pyqtSignal(float)
 
@@ -408,7 +418,7 @@ class _WaveformView(QtWidgets.QWidget):
         layout.setSpacing(0)
         self.setLayout(layout)
 
-        self._ref_axis = pg.PlotWidget()
+        self._ref_axis = _RefAxis()
         self._ref_axis.hideAxis("bottom")
         self._ref_axis.hideAxis("left")
         self._ref_axis.hideButtons()
@@ -428,8 +438,9 @@ class _WaveformView(QtWidgets.QWidget):
         scroll_area = VDragScrollArea(self)
         scroll_area.setWidgetResizable(True)
         scroll_area.setContentsMargins(0, 0, 0, 0)
-        scroll_area.setFrameShape(QtWidgets.QFrame.NoFrame)
-        scroll_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        scroll_area.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
+        scroll_area.setVerticalScrollBarPolicy(
+            QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         layout.addWidget(scroll_area)
 
         self._splitter = VDragDropSplitter(parent=scroll_area)
@@ -444,10 +455,11 @@ class _WaveformView(QtWidgets.QWidget):
         )
         self.confirm_delete_dialog.setText("Delete all waveforms?")
         self.confirm_delete_dialog.setStandardButtons(
-            QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel
+            QtWidgets.QMessageBox.StandardButton.Ok | 
+            QtWidgets.QMessageBox.StandardButton.Cancel
         )
         self.confirm_delete_dialog.setDefaultButton(
-            QtWidgets.QMessageBox.Ok
+            QtWidgets.QMessageBox.StandardButton.Ok
         )
 
     def setModel(self, model):
@@ -519,10 +531,10 @@ class _WaveformView(QtWidgets.QWidget):
         w.setStoppedX(self._stopped_x)
         w.cursorMove.connect(self.cursorMove)
         w.onCursorMove(self._cursor_x)
-        action = QtWidgets.QAction("Delete waveform", w)
+        action = QtGui.QAction("Delete waveform", w)
         action.triggered.connect(lambda: self._delete_waveform(w))
         w.addAction(action)
-        action = QtWidgets.QAction("Delete all waveforms", w)
+        action = QtGui.QAction("Delete all waveforms", w)
         action.triggered.connect(self.confirm_delete_dialog.open)
         w.addAction(action)
         return w
@@ -548,7 +560,7 @@ class _WaveformModel(QtCore.QAbstractTableModel):
     def columnCount(self, parent=QtCore.QModelIndex()):
         return len(self.headers)
 
-    def data(self, index, role=QtCore.Qt.DisplayRole):
+    def data(self, index, role=QtCore.Qt.ItemDataRole.DisplayRole):
         if index.isValid():
             return self.backing_struct[index.row()][index.column()]
         return None
@@ -656,7 +668,7 @@ class Model(DictSyncTreeSepModel):
 class _AddChannelDialog(QtWidgets.QDialog):
     def __init__(self, parent, model):
         QtWidgets.QDialog.__init__(self, parent=parent)
-        self.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        self.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
         self.setWindowTitle("Add channels")
 
         layout = QtWidgets.QVBoxLayout()
@@ -666,14 +678,14 @@ class _AddChannelDialog(QtWidgets.QDialog):
         self._tree_view = QtWidgets.QTreeView()
         self._tree_view.setHeaderHidden(True)
         self._tree_view.setSelectionBehavior(
-            QtWidgets.QAbstractItemView.SelectItems)
+            QtWidgets.QAbstractItemView.SelectionBehavior.SelectItems)
         self._tree_view.setSelectionMode(
-            QtWidgets.QAbstractItemView.ExtendedSelection)
+            QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection)
         self._tree_view.setModel(self._model)
         layout.addWidget(self._tree_view)
 
         self._button_box = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+            QtWidgets.QDialogButtonBox.StandardButton.Ok | QtWidgets.QDialogButtonBox.StandardButton.Cancel
         )
         self._button_box.setCenterButtons(True)
         self._button_box.accepted.connect(self.add_channels)
@@ -696,7 +708,7 @@ class WaveformDock(QtWidgets.QDockWidget):
         QtWidgets.QDockWidget.__init__(self, "Waveform")
         self.setObjectName("Waveform")
         self.setFeatures(
-            QtWidgets.QDockWidget.DockWidgetMovable | QtWidgets.QDockWidget.DockWidgetFloatable)
+            self.DockWidgetFeature.DockWidgetMovable | self.DockWidgetFeature.DockWidgetFloatable)
 
         self._channel_model = Model({})
         self._waveform_model = _WaveformModel()
@@ -724,14 +736,14 @@ class WaveformDock(QtWidgets.QDockWidget):
         self._menu_btn = QtWidgets.QPushButton()
         self._menu_btn.setIcon(
             QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_FileDialogStart))
+                QtWidgets.QStyle.StandardPixmap.SP_FileDialogStart))
         grid.addWidget(self._menu_btn, 0, 0)
 
         self._request_dump_btn = QtWidgets.QToolButton()
         self._request_dump_btn.setToolTip("Fetch analyzer data from device")
         self._request_dump_btn.setIcon(
             QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_BrowserReload))
+                QtWidgets.QStyle.StandardPixmap.SP_BrowserReload))
         self._request_dump_btn.clicked.connect(
             lambda: asyncio.ensure_future(exc_to_warning(self.proxy_client.trigger_proxy_task())))
         grid.addWidget(self._request_dump_btn, 0, 1)
@@ -743,7 +755,7 @@ class WaveformDock(QtWidgets.QDockWidget):
         self._add_btn.setToolTip("Add channels...")
         self._add_btn.setIcon(
             QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_FileDialogListView))
+                QtWidgets.QStyle.StandardPixmap.SP_FileDialogListView))
         self._add_btn.clicked.connect(self._add_channel_dialog.open)
         grid.addWidget(self._add_btn, 0, 2)
 
@@ -763,7 +775,7 @@ class WaveformDock(QtWidgets.QDockWidget):
         self._reset_zoom_btn.setToolTip("Reset zoom")
         self._reset_zoom_btn.setIcon(
             QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_TitleBarMaxButton))
+                QtWidgets.QStyle.StandardPixmap.SP_TitleBarMaxButton))
         self._reset_zoom_btn.clicked.connect(self._waveform_view.resetZoom)
         grid.addWidget(self._reset_zoom_btn, 0, 3)
 
@@ -773,7 +785,7 @@ class WaveformDock(QtWidgets.QDockWidget):
         grid.addWidget(self._cursor_control, 0, 4, colspan=6)
 
     def _add_async_action(self, label, coro):
-        action = QtWidgets.QAction(label, self)
+        action = QtGui.QAction(label, self)
         action.triggered.connect(
             lambda: asyncio.ensure_future(exc_to_warning(coro())))
         self._file_menu.addAction(action)

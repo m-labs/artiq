@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 
 class DoubleClickLineEdit(QtWidgets.QLineEdit):
@@ -56,9 +56,9 @@ class WheelFilter(QtCore.QObject):
         self.ignore_with_modifier = ignore_with_modifier
 
     def eventFilter(self, obj, event):
-        if event.type() != QtCore.QEvent.Wheel:
+        if event.type() != QtCore.QEvent.Type.Wheel:
             return False
-        has_modifier = event.modifiers() != QtCore.Qt.NoModifier
+        has_modifier = event.modifiers() != QtCore.Qt.KeyboardModifier.NoModifier
         if has_modifier == self.ignore_with_modifier:
             event.ignore()
             return True
@@ -66,7 +66,7 @@ class WheelFilter(QtCore.QObject):
 
 
 def disable_scroll_wheel(widget):
-    widget.setFocusPolicy(QtCore.Qt.StrongFocus)
+    widget.setFocusPolicy(QtCore.Qt.FocusPolicy.StrongFocus)
     widget.installEventFilter(WheelFilter(widget))
 
 
@@ -88,11 +88,56 @@ class LayoutWidget(QtWidgets.QWidget):
         self.layout.addWidget(item, row, col, rowspan, colspan)
 
 
+class SelectableColumnTableView(QtWidgets.QTableView):
+    """A QTableView packaged up with a header row context menu that allows users to
+    show/hide columns using checkable entries.
+
+    By default, all columns are shown. If only one shown column remains, the entry is
+    disabled to prevent a situation where no columns are shown, which might be confusing
+    to the user.
+
+    Qt considers whether columns are shown to be part of the header state, i.e. it is
+    included in saveState()/restoreState().
+    """
+
+    def __init__(self):
+        super().__init__()
+
+        self.horizontalHeader().setContextMenuPolicy(
+            QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        self.horizontalHeader().customContextMenuRequested.connect(
+            self.show_header_context_menu)
+
+    def show_header_context_menu(self, pos):
+        menu = QtWidgets.QMenu(self)
+
+        num_columns_total = self.model().columnCount()
+        num_columns_shown = sum(
+            (not self.isColumnHidden(i)) for i in range(num_columns_total))
+        for i in range(num_columns_total):
+            name = self.model().headerData(i, QtCore.Qt.Orientation.Horizontal)
+            action = QtGui.QAction(name, self)
+            action.setCheckable(True)
+
+            is_currently_hidden = self.isColumnHidden(i)
+            action.setChecked(not is_currently_hidden)
+            if not is_currently_hidden:
+                if num_columns_shown == 1:
+                    # Don't allow hiding of the last visible column.
+                    action.setEnabled(False)
+
+            action.triggered.connect(
+                lambda checked, i=i: self.setColumnHidden(i, not checked))
+            menu.addAction(action)
+
+        menu.exec(self.horizontalHeader().mapToGlobal(pos))
+
+
 async def get_open_file_name(parent, caption, dir, filter):
     """like QtWidgets.QFileDialog.getOpenFileName(), but a coroutine"""
     dialog = QtWidgets.QFileDialog(parent, caption, dir, filter)
-    dialog.setFileMode(dialog.ExistingFile)
-    dialog.setAcceptMode(dialog.AcceptOpen)
+    dialog.setFileMode(dialog.FileMode.ExistingFile)
+    dialog.setAcceptMode(dialog.AcceptMode.AcceptOpen)
     fut = asyncio.Future()
 
     def on_accept():
@@ -119,20 +164,3 @@ async def get_save_file_name(parent, caption, dir, filter, suffix=None):
     dialog.open()
     return await fut
 
-
-# Based on:
-# http://stackoverflow.com/questions/250890/using-qsortfilterproxymodel-with-a-tree-model
-class QRecursiveFilterProxyModel(QtCore.QSortFilterProxyModel):
-    def filterAcceptsRow(self, source_row, source_parent):
-        regexp = self.filterRegExp()
-        if not regexp.isEmpty():
-            source_index = self.sourceModel().index(
-                source_row, self.filterKeyColumn(), source_parent)
-            if source_index.isValid():
-                for i in range(self.sourceModel().rowCount(source_index)):
-                    if self.filterAcceptsRow(i, source_index):
-                        return True
-                key = self.sourceModel().data(source_index, self.filterRole())
-                return regexp.indexIn(key) != -1
-        return QtCore.QSortFilterProxyModel.filterAcceptsRow(
-            self, source_row, source_parent)

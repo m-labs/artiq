@@ -57,7 +57,7 @@ impl Sliceable {
         self.data.extend(data);
     }
 
-    get_slice_fn!(get_slice_sat, SAT_PAYLOAD_MAX_SIZE);
+    get_slice_fn!(get_slice_satellite, SAT_PAYLOAD_MAX_SIZE);
     get_slice_fn!(get_slice_master, MASTER_PAYLOAD_MAX_SIZE);
 }
 

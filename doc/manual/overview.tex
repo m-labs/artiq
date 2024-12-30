@@ -1,0 +1,212 @@
+[
+  thin/.style={line width=1.2pt}, % default line thickness
+  thick/.style={line width=1.8pt},
+  % ampersand replacement apparently necessary for sphinx latexpdf output (but not for html!)
+  ampersand replacement=\&
+]
+
+% artiq colors
+\definecolor{brand}{HTML}{715ec7} % 'brand colour' violet
+\definecolor{brand-light}{HTML}{a88cfd} % lighter brand colour
+\definecolor{primary}{HTML}{0d3547}
+\definecolor{secondary}{HTML}{1a6d93}
+\definecolor{dingle}{HTML}{76c5d2}
+\definecolor{rtm}{HTML}{3084bc} % RTM blue
+% other colors used are tikz standard issue
+
+% tikzstyle settings
+\tikzstyle{every node} = [anchor = center, thin, minimum size = 1cm]
+% the every matrix style is odd and can't be overriden (??) so its usefulness is limited
+\tikzstyle{every matrix} = [anchor = north west, rounded corners]
+\tikzstyle{matrices} = [thick, row sep = 0.3cm, column sep=0.3cm]
+\tikzstyle{legend} = [draw = primary, thin, row sep=0.1cm, minimum width = 5cm, column sep = 0.2cm]
+
+% particular node styles
+\tikzstyle{label} = [minimum size = 0.5cm]
+\tikzstyle{single} = [draw = brand, minimum width = 2 cm]
+\tikzstyle{splits} = [draw = brand, rectangle split, solid]
+\tikzstyle{linelabel} = [anchor = west, font=\sc\footnotesize]
+\tikzstyle{colorbox} = [rectangle, very thin, draw=gray, sharp corners, minimum height = 0.4 cm, minimum width = 1.8 cm]
+
+% color coding
+\tikzstyle{line} = [thick]
+\tikzstyle{network} = [line, draw = magenta]
+\tikzstyle{git} = [line, draw = violet]
+\tikzstyle{rtio} = [line, draw = brand-light]
+\tikzstyle{drtio} = [line, draw = blue]
+\tikzstyle{slow} = [line, draw = dingle]
+\tikzstyle{jtag} = [line, draw = gray]
+\tikzstyle{direct} = [line, draw = primary, thin]
+
+\tikzstyle{master} = [draw = purple]
+
+\tikzstyle{host} = [row sep = 0.5 cm, column sep = 0.7 cm]
+\tikzstyle{pc} = [matrices, thin, inner sep = 0.2cm, draw = gray, dashed]
+\tikzstyle{peripheral} = [matrices, draw = secondary]
+\tikzstyle{core} = [matrices, draw = purple]
+
+% PERIPHERALS (SLOW)
+
+\matrix[peripheral](peri-slow) at (0, 15.75)
+{
+  \node[label] (label){Peripherals (slow)};\\
+  \node [splits, rectangle split parts = 4](slow-list){
+    \nodepart{one} Optical translation stages
+    \nodepart{two} Optical rotation stages
+    \nodepart{three} Temperature controllers
+    \nodepart{four} etc...
+  };\\
+};
+
+% OTHER MACHINES
+
+\matrix[pc](comtools) at (6.38, 15.75)
+{
+    \node [splits, rectangle split parts = 3](remote-ctlrs){
+    \nodepart{one} Controller
+    \nodepart{two} Controller
+    \nodepart{three} etc...
+  }; \\
+  \node[single, minimum height = 0.5cm, font=\tt](remote-ctlmgr){
+    artiq\_ctlmgr\textsuperscript{2}
+  }; \\
+};
+
+\node[anchor = north west] (label) at (11, 16) {Client machines, NB: see footnote 1.};
+
+\matrix[pc](clients) at (10.75, 15)
+{
+   \node[single, draw=rtm, solid](remote-repo) {Cloned repository};
+   \&
+    \node [splits, master, rectangle split parts = 2, minimum width = 3 cm](remote-client){
+    \nodepart[font=\tt]{one} artiq\_client
+    \nodepart[font=\tt]{two} artiq\_dashboard
+  };
+  \\
+};
+
+% HOST MACHINE
+
+\matrix[host](host-machine) at (0, 11)
+{
+      \node[font=\tt, single](browser) {artiq\_browser};
+      \&
+      \node[single, master](results){Results};
+      \&
+      \node[splits, rectangle split parts = 2, master](master) {
+        \nodepart[font=\bf]{one} ARTIQ master
+        \nodepart{two} Datasets
+      };
+      \&
+      \node [single, master](repo){Repository};
+      \&
+      \node[font=\tt, single, master](ctlmgr) {artiq\_ctlmgr};
+      \\
+
+      \node[font=\tt, single](flash) {artiq\_flash};
+      \&
+      \node[font=\tt, single](run) {artiq\_run};
+      \&
+      \node[single, master](ddb) {Device database};
+      \&
+      \node[font=\tt, single](coremgmt) {artiq\_coremgmt\textsuperscript{3}};
+      \&
+      \node[single, master](builtin) {Built-in controllers\textsuperscript{4}};
+       \\
+};
+
+% BORDER LINE
+\node[linelabel] (label1) at (-0.25, 6.3) {PCs AND REMOTE DEVICES};
+\draw[primary, thick, dotted] (-0.5, 6) -- (19, 6);
+\node[linelabel] (label2) at (0, 5.7) {REAL TIME HARDWARE};
+
+% PERIPHERALS (FAST)
+
+\matrix[peripheral](peri-fast) at (0, 5)
+{
+  \node[label] (label){Peripherals (fast)};\\
+  \node [splits, rectangle split parts = 5](fast-list){
+    \nodepart{one} TTL in/out
+    \nodepart{two} DDS/Urukul
+    \nodepart{three} AWG/Phaser
+    \nodepart{four} DAC/Zotino
+    \nodepart{five} etc...
+  };\\
+};
+
+% CORE DEVICES
+\matrix[core](core) at (6.75, 5)
+{
+  \node[label] (label){Core device};\\
+  \node [splits, rectangle split parts = 2](core-list){
+    \nodepart{one} CPU
+    \nodepart{two} RTIO gateware
+  };\\
+};
+
+% SATELLITE
+
+\matrix[core](satellite) at (6.25, 2)
+{
+  \node[label] (label){Satellite core devices};\\
+};
+
+% legend
+\matrix[legend] (legend) at (12, 5.5) {
+  \node [colorbox, fill=magenta] (network) {}; \& \node[label] (network-label) {Network}; \\
+  \node [colorbox, fill=brand-light] (rtio) {}; \& \node[label] (rtio-label) {RTIO}; \\
+  \node [colorbox, fill=dingle] (slow) {}; \& \node[label] (slow-label) {Slow IO}; \\
+  \node [colorbox, fill=blue] (drtio) {}; \& \node[label] (drtio-label) {DRTIO}; \\
+  \node [colorbox, fill=gray] (jtag) {}; \& \node[label] (jtag-label) {JTAG}; \\
+  \node [colorbox, fill=primary] (direct) {}; \& \node[label] (direct-label) {Local}; \\
+  \node [colorbox, fill=violet] (git) {}; \& \node[label] (git-label) {Git}; \\
+};
+
+%controllers
+\draw[direct, dashed] (remote-ctlmgr.north) -- (remote-ctlrs);
+\draw[slow] (slow-list.one east) -| +(0.5,0) |- (remote-ctlrs.one west);
+\draw[slow] (slow-list.two east) -| +(0.8,0) |- (remote-ctlrs.two west);
+\draw[slow] (slow-list.three east) -| +(1.1,0) |- (remote-ctlrs.three west);
+\draw[direct] (remote-ctlrs.east) -| + (1, -2.25) -|(ctlmgr.70);
+%ctlmgr
+\draw[network, dashed] (remote-ctlmgr.west) -| +(-0.5, -1) -| (master.120);
+
+% client
+\draw[git] (remote-repo.south) -- +(0, -1) -| (repo.110);
+\draw[network] (remote-client.south) -- +(0, -1.5) -| (master.90);
+\draw[network] (remote-client.two east) -- +(0.7, 0) |- (builtin.east);
+
+%host
+\draw[direct] (browser) -- (results);
+
+%master
+\draw[direct] (results) -- (master);
+\draw[direct] (master) -- (ddb);
+\draw[direct] (master) -- (repo);
+
+\draw[direct] (run) -- (ddb);
+\draw[direct] (coremgmt) -- (ddb);
+
+% ctlmgr
+\draw[network] (master.60) -- +(0, 0.25) -| (ctlmgr.110);
+\draw[network] (ctlmgr) -- (builtin);
+
+% core connections
+\draw[jtag] (flash.south) |- +(1, -1) -| (core.125);
+\draw[network] (run.south) |- +(1, -0.75) -| (core.110);
+\draw[network] (master.230) |- +(-1.25, -0.25) |- +(0, -2) -| (core.north);
+\draw[network] (coremgmt.south) |- +(-0.75, -0.75) -| (core.70);
+\draw[network] (builtin.south) |- +(-2, -1.1) -| (core.55);
+%rtio
+\node (branch) at (5, 2.5){};
+\draw[rtio] (core-list.two west) |- +(-1, 0) |- (branch.center);
+\draw[rtio] (branch.center) |- (fast-list.one east);
+\draw[rtio] (branch.center) |- (fast-list.two east);
+\draw[rtio] (branch.center) |- (fast-list.three east);
+\draw[rtio] (branch.center) |- (fast-list.four east);
+\draw[rtio] (branch.center) |- (fast-list.five east);
+
+%drtio
+\draw[drtio] (core-list.one east) |- +(1, 0) |- (satellite.east);
+\draw[rtio] (satellite.west) -| +(-0.5, 0) |- (5, 2);
+

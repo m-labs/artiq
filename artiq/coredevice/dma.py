@@ -76,11 +76,11 @@ class CoreDMA:
 
     @kernel
     def record(self, name, enable_ddma=False):
-        """Returns a context manager that will record a DMA trace called ``name``.
+        """Returns a context manager that will record a DMA trace called `name`.
         Any previously recorded trace with the same name is overwritten.
         The trace will persist across kernel switches.
 
-        In DRTIO context, distributed DMA can be toggled with ``enable_ddma``.
+        In DRTIO context, distributed DMA can be toggled with `enable_ddma`.
         Enabling it allows running DMA on satellites, rather than sending all
         events from the master.
 
@@ -116,7 +116,7 @@ class CoreDMA:
     def playback_handle(self, handle):
         """Replays a handle obtained with :meth:`get_handle`. Using this function
         is much faster than :meth:`playback` for replaying a set of traces repeatedly,
-        but incurs the overhead of managing the handles onto the programmer."""
+        but offloads the overhead of managing the handles onto the programmer."""
         (epoch, advance_mu, ptr, uses_ddma) = handle
         if self.epoch != epoch:
             raise DMAError("Invalid handle")

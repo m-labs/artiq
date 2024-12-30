@@ -1,4 +1,4 @@
-from artiq.language.core import kernel, portable
+from artiq.language.core import kernel, portable, delay
 from artiq.language.units import us
 
 from numpy import int32
@@ -17,12 +17,12 @@ ALMAZNY_LEGACY_SPIT_WR = 32
 
 class AlmaznyLegacy:
     """
-    Almazny (High frequency mezzanine board for Mirny)
+    Almazny (High-frequency mezzanine board for Mirny)
 
     This applies to Almazny hardware v1.1 and earlier.
-    Use :class:`artiq.coredevice.almazny.AlmaznyChannel` for Almazny v1.2 and later.
+    Use :class:`~artiq.coredevice.almazny.AlmaznyChannel` for Almazny v1.2 and later.
 
-    :param host_mirny: Mirny device Almazny is connected to
+    :param host_mirny: :class:`~artiq.coredevice.mirny.Mirny` device Almazny is connected to
     """
 
     def __init__(self, dmgr, host_mirny):
@@ -121,12 +121,13 @@ class AlmaznyLegacy:
 
 class AlmaznyChannel:
     """
-    One Almazny channel
+    Driver for one Almazny channel.
+
     Almazny is a mezzanine for the Quad PLL RF source Mirny that exposes and
     controls the frequency-doubled outputs.
     This driver requires Almazny hardware revision v1.2 or later
     and Mirny CPLD gateware v0.3 or later.
-    Use :class:`artiq.coredevice.almazny.AlmaznyLegacy` for Almazny hardware v1.1 and earlier.
+    Use :class:`~artiq.coredevice.almazny.AlmaznyLegacy` for Almazny hardware v1.1 and earlier.
 
     :param host_mirny: Mirny CPLD device name
     :param channel: channel index (0-3)

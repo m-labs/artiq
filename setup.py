@@ -6,16 +6,17 @@ import sys
 import versioneer
 
 
-if sys.version_info[:2] < (3, 7):
-    raise Exception("You need Python 3.7+")
+if sys.version_info[:2] < (3, 11):
+    raise Exception("You need Python 3.11+")
 
 
-# Depends on PyQt5, but setuptools cannot check for it.
+# Depends on PyQt6, but setuptools cannot check for it.
 requirements = [
     "numpy", "scipy",
     "python-dateutil", "prettytable", "h5py", "lmdb",
     "qasync", "pyqtgraph", "pygit2",
     "llvmlite", "pythonparser", "levenshtein",
+    "platformdirs",
 ]
 
 console_scripts = [

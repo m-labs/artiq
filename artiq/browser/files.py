@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 
 import h5py
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt6 import QtCore, QtWidgets, QtGui
 
 from sipyco import pyon
 
@@ -69,35 +69,35 @@ class ZoomIconView(QtWidgets.QListView):
     def __init__(self):
         QtWidgets.QListView.__init__(self)
         self._char_width = QtGui.QFontMetrics(self.font()).averageCharWidth()
-        self.setViewMode(self.IconMode)
+        self.setViewMode(self.ViewMode.IconMode)
         w = self._char_width*self.default_size
         self.setIconSize(QtCore.QSize(w, int(w*self.aspect)))
-        self.setFlow(self.LeftToRight)
-        self.setResizeMode(self.Adjust)
+        self.setFlow(self.Flow.LeftToRight)
+        self.setResizeMode(self.ResizeMode.Adjust)
         self.setWrapping(True)
 
     def wheelEvent(self, ev):
-        if ev.modifiers() & QtCore.Qt.ControlModifier:
+        if ev.modifiers() & QtCore.Qt.KeyboardModifier.ControlModifier:
             a = self._char_width*self.min_size
             b = self._char_width*self.max_size
             w = self.iconSize().width()*self.zoom_step**(
                 ev.angleDelta().y()/120.)
             if a <= w <= b:
-                self.setIconSize(QtCore.QSize(w, w*self.aspect))
+                self.setIconSize(QtCore.QSize(int(w), int(w*self.aspect)))
         else:
             QtWidgets.QListView.wheelEvent(self, ev)
 
 
-class Hdf5FileSystemModel(QtWidgets.QFileSystemModel):
+class Hdf5FileSystemModel(QtGui.QFileSystemModel):
     def __init__(self):
-        QtWidgets.QFileSystemModel.__init__(self)
-        self.setFilter(QtCore.QDir.Drives | QtCore.QDir.NoDotAndDotDot |
-                       QtCore.QDir.AllDirs | QtCore.QDir.Files)
+        QtGui.QFileSystemModel.__init__(self)
+        self.setFilter(QtCore.QDir.Filter.Drives | QtCore.QDir.Filter.NoDotAndDotDot |
+                       QtCore.QDir.Filter.AllDirs | QtCore.QDir.Filter.Files)
         self.setNameFilterDisables(False)
         self.setIconProvider(ThumbnailIconProvider())
 
     def data(self, idx, role):
-        if role == QtCore.Qt.ToolTipRole:
+        if role == QtCore.Qt.ItemDataRole.ToolTipRole:
             info = self.fileInfo(idx)
             h5 = open_h5(info)
             if h5 is not None:
@@ -114,7 +114,7 @@ class Hdf5FileSystemModel(QtWidgets.QFileSystemModel):
                 except:
                     logger.warning("unable to read metadata from %s",
                                    info.filePath(), exc_info=True)
-        return QtWidgets.QFileSystemModel.data(self, idx, role)
+        return QtGui.QFileSystemModel.data(self, idx, role)
 
 
 class FilesDock(QtWidgets.QDockWidget):
@@ -125,7 +125,7 @@ class FilesDock(QtWidgets.QDockWidget):
     def __init__(self, datasets, browse_root=""):
         QtWidgets.QDockWidget.__init__(self, "Files")
         self.setObjectName("Files")
-        self.setFeatures(self.DockWidgetMovable | self.DockWidgetFloatable)
+        self.setFeatures(self.DockWidgetFeature.DockWidgetMovable | self.DockWidgetFeature.DockWidgetFloatable)
 
         self.splitter = QtWidgets.QSplitter()
         self.setWidget(self.splitter)
@@ -147,8 +147,8 @@ class FilesDock(QtWidgets.QDockWidget):
         self.rt.setRootIndex(rt_model.mapFromSource(
             self.model.setRootPath(browse_root)))
         self.rt.setHeaderHidden(True)
-        self.rt.setSelectionBehavior(self.rt.SelectRows)
-        self.rt.setSelectionMode(self.rt.SingleSelection)
+        self.rt.setSelectionBehavior(self.rt.SelectionBehavior.SelectRows)
+        self.rt.setSelectionMode(self.rt.SelectionMode.SingleSelection)
         self.rt.selectionModel().currentChanged.connect(
             self.tree_current_changed)
         self.rt.setRootIsDecorated(False)
@@ -252,7 +252,7 @@ class FilesDock(QtWidgets.QDockWidget):
                 100,
                 lambda: self.rt.scrollTo(
                     self.rt.model().mapFromSource(self.model.index(path)),
-                    self.rt.PositionAtCenter)
+                    self.rt.ScrollHint.PositionAtCenter)
             )
         self.model.directoryLoaded.connect(scroll_when_loaded)
         idx = self.rt.model().mapFromSource(idx)

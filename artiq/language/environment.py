@@ -28,7 +28,7 @@ class DefaultMissing(Exception):
 
 
 class CancelledArgsError(Exception):
-    """Raised by the ``interactive`` context manager when an interactive
+    """Raised by the :meth:`~artiq.language.environment.HasEnvironment.interactive` context manager when an interactive
     arguments request is cancelled."""
     pass
 
@@ -117,7 +117,7 @@ class NumberValue(_SimpleArgProcessor):
     ``int`` will also result in an error unless these conditions are met.
 
     When ``scale`` is not specified, and the unit is a common one (i.e.
-    defined in ``artiq.language.units``), then the scale is obtained from
+    defined in :class:`~artiq.language.units`), then the scale is obtained from
     the unit using a simple string match. For example, milliseconds (``"ms"``)
     units set the scale to 0.001. No unit (default) corresponds to a scale of
     1.0.
@@ -321,7 +321,8 @@ class HasEnvironment:
 
         :param key: Name of the argument.
         :param processor: A description of how to process the argument, such
-            as instances of ``BooleanValue`` and ``NumberValue``.
+            as instances of :mod:`~artiq.language.environment.BooleanValue` and 
+            :mod:`~artiq.language.environment.NumberValue`.
         :param group: An optional string that defines what group the argument
             belongs to, for user interface purposes.
         :param tooltip: An optional string to describe the argument in more
@@ -347,7 +348,8 @@ class HasEnvironment:
         """Request arguments from the user interactively.
 
         This context manager returns a namespace object on which the method
-        `setattr_argument` should be called, with the usual semantics.
+        :meth:`~artiq.language.environment.HasEnvironment.setattr_argument` should be called, 
+        with the usual semantics.
 
         When the context manager terminates, the experiment is blocked
         and the user is presented with the requested argument widgets.
@@ -355,7 +357,7 @@ class HasEnvironment:
         the namespace contains the values of the arguments.
 
         If the interactive arguments request is cancelled, raises
-        ``CancelledArgsError``."""
+        :exc:`~artiq.language.environment.CancelledArgsError`."""
         interactive_arglist = []
         namespace = SimpleNamespace()
         def setattr_argument(key, processor=None, group=None, tooltip=None):
@@ -478,7 +480,7 @@ class HasEnvironment:
 
         This function is used to get additional information for displaying the dataset.
 
-        See ``set_dataset`` for documentation of metadata items.
+        See :meth:`set_dataset` for documentation of metadata items.
         """
         try:
             return self.__dataset_mgr.get_metadata(key)

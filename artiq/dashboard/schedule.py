@@ -3,9 +3,10 @@ import time
 from functools import partial
 import logging
 
-from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt6 import QtCore, QtWidgets, QtGui
 
 from artiq.gui.models import DictSyncModel
+from artiq.gui.tools import SelectableColumnTableView
 from artiq.tools import elide
 
 
@@ -61,31 +62,31 @@ class ScheduleDock(QtWidgets.QDockWidget):
     def __init__(self, schedule_ctl, schedule_sub):
         QtWidgets.QDockWidget.__init__(self, "Schedule")
         self.setObjectName("Schedule")
-        self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
-                         QtWidgets.QDockWidget.DockWidgetFloatable)
+        self.setFeatures(QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable |
+                         QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetFloatable)
 
         self.schedule_ctl = schedule_ctl
 
-        self.table = QtWidgets.QTableView()
-        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        self.table.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+        self.table = SelectableColumnTableView()
+        self.table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
         self.table.verticalHeader().setSectionResizeMode(
-            QtWidgets.QHeaderView.ResizeToContents)
+            QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
         self.table.verticalHeader().hide()
         self.setWidget(self.table)
 
-        self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
-        request_termination_action = QtWidgets.QAction("Request termination", self.table)
+        self.table.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
+        request_termination_action = QtGui.QAction("Request termination", self.table)
         request_termination_action.triggered.connect(partial(self.delete_clicked, True))
         request_termination_action.setShortcut("DELETE")
-        request_termination_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        request_termination_action.setShortcutContext(QtCore.Qt.ShortcutContext.WidgetShortcut)
         self.table.addAction(request_termination_action)
-        delete_action = QtWidgets.QAction("Delete", self.table)
+        delete_action = QtGui.QAction("Delete", self.table)
         delete_action.triggered.connect(partial(self.delete_clicked, False))
         delete_action.setShortcut("SHIFT+DELETE")
-        delete_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        delete_action.setShortcutContext(QtCore.Qt.ShortcutContext.WidgetShortcut)
         self.table.addAction(delete_action)
-        terminate_pipeline = QtWidgets.QAction(
+        terminate_pipeline = QtGui.QAction(
             "Gracefully terminate all in pipeline", self.table)
         terminate_pipeline.triggered.connect(self.terminate_pipeline_clicked)
         self.table.addAction(terminate_pipeline)
@@ -103,6 +104,9 @@ class ScheduleDock(QtWidgets.QDockWidget):
         h.resizeSection(5, 30 * cw)
         h.resizeSection(6, 20 * cw)
         h.resizeSection(7, 20 * cw)
+
+        # Allow user to reorder or disable columns.
+        h.setSectionsMovable(True)
 
     def set_model(self, model):
         self.table_model = model
@@ -154,4 +158,9 @@ class ScheduleDock(QtWidgets.QDockWidget):
         return bytes(self.table.horizontalHeader().saveState())
 
     def restore_state(self, state):
-        self.table.horizontalHeader().restoreState(QtCore.QByteArray(state))
+        h = self.table.horizontalHeader()
+        h.restoreState(QtCore.QByteArray(state))
+
+        # The state includes the sectionsMovable property, so set it again to be able to
+        # deal with pre-existing save files from when we used not to enable it.
+        h.setSectionsMovable(True)

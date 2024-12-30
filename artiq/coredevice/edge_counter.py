@@ -1,9 +1,9 @@
 """Driver for RTIO-enabled TTL edge counter.
 
-Like for the TTL input PHYs, sensitivity can be configured over RTIO
-(``gate_rising()``, etc.). In contrast to the former, however, the count is
+As for the TTL input PHYs, sensitivity can be configured over RTIO
+(:meth:`gate_rising<EdgeCounter.gate_rising>`, etc.). In contrast to the former, however, the count is
 accumulated in gateware, and only a single input event is generated at the end
-of each gate period::
+of each gate period: ::
 
     with parallel:
         doppler_cool()
@@ -17,12 +17,12 @@ of each gate period::
     print("Readout counts:", self.pmt_counter.fetch_count())
 
 For applications where the timestamps of the individual input events are not
-required, this has two advantages over ``TTLInOut.count()`` beyond raw
-throughput. First, it is easy to count events during multiple separate periods
-without blocking to read back counts in between, as illustrated in the above
-example. Secondly, as each count total only takes up a single input event, it
-is much easier to acquire counts on several channels in parallel without
-risking input FIFO overflows::
+required, this has two advantages over :meth:`TTLInOut.count<artiq.coredevice.ttl.TTLInOut.count>` 
+beyond raw throughput. First, it is easy to count events during multiple separate 
+periods without blocking to read back counts in between, as illustrated in the 
+above example. Secondly, as each count total only takes up a single input event, 
+it is much easier to acquire counts on several channels in parallel without
+risking input RTIO overflows: ::
 
     # Using the TTLInOut driver, pmt_1 input events are only processed
     # after pmt_0 is done counting. To avoid RTIOOverflows, a round-robin
@@ -35,8 +35,6 @@ risking input FIFO overflows::
     counts_0 = self.pmt_0.count(now_mu()) # blocks
     counts_1 = self.pmt_1.count(now_mu())
 
-    #
-
     # Using gateware counters, only a single input event each is
     # generated, greatly reducing the load on the input FIFOs:
 
@@ -47,7 +45,7 @@ risking input FIFO overflows::
     counts_0 = self.pmt_0_counter.fetch_count() # blocks
     counts_1 = self.pmt_1_counter.fetch_count()
 
-See :mod:`artiq.gateware.rtio.phy.edge_counter` and
+See the sources of :mod:`artiq.gateware.rtio.phy.edge_counter` and
 :meth:`artiq.gateware.eem.DIO.add_std` for the gateware components.
 """
 
@@ -176,13 +174,13 @@ class EdgeCounter:
         """Emit an RTIO event at the current timeline position to set the
         gateware configuration.
 
-        For most use cases, the `gate_*` wrappers will be more convenient.
+        For most use cases, the ``gate_*`` wrappers will be more convenient.
 
         :param count_rising: Whether to count rising signal edges.
         :param count_falling: Whether to count falling signal edges.
-        :param send_count_event: If `True`, an input event with the current
+        :param send_count_event: If ``True``, an input event with the current
             counter value is generated on the next clock cycle (once).
-        :param reset_to_zero: If `True`, the counter value is reset to zero on
+        :param reset_to_zero: If ``True``, the counter value is reset to zero on
             the next clock cycle (once).
         """
         config = int32(0)

@@ -36,7 +36,7 @@ class SUServo(EnvExperiment):
             self.suservo0.set_pgia_mu(i, 0)
             delay(10*us)
         # DDS attenuator
-        self.suservo0.cpld0.set_att(0, 10.)
+        self.suservo0.cplds[0].set_att(0, 10.)
         delay(1*us)
         # Servo is done and disabled
         assert self.suservo0.get_status() & 0xff == 2

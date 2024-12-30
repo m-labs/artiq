@@ -181,25 +181,25 @@ class AnalyzerProxyReceiver:
     async def _receive_cr(self):
         try:
             while True:
-                endian_byte = await self.reader.read(1)
-                if endian_byte == b"E":
-                    endian = '>'
-                elif endian_byte == b"e":
-                    endian = '<'
-                elif endian_byte == b"":
+                data = bytearray()
+                data.extend(await self.reader.read(1))
+                if len(data) == 0:
                     # EOF reached, connection lost
                     return
+                if data[0] == ord("E"):
+                    endian = '>'
+                elif data[0] == ord("e"):
+                    endian = '<'
                 else:
                     raise ValueError
-                payload_length_word = await self.reader.readexactly(4)
-                payload_length = struct.unpack(endian + "I", payload_length_word)[0]
+                data.extend(await self.reader.readexactly(4))
+                payload_length = struct.unpack(endian + "I", data[1:5])[0]
                 if payload_length > 10 * 512 * 1024:
                     # 10x buffer size of firmware
                     raise ValueError
 
                 # The remaining header length is 11 bytes.
-                remaining_data = await self.reader.readexactly(payload_length + 11)
-                data = endian_byte + payload_length_word + remaining_data
+                data.extend(await self.reader.readexactly(payload_length + 11))
                 self.receive_cb(data)
         except Exception:
             logger.error("analyzer receiver connection terminating with exception", exc_info=True)
@@ -728,15 +728,7 @@ def decoded_dump_to_target(manager, devices, dump, uniform_interval):
         logger.warning("unable to determine DDS sysclk")
         dds_sysclk = 3e9  # guess
 
-    if isinstance(dump.messages[-1], StoppedMessage):
-        m = dump.messages[-1]
-        end_time = get_message_time(m)
-        manager.set_end_time(end_time)
-        messages = dump.messages[:-1]
-    else:
-        logger.warning("StoppedMessage missing")
-        messages = dump.messages
-    messages = sorted(messages, key=get_message_time)
+    messages = sorted(dump.messages, key=get_message_time)
 
     channel_handlers = create_channel_handlers(
         manager, devices, ref_period,
@@ -752,6 +744,8 @@ def decoded_dump_to_target(manager, devices, dump, uniform_interval):
         interval = manager.get_channel("interval", 64, ty=WaveformType.ANALOG)
     slack = manager.get_channel("rtio_slack", 64, ty=WaveformType.ANALOG)
 
+    stopped_messages = []
+
     manager.set_time(0)
     start_time = 0
     for m in messages:
@@ -762,7 +756,10 @@ def decoded_dump_to_target(manager, devices, dump, uniform_interval):
         manager.set_start_time(start_time)
     t0 = start_time
     for i, message in enumerate(messages):
-        if message.channel in channel_handlers:
+        if isinstance(message, StoppedMessage):
+            stopped_messages.append(message)
+            logger.debug(f"StoppedMessage at {get_message_time(message)}")
+        elif message.channel in channel_handlers:
             t = get_message_time(message)
             if t >= 0:
                 if uniform_interval:
@@ -776,3 +773,9 @@ def decoded_dump_to_target(manager, devices, dump, uniform_interval):
             if isinstance(message, OutputMessage):
                 slack.set_value_double(
                     (message.timestamp - message.rtio_counter)*ref_period)
+
+    if not stopped_messages:
+        logger.warning("StoppedMessage missing")
+    else:
+        end_time = get_message_time(stopped_messages[-1])
+        manager.set_end_time(end_time)

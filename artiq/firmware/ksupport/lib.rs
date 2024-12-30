@@ -37,6 +37,14 @@ fn recv<R, F: FnOnce(&Message) -> R>(f: F) -> R {
     result
 }
 
+fn try_recv<F: FnOnce(&Message)>(f: F) {
+    let msg_ptr = mailbox::receive();
+    if msg_ptr != 0 {
+        f(unsafe { &*(msg_ptr as *const Message) });
+        mailbox::acknowledge();
+    }
+}
+
 macro_rules! recv {
     ($p:pat => $e:expr) => {
         recv(move |request| {
@@ -473,7 +481,15 @@ extern "C-unwind" fn dma_playback(timestamp: i64, ptr: i32, _uses_ddma: bool) {
 
 
 extern "C-unwind" fn subkernel_load_run(id: u32, destination: u8, run: bool) {
-    send(&SubkernelLoadRunRequest { id: id, destination: destination, run: run });
+    let timestamp = unsafe {
+        ((csr::rtio::now_hi_read() as u64) << 32) | (csr::rtio::now_lo_read() as u64)
+    };
+    send(&SubkernelLoadRunRequest { 
+        id: id, 
+        destination: destination, 
+        run: run, 
+        timestamp: timestamp,
+    });
     recv!(&SubkernelLoadRunReply { succeeded } => {
         if !succeeded {
             raise!("SubkernelError",
@@ -484,17 +500,23 @@ extern "C-unwind" fn subkernel_load_run(id: u32, destination: u8, run: bool) {
 
 extern "C-unwind" fn subkernel_await_finish(id: u32, timeout: i64) {
     send(&SubkernelAwaitFinishRequest { id: id, timeout: timeout });
-    recv!(SubkernelAwaitFinishReply { status } => {
-        match status {
-            SubkernelStatus::NoError => (),
-            SubkernelStatus::IncorrectState => raise!("SubkernelError",
-                "Subkernel not running"),
-            SubkernelStatus::Timeout => raise!("SubkernelError",
-                "Subkernel timed out"),
-            SubkernelStatus::CommLost => raise!("SubkernelError",
-                "Lost communication with satellite"),
-            SubkernelStatus::OtherError => raise!("SubkernelError",
-                "An error occurred during subkernel operation")
+    recv(move |request| {
+        if let SubkernelAwaitFinishReply = request { }
+        else if let SubkernelError(status) = request {
+            match status {
+                SubkernelStatus::IncorrectState => raise!("SubkernelError",
+                    "Subkernel not running"),
+                SubkernelStatus::Timeout => raise!("SubkernelError",
+                    "Subkernel timed out"),
+                SubkernelStatus::CommLost => raise!("SubkernelError",
+                    "Lost communication with satellite"),
+                SubkernelStatus::OtherError => raise!("SubkernelError",
+                    "An error occurred during subkernel operation"),
+                SubkernelStatus::Exception(e) => unsafe { crate::eh_artiq::raise(e) },
+            }
+        } else {
+            send(&Log(format_args!("unexpected reply: {:?}\n", request)));
+            loop {}
         }
     })
 }
@@ -512,23 +534,28 @@ extern fn subkernel_send_message(id: u32, is_return: bool, destination: u8,
 
 extern "C-unwind" fn subkernel_await_message(id: i32, timeout: i64, tags: &CSlice<u8>, min: u8, max: u8) -> u8 {
     send(&SubkernelMsgRecvRequest { id: id, timeout: timeout, tags: tags.as_ref() });
-    recv!(SubkernelMsgRecvReply { status, count } => {
-        match status {
-            SubkernelStatus::NoError => {
-                if count < &min || count > &max {
-                    raise!("SubkernelError",
-                        "Received less or more arguments than expected");
-                }
-                *count
+    recv(move |request| {
+        if let SubkernelMsgRecvReply { count } = request {
+            if count < &min || count > &max {
+                raise!("SubkernelError",
+                    "Received less or more arguments than expected");
             }
-            SubkernelStatus::IncorrectState => raise!("SubkernelError",
-                "Subkernel not running"),
-            SubkernelStatus::Timeout => raise!("SubkernelError",
-                "Subkernel timed out"),
-            SubkernelStatus::CommLost => raise!("SubkernelError",
-                "Lost communication with satellite"),
-            SubkernelStatus::OtherError => raise!("SubkernelError",
-                "An error occurred during subkernel operation")
+            *count
+        } else if let SubkernelError(status) = request {
+            match status {
+                SubkernelStatus::IncorrectState => raise!("SubkernelError",
+                    "Subkernel not running"),
+                SubkernelStatus::Timeout => raise!("SubkernelError",
+                    "Subkernel timed out"),
+                SubkernelStatus::CommLost => raise!("SubkernelError",
+                    "Lost communication with satellite"),
+                SubkernelStatus::OtherError => raise!("SubkernelError",
+                    "An error occurred during subkernel operation"),
+                SubkernelStatus::Exception(e) => unsafe { crate::eh_artiq::raise(e) },
+            }
+        } else {
+            send(&Log(format_args!("unexpected reply: {:?}\n", request)));
+            loop {}
         }
     })
     // RpcRecvRequest should be called `count` times after this to receive message data
@@ -590,6 +617,15 @@ pub unsafe fn main() {
             },
             Ok(library) => {
                 send(&LoadReply(Ok(())));
+                // Master kernel would just acknowledge kernel load
+                // Satellites may send UpdateNow
+                try_recv(move |msg| match msg {
+                    UpdateNow(timestamp) => unsafe {
+                        csr::rtio::now_hi_write((*timestamp >> 32) as u32);
+                        csr::rtio::now_lo_write(*timestamp as u32);
+                    }
+                    _ => unreachable!()
+                });
                 library
             }
         }

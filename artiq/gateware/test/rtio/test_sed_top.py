@@ -27,6 +27,7 @@ class DUT(Module):
             self.sed.coarse_timestamp.eq(self.sed.coarse_timestamp + 1),
             self.sed.minimum_coarse_timestamp.eq(self.sed.coarse_timestamp + 16)
         ]
+        self.comb += self.sed.enable_spread.eq(0)
 
 
 def simulate(input_events, **kwargs):
@@ -110,6 +111,6 @@ class TestSED(unittest.TestCase):
             input_events += [(now, 1), (now, 0)]
 
         ttl_changes, access_results = simulate(input_events,
-            lane_count=2, fifo_depth=2, enable_spread=False)
+            lane_count=2, fifo_depth=2)
         self.assertEqual([r[0] for r in access_results], ["ok"]*len(input_events))
         self.assertEqual(ttl_changes, list(range(40, 40+40*20, 10)))

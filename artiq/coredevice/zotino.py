@@ -1,7 +1,7 @@
 """RTIO driver for the Zotino 32-channel, 16-bit 1MSPS DAC.
 
 Output event replacement is not supported and issuing commands at the same
-time is an error.
+time results in a collision error.
 """
 
 from artiq.language.core import kernel

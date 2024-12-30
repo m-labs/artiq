@@ -53,6 +53,9 @@ def rtio_get_destination_status(linkno: TInt32) -> TBool:
 def rtio_get_counter() -> TInt64:
     raise NotImplementedError("syscall not simulated")
 
+@syscall
+def test_exception_id_sync(id: TInt32) -> TNone:
+    raise NotImplementedError("syscall not simulated")
 
 def get_target_cls(target):
     if target == "rv32g":
@@ -73,8 +76,8 @@ class Core:
         On platforms that use clock multiplication and SERDES-based PHYs,
         this is the period after multiplication. For example, with a RTIO core
         clocked at 125MHz and a SERDES multiplication factor of 8, the
-        reference period is 1ns.
-        The time machine unit is equal to this period.
+        reference period is ``1 ns``.
+        The machine time unit (``mu``) is equal to this period.
     :param ref_multiplier: ratio between the RTIO fine timestamp frequency
         and the RTIO coarse timestamp frequency (e.g. SERDES multiplication
         factor).
@@ -82,6 +85,8 @@ class Core:
         (optional).
     :param analyze_at_run_end: automatically trigger the core device analyzer
         proxy after the Experiment's run stage finishes.
+    :param report_invariants: report variables which are not changed inside
+        kernels and are thus candidates for inclusion in kernel_invariants
     """
 
     kernel_invariants = {
@@ -92,7 +97,8 @@ class Core:
                  host, ref_period,
                  analyzer_proxy=None, analyze_at_run_end=False,
                  ref_multiplier=8,
-                 target="rv32g", satellite_cpu_targets={}):
+                 target="rv32g", satellite_cpu_targets={},
+                 report_invariants=False):
         self.ref_period = ref_period
         self.ref_multiplier = ref_multiplier
         self.satellite_cpu_targets = satellite_cpu_targets
@@ -104,6 +110,7 @@ class Core:
             self.comm = CommKernel(host)
         self.analyzer_proxy_name = analyzer_proxy
         self.analyze_at_run_end = analyze_at_run_end
+        self.report_invariants = report_invariants
 
         self.first_run = True
         self.dmgr = dmgr
@@ -116,6 +123,8 @@ class Core:
             self.trigger_analyzer_proxy()
 
     def close(self):
+        """Disconnect core device and close sockets. 
+        """
         self.comm.close()
 
     def compile(self, function, args, kwargs, set_result=None,
@@ -134,7 +143,8 @@ class Core:
 
             module = Module(stitcher,
                 ref_period=self.ref_period,
-                attribute_writeback=attribute_writeback)
+                attribute_writeback=attribute_writeback,
+                remarks=self.report_invariants)
             target = target if target is not None else self.target_cls()
 
             library = target.compile_and_link([module])
@@ -241,8 +251,8 @@ class Core:
         Similarly, modified values are not written back, and explicit RPC should be used
         to modify host objects.
         Carefully review the source code of drivers calls used in precompiled kernels, as
-        they may rely on host object attributes being transfered between kernel calls.
-        Examples include code used to control DDS phase, and Urukul RF switch control
+        they may rely on host object attributes being transferred between kernel calls.
+        Examples include code used to control DDS phase and Urukul RF switch control
         via the CPLD register.
 
         The return value of the callable is the return value of the kernel, if any.
@@ -273,7 +283,7 @@ class Core:
     @portable
     def seconds_to_mu(self, seconds):
         """Convert seconds to the corresponding number of machine units
-        (RTIO cycles).
+        (fine RTIO cycles).
 
         :param seconds: time (in seconds) to convert.
         """
@@ -281,7 +291,7 @@ class Core:
 
     @portable
     def mu_to_seconds(self, mu):
-        """Convert machine units (RTIO cycles) to seconds.
+        """Convert machine units (fine RTIO cycles) to seconds.
 
         :param mu: cycle count to convert.
         """
@@ -296,7 +306,7 @@ class Core:
         for the actual value of the hardware register at the instant when
         execution resumes in the caller.
 
-        For a more detailed description of these concepts, see :doc:`/rtio`.
+        For a more detailed description of these concepts, see :doc:`rtio`.
         """
         return rtio_get_counter()
 
@@ -315,7 +325,7 @@ class Core:
     def get_rtio_destination_status(self, destination):
         """Returns whether the specified RTIO destination is up.
         This is particularly useful in startup kernels to delay
-        startup until certain DRTIO destinations are up."""
+        startup until certain DRTIO destinations are available."""
         return rtio_get_destination_status(destination)
 
     @kernel
@@ -343,7 +353,7 @@ class Core:
 
         Returns only after the dump has been retrieved from the device.
 
-        Raises IOError if no analyzer proxy has been configured, or if the
+        Raises :exc:`IOError` if no analyzer proxy has been configured, or if the
         analyzer proxy fails. In the latter case, more details would be
         available in the proxy log.
         """

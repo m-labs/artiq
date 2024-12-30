@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-"""
-Client to send commands to :mod:`artiq_master` and display results locally.
-
-The client can perform actions such as accessing/setting datasets,
-scanning devices, scheduling experiments, and looking for experiments/devices.
-"""
 
 import argparse
 import logging
@@ -40,10 +34,10 @@ def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ CLI client")
     parser.add_argument(
         "-s", "--server", default="::1",
-        help="hostname or IP of the master to connect to")
+        help="hostname or IP of the master to connect to (default: %(default)s)")
     parser.add_argument(
         "--port", default=None, type=int,
-        help="TCP port to use to connect to the master")
+        help="TCP port to use to connect to the master (default: %(default)s)")
     parser.add_argument("--version", action="version",
                         version="ARTIQ v{}".format(artiq_version),
                         help="print the ARTIQ version number")
@@ -59,7 +53,8 @@ def get_argparser():
                             help="priority (higher value means sooner "
                                  "scheduling, default: %(default)s)")
     parser_add.add_argument("-t", "--timed", default=None, type=str,
-                            help="set a due date for the experiment")
+                            help="set a due date for the experiment "
+                            "(default: %(default)s)")
     parser_add.add_argument("-f", "--flush", default=False,
                             action="store_true",
                             help="flush the pipeline before preparing "
@@ -80,7 +75,7 @@ def get_argparser():
     parser_add.add_argument("file", metavar="FILE",
                             help="file containing the experiment to run")
     parser_add.add_argument("arguments", metavar="ARGUMENTS", nargs="*",
-                            help="run arguments")
+                            help="run arguments, use format KEY=VALUE")
 
     parser_delete = subparsers.add_parser("delete",
                                           help="delete an experiment "

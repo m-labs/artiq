@@ -29,25 +29,16 @@ builtins.__in_sphinx__ = True
 # we cannot use autodoc_mock_imports (does not help with argparse)
 mock_modules = ["artiq.gui.waitingspinnerwidget",
                 "artiq.gui.flowlayout",
-                "artiq.gui.state",
-                "artiq.gui.log",
                 "artiq.gui.models",
                 "artiq.compiler.module",
                 "artiq.compiler.embedding",
                 "artiq.dashboard.waveform",
-                "artiq.dashboard.interactive_args",
-                "qasync", "pyqtgraph", "matplotlib", "lmdb",
-                "numpy", "dateutil", "dateutil.parser", "prettytable", "PyQt5",
-                "h5py", "serial", "scipy", "scipy.interpolate",
-                "llvmlite", "Levenshtein", "pythonparser",
-                "sipyco", "sipyco.pc_rpc", "sipyco.sync_struct",
-                "sipyco.asyncio_tools", "sipyco.logging_tools",
-                "sipyco.broadcast", "sipyco.packed_exceptions",
-                "sipyco.keepalive", "sipyco.pipe_ipc"]
+                "artiq.coredevice.jsondesc",
+                "qasync", "lmdb", "dateutil.parser", "prettytable", "PyQt6",
+                "h5py", "llvmlite", "pythonparser", "tqdm", "jsonschema", "platformdirs"]
 
 for module in mock_modules:
     sys.modules[module] = Mock()
-
 
 # https://stackoverflow.com/questions/29992444/sphinx-autodoc-skips-classes-inherited-from-mock
 class MockApplets:
@@ -79,7 +70,8 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinxarg.ext',
     'sphinxcontrib.wavedrom',  # see also below for config
-    "sphinxcontrib.jquery",
+    'sphinxcontrib.jquery',
+    'sphinxcontrib.tikz' # see also below for config
 ]
 
 mathjax_path = "https://m-labs.hk/MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML.js"
@@ -147,6 +139,29 @@ pygments_style = 'sphinx'
 # If true, keep warnings as "system message" paragraphs in the built documents.
 #keep_warnings = False
 
+# If true, Sphinx will warn about *all* references where the target cannot be found.
+nitpicky = True
+
+# (type, target) regex tuples to ignore when generating warnings in 'nitpicky' mode
+# i.e. objects that are not documented in this manual and do not need to be
+nitpick_ignore_regex = [
+    (r'py:.*', r'numpy..*'),
+    (r'py:.*', r'sipyco..*'),
+    ('py:const', r'.*'), # no constants are documented anyway
+    ('py.attr', r'.*'), # nor attributes
+    (r'py:.*', r'artiq.gateware.*'),
+    ('py:mod', r'artiq.test.*'),
+    ('py:mod', r'artiq.applets.*'),
+    # we can't use artiq.master.* because we shouldn't ignore the scheduler
+    ('py:class', r'artiq.master.experiments.*'),
+    ('py:class', r'artiq.master.databases.*'),
+    ('py:.*', r'artiq.master.worker.*'),
+    ('py:class', 'dac34H84'),
+    ('py:class', 'trf372017'),
+    ('py:class', r'list(.*)'),
+    ('py.class', 'NoneType'),
+    ('py:meth', 'pause')
+]
 
 # -- Options for HTML output ----------------------------------------------
 
@@ -316,3 +331,10 @@ texinfo_documents = [
 offline_skin_js_path = '_static/default.js'
 offline_wavedrom_js_path = '_static/WaveDrom.js'
 render_using_wavedrompy = True
+
+# -- Options for sphinxcontrib-tikz ---------------------------------------
+# tikz_proc_suite = pdf2svg
+# tikz_transparent = True
+# these are the defaults
+
+tikz_tikzlibraries = 'positioning, shapes, arrows.meta'

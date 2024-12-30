@@ -11,12 +11,12 @@ pub const KERNELCPU_LAST_ADDRESS:    usize = 0x4fffffff;
 pub const KSUPPORT_HEADER_SIZE: usize = 0x74;
 
 #[derive(Debug)]
-pub enum SubkernelStatus {
-    NoError,
+pub enum SubkernelStatus<'a> {
     Timeout,
     IncorrectState,
     CommLost,
-    OtherError
+    Exception(eh::eh_artiq::Exception<'a>),
+    OtherError,
 }
 
 #[derive(Debug)]
@@ -103,13 +103,16 @@ pub enum Message<'a> {
     SpiReadReply { succeeded: bool, data: u32 },
     SpiBasicReply { succeeded: bool },
 
-    SubkernelLoadRunRequest { id: u32, destination: u8, run: bool },
+    SubkernelLoadRunRequest { id: u32, destination: u8, run: bool, timestamp: u64 },
     SubkernelLoadRunReply { succeeded: bool },
     SubkernelAwaitFinishRequest { id: u32, timeout: i64 },
-    SubkernelAwaitFinishReply { status: SubkernelStatus },
+    SubkernelAwaitFinishReply,
     SubkernelMsgSend { id: u32, destination: Option<u8>, count: u8, tag: &'a [u8], data: *const *const () },
     SubkernelMsgRecvRequest { id: i32, timeout: i64, tags: &'a [u8] },
-    SubkernelMsgRecvReply { status: SubkernelStatus, count: u8 },
+    SubkernelMsgRecvReply { count: u8 },
+    SubkernelError(SubkernelStatus<'a>),
+
+    UpdateNow(u64),
 
     Log(fmt::Arguments<'a>),
     LogSlice(&'a str)

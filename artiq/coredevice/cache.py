@@ -21,9 +21,9 @@ class CoreCache:
         """Extract a value from the core device cache.
         After a value is extracted, it cannot be replaced with another value using
         :meth:`put` until all kernel functions finish executing; attempting
-        to replace it will result in a :class:`artiq.coredevice.exceptions.CacheError`.
+        to replace it will result in a :class:`~artiq.coredevice.exceptions.CacheError`.
 
-        If the cache does not contain any value associated with ``key``, an empty list
+        If the cache does not contain any value associated with `key`, an empty list
         is returned.
 
         The value is not copied, so mutating it will change what's stored in the cache.

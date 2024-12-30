@@ -1,7 +1,7 @@
 import logging
 from functools import partial
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt6 import QtCore, QtGui, QtWidgets
 
 
 logger = logging.getLogger(__name__)
@@ -11,8 +11,8 @@ class ShortcutsDock(QtWidgets.QDockWidget):
     def __init__(self, main_window, exp_manager):
         QtWidgets.QDockWidget.__init__(self, "Shortcuts")
         self.setObjectName("Shortcuts")
-        self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
-                         QtWidgets.QDockWidget.DockWidgetFloatable)
+        self.setFeatures(self.DockWidgetFeature.DockWidgetMovable |
+                         self.DockWidgetFeature.DockWidgetFloatable)
 
         layout = QtWidgets.QGridLayout()
         top_widget = QtWidgets.QWidget()
@@ -36,25 +36,25 @@ class ShortcutsDock(QtWidgets.QDockWidget):
             layout.addWidget(QtWidgets.QLabel("F" + str(i + 1)), row, 0)
 
             label = QtWidgets.QLabel()
-            label.setSizePolicy(QtWidgets.QSizePolicy.Ignored,
-                                QtWidgets.QSizePolicy.Ignored)
+            label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Ignored,
+                                QtWidgets.QSizePolicy.Policy.Ignored)
             layout.addWidget(label, row, 1)
 
             clear = QtWidgets.QToolButton()
             clear.setIcon(QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_DialogDiscardButton))
+                QtWidgets.QStyle.StandardPixmap.SP_DialogDiscardButton))
             layout.addWidget(clear, row, 2)
             clear.clicked.connect(partial(self.set_shortcut, i, ""))
 
             open = QtWidgets.QToolButton()
             open.setIcon(QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_DialogOpenButton))
+                QtWidgets.QStyle.StandardPixmap.SP_DialogOpenButton))
             layout.addWidget(open, row, 3)
             open.clicked.connect(partial(self._open_experiment, i))
 
             submit = QtWidgets.QPushButton("Submit")
             submit.setIcon(QtWidgets.QApplication.style().standardIcon(
-                QtWidgets.QStyle.SP_DialogOkButton))
+                QtWidgets.QStyle.StandardPixmap.SP_DialogOkButton))
             layout.addWidget(submit, row, 4)
             submit.clicked.connect(partial(self._activated, i))
 
@@ -68,8 +68,8 @@ class ShortcutsDock(QtWidgets.QDockWidget):
                 "open": open,
                 "submit": submit
             }
-            shortcut = QtWidgets.QShortcut("F" + str(i + 1), main_window)
-            shortcut.setContext(QtCore.Qt.ApplicationShortcut)
+            shortcut = QtGui.QShortcut("F" + str(i+1), main_window)
+            shortcut.setContext(QtCore.Qt.ShortcutContext.ApplicationShortcut)
             shortcut.activated.connect(partial(self._activated, i))
 
     def _activated(self, nr):

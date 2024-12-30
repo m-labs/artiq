@@ -1,4 +1,4 @@
-"""RTIO driver for the Fastino 32channel, 16 bit, 2.5 MS/s per channel,
+"""RTIO driver for the Fastino 32-channel, 16-bit, 2.5 MS/s per channel
 streaming DAC.
 """
 from numpy import int32, int64
@@ -17,22 +17,22 @@ class Fastino:
     to the DAC RTIO addresses, if a channel is not "held" by setting its bit
     using :meth:`set_hold`, the next frame will contain the update. For the
     DACs held, the update is triggered explicitly by setting the corresponding
-    bit using :meth:`set_update`. Update is self-clearing. This enables atomic
+    bit using :meth:`update`. Update is self-clearing. This enables atomic
     DAC updates synchronized to a frame edge.
 
-    The `log2_width=0` RTIO layout uses one DAC channel per RTIO address and a
-    dense RTIO address space. The RTIO words are narrow (32 bit) and
+    The ``log2_width=0`` RTIO layout uses one DAC channel per RTIO address and a
+    dense RTIO address space. The RTIO words are narrow (32-bit) and
     few-channel updates are efficient. There is the least amount of DAC state
     tracking in kernels, at the cost of more DMA and RTIO data.
     The setting here and in the RTIO PHY (gateware) must match.
 
-    Other `log2_width` (up to `log2_width=5`) settings pack multiple
+    Other ``log2_width`` (up to ``log2_width=5``) settings pack multiple
     (in powers of two) DAC channels into one group and into one RTIO write.
-    The RTIO data width increases accordingly. The `log2_width`
+    The RTIO data width increases accordingly. The ``log2_width``
     LSBs of the RTIO address for a DAC channel write must be zero and the
-    address space is sparse. For `log2_width=5` the RTIO data is 512 bit wide.
+    address space is sparse. For ``log2_width=5`` the RTIO data is 512-bit wide.
 
-    If `log2_width` is zero, the :meth:`set_dac`/:meth:`set_dac_mu` interface
+    If ``log2_width`` is zero, the :meth:`set_dac`/:meth:`set_dac_mu` interface
     must be used. If non-zero, the :meth:`set_group`/:meth:`set_group_mu`
     interface must be used.
 
@@ -63,15 +63,16 @@ class Fastino:
             * disables RESET, DAC_CLR, enables AFE_PWR
             * clears error counters, enables error counting
             * turns LEDs off
-            * clears `hold` and `continuous` on all channels
+            * clears ``hold`` and ``continuous`` on all channels
             * clear and resets interpolators to unit rate change on all
               channels
 
         It does not change set channel voltages and does not reset the PLLs or clock
         domains.
 
-        Note: On Fastino gateware before v0.2 this may lead to 0 voltage being emitted
-        transiently.
+        .. warning::
+            On Fastino gateware before v0.2 this may lead to 0 voltage being emitted
+            transiently.
         """
         self.set_cfg(reset=0, afe_power_down=0, dac_clr=0, clr_err=1)
         delay_mu(self.t_frame)
@@ -115,7 +116,7 @@ class Fastino:
         """Write DAC data in machine units.
 
         :param dac: DAC channel to write to (0-31).
-        :param data: DAC word to write, 16 bit unsigned integer, in machine
+        :param data: DAC word to write, 16-bit unsigned integer, in machine
             units.
         """
         self.write(dac, data)
@@ -124,9 +125,9 @@ class Fastino:
     def set_group_mu(self, dac: TInt32, data: TList(TInt32)):
         """Write a group of DAC channels in machine units.
 
-        :param dac: First channel in DAC channel group (0-31). The `log2_width`
+        :param dac: First channel in DAC channel group (0-31). The ``log2_width``
             LSBs must be zero.
-        :param data: List of DAC data pairs (2x16 bit unsigned) to write,
+        :param data: List of DAC data pairs (2x16-bit unsigned) to write,
             in machine units. Data exceeding group size is ignored.
             If the list length is less than group size, the remaining
             DAC channels within the group are cleared to 0 (machine units).
@@ -137,10 +138,10 @@ class Fastino:
 
     @portable
     def voltage_to_mu(self, voltage):
-        """Convert SI Volts to DAC machine units.
+        """Convert SI volts to DAC machine units.
 
-        :param voltage: Voltage in SI Volts.
-        :return: DAC data word in machine units, 16 bit integer.
+        :param voltage: Voltage in SI volts.
+        :return: DAC data word in machine units, 16-bit integer.
         """
         data = int32(round((0x8000/10.)*voltage)) + int32(0x8000)
         if data < 0 or data > 0xffff:
@@ -149,9 +150,9 @@ class Fastino:
 
     @portable
     def voltage_group_to_mu(self, voltage, data):
-        """Convert SI Volts to packed DAC channel group machine units.
+        """Convert SI volts to packed DAC channel group machine units.
 
-        :param voltage: List of SI Volt voltages.
+        :param voltage: List of SI volt voltages.
         :param data: List of DAC channel data pairs to write to.
             Half the length of `voltage`.
         """
@@ -185,7 +186,7 @@ class Fastino:
     def update(self, update):
         """Schedule channels for update.
 
-        :param update: Bit mask of channels to update (32 bit).
+        :param update: Bit mask of channels to update (32-bit).
         """
         self.write(0x20, update)
 
@@ -193,7 +194,7 @@ class Fastino:
     def set_hold(self, hold):
         """Set channels to manual update.
 
-        :param hold: Bit mask of channels to hold (32 bit).
+        :param hold: Bit mask of channels to hold (32-bit).
         """
         self.write(0x21, hold)
 
@@ -214,9 +215,9 @@ class Fastino:
 
     @kernel
     def set_leds(self, leds):
-        """Set the green user-defined LEDs
+        """Set the green user-defined LEDs.
 
-        :param leds: LED status, 8 bit integer each bit corresponding to one
+        :param leds: LED status, 8-bit integer each bit corresponding to one
             green LED.
         """
         self.write(0x23, leds)
@@ -245,16 +246,16 @@ class Fastino:
     def stage_cic(self, rate) -> TInt32:
         """Compute and stage interpolator configuration.
 
-        This method approximates the desired interpolation rate using a 10 bit
-        floating point representation (6 bit mantissa, 4 bit exponent) and
+        This method approximates the desired interpolation rate using a 10-bit
+        floating point representation (6-bit mantissa, 4-bit exponent) and
         then determines an optimal interpolation gain compensation exponent
         to avoid clipping. Gains for rates that are powers of two are accurately
         compensated. Other rates lead to overall less than unity gain (but more
         than 0.5 gain).
 
-        The overall gain including gain compensation is
-        `actual_rate**order/2**ceil(log2(actual_rate**order))`
-        where `order = 3`.
+        The overall gain including gain compensation is ``actual_rate ** order / 
+        2 ** ceil(log2(actual_rate ** order))``
+        where ``order = 3``.
 
         Returns the actual interpolation rate.
         """
@@ -293,7 +294,7 @@ class Fastino:
         their output is supposed to be constant.
 
         This method resets and settles the affected interpolators. There will be
-        no output updates for the next `order = 3` input samples.
+        no output updates for the next ``order = 3`` input samples.
         Affected channels will only accept one input sample per input sample
         period. This method synchronizes the input sample period to the current
         frame on the affected channels.
