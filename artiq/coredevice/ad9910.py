@@ -437,18 +437,20 @@ class AD9910:
         This method does not pulse ``IO_UPDATE``.
 
         :param asf_profile_enable: Enable amplitude scale from single tone profiles.
-        :param drg_destination: Digital ramp destination.
+        :param drg_destination: Digital ramp destination. Determines the parameter to modulate:
+            * 0: Frequency
+            * 1: Phase
+            * 2: Amplitude
         :param drg_enable: Digital ramp enable.
         :param drg_nodwell_high: Digital ramp no-dwell high.
         :param drg_nodwell_low: Digital ramp no-dwell low.
         :param effective_ftw: Read effective FTW.
         :param sync_validation_disable: Disable the SYNC_SMP_ERR pin indicating
             (active high) detection of a synchronization pulse sampling error.
-        :param matched_latency_enable: Simultaneous application of amplitude,
-            phase, and frequency changes to the DDS arrive at the output
-
-            * matched_latency_enable = 0: in the order listed
-            * matched_latency_enable = 1: simultaneously.
+        :param matched_latency_enable: Control the application timing of amplitude,
+            phase, and frequency changes at the DDS output:
+            * 0: Changes are applied in the order listed.
+            * 1: Changes are applied simultaneously.
         """
         self.write32(_AD9910_REG_CFR2,
                      (asf_profile_enable << 24) |
