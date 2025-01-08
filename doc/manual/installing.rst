@@ -45,7 +45,7 @@ Modifying the environment and making additional packages visible to the ARTIQ co
             # ========================================
             # ADD PACKAGES BELOW
             # ========================================
-            (pkgs.python3.withPackages(_: [
+            (pkgs.python3.withPackages(ps : [
               # List desired Python packages here.
               artiq.artiq
               #ps.paramiko  # needed if and only if flashing boards remotely (artiq_flash -H)
