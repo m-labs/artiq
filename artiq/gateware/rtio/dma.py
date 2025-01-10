@@ -66,6 +66,7 @@ class WishboneReader(Module):
             self.source.stb.eq(bus.ack),
 
             self.source.data.eq(convert_signal(bus.dat_r, cpu_dw//8)),
+            self.source.last.eq(self.sink.eop | last),
             self.source.eop.eq(self.sink.eop),
         ]
 
