@@ -352,15 +352,18 @@ pub mod drtio {
                                 }
                                 drtioaux::Packet::DestinationOkReply => (),
                                 drtioaux::Packet::DestinationSequenceErrorReply { channel } => {
-                                    error!("[DEST#{}] RTIO sequence error involving channel 0x{:04x}:{}", destination, channel, resolve_channel_name(channel as u32));
+                                    let global_ch = ((destination as u32) << 16) | channel as u32;
+                                    error!("[DEST#{}] RTIO sequence error involving channel 0x{:04x}:{}", destination, channel, resolve_channel_name(global_ch));
                                     unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_SEQUENCE_ERROR };
                                 }
                                 drtioaux::Packet::DestinationCollisionReply { channel } => {
-                                    error!("[DEST#{}] RTIO collision involving channel 0x{:04x}:{}", destination, channel, resolve_channel_name(channel as u32));
+                                    let global_ch = ((destination as u32) << 16) | channel as u32;
+                                    error!("[DEST#{}] RTIO collision involving channel 0x{:04x}:{}", destination, channel, resolve_channel_name(global_ch));
                                     unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_COLLISION };
                                 }
                                 drtioaux::Packet::DestinationBusyReply { channel } => {
-                                    error!("[DEST#{}] RTIO busy error involving channel 0x{:04x}:{}", destination, channel, resolve_channel_name(channel as u32));
+                                    let global_ch = ((destination as u32) << 16) | channel as u32;
+                                    error!("[DEST#{}] RTIO busy error involving channel 0x{:04x}:{}", destination, channel, resolve_channel_name(global_ch));
                                     unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_BUSY };
                                 }
                                 packet => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
