@@ -299,7 +299,9 @@ class ASTSynthesizer:
         if len(value) > 0:
             v = value[0]
             is_T = True
-            if isinstance(v, int):
+            if isinstance(v, bool):
+                is_T = False
+            elif isinstance(v, int):
                 T = int
             elif isinstance(v, float):
                 T = float
