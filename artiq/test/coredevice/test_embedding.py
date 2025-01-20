@@ -599,3 +599,29 @@ class _IntBoundary(EnvExperiment):
 class IntBoundaryTest(ExperimentCase):
     def test_int_boundary(self):
         self.create(_IntBoundary).run()
+
+
+class _BoolListType(EnvExperiment):   
+    def assert_bool(self, obj):
+        assert isinstance(obj, bool)
+
+    def build(self):
+        self.setattr_device("core")
+        self.x = [True]
+        self.y = [numpy.True_]
+
+    @kernel
+    def run_bool(self):
+        self.assert_bool(self.x[0])
+
+    @kernel
+    def run_numpy_bool(self):
+        self.assert_bool(self.y[0])
+
+
+class BoolListTypeTest(ExperimentCase):
+    def test_bool_list(self):
+        self.create(_BoolListType).run_bool()
+
+    def test_np_bool_list(self):
+        self.create(_BoolListType).run_numpy_bool()
