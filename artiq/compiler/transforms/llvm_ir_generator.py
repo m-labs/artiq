@@ -146,9 +146,9 @@ class ABILayoutInfo:
 
     @memoize
     def get_size_align(self, llty):
-        lowered = llty._get_ll_pointer_type(self.lldatalayout, self.llcontext)
-        return (self.lldatalayout.get_pointee_abi_size(lowered),
-                self.lldatalayout.get_pointee_abi_alignment(lowered))
+        lowered = llty._get_ll_global_value_type(self.lldatalayout, self.llcontext)
+        return (self.lldatalayout.get_abi_size(lowered),
+                self.lldatalayout.get_abi_alignment(lowered))
 
     @memoize
     def get_size_align_for_type(self, typ):

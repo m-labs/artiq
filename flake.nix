@@ -113,12 +113,12 @@
 
       llvmlite-new = pkgs.python3Packages.buildPythonPackage rec {
         pname = "llvmlite";
-        version = "0.43.0";
+        version = "0.44.0";
         src = pkgs.fetchFromGitHub {
             owner = "numba";
             repo = "llvmlite";
             rev = "v${version}";
-            sha256 = "sha256-5QBSRDb28Bui9IOhGofj+c7Rk7J5fNv5nPksEPY/O5o=";
+            sha256 = "sha256-ZIA/JfK9ZP00Zn6SZuPus30Xw10hn3DArHCkzBZAUV0=";
           };
         nativeBuildInputs = [ pkgs.llvm_15 ];
         # Disable static linking
