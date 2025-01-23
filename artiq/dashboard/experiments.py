@@ -357,7 +357,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
     def apply_colors(self):
         colors = self.manager.get_colors(self.expurl)
-        if colors is None:
+        if not colors:
             palette = QtWidgets.QApplication.palette()
             colors = {
                 "window": palette.color(QtGui.QPalette.ColorRole.Window).name(),
@@ -563,7 +563,7 @@ class ExperimentManager:
         self.colors[expurl][key] = value
 
     def get_colors(self, expurl):
-        return self.colors.get(expurl)
+        return self.colors.get(expurl, {})
 
     def reset_colors(self, expurl):
         if expurl in self.colors:
