@@ -11,9 +11,9 @@ from artiq.coredevice.urukul import STA_PROTO_REV_8, STA_PROTO_REV_9
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 
-###################################################################################
+####################################################################################
 ## NOTE: These test are intended to create waveforms from AD9910 Urukul boards
-## (all protocol revisions, see tests below) used with a dual-channel oscilloscope.
+## (all protocol revisions, see tests below) used with an oscilloscope (2 channels).
 ##
 ## Set your oscilloscope to:
 ##
@@ -25,7 +25,7 @@ from artiq.test.hardware_testbench import ExperimentCase
 ##
 ## If you change FREQ (see below) to something else, adjust your oscilloscope
 ## settings to accomodate.
-###################################################################################
+####################################################################################
 
 FREQ = 100 * MHz
 AMP = 1.0

@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Union
 
 from numpy import int32, int64
@@ -135,14 +135,12 @@ class _DummySync:
         pass
 
 
-class CPLDVersionManager(ABC):
+class CPLDVersion:
     """
-    Base class for managing CPLD version-specific configurations.
+    Abstract base class for methods requiring version-specific CPLD implementations.
 
-    Subclasses should implement the required methods based on the specific
-    version of the CPLD being used.
+    Defines interface methods that must be customized for different CPLD versions.
     """
-
     @abstractmethod
     @kernel
     def cfg_write(self, cpld, cfg):
@@ -222,12 +220,9 @@ class CPLDVersionManager(ABC):
         self._not_implemented()
 
 
-class ProtoRev8(CPLDVersionManager):
+class ProtoRev8(CPLDVersion):
     """
     Implementation of the CPLD for Urkul ProtoRev8.
-
-    This class extends `CPLDVersionManager` and provides methods to configure
-    and interact with the ProtoRev8 version of the CPLD.
     """
 
     # ProtoRev8 CFG configuration register bit offsets
@@ -382,12 +377,9 @@ class ProtoRev8(CPLDVersionManager):
         cpld._configure_all_bits(ProtoRev8.CFG_MASK_NU, state)
 
 
-class ProtoRev9(CPLDVersionManager):
+class ProtoRev9(CPLDVersion):
     """
     Implementation of the CPLD for Urkul ProtoRev9.
-
-    This class extends `CPLDVersionManager` and provides methods to configure
-    and interact with the ProtoRev9 version of the CPLD.
     """
 
     # ProtoRev9 CFG configuration register bit offsets
@@ -627,24 +619,6 @@ class ProtoRev9(CPLDVersionManager):
         cpld._configure_all_bits(ProtoRev9.CFG_DRHOLD, state)
 
 
-class CPLDVersionManagerFactory:
-    """
-    Factory class for creating CPLD version managers.
-
-    This class provides a method to instantiate the appropriate `CPLDVersionManager` subclass
-    based on the CPLD protocol revision.
-    """
-
-    @staticmethod
-    def get_version(proto_rev: int) -> CPLDVersionManager:
-        if proto_rev == STA_PROTO_REV_8:
-            return ProtoRev8()
-        elif proto_rev == STA_PROTO_REV_9:
-            return ProtoRev9()
-        else:
-            raise ValueError(f"Urukul unsupported proto_rev: {proto_rev}")
-
-
 class CPLD:
     """Urukul CPLD SPI router and configuration interface.
 
@@ -715,7 +689,12 @@ class CPLD:
             sync_div = 0
 
         self.proto_rev = proto_rev
-        self.version_manager = CPLDVersionManagerFactory.get_version(proto_rev)
+        if proto_rev == STA_PROTO_REV_8:
+            self.version = ProtoRev8()
+        elif proto_rev == STA_PROTO_REV_9:
+            self.version = ProtoRev9()
+        else:
+            raise ValueError(f"Urukul unsupported proto_rev: {proto_rev}")
 
         if self.proto_rev == STA_PROTO_REV_8:
             self.cfg_reg = ProtoRev8.urukul_cfg(
@@ -755,71 +734,71 @@ class CPLD:
 
     @kernel
     def cfg_write(self, cfg):
-        self.version_manager.cfg_write(self, cfg)
+        self.version.cfg_write(self, cfg)
 
     @kernel
     def sta_read(self):
-        return self.version_manager.sta_read(self)
+        return self.version.sta_read(self)
 
     @kernel
     def init(self):
-        self.version_manager.init(self)
+        self.version.init(self)
 
     @kernel
     def io_rst(self):
-        self.version_manager.io_rst(self)
+        self.version.io_rst(self)
 
     @kernel
     def set_profile(self, channel, profile):
-        self.version_manager.set_profile(self, channel, profile)
+        self.version.set_profile(self, channel, profile)
 
     @kernel
     def _configure_bit(self, bit_offset: TInt32, channel: TInt32, on: TBool):
-        self.version_manager._configure_bit(self, bit_offset, channel, on)
+        self.version._configure_bit(self, bit_offset, channel, on)
 
     @kernel
     def _configure_all_bits(self, bit_offset: TInt32, state: TInt32):
-        self.version_manager._configure_all_bits(self, bit_offset, state)
+        self.version._configure_all_bits(self, bit_offset, state)
 
     @kernel
     def cfg_mask_nu(self, channel: TInt32, on: TBool):
-        self.version_manager.cfg_mask_nu(self, channel, on)
+        self.version.cfg_mask_nu(self, channel, on)
 
     @kernel
     def cfg_mask_nu_all(self, state: TInt32):
-        self.version_manager.cfg_mask_nu_all(self, state)
+        self.version.cfg_mask_nu_all(self, state)
 
     @kernel
     def cfg_att_en(self, channel: TInt32, on: TBool):
-        self.version_manager.cfg_att_en(self, channel, on)
+        self.version.cfg_att_en(self, channel, on)
 
     @kernel
     def cfg_att_en_all(self, state: TInt32):
-        self.version_manager.cfg_att_en_all(self, state)
+        self.version.cfg_att_en_all(self, state)
 
     @kernel
     def cfg_osk(self, channel: TInt32, on: TBool):
-        self.version_manager.cfg_osk(self, channel, on)
+        self.version.cfg_osk(self, channel, on)
 
     @kernel
     def cfg_osk_all(self, state: TInt32):
-        self.version_manager.cfg_osk_all(self, state)
+        self.version.cfg_osk_all(self, state)
 
     @kernel
     def cfg_drctl(self, channel: TInt32, on: TBool):
-        self.version_manager.cfg_drctl(self, channel, on)
+        self.version.cfg_drctl(self, channel, on)
 
     @kernel
     def cfg_drctl_all(self, state: TInt32):
-        self.version_manager.cfg_drctl_all(self, state)
+        self.version.cfg_drctl_all(self, state)
 
     @kernel
     def cfg_drhold(self, channel: TInt32, on: TBool):
-        self.version_manager.cfg_drhold(self, channel, on)
+        self.version.cfg_drhold(self, channel, on)
 
     @kernel
     def cfg_drhold_all(self, state: TInt32):
-        self.version_manager.cfg_drhold_all(self, state)
+        self.version.cfg_drhold_all(self, state)
 
     @kernel
     def cfg_sw(self, channel: TInt32, on: TBool):
