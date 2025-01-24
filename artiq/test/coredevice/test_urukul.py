@@ -1,4 +1,4 @@
-from artiq.coredevice.urukul import STA_PROTO_REV_9, urukul_sta_rf_sw
+from artiq.coredevice.urukul import STA_PROTO_REV_8, STA_PROTO_REV_9, urukul_sta_rf_sw
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 
@@ -21,6 +21,15 @@ class UrukulExp(EnvExperiment):
     @kernel
     def init(self):
         self.core.break_realtime()
+        self.dev.init()
+
+    @kernel
+    def init_fail_proto_rev(self):
+        self.core.break_realtime()
+        if self.dev.proto_rev == STA_PROTO_REV_9:
+            self.dev.proto_rev = STA_PROTO_REV_8
+        elif self.dev.proto_rev == STA_PROTO_REV_8:
+            self.dev.proto_rev = STA_PROTO_REV_9
         self.dev.init()
 
     @kernel
@@ -277,6 +286,10 @@ class UrukulTest(ExperimentCase):
 
     def test_init(self):
         self.execute(UrukulExp, "init")
+
+    def test_init_fail_proto_rev8(self):
+        with self.assertRaises(ValueError):
+            self.execute(UrukulExp, "init_fail_proto_rev")
 
     def test_cfg_write(self):
         self.execute(UrukulExp, "cfg_write")
