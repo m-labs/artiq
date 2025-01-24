@@ -119,7 +119,6 @@ class UrukulMonitor(Module):
             reg_io_upd = (self.cs == CS_CFG) & self.current_data[8 + ProtoRev8.CFG_IO_UPDATE]
         elif proto_rev == STA_PROTO_REV_9:
             # cfg_write for proto_rev 9 takes two transfers, CFG_IO_UPDATES are in the last one
-            # ProtoRev9.CFG_IO_UPDATE currently equals 32, update below if this is modified.
             reg_io_upd = (self.cs == CS_CFG) & (flags & SPI_END) & (
                 self.current_data[4 + (ProtoRev9.CFG_IO_UPDATE - 32)] |
                 self.current_data[4 + ((ProtoRev9.CFG_IO_UPDATE + 1) - 32)] |
