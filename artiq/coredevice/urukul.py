@@ -304,6 +304,8 @@ class ProtoRev8(CPLDVersion):
         Resets the DDS I/O interface.
         Does not pulse the DDS ``MASTER_RESET`` as that confuses the AD9910.
         """
+        if cpld.proto_rev != STA_PROTO_REV_8:
+            raise ValueError("Urukul proto_rev mismatch")
         cfg = cpld.cfg_reg
         # Don't pulse MASTER_RESET (m-labs/artiq#940)
         cpld.cfg_reg = cfg | (0 << ProtoRev8.CFG_RST) | (1 << ProtoRev8.CFG_IO_RST)
@@ -449,7 +451,7 @@ class ProtoRev9(CPLDVersion):
         cpld.cfg_reg = cfg
 
     @kernel
-    def sta_read(self, cpld) -> TInt64:
+    def sta_read(self, cpld) -> TInt32:
         """Read the status register.
 
         Use any of the following functions to extract values:
@@ -469,9 +471,8 @@ class ProtoRev9(CPLDVersion):
             SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT, 28, SPIT_CFG_RD, CS_CFG
         )
         cpld.bus.write((cpld.cfg_reg & 0xFFFFFFF) << 4)
-        hi = cpld.bus.read()
-        lo = cpld.bus.read()
-        return (int64(hi) << 28) | lo
+        cpld.bus.read() # Upper 32 bits ignored
+        return cpld.bus.read()
 
     @kernel
     def init(self, cpld):
@@ -480,6 +481,8 @@ class ProtoRev9(CPLDVersion):
         Resets the DDS I/O interface.
         Does not pulse the DDS ``MASTER_RESET`` as that confuses the AD9910.
         """
+        if cpld.proto_rev != STA_PROTO_REV_9:
+            raise ValueError("Urukul proto_rev mismatch")
         cfg = cpld.cfg_reg
         # Don't pulse MASTER_RESET (m-labs/artiq#940)
         cpld.cfg_reg = cfg | (0 << ProtoRev9.CFG_RST) | (1 << ProtoRev9.CFG_IO_RST)
