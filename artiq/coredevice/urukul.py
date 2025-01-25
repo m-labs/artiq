@@ -465,13 +465,12 @@ class ProtoRev9(CPLDVersion):
 
         :return: The status register value.
         """
-        cpld.bus.set_config_mu(SPI_CONFIG | spi.SPI_INPUT, 24, SPIT_CFG_RD, CS_CFG)
+        cpld.bus.set_config_mu(SPI_CONFIG, 24, SPIT_CFG_WR, CS_CFG)
         cpld.bus.write(((cpld.cfg_reg >> 24) & 0xFFFFFF) << 8)
         cpld.bus.set_config_mu(
             SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT, 28, SPIT_CFG_RD, CS_CFG
         )
         cpld.bus.write((cpld.cfg_reg & 0xFFFFFFF) << 4)
-        cpld.bus.read() # Upper 32 bits ignored
         return cpld.bus.read()
 
     @kernel
