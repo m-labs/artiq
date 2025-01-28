@@ -1676,7 +1676,7 @@ class Inferencer(algorithm.Visitor):
 
                 if not types.is_function(typ):
                     diag = diagnostic.Diagnostic("error",
-                        "function '{attr}{attr_type}' must be a @kernel function",
+                        "function '{attr}{attr_type}' must be a @kernel",
                         {"attr": attr_name,
                          "attr_type": printer.name(typ)},
                         node.loc)
