@@ -24,15 +24,6 @@ class UrukulExp(EnvExperiment):
         self.dev.init()
 
     @kernel
-    def init_fail_proto_rev(self):
-        self.core.break_realtime()
-        if self.dev.proto_rev == STA_PROTO_REV_9:
-            self.dev.proto_rev = STA_PROTO_REV_8
-        elif self.dev.proto_rev == STA_PROTO_REV_8:
-            self.dev.proto_rev = STA_PROTO_REV_9
-        self.dev.init()
-
-    @kernel
     def cfg_write(self):
         self.core.break_realtime()
         self.dev.init()
@@ -286,10 +277,6 @@ class UrukulTest(ExperimentCase):
 
     def test_init(self):
         self.execute(UrukulExp, "init")
-
-    def test_init_fail_proto_rev8(self):
-        with self.assertRaises(ValueError):
-            self.execute(UrukulExp, "init_fail_proto_rev")
 
     def test_cfg_write(self):
         self.execute(UrukulExp, "cfg_write")

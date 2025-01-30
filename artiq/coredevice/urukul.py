@@ -304,7 +304,7 @@ class ProtoRev8(CPLDVersion):
         Resets the DDS I/O interface.
         Does not pulse the DDS ``MASTER_RESET`` as that confuses the AD9910.
         """
-        if cpld.proto_rev != STA_PROTO_REV_8:
+        if urukul_sta_proto_rev(self.sta_read(cpld)) != STA_PROTO_REV_8:
             raise ValueError("Urukul proto_rev mismatch")
         cfg = cpld.cfg_reg
         # Don't pulse MASTER_RESET (m-labs/artiq#940)
@@ -480,7 +480,7 @@ class ProtoRev9(CPLDVersion):
         Resets the DDS I/O interface.
         Does not pulse the DDS ``MASTER_RESET`` as that confuses the AD9910.
         """
-        if cpld.proto_rev != STA_PROTO_REV_9:
+        if urukul_sta_proto_rev(self.sta_read(cpld)) != STA_PROTO_REV_9:
             raise ValueError("Urukul proto_rev mismatch")
         cfg = cpld.cfg_reg
         # Don't pulse MASTER_RESET (m-labs/artiq#940)
