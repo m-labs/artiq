@@ -15,6 +15,6 @@ c = contextmgr()
 
 @kernel
 def entrypoint():
-    # CHECK-L: ${LINE:+1}: error: function '__enter__[rpc2 #](...)->NoneType' must be a @kernel function
+    # CHECK-L: ${LINE:+1}: error: function '__enter__[rpc2 #](...)->NoneType' must be a @kernel
     with c:
         pass
