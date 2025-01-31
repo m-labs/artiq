@@ -79,18 +79,12 @@ class _ArgumentEditor(EntryTreeWidget):
         argument["desc"] = procdesc
         argument["state"] = state
         self.update_argument(name, argument)
-        self.dock.apply_colors()
+        self.dock.apply_window_color()
 
-    def apply_color(self, palette, color):
-        self.setPalette(palette)
-        for child in self.findChildren(QtWidgets.QWidget):
-            child.setPalette(palette)
-            child.setAutoFillBackground(True)
-        items = self.findItems("*",
-            QtCore.Qt.MatchFlag.MatchWildcard | QtCore.Qt.MatchFlag.MatchRecursive)
-        for item in items:
-            for column in range(item.columnCount()):
-                item.setBackground(column, QtGui.QColor(color))
+    def apply_color(self, color):
+        self.set_background_color(color)
+        self.set_gradient_color(color)
+        self.set_group_color(color)
 
     # Hooks that allow user-supplied argument editors to react to imminent user
     # actions. Here, we always keep the manager-stored submission arguments
@@ -329,7 +323,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.argeditor = editor_class(self.manager, self, self.expurl)
         self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
         self.argeditor.restore_state(argeditor_state)
-        self.apply_colors()
+        self.apply_window_color()
 
     def contextMenuEvent(self, event):
         menu = QtWidgets.QMenu(self)
@@ -353,22 +347,25 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
             title=f"Select {key.replace('_', ' ').title()} color")
         if color.isValid():
             self.manager.set_color(self.expurl, key, color.name())
-            self.apply_colors()
+            if key == "title_bar":
+                self.apply_title_bar_color()
+            else:
+                self.apply_window_color()
 
-    def apply_colors(self):
+    def apply_title_bar_color(self):
         colors = self.manager.get_colors(self.expurl)
         if not colors:
-            palette = QtWidgets.QApplication.palette()
-            colors = {
-                "window": palette.color(QtGui.QPalette.ColorRole.Window).name(),
-                "title_bar": palette.color(QtGui.QPalette.ColorRole.Highlight).name(),
-            }
-            self.manager.colors[self.expurl] = colors
+            return
+        self.setStyle(_ColoredTitleBar(colors["title_bar"]))
+
+    def apply_window_color(self):
+        colors = self.manager.get_colors(self.expurl)
+        if not colors:
+            return
         colors["window_text"] = "#000000" if QtGui.QColor(
             colors["window"]).lightness() > 128 else "#FFFFFF"
         self.modify_palette(colors)
-        self.setStyle(_ColoredTitleBar(colors["title_bar"]))
-        self.argeditor.apply_color(self.palette(), (colors["window"]))
+        self.argeditor.apply_color(colors["window"])
 
     def modify_palette(self, colors):
         palette = self.palette()
@@ -381,8 +378,13 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.setPalette(palette)
 
     def reset_colors(self):
+        colors = self.manager.get_colors(self.expurl)
+        if not colors:
+            return
         self.manager.reset_colors(self.expurl)
-        self.apply_colors()
+        self.setStyle(None)
+        self.setPalette(QtWidgets.QApplication.palette())
+        self.argeditor.apply_color(None)
 
     async def _recompute_sched_options_task(self):
         try:
@@ -696,7 +698,12 @@ class ExperimentManager:
         self.open_experiments[expurl] = dock
         dock.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
         self.main_window.centralWidget().addSubWindow(dock)
-        dock.apply_colors()
+        colors = self.get_colors(expurl)
+        if colors:
+            if "title_bar" in colors:
+                dock.apply_title_bar_color()
+            if "window" in colors:
+                dock.apply_window_color()
         dock.show()
         dock.sigClosed.connect(partial(self.on_dock_closed, expurl))
         if expurl in self.dock_states:
