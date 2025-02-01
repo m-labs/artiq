@@ -226,108 +226,104 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
     def _create_pipeline_widgets(self):
         self.pipeline_name = QtWidgets.QLineEdit()
-        pipeline_name = self.pipeline_name
         self.foldable_layout.addWidget(QtWidgets.QLabel("Pipeline:"), 1, 2)
-        self.foldable_layout.addWidget(pipeline_name, 1, 3)
+        self.foldable_layout.addWidget(self.pipeline_name, 1, 3)
 
-        pipeline_name.setText(self.scheduling["pipeline_name"])
+        self.pipeline_name.setText(self.scheduling["pipeline_name"])
 
         def update_pipeline_name(text):
             self.scheduling["pipeline_name"] = text
-        pipeline_name.textChanged.connect(update_pipeline_name)
+        self.pipeline_name.textChanged.connect(update_pipeline_name)
 
     def _create_priority_widgets(self):
         self.priority = QtWidgets.QSpinBox()
-        priority = self.priority
-        priority.setRange(-99, 99)
+        self.priority.setRange(-99, 99)
         self.foldable_layout.addWidget(QtWidgets.QLabel("Priority:"), 2, 0)
-        self.foldable_layout.addWidget(priority, 2, 1)
-        priority.setValue(self.scheduling["priority"])
+        self.foldable_layout.addWidget(self.priority, 2, 1)
+        self.priority.setValue(self.scheduling["priority"])
 
         def update_priority(value):
             self.scheduling["priority"] = value
-        priority.valueChanged.connect(update_priority)
+        self.priority.valueChanged.connect(update_priority)
 
     def _create_flush_widgets(self):
         self.flush = QtWidgets.QCheckBox("Flush")
-        flush = self.flush
-        flush.setToolTip("Flush the pipeline (of current- and higher-priority "
-                         "experiments) before starting the experiment")
-        self.foldable_layout.addWidget(flush, 2, 2)
+        self.flush.setToolTip("Flush the pipeline (of current- and higher-priority "
+                              "experiments) before starting the experiment")
+        self.foldable_layout.addWidget(self.flush, 2, 2)
 
-        flush.setChecked(self.scheduling["flush"])
+        self.flush.setChecked(self.scheduling["flush"])
 
-        def update_flush(checked):
-            self.scheduling["flush"] = bool(checked)
-        flush.stateChanged.connect(update_flush)
+        def update_flush(state):
+            self.scheduling["flush"] = bool(state)
+        self.flush.stateChanged.connect(update_flush)
 
     def _create_devarg_override_widgets(self):
-        devarg_override = QtWidgets.QComboBox()
-        devarg_override.setEditable(True)
-        devarg_override.lineEdit().setPlaceholderText("Override device arguments")
-        devarg_override.lineEdit().setClearButtonEnabled(True)
-        devarg_override.insertItem(0, "core:analyze_at_run_end=True")
-        devarg_override.insertItem(1, "core:report_invariants=True")
-        self.foldable_layout.addWidget(devarg_override, 2, 3)
+        self.devarg_override = QtWidgets.QComboBox()
+        self.devarg_override.setEditable(True)
+        self.devarg_override.lineEdit().setPlaceholderText(
+                "Override device arguments")
+        self.devarg_override.lineEdit().setClearButtonEnabled(True)
+        self.devarg_override.insertItem(0, "core:analyze_at_run_end=True")
+        self.devarg_override.insertItem(1, "core:report_invariants=True")
+        self.foldable_layout.addWidget(self.devarg_override, 2, 3)
 
-        devarg_override.setCurrentText(self.options["devarg_override"])
+        self.devarg_override.setCurrentText(self.options["devarg_override"])
 
         def update_devarg_override(text):
             self.options["devarg_override"] = text
-        devarg_override.editTextChanged.connect(update_devarg_override)
-        self.devarg_override = devarg_override
+        self.devarg_override.editTextChanged.connect(update_devarg_override)
 
     def _create_log_level_widgets(self):
-        log_level = QtWidgets.QComboBox()
-        log_level.addItems(log_levels)
-        log_level.setCurrentIndex(1)
-        log_level.setToolTip("Minimum level for log entry production")
-        log_level_label = QtWidgets.QLabel("Logging level:")
-        log_level_label.setToolTip("Minimum level for log message production")
-        self.foldable_layout.addWidget(log_level_label, 3, 0)
-        self.foldable_layout.addWidget(log_level, 3, 1)
+        self.log_level = QtWidgets.QComboBox()
+        self.log_level.addItems(log_levels)
+        self.log_level.setCurrentIndex(1)
+        self.log_level.setToolTip("Minimum level for log entry production")
+        self.log_level_label = QtWidgets.QLabel("Logging level:")
+        self.log_level_label.setToolTip(
+                "Minimum level for log message production")
+        self.foldable_layout.addWidget(self.log_level_label, 3, 0)
+        self.foldable_layout.addWidget(self.log_level, 3, 1)
 
-        log_level.setCurrentIndex(log_levels.index(
+        self.log_level.setCurrentIndex(log_levels.index(
             log_level_to_name(self.options["log_level"])))
 
         def update_log_level(index):
-            self.options["log_level"] = getattr(logging, log_level.currentText())
-        log_level.currentIndexChanged.connect(update_log_level)
-        self.log_level = log_level
+            self.options["log_level"] = getattr(logging, self.log_level.currentText())
+        self.log_level.currentIndexChanged.connect(update_log_level)
 
     def _create_repo_rev_widgets(self):
         if "repo_rev" in self.options:
-            repo_rev = QtWidgets.QLineEdit()
-            repo_rev.setPlaceholderText("current")
-            repo_rev.setClearButtonEnabled(True)
-            repo_rev_label = QtWidgets.QLabel("Rev / ref:")
-            repo_rev_label.setToolTip("Experiment repository revision "
-                                      "(commit ID) or reference (branch "
-                                      "or tag) to use")
-            self.foldable_layout.addWidget(repo_rev_label, 3, 2)
-            self.foldable_layout.addWidget(repo_rev, 3, 3)
+            self.repo_rev = QtWidgets.QLineEdit()
+            self.repo_rev.setPlaceholderText("current")
+            self.repo_rev.setClearButtonEnabled(True)
+            self.repo_rev_label = QtWidgets.QLabel("Rev / ref:")
+            self.repo_rev_label.setToolTip("Experiment repository revision "
+                                           "(commit ID) or reference (branch "
+                                           "or tag) to use")
+            self.foldable_layout.addWidget(self.repo_rev_label, 3, 2)
+            self.foldable_layout.addWidget(self.repo_rev, 3, 3)
 
             if self.options["repo_rev"] is not None:
-                repo_rev.setText(self.options["repo_rev"])
+                self.repo_rev.setText(self.options["repo_rev"])
 
             def update_repo_rev(text):
                 if text:
                     self.options["repo_rev"] = text
                 else:
                     self.options["repo_rev"] = None
-            repo_rev.textChanged.connect(update_repo_rev)
-            self.repo_rev = repo_rev
+            self.repo_rev.textChanged.connect(update_repo_rev)
 
     def _create_submit_widgets(self):
-        submit = QtWidgets.QPushButton("Submit")
-        submit.setIcon(QtWidgets.QApplication.style().standardIcon(
+        self.submit = QtWidgets.QPushButton("Submit")
+        self.submit.setIcon(QtWidgets.QApplication.style().standardIcon(
                 QtWidgets.QStyle.StandardPixmap.SP_DialogOkButton))
-        submit.setToolTip("Schedule the experiment (Ctrl+Return)")
-        submit.setShortcut("CTRL+RETURN")
-        submit.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
+        self.submit.setToolTip("Schedule the experiment (Ctrl+Return)")
+        self.submit.setShortcut("CTRL+RETURN")
+        self.submit.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
                              QtWidgets.QSizePolicy.Policy.Expanding)
-        self.always_visible_layout.addWidget(submit)
-        submit.clicked.connect(self.submit_clicked)
+        self.always_visible_layout.addWidget(self.submit)
+        self.submit.clicked.connect(self.submit_clicked)
 
     def submit_clicked(self):
         self.argeditor.about_to_submit()
@@ -340,15 +336,15 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
                          self.expurl, exc_info=True)
 
     def _create_reqterm_widgets(self):
-        reqterm = QtWidgets.QPushButton("Terminate instances")
-        reqterm.setIcon(QtWidgets.QApplication.style().standardIcon(
+        self.reqterm = QtWidgets.QPushButton("Terminate instances")
+        self.reqterm.setIcon(QtWidgets.QApplication.style().standardIcon(
                 QtWidgets.QStyle.StandardPixmap.SP_DialogCancelButton))
-        reqterm.setToolTip("Request termination of instances (Ctrl+Backspace)")
-        reqterm.setShortcut("CTRL+BACKSPACE")
-        reqterm.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
+        self.reqterm.setToolTip("Request termination of instances (Ctrl+Backspace)")
+        self.reqterm.setShortcut("CTRL+BACKSPACE")
+        self.reqterm.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
                               QtWidgets.QSizePolicy.Policy.Expanding)
-        self.always_visible_layout.addWidget(reqterm)
-        reqterm.clicked.connect(self.reqterm_clicked)
+        self.always_visible_layout.addWidget(self.reqterm)
+        self.reqterm.clicked.connect(self.reqterm_clicked)
 
     def reqterm_clicked(self):
         try:
