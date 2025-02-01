@@ -115,20 +115,14 @@ class _ColoredTitleBar(QtWidgets.QProxyStyle):
 class _ExperimentDock(QtWidgets.QMdiSubWindow):
     sigClosed = QtCore.pyqtSignal()
 
+
     def __init__(self, manager, expurl):
-        QtWidgets.QMdiSubWindow.__init__(self)
+        super(_ExperimentDock, self).__init__()
         qfm = QtGui.QFontMetrics(self.font())
         self.resize(100 * qfm.averageCharWidth(), 30 * qfm.lineSpacing())
         self.setWindowTitle(expurl)
         self.setWindowIcon(QtWidgets.QApplication.style().standardIcon(
             QtWidgets.QStyle.StandardPixmap.SP_FileDialogContentsView))
-
-        self.layout = QtWidgets.QGridLayout()
-        top_widget = QtWidgets.QWidget()
-        top_widget.setLayout(self.layout)
-        self.setWidget(top_widget)
-        self.layout.setSpacing(5)
-        self.layout.setContentsMargins(5, 5, 5, 5)
 
         self.manager = manager
         self.expurl = expurl
@@ -136,7 +130,44 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.options = manager.get_submission_options(expurl)
         self.hdf5_load_directory = os.path.expanduser("~")
 
+        master_layout = QtWidgets.QVBoxLayout()
         self._create_argument_editor()
+        master_layout.addWidget(self.argeditor)
+
+        # Create a toggle button that will collapse/expand the options.
+        self.fold_toggle = QtWidgets.QToolButton(text="Collapse scheduler settings",
+                                                 checkable=True)
+        self.fold_toggle.setChecked(False)
+        self.fold_toggle.setToolTip("Collapse/Expand scheduler settings")
+        self.fold_toggle.setArrowType(QtCore.Qt.ArrowType.DownArrow)
+        self.fold_toggle.clicked.connect(self.on_fold_toggle)
+        master_layout.addWidget(self.fold_toggle)
+
+        # Create a container widget (with a grid layout) for all the foldable
+        # options.
+        self.foldable_container = QtWidgets.QWidget()
+        self.foldable_layout = QtWidgets.QGridLayout()
+        self.foldable_layout.setSpacing(5)
+        self.foldable_layout.setContentsMargins(5, 5, 5, 5)
+        self.foldable_container.setLayout(self.foldable_layout)
+        master_layout.addWidget(self.foldable_container)
+
+        # Create a container widget (with a horizontal layout) for
+        # always-visible buttons.
+        self.always_visible_container = QtWidgets.QWidget()
+        self.always_visible_layout = QtWidgets.QHBoxLayout()
+        self.always_visible_layout.setSpacing(5)
+        self.always_visible_layout.setContentsMargins(5, 5, 5, 5)
+        self.always_visible_container.setLayout(self.always_visible_layout)
+        master_layout.addWidget(self.always_visible_container)
+
+        # Set the master layout on the top widget.
+        top_widget = QtWidgets.QWidget()
+        top_widget.setLayout(master_layout)
+        self.setWidget(top_widget)
+
+        # --- Create the various widget groups ---
+        # Place all “foldable” widgets into the foldable_layout.
         self._create_due_date_widgets()
         self._create_pipeline_widgets()
         self._create_priority_widgets()
@@ -144,21 +175,34 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self._create_devarg_override_widgets()
         self._create_log_level_widgets()
         self._create_repo_rev_widgets()
+        # Place the submit and termination buttons into the always-visible
+        # container.
         self._create_submit_widgets()
         self._create_reqterm_widgets()
+
+        self.on_fold_toggle()
+
+    def on_fold_toggle(self):
+        """Toggle the visibility of the options."""
+        if self.fold_toggle.isChecked():
+            self.foldable_container.show()
+            self.fold_toggle.setText("Collapse scheduler settings")
+            self.fold_toggle.setArrowType(QtCore.Qt.ArrowType.DownArrow)
+        else:
+            self.foldable_container.hide()
+            self.fold_toggle.setText("Expand scheduler settings")
+            self.fold_toggle.setArrowType(QtCore.Qt.ArrowType.RightArrow)
 
     def _create_argument_editor(self):
         editor_class = self.manager.get_argument_editor_class(self.expurl)
         self.argeditor = editor_class(self.manager, self, self.expurl)
-        self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
-        self.layout.setRowStretch(0, 1)
 
     def _create_due_date_widgets(self):
         datetime = QtWidgets.QDateTimeEdit()
         datetime.setDisplayFormat("MMM d yyyy hh:mm:ss")
         datetime_en = QtWidgets.QCheckBox("Due date:")
-        self.layout.addWidget(datetime_en, 1, 0)
-        self.layout.addWidget(datetime, 1, 1)
+        self.foldable_layout.addWidget(datetime_en, 1, 0)
+        self.foldable_layout.addWidget(datetime, 1, 1)
 
         if self.scheduling["due_date"] is None:
             datetime.setDate(QtCore.QDate.currentDate())
@@ -183,8 +227,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
     def _create_pipeline_widgets(self):
         self.pipeline_name = QtWidgets.QLineEdit()
         pipeline_name = self.pipeline_name
-        self.layout.addWidget(QtWidgets.QLabel("Pipeline:"), 1, 2)
-        self.layout.addWidget(pipeline_name, 1, 3)
+        self.foldable_layout.addWidget(QtWidgets.QLabel("Pipeline:"), 1, 2)
+        self.foldable_layout.addWidget(pipeline_name, 1, 3)
 
         pipeline_name.setText(self.scheduling["pipeline_name"])
 
@@ -196,8 +240,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.priority = QtWidgets.QSpinBox()
         priority = self.priority
         priority.setRange(-99, 99)
-        self.layout.addWidget(QtWidgets.QLabel("Priority:"), 2, 0)
-        self.layout.addWidget(priority, 2, 1)
+        self.foldable_layout.addWidget(QtWidgets.QLabel("Priority:"), 2, 0)
+        self.foldable_layout.addWidget(priority, 2, 1)
         priority.setValue(self.scheduling["priority"])
 
         def update_priority(value):
@@ -209,7 +253,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         flush = self.flush
         flush.setToolTip("Flush the pipeline (of current- and higher-priority "
                          "experiments) before starting the experiment")
-        self.layout.addWidget(flush, 2, 2)
+        self.foldable_layout.addWidget(flush, 2, 2)
 
         flush.setChecked(self.scheduling["flush"])
 
@@ -224,7 +268,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         devarg_override.lineEdit().setClearButtonEnabled(True)
         devarg_override.insertItem(0, "core:analyze_at_run_end=True")
         devarg_override.insertItem(1, "core:report_invariants=True")
-        self.layout.addWidget(devarg_override, 2, 3)
+        self.foldable_layout.addWidget(devarg_override, 2, 3)
 
         devarg_override.setCurrentText(self.options["devarg_override"])
 
@@ -240,8 +284,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         log_level.setToolTip("Minimum level for log entry production")
         log_level_label = QtWidgets.QLabel("Logging level:")
         log_level_label.setToolTip("Minimum level for log message production")
-        self.layout.addWidget(log_level_label, 3, 0)
-        self.layout.addWidget(log_level, 3, 1)
+        self.foldable_layout.addWidget(log_level_label, 3, 0)
+        self.foldable_layout.addWidget(log_level, 3, 1)
 
         log_level.setCurrentIndex(log_levels.index(
             log_level_to_name(self.options["log_level"])))
@@ -260,8 +304,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
             repo_rev_label.setToolTip("Experiment repository revision "
                                       "(commit ID) or reference (branch "
                                       "or tag) to use")
-            self.layout.addWidget(repo_rev_label, 3, 2)
-            self.layout.addWidget(repo_rev, 3, 3)
+            self.foldable_layout.addWidget(repo_rev_label, 3, 2)
+            self.foldable_layout.addWidget(repo_rev, 3, 3)
 
             if self.options["repo_rev"] is not None:
                 repo_rev.setText(self.options["repo_rev"])
@@ -282,7 +326,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         submit.setShortcut("CTRL+RETURN")
         submit.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
                              QtWidgets.QSizePolicy.Policy.Expanding)
-        self.layout.addWidget(submit, 1, 4, 2, 1)
+        self.always_visible_layout.addWidget(submit)
         submit.clicked.connect(self.submit_clicked)
 
     def submit_clicked(self):
@@ -303,7 +347,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         reqterm.setShortcut("CTRL+BACKSPACE")
         reqterm.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding,
                               QtWidgets.QSizePolicy.Policy.Expanding)
-        self.layout.addWidget(reqterm, 3, 4)
+        self.always_visible_layout.addWidget(reqterm)
         reqterm.clicked.connect(self.reqterm_clicked)
 
     def reqterm_clicked(self):
