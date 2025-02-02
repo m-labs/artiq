@@ -226,7 +226,8 @@ class Urukul(_EEM):
         return ios
 
     @classmethod
-    def add_std(cls, target, eem, eem_aux, ttl_out_cls, dds_type, sync_gen_cls=None, iostandard=default_iostandard):
+    def add_std(cls, target, eem, eem_aux, ttl_out_cls, dds_type, proto_rev,
+                sync_gen_cls=None, iostandard=default_iostandard):
         cls.add_extension(target, eem, eem_aux, iostandard=iostandard)
 
         spi_phy = spi2.SPIMaster(target.platform.request("urukul{}_spi_p".format(eem)),
@@ -245,7 +246,7 @@ class Urukul(_EEM):
         target.submodules += io_upd_phy
         target.rtio_channels.append(rtio.Channel.from_phy(io_upd_phy))
 
-        dds_monitor = dds.UrukulMonitor(spi_phy, io_upd_phy, dds_type)
+        dds_monitor = dds.UrukulMonitor(spi_phy, io_upd_phy, dds_type, proto_rev)
         target.submodules += dds_monitor
         spi_phy.probes.extend(dds_monitor.probes)
 

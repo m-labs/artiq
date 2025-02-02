@@ -1,13 +1,11 @@
 from numpy import int32, int64
 
-from artiq.language.core import (
-    kernel, delay, portable, delay_mu, now_mu, at_mu)
-from artiq.language.units import us, ms
-from artiq.language.types import TBool, TInt32, TInt64, TFloat, TList, TTuple
-
 from artiq.coredevice import spi2 as spi
 from artiq.coredevice import urukul
-from artiq.coredevice.urukul import DEFAULT_PROFILE
+from artiq.coredevice.urukul import DEFAULT_PROFILE, _RegIOUpdate
+from artiq.language.core import at_mu, delay, delay_mu, kernel, now_mu, portable
+from artiq.language.types import TBool, TFloat, TInt32, TInt64, TList, TTuple
+from artiq.language.units import ms, us
 
 # Work around ARTIQ-Python import machinery
 urukul_sta_pll_lock = urukul.urukul_sta_pll_lock
@@ -174,8 +172,10 @@ class AD9910:
         self.sysclk_per_mu = int(round(sysclk * self.core.ref_period))
         self.sysclk = sysclk
 
-        if isinstance(sync_delay_seed, str) or isinstance(io_update_delay,
-                                                          str):
+        if not self.cpld.io_update:
+            self.cpld.io_update = _RegIOUpdate(self.cpld, self.chip_select)
+
+        if isinstance(sync_delay_seed, str) or isinstance(io_update_delay, str):
             if sync_delay_seed != io_update_delay:
                 raise ValueError("When using EEPROM, sync_delay_seed must be "
                                  "equal to io_update_delay")
@@ -425,7 +425,10 @@ class AD9910:
     @kernel
     def set_cfr2(self, 
                  asf_profile_enable: TInt32 = 1, 
+                 drg_destination: TInt32 = 0,
                  drg_enable: TInt32 = 0, 
+                 drg_nodwell_high: TInt32 = 0,
+                 drg_nodwell_low: TInt32 = 0,
                  effective_ftw: TInt32 = 1,
                  sync_validation_disable: TInt32 = 0, 
                  matched_latency_enable: TInt32 = 0):
@@ -434,19 +437,27 @@ class AD9910:
         This method does not pulse ``IO_UPDATE``.
 
         :param asf_profile_enable: Enable amplitude scale from single tone profiles.
+        :param drg_destination: Digital ramp destination. Determines the parameter to modulate:
+            * 0: Frequency
+            * 1: Phase
+            * 2: Amplitude
         :param drg_enable: Digital ramp enable.
+        :param drg_nodwell_high: Digital ramp no-dwell high.
+        :param drg_nodwell_low: Digital ramp no-dwell low.
         :param effective_ftw: Read effective FTW.
         :param sync_validation_disable: Disable the SYNC_SMP_ERR pin indicating
             (active high) detection of a synchronization pulse sampling error.
-        :param matched_latency_enable: Simultaneous application of amplitude,
-            phase, and frequency changes to the DDS arrive at the output
-
-            * matched_latency_enable = 0: in the order listed
-            * matched_latency_enable = 1: simultaneously.
+        :param matched_latency_enable: Control the application timing of amplitude,
+            phase, and frequency changes at the DDS output:
+            * 0: Changes are applied in the order listed.
+            * 1: Changes are applied simultaneously.
         """
         self.write32(_AD9910_REG_CFR2,
                      (asf_profile_enable << 24) |
+                     (drg_destination << 20) |
                      (drg_enable << 19) |
+                     (drg_nodwell_high << 18) |
+                     (drg_nodwell_low << 17) |
                      (effective_ftw << 16) |
                      (matched_latency_enable << 7) |
                      (sync_validation_disable << 5))
@@ -895,7 +906,9 @@ class AD9910:
     def set_att_mu(self, att: TInt32):
         """Set digital step attenuator in machine units.
 
-        This method will write the attenuator settings of all four channels. See also
+        This method will write the attenuator settings of the channel
+        (Urukul proto_rev 0x08, all four channels will be updated at same time).
+        See also
         :meth:`CPLD.get_channel_att <artiq.coredevice.urukul.CPLD.set_att_mu>`.
 
         :param att: Attenuation setting, 8-bit digital.
@@ -906,7 +919,9 @@ class AD9910:
     def set_att(self, att: TFloat):
         """Set digital step attenuator in SI units.
 
-        This method will write the attenuator settings of all four channels. See also 
+        This method will write the attenuator settings of the channel
+        (Urukul proto_rev 0x08, all four channels will be updated at same time).
+        See also
         :meth:`CPLD.get_channel_att <artiq.coredevice.urukul.CPLD.set_att>`.
 
         :param att: Attenuation in dB.
@@ -940,6 +955,51 @@ class AD9910:
         :param state: CPLD CFG RF switch bit
         """
         self.cpld.cfg_sw(self.chip_select - 4, state)
+
+    @kernel
+    def cfg_osk(self, state: TBool):
+        """Set CPLD CFG OSK state. The OSK bit is controlled by the
+        logical or of the CPLD configuration shift register OSK bit.
+
+        :param state: CPLD CFG OSK bit
+        """
+        self.cpld.cfg_osk(self.chip_select - 4, state)
+
+    @kernel
+    def cfg_drctl(self, state: TBool):
+        """Set CPLD CFG DRCTL state. The DRCTL bit is controlled by the
+        logical or of the CPLD configuration shift register DRCTL bit.
+
+        :param state: CPLD CFG DRCTL bit
+        """
+        self.cpld.cfg_drctl(self.chip_select - 4, state)
+
+    @kernel
+    def cfg_drhold(self, state: TBool):
+        """Set CPLD CFG DRHOLD state. The DRHOLD bit is controlled by the
+        logical or of the CPLD configuration shift register DRHOLD bit.
+
+        :param state: CPLD CFG DRHOLD bit
+        """
+        self.cpld.cfg_drhold(self.chip_select - 4, state)
+
+    @kernel
+    def cfg_mask_nu(self, state: TBool):
+        """Set CPLD CFG MASK_NU state. The MASK_NU bit is controlled by the
+        logical or of the CPLD configuration shift register MASK_NU bit.
+
+        :param state: CPLD CFG MASK_NU bit
+        """
+        self.cpld.cfg_mask_nu(self.chip_select - 4, state)
+
+    @kernel
+    def cfg_att_en(self, state: TBool):
+        """Set CPLD CFG ATT_EN state. The ATT_EN bit is controlled by the
+        logical or of the CPLD configuration shift register ATT_EN bit.
+
+        :param state: CPLD CFG ATT_EN bit
+        """
+        self.cpld.cfg_att_en(self.chip_select - 4, state)
 
     @kernel
     def set_sync(self, 
