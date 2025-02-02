@@ -576,30 +576,42 @@ class ExperimentManager:
     def open_experiment(self, expurl):
         if expurl in self.open_experiments:
             dock = self.open_experiments[expurl]
+            mdi_area = dock.mdiArea()
+            if mdi_area is not None:
+                tab_widget = self.main_window.centralWidget()
+                tab_widget.setCurrentWidget(mdi_area)
+                mdi_area.setActiveSubWindow(dock)
+
             if dock.isMinimized():
                 dock.showNormal()
-            self.main_window.centralWidget().setActiveSubWindow(dock)
             return dock
         try:
             dock = _ExperimentDock(self, expurl)
-        except:
-            logger.warning("Failed to create experiment dock for %s, "
-                           "attempting to reset arguments", expurl,
-                           exc_info=True)
+        except Exception:
+            logger.warning(
+                "Failed to create experiment dock for %s, attempting to reset arguments",
+                expurl,
+                exc_info=True,
+            )
             del self.submission_arguments[expurl]
             dock = _ExperimentDock(self, expurl)
         self.open_experiments[expurl] = dock
         dock.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.main_window.centralWidget().addSubWindow(dock)
+
+        mdi_area = self.main_window.centralWidget().currentWidget()
+        if mdi_area is not None:
+            mdi_area.addSubWindow(dock)
         dock.show()
         dock.sigClosed.connect(partial(self.on_dock_closed, expurl))
         if expurl in self.dock_states:
             try:
                 dock.restore_state(self.dock_states[expurl])
-            except:
-                logger.warning("Failed to restore dock state when opening "
-                               "experiment %s", expurl,
-                               exc_info=True)
+            except Exception:
+                logger.warning(
+                    "Failed to restore dock state when opening experiment %s",
+                    expurl,
+                    exc_info=True,
+                )
         return dock
 
     def on_dock_closed(self, expurl):
