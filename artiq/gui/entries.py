@@ -31,22 +31,52 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
         self.setHorizontalScrollMode(self.ScrollMode.ScrollPerPixel)
         self.setVerticalScrollMode(self.ScrollMode.ScrollPerPixel)
 
-        self.setStyleSheet("QTreeWidget {background: " +
-                           self.palette().midlight().color().name() + " ;}")
-
         self.viewport().installEventFilter(WheelFilter(self.viewport(), True))
 
         self._groups = dict()
         self._arg_to_widgets = dict()
         self._arguments = dict()
 
+        self.set_background_color()
         self.gradient = QtGui.QLinearGradient(
             0, 0, 0, QtGui.QFontMetrics(self.font()).lineSpacing() * 2.5)
-        self.gradient.setColorAt(0, self.palette().base().color())
-        self.gradient.setColorAt(1, self.palette().midlight().color())
+        self.set_gradient_color()
+        self.set_group_color()
 
         self.bottom_item = QtWidgets.QTreeWidgetItem()
         self.addTopLevelItem(self.bottom_item)
+
+    def set_background_color(self, color=None):
+        if color is None:
+            base_color = self.palette().base().color()
+        else:
+            base_color = QtGui.QColor(color)
+        self.palette().setColor(QtGui.QPalette.ColorRole.Base, base_color)
+
+    def set_gradient_color(self, color=None):
+        if color is None:
+            start_color = self.palette().base().color()
+            end_color = self.palette().midlight().color()
+        else:
+            start_color = QtGui.QColor(color)
+            end_color = start_color.toHsv()
+            end_color.setHsv(end_color.hue(),
+                             int(end_color.saturation() * 0.8),
+                             min(255, int(end_color.value() * 1.2)))
+        self.gradient.setColorAt(0, start_color)
+        self.gradient.setColorAt(1, end_color)
+        for widgets in self._arg_to_widgets.values():
+            for col in range(3):
+                widgets["widget_item"].setBackground(col, self.gradient)
+
+    def set_group_color(self, color=None):
+        if color is None:
+            group_color = self.palette().mid().color()
+        else:
+            group_color = QtGui.QColor(color)
+        for group in self._groups.values():
+            for col in range(3):
+                group.setBackground(col, group_color)
 
     def set_argument(self, key, argument):
         self._arguments[key] = argument
@@ -63,8 +93,7 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
         widgets["entry"] = entry
         widgets["widget_item"] = widget_item
 
-        for col in range(3):
-            widget_item.setBackground(col, self.gradient)
+        self.set_gradient_color()
         font = widget_item.font(0)
         font.setBold(True)
         widget_item.setFont(0, font)
@@ -108,12 +137,12 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
             return self._groups[key]
         group = QtWidgets.QTreeWidgetItem([key])
         for col in range(3):
-            group.setBackground(col, self.palette().mid())
             font = group.font(col)
             font.setBold(True)
             group.setFont(col, font)
         self.insertTopLevelItem(self.indexFromItem(self.bottom_item).row(), group)
         self._groups[key] = group
+        self.set_group_color()
         return group
 
     def _disable_other_scans(self, current_key):
