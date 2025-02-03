@@ -98,7 +98,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tab_widget.setTabsClosable(True)
         self.tab_widget.tabCloseRequested.connect(self.close_mdi_area)
         self.setCentralWidget(self.tab_widget)
-        self.add_mdi_area("Main Area")
         toolbar = QtWidgets.QToolBar("Main Toolbar")
         toolbar.setObjectName("MainToolbar")
         self.addToolBar(toolbar)
@@ -110,6 +109,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def add_mdi_area(self, title):
         """Create a new MDI area (tab) with the given title."""
         mdi_area = MdiArea()
+        mdi_area.tab_name = title  # store the name for later lookup
         self.tab_widget.addTab(mdi_area, title)
 
     def new_mdi_area(self):
@@ -136,14 +136,33 @@ class MainWindow(QtWidgets.QMainWindow):
         self.exit_request.set()
 
     def save_state(self):
+        """
+        Save MainWindow state including MDI areas.
+        (This is separate from the QMainWindow state.)
+        """
+        mdi_areas = [self.tab_widget.tabText(i) for i in range(self.tab_widget.count())]
         return {
             "state": bytes(self.saveState()),
-            "geometry": bytes(self.saveGeometry())
+            "geometry": bytes(self.saveGeometry()),
+            "mdi_areas": mdi_areas,
         }
 
     def restore_state(self, state):
+        """Restore MainWindow state including MDI areas."""
         self.restoreGeometry(QtCore.QByteArray(state["geometry"]))
         self.restoreState(QtCore.QByteArray(state["state"]))
+        for title in state.get("mdi_areas", []):
+            self.add_mdi_area(title)
+
+    def get_mdi_area_by_name(self, name):
+        """
+        Given a name (i.e. tab title), return the corresponding MDI area.
+        Returns None if not found.
+        """
+        for i in range(self.tab_widget.count()):
+            if self.tab_widget.tabText(i) == name:
+                return self.tab_widget.widget(i)
+        return None
 
 
 class MdiArea(QtWidgets.QMdiArea):
@@ -248,7 +267,6 @@ def main():
 
     # initialize main window
     main_window = MainWindow(args.server if server_name is None else server_name)
-    smgr.register(main_window)
 
     # create UI components
     expmgr = experiments.ExperimentManager(main_window,
@@ -258,6 +276,7 @@ def main():
                                            rpc_clients["schedule"],
                                            rpc_clients["experiment_db"])
     smgr.register(expmgr)
+    smgr.register(main_window)
     d_shortcuts = shortcuts.ShortcutsDock(main_window, expmgr)
     smgr.register(d_shortcuts)
     d_explorer = explorer.ExplorerDock(expmgr, d_shortcuts,

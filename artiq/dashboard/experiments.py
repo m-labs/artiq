@@ -825,6 +825,9 @@ class ExperimentManager:
     def save_state(self):
         for expurl, dock in self.open_experiments.items():
             self.dock_states[expurl] = dock.save_state()
+        experiment_mdi = {}
+        for expurl, dock in self.open_experiments.items():
+            experiment_mdi[expurl] = dock.mdiArea().tab_name
         return {
             "scheduling": dict(self.submission_scheduling),
             "options": dict(self.submission_options),
@@ -832,7 +835,8 @@ class ExperimentManager:
             "docks": dict(self.dock_states),
             "argument_uis": dict(self.argument_ui_names),
             "open_docks": set(self.open_experiments.keys()),
-            "colors": dict(self.colors)
+            "colors": dict(self.colors),
+            "experiment_mdi": experiment_mdi
         }
 
     def restore_state(self, state):
@@ -844,7 +848,12 @@ class ExperimentManager:
         self.submission_arguments.update(state["arguments"])
         self.argument_ui_names.update(state.get("argument_uis", {}))
         self.colors.update(state.get("colors", {}))
+        experiment_mdi = state.get("experiment_mdi", {})
         for expurl in state["open_docks"]:
+            tab_widget = self.main_window.centralWidget()
+            mdi_area_name = experiment_mdi[expurl]
+            mdi_area = self.main_window.get_mdi_area_by_name(mdi_area_name)
+            tab_widget.setCurrentWidget(mdi_area)
             self.open_experiment(expurl)
 
     def show_quick_open(self):
