@@ -61,6 +61,16 @@ def get_argparser():
     return parser
 
 
+def tab_name_exists(tab_widget, name, ignore_index=None):
+    for i in range(tab_widget.count()):
+        if ignore_index is not None and i == ignore_index:
+            continue
+        widget = tab_widget.widget(i)
+        if hasattr(widget, "tab_name") and widget.tab_name == name:
+            return True
+    return False
+
+
 class EditableTabBar(QtWidgets.QTabBar):
     def mouseDoubleClickEvent(self, event):
         index = self.tabAt(event.pos())
@@ -72,13 +82,19 @@ class EditableTabBar(QtWidgets.QTabBar):
             )
             if ok and new_name.strip():
                 new_name = new_name.strip()
-                self.setTabText(index, new_name)
                 tab_widget = self.parent()
                 if isinstance(tab_widget, QtWidgets.QTabWidget):
+                    if tab_name_exists(tab_widget, new_name, ignore_index=index):
+                        QtWidgets.QMessageBox.warning(
+                            self, "Duplicate Tab Name",
+                            "Another workspace already has that name. Please choose a unique name."
+                        )
+                        return
+                self.setTabText(index, new_name)
+                if isinstance(tab_widget, QtWidgets.QTabWidget):
                     mdi_area = tab_widget.widget(index)
-                    mdi_area.tab_name = new_name
+                    mdi_area.setTabName(new_name)
         super().mouseDoubleClickEvent(event)
-
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, server):
@@ -107,10 +123,15 @@ class MainWindow(QtWidgets.QMainWindow):
         toolbar.addAction(add_area_action)
 
     def add_mdi_area(self, title):
-        """Create a new MDI area (tab) with the given title."""
+        """Create a new MDI area (tab) with the given title, ensuring uniqueness."""
+        unique_title = title
+        counter = 1
+        while tab_name_exists(self.tab_widget, unique_title):
+            unique_title = f"{title} ({counter})"
+            counter += 1
         mdi_area = MdiArea()
-        mdi_area.tab_name = title  # store the name for later lookup
-        self.tab_widget.addTab(mdi_area, title)
+        mdi_area.setTabName(unique_title)
+        self.tab_widget.addTab(mdi_area, unique_title)
 
     def new_mdi_area(self):
         """Add a new MDI area (tab) with an auto-generated title."""
@@ -193,6 +214,10 @@ class MdiArea(QtWidgets.QMdiArea):
         y = (self.height() - self.pixmap.height()) // 2
         painter.setOpacity(0.5)
         painter.drawPixmap(x, y, self.pixmap)
+
+    def setTabName(self, name):
+        self.tab_name = name
+
 
 def main():
     # initialize application
