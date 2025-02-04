@@ -517,13 +517,17 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         return {
             "args": self.argeditor.save_state(),
             "geometry": bytes(self.saveGeometry()),
-            "hdf5_load_directory": self.hdf5_load_directory
+            "hdf5_load_directory": self.hdf5_load_directory,
+            "options_expanded": self.fold_toggle.isChecked()
         }
 
     def restore_state(self, state):
         self.argeditor.restore_state(state["args"])
         self.restoreGeometry(QtCore.QByteArray(state["geometry"]))
         self.hdf5_load_directory = state["hdf5_load_directory"]
+        if "options_expanded" in state:	 # Only useful for the upgrade
+            self.fold_toggle.setChecked(state["options_expanded"])
+            self.on_fold_toggle()
 
 
 class _QuickOpenDialog(QtWidgets.QDialog):
