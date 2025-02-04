@@ -62,6 +62,16 @@ class KernelRTIOUnderflow(EnvExperiment):
         at_mu(self.core.get_rtio_counter_mu() - 1000); self.led.on()
 
 
+RTIO_UNDERFLOW_PATTERN = re.compile(
+    r'''(?xs)RTIOUnderflow\(\d+\):\ RTIO\ underflow\ at\ (?=
+        (?=.*\d+\s*mu\b)
+        (?=.*channel\s+0x[0-9A-Fa-f]+:led\d*)
+        (?=.*slack\s+-\d+\s*mu)
+    ).+$
+    ''',
+)
+
+
 class ExceptionFormatTest(ExperimentCase):
     def test_custom_formatted_kernel_exception(self):
         with self.assertLogs() as captured:
@@ -83,10 +93,7 @@ class ExceptionFormatTest(ExperimentCase):
                          ["ERROR:artiq.coredevice.comm_kernel:Couldn't format exception message", "KeyError: 'foo'"])
 
     def test_rtio_underflow(self):
-        with self.assertRaisesRegex(RTIOUnderflow,
-                                    re.compile(
-                                        r"RTIO underflow at channel 0x[0-9a-fA-F]*?:led\d*?, \d+? mu, slack -\d+? mu.*?RTIOUnderflow\(\d+\): RTIO underflow at channel 0x([0-9a-fA-F]+?):led\d*?, \d+? mu, slack -\d+? mu",
-                                        re.DOTALL)):
+        with self.assertRaisesRegex(RTIOUnderflow, RTIO_UNDERFLOW_PATTERN):
             self.execute(KernelRTIOUnderflow)
 
 
