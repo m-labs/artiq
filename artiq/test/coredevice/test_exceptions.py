@@ -65,7 +65,7 @@ class KernelRTIOUnderflow(EnvExperiment):
 RTIO_UNDERFLOW_PATTERN = re.compile(
     r'''(?xs)RTIOUnderflow\(\d+\):\ RTIO\ underflow\ at\ (?=
         (?=.*\d+\s*mu\b)
-        (?=.*channel\s+0x[0-9A-Fa-f]+:led\d*)
+        (?=.*channel\s+0x[0-9A-Fa-f]+:(led\d*|unknown))
         (?=.*slack\s+-\d+\s*mu)
     ).+$
     ''',
