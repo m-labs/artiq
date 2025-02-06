@@ -275,8 +275,6 @@ class EmbeddingMap:
 
 
 class _ValueInfo:
-    __slots__ = ("objects", "unchecked_attributes")
-
     """
     A collection of all values of a particular type.
 
