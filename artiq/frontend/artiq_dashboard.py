@@ -245,8 +245,8 @@ def main():
 
     d_interactive_args = interactive_args.InteractiveArgsDock(
         sub_clients["interactive_args"],
-        rpc_clients["interactive_arg_db"]
-    )
+        rpc_clients["interactive_arg_db"])
+    smgr.register(d_interactive_args)
 
     d_schedule = schedule.ScheduleDock(
         rpc_clients["schedule"], sub_clients["schedule"])
