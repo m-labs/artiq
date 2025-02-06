@@ -1,5 +1,6 @@
 import logging
 import asyncio
+from collections import OrderedDict
 
 from PyQt6 import QtCore, QtWidgets, QtGui
 
@@ -74,9 +75,11 @@ class _InteractiveArgsView(QtWidgets.QStackedWidget):
     supplied = QtCore.pyqtSignal(int, dict)
     cancelled = QtCore.pyqtSignal(int)
 
-    def __init__(self):
+    def __init__(self, dock):
         QtWidgets.QStackedWidget.__init__(self)
         self.tabs = QtWidgets.QTabWidget()
+        self.dock = dock
+        self.schedule_sub = dock.schedule_sub
         self.default_label = QtWidgets.QLabel("No pending interactive arguments requests.")
         self.default_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
         font = QtGui.QFont(self.default_label.font())
@@ -85,6 +88,15 @@ class _InteractiveArgsView(QtWidgets.QStackedWidget):
         self.addWidget(self.tabs)
         self.addWidget(self.default_label)
         self.model = Model({})
+
+    def _get_experiment_info(self, rid):
+        if getattr(self.schedule_sub, "model", None):
+            schedule_data = self.schedule_sub.model.backing_store
+            entry = schedule_data.get(rid)
+            if entry:
+                expid = entry.get("expid", {})
+                return expid.get("file", "unknown"), entry.get("pipeline", "main")
+        return "unknown", "main"
 
     def setModel(self, model):
         self.setCurrentIndex(1)
@@ -110,6 +122,12 @@ class _InteractiveArgsView(QtWidgets.QStackedWidget):
         inter_args_request.cancelled.connect(self.cancelled)
         self.tabs.insertTab(row, inter_args_request, title)
 
+        filename, pipeline = self._get_experiment_info(rid)
+        storage_key = (filename, pipeline)
+        widget_state = self.dock.get_stored_state(storage_key)
+        if widget_state:
+            inter_args_request.restore_state(widget_state)
+
     def rowsInserted(self, parent, first, last):
         assert first == last
         self.setCurrentIndex(0)
@@ -124,20 +142,54 @@ class _InteractiveArgsView(QtWidgets.QStackedWidget):
             self.setCurrentIndex(1)
 
 
+class _LRUDict(OrderedDict):
+    def __init__(self, size_limit=100):
+        super().__init__()
+        self.size_limit = size_limit
+
+    def __setitem__(self, key, value):
+        if key in self:
+            self.pop(key)
+        super().__setitem__(key, value)
+        if len(self) > self.size_limit:
+            self.popitem(last=False)
+
+    def __getitem__(self, key):
+        value = super().__getitem__(key)
+        self.move_to_end(key)
+        return value
+
+
 class InteractiveArgsDock(QtWidgets.QDockWidget):
-    def __init__(self, interactive_args_sub, interactive_args_rpc):
+    def __init__(self, interactive_args_sub, schedule_sub, interactive_args_rpc):
         QtWidgets.QDockWidget.__init__(self, "Interactive Args")
+        self.widget_states = _LRUDict(size_limit=100)
         self.setObjectName("Interactive Args")
         self.setFeatures(
             self.DockWidgetFeature.DockWidgetMovable | self.DockWidgetFeature.DockWidgetFloatable)
+        self.schedule_sub = schedule_sub
         self.interactive_args_rpc = interactive_args_rpc
-        self.request_view = _InteractiveArgsView()
+        self.request_view = _InteractiveArgsView(self)
         self.request_view.supplied.connect(self.supply)
         self.request_view.cancelled.connect(self.cancel)
         self.setWidget(self.request_view)
         interactive_args_sub.add_setmodel_callback(self.request_view.setModel)
 
+    def save_state(self):
+        return {"widget_states": dict(self.widget_states)}
+
+    def restore_state(self, state):
+        self.widget_states.update(state.get("widget_states", {}))
+
+    def get_stored_state(self, storage_key):
+        return self.widget_states.get(storage_key)
+
     def supply(self, rid, values):
+        widget = self.request_view.tabs.currentWidget()
+        if widget:
+            filename, pipeline = self.request_view._get_experiment_info(rid)
+            storage_key = (filename, pipeline)
+            self.widget_states[storage_key] = widget.save_state()
         asyncio.ensure_future(self._supply_task(rid, values))
 
     async def _supply_task(self, rid, values):
