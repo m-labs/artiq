@@ -562,12 +562,14 @@ extern "C-unwind" fn subkernel_await_message(id: i32, timeout: i64, tags: &CSlic
 }
 
 unsafe fn attribute_writeback(typeinfo: *const ()) {
+    #[repr(C)]
     struct Attr {
         offset: usize,
         tag:    CSlice<'static, u8>,
         name:   CSlice<'static, u8>
     }
 
+    #[repr(C)]
     struct Type {
         attributes: *const *const Attr,
         objects:    *const *const ()
