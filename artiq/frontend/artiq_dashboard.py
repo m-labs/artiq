@@ -124,21 +124,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.add_mdi_area("Workspace 1")
 
     def add_mdi_area(self, title):
-        """Create a new MDI area (tab) with the given title, ensuring uniqueness."""
-        unique_title = title
-        counter = 1
-        while tab_name_exists(self.tab_widget, unique_title):
-            unique_title = f"{title} ({counter})"
-            counter += 1
+        """Create a new MDI area (tab) with the given title."""
         mdi_area = MdiArea()
-        mdi_area.setTabName(unique_title)
-        index = self.tab_widget.addTab(mdi_area, unique_title)
+        mdi_area.setTabName(title)
+        index = self.tab_widget.addTab(mdi_area, title)
         self.tab_widget.setTabToolTip(index, "Double click to rename")
 
     def new_mdi_area(self):
-        """Add a new MDI area (tab) with an auto-generated title."""
+        """Add a new MDI area (tab) with an auto-generated unique title."""
         count = self.tab_widget.count() + 1
         title = f"Workspace {count}"
+        while tab_name_exists(self.tab_widget, title):
+            count = count + 1
+            title = f"Workspace {count}"
         self.add_mdi_area(title)
         self.tab_widget.setCurrentIndex(self.tab_widget.count() - 1)
 
