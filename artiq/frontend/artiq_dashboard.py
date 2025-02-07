@@ -132,7 +132,8 @@ class MainWindow(QtWidgets.QMainWindow):
             counter += 1
         mdi_area = MdiArea()
         mdi_area.setTabName(unique_title)
-        self.tab_widget.addTab(mdi_area, unique_title)
+        index = self.tab_widget.addTab(mdi_area, unique_title)
+        self.tab_widget.setTabToolTip(index, "Double click to rename")
 
     def new_mdi_area(self):
         """Add a new MDI area (tab) with an auto-generated title."""
