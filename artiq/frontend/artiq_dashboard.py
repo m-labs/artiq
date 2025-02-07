@@ -121,6 +121,7 @@ class MainWindow(QtWidgets.QMainWindow):
         add_area_action = QtWidgets.QAction("New Workspace", self)
         add_area_action.triggered.connect(self.new_mdi_area)
         toolbar.addAction(add_area_action)
+        self.add_mdi_area("Workspace 1")
 
     def add_mdi_area(self, title):
         """Create a new MDI area (tab) with the given title, ensuring uniqueness."""
@@ -168,8 +169,31 @@ class MainWindow(QtWidgets.QMainWindow):
             "mdi_areas": mdi_areas,
         }
 
+    def _remove_init_mdi_areas(self):
+        """In order to handle the case of the first start of the
+        dashboard, we add new mdi_area in the init. It cannot be
+        done in restore_state because it is not called in that
+        special case. However, if the restore state is called,
+        we remove it.
+        """
+        if self.tab_widget.count() == 1:
+            mdi_area = self.tab_widget.widget(0)
+            for experiment in mdi_area.subWindowList():
+                mdi_area.removeSubWindow(experiment)
+                experiment.close()
+            self.tab_widget.removeTab(0)
+            mdi_area.deleteLater()
+
     def restore_state(self, state):
         """Restore MainWindow state including MDI areas."""
+        self._remove_init_mdi_areas()
+        if self.tab_widget.count() == 1:
+            mdi_area = self.tab_widget.widget(0)
+            for experiment in mdi_area.subWindowList():
+                mdi_area.removeSubWindow(experiment)
+                experiment.close()
+            self.tab_widget.removeTab(0)
+            mdi_area.deleteLater()
         self.restoreGeometry(QtCore.QByteArray(state["geometry"]))
         self.restoreState(QtCore.QByteArray(state["state"]))
         for title in state.get("mdi_areas", []):
