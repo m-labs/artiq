@@ -114,13 +114,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tab_widget.setTabsClosable(True)
         self.tab_widget.tabCloseRequested.connect(self.close_mdi_area)
         self.setCentralWidget(self.tab_widget)
-        toolbar = QtWidgets.QToolBar("Main Toolbar")
-        toolbar.setObjectName("MainToolbar")
-        self.addToolBar(toolbar)
 
-        add_area_action = QtWidgets.QAction("New Workspace", self)
-        add_area_action.triggered.connect(self.new_mdi_area)
-        toolbar.addAction(add_area_action)
+        plus_button = QtWidgets.QToolButton()
+        plus_button.setText("+")
+        plus_button.setToolTip("Add new workspace")
+        plus_button.clicked.connect(self.new_mdi_area)
+        self.tab_widget.setCornerWidget(plus_button, QtCore.Qt.TopLeftCorner)
+
         self.add_mdi_area("Workspace 1")
 
     def add_mdi_area(self, title):
