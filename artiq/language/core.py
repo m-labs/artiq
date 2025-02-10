@@ -227,6 +227,12 @@ parallel = _ParallelContextManager()
 legacy_parallel = _ParallelContextManager()
 sequential = _SequentialContextManager()
 
+_special_ids = {
+    "parallel": id(parallel),
+    "legacy_parallel": id(legacy_parallel),
+    "sequential": id(sequential),
+}
+
 
 def delay_mu(duration):
     """Increases the RTIO time by the given amount (in machine units)."""
