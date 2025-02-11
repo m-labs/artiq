@@ -122,7 +122,7 @@ class _RegIOUpdate:
             self.cpld.cfg_write(
                 cfg | (int64(1) << (ProtoRev9.CFG_IO_UPDATE + (self.chip_select - 4)))
             )
-        delay(duration + 50 * ms)  # Needed extra for slack
+        delay(duration)
         self.cpld.cfg_write(cfg)
 
 

@@ -73,8 +73,16 @@ class AD9910WaveformExp(EnvExperiment):
     def init(self):
         self.core.break_realtime()
         self.cpld.init()
+        if not self.io_update_device:
+            # Set MASK_NU to trigger CFG.IO_UPDATE
+            self.dds1.cfg_mask_nu(True)
+            self.dds2.cfg_mask_nu(True)
         self.dds1.init()
         self.dds2.init()
+        if not self.io_update_device:
+            # Unset MASK_NU to un-trigger CFG.IO_UPDATE
+            self.dds1.cfg_mask_nu(False)
+            self.dds2.cfg_mask_nu(False)
 
     @kernel
     def single_tone(self):
@@ -216,7 +224,7 @@ class AD9910WaveformExp(EnvExperiment):
             self.dds1.write32(_AD9910_REG_ASF, 0xFFFF << 16 | 0x3FFF << 2 | 0b11)
             self.dds1.set_cfr1(osk_enable=1, select_auto_osk=1)
 
-        self.dds1.cpld.io_update.pulse(1 * ms)
+        self.dds1.io_update.pulse(1 * ms)
 
         # Switch on waveform, then set attenuation
         self.dds1.cfg_sw(True)
@@ -296,7 +304,7 @@ class AD9910WaveformExp(EnvExperiment):
             drg_nodwell_high=self.nodwell,
             drg_nodwell_low=self.nodwell,
         )
-        self.dds1.cpld.io_update.pulse(1 * ms)
+        self.dds1.io_update.pulse(1 * ms)
 
         # Enable waveform and set attenuation
         self.dds1.cfg_sw(True)
@@ -409,7 +417,7 @@ class AD9910WaveformExp(EnvExperiment):
         self.core.wait_until_mu(now_mu())
 
 
-def io_update_device(required, proto_rev=None):
+def io_update_device(*required_values, proto_rev=None):
     """
     Decorator to mark whether a test requires 'io_update_device' to be set or unset
     and optionally check the protocol version.
@@ -418,206 +426,157 @@ def io_update_device(required, proto_rev=None):
     def decorator(test_func):
         @wraps(test_func)
         def wrapper(self, *args, **kwargs):
-            if hasattr(self.device_mgr, "get_desc"):
-                if (
-                    required
-                    and "io_update_device"
-                    not in self.device_mgr.get_desc(CPLD)["arguments"]
-                ):
-                    self.skipTest("This test requires 'io_update_device' to be set.")
-                if (
-                    not required
-                    and "io_update_device"
-                    in self.device_mgr.get_desc(CPLD)["arguments"]
-                ):
-                    self.skipTest("This test requires 'io_update_device' to be unset.")
-
-            if proto_rev is not None:
-                actual_proto_rev = self.device_mgr.get(CPLD).proto_rev
-                if actual_proto_rev != proto_rev:
-                    self.skipTest(
-                        f"This test requires proto_rev={proto_rev}, but the current proto_rev is {actual_proto_rev}."
+            for required in required_values:
+                with self.subTest(io_update_device=required):
+                    desc = (
+                        self.device_mgr.get_desc(CPLD)
+                        if hasattr(self.device_mgr, "get_desc")
+                        else {}
                     )
+                    io_update_present = "io_update_device" in desc.get("arguments", [])
 
-            print(f"Running test: {test_func.__name__}")
-            return test_func(self, *args, **kwargs)
+                    if io_update_present != required:
+                        self.skipTest(
+                            f"This test requires 'io_update_device' to be {required}."
+                        )
 
-        wrapper.requires_io_update_device = required
+                    if proto_rev is not None:
+                        actual_proto_rev = self.device_mgr.get(CPLD).proto_rev
+                        if actual_proto_rev != proto_rev:
+                            self.skipTest(
+                                f"This test requires proto_rev={proto_rev}, "
+                                "but the current proto_rev is {actual_proto_rev}."
+                            )
+
+                    print(
+                        f"Running test: {test_func.__name__} (io_update_device={required})"
+                    )
+                    test_func(self, *args, **kwargs, io_update_device=required)
+
         return wrapper
 
     return decorator
 
 
-class AD9910Test(ExperimentCase):
+class AD9910WaveformTest(ExperimentCase):
     def test_instantiate(self):
         self.execute(AD9910WaveformExp, "instantiate")
 
-    def test_init(self):
-        self.execute(AD9910WaveformExp, "init")
+    @io_update_device(True, False)
+    def test_init(self, io_update_device):
+        self.execute(AD9910WaveformExp, "init", io_update_device=io_update_device)
 
-    @io_update_device(True)
-    def test_single_tone(self):
-        self.execute(AD9910WaveformExp, "single_tone")
+    @io_update_device(True, False)
+    def test_single_tone(self, io_update_device):
+        self.execute(
+            AD9910WaveformExp, "single_tone", io_update_device=io_update_device
+        )
 
-    @io_update_device(False)
-    def test_single_tone_no_io_update_device(self):
-        self.execute(AD9910WaveformExp, "single_tone", io_update_device=False)
-
-    @io_update_device(True, proto_rev=STA_PROTO_REV_8)
-    def test_toggle_profiles(self):
-        self.execute(AD9910WaveformExp, "toggle_profiles", multiple_profiles=False)
-
-    @io_update_device(False, proto_rev=STA_PROTO_REV_8)
-    def test_toggle_profiles_no_io_update_device(self):
+    @io_update_device(True, False, proto_rev=STA_PROTO_REV_8)
+    def test_toggle_profiles(self, io_update_device):
         self.execute(
             AD9910WaveformExp,
             "toggle_profiles",
-            io_update_device=False,
+            io_update_device=io_update_device,
             multiple_profiles=False,
         )
 
-    @io_update_device(True, proto_rev=STA_PROTO_REV_9)
-    def test_toggle_profiles(self):
-        self.execute(AD9910WaveformExp, "toggle_profiles")
+    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    def test_toggle_profiles(self, io_update_device):
+        self.execute(
+            AD9910WaveformExp,
+            "toggle_profiles",
+            io_update_device=io_update_device,
+        )
 
-    @io_update_device(False, proto_rev=STA_PROTO_REV_9)
-    def test_toggle_profiles_no_io_update_device(self):
-        self.execute(AD9910WaveformExp, "toggle_profiles", io_update_device=False)
+    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    def test_osk_manual(self, io_update_device):
+        self.execute(AD9910WaveformExp, "osk", io_update_device=io_update_device)
 
-    @io_update_device(True, proto_rev=STA_PROTO_REV_9)
-    def test_osk_manual(self):
-        self.execute(AD9910WaveformExp, "osk")
+    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    def test_osk_auto(self, io_update_device):
+        self.execute(
+            AD9910WaveformExp,
+            "osk",
+            io_update_device=io_update_device,
+            osk_manual=False,
+        )
 
-    @io_update_device(False, proto_rev=STA_PROTO_REV_9)
-    def test_osk_manual_no_io_update_device(self):
-        self.execute(AD9910WaveformExp, "osk", io_update_device=False)
+    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    def test_drg_normal_frequency(self, io_update_device):
+        self.execute(AD9910WaveformExp, "drg", io_update_device=io_update_device)
 
-    @io_update_device(True, proto_rev=STA_PROTO_REV_9)
-    def test_osk_auto(self):
-        self.execute(AD9910WaveformExp, "osk", osk_manual=False)
-
-    @io_update_device(False, proto_rev=STA_PROTO_REV_9)
-    def test_osk_auto_no_io_update_device(self):
-        self.execute(AD9910WaveformExp, "osk", io_update_device=False, osk_manual=False)
-
-    @io_update_device(True, proto_rev=STA_PROTO_REV_9)
-    def test_drg_normal_frequency(self):
-        self.execute(AD9910WaveformExp, "drg")
-
-    @io_update_device(True, proto_rev=STA_PROTO_REV_9)
-    def test_drg_normal_phase(self):
-        self.execute(AD9910WaveformExp, "drg", drg_destination=0x1, use_dds2=True)
-
-    @io_update_device(True, proto_rev=STA_PROTO_REV_9)
-    def test_drg_normal_amplitude(self):
-        self.execute(AD9910WaveformExp, "drg", drg_destination=0x2)
-
-    @io_update_device(False, proto_rev=STA_PROTO_REV_9)
-    def test_drg_normal_frequency_no_io_update_device(self):
-        self.execute(AD9910WaveformExp, "drg", io_update_device=False)
-
-    @io_update_device(False, proto_rev=STA_PROTO_REV_9)
-    def test_drg_normal_phase_no_io_update_device(self):
+    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    def test_drg_normal_phase(self, io_update_device):
         self.execute(
             AD9910WaveformExp,
             "drg",
-            io_update_device=False,
+            io_update_device=io_update_device,
             drg_destination=0x1,
             use_dds2=True,
         )
 
-    @io_update_device(False, proto_rev=STA_PROTO_REV_9)
-    def test_drg_normal_amplitude_no_io_update_device(self):
-        self.execute(
-            AD9910WaveformExp, "drg", io_update_device=False, drg_destination=0x2
-        )
-
-    @io_update_device(True, proto_rev=STA_PROTO_REV_9)
-    def test_drg_normal_with_hold_frequency(self):
-        self.execute(AD9910WaveformExp, "drg", with_hold=True)
-
-    @io_update_device(True, proto_rev=STA_PROTO_REV_9)
-    def test_drg_normal_with_hold_phase(self):
+    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    def test_drg_normal_amplitude(self, io_update_device):
         self.execute(
             AD9910WaveformExp,
             "drg",
+            io_update_device=io_update_device,
+            drg_destination=0x2,
+        )
+
+    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    def test_drg_normal_with_hold_frequency(self, io_update_device):
+        self.execute(
+            AD9910WaveformExp, "drg", io_update_device=io_update_device, with_hold=True
+        )
+
+    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    def test_drg_normal_with_hold_phase(self, io_update_device):
+        self.execute(
+            AD9910WaveformExp,
+            "drg",
+            io_update_device=io_update_device,
             drg_destination=0x1,
             use_dds2=True,
             with_hold=True,
         )
 
-    @io_update_device(True, proto_rev=STA_PROTO_REV_9)
-    def test_drg_normal_with_hold_amplitude(self):
-        self.execute(AD9910WaveformExp, "drg", drg_destination=0x2, with_hold=True)
-
-    @io_update_device(False, proto_rev=STA_PROTO_REV_9)
-    def test_drg_normal_with_hold_frequency_no_io_update_device(self):
-        self.execute(AD9910WaveformExp, "drg", io_update_device=False, with_hold=True)
-
-    @io_update_device(False, proto_rev=STA_PROTO_REV_9)
-    def test_drg_normal_with_hold_phase_no_io_update_device(self):
+    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    def test_drg_normal_with_hold_amplitude(self, io_update_device):
         self.execute(
             AD9910WaveformExp,
             "drg",
-            io_update_device=False,
-            drg_destination=0x1,
-            use_dds2=True,
-            with_hold=True,
-        )
-
-    @io_update_device(False, proto_rev=STA_PROTO_REV_9)
-    def test_drg_normal_with_hold_amplitude_no_io_update_device(self):
-        self.execute(
-            AD9910WaveformExp,
-            "drg",
-            io_update_device=False,
+            io_update_device=io_update_device,
             drg_destination=0x2,
             with_hold=True,
         )
 
-    @io_update_device(True, proto_rev=STA_PROTO_REV_9)
-    def test_drg_nodwell_frequency(self):
-        self.execute(AD9910WaveformExp, "drg", nodwell=1)
-
-    @io_update_device(True, proto_rev=STA_PROTO_REV_9)
-    def test_drg_nodwell_phase(self):
+    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    def test_drg_nodwell_frequency(self, io_update_device):
         self.execute(
-            AD9910WaveformExp, "drg", drg_destination=0x1, use_dds2=True, nodwell=1
+            AD9910WaveformExp, "drg", io_update_device=io_update_device, nodwell=1
         )
 
-    @io_update_device(True, proto_rev=STA_PROTO_REV_9)
-    def test_drg_nodwell_amplitude(self):
-        self.execute(AD9910WaveformExp, "drg", drg_destination=0x2, nodwell=1)
-
-    @io_update_device(False, proto_rev=STA_PROTO_REV_9)
-    def test_drg_nodwell_frequency_no_io_update_device(self):
-        self.execute(AD9910WaveformExp, "drg", io_update_device=False, nodwell=1)
-
-    @io_update_device(False, proto_rev=STA_PROTO_REV_9)
-    def test_drg_nodwell_phase_no_io_update_device(self):
+    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    def test_drg_nodwell_phase(self, io_update_device):
         self.execute(
             AD9910WaveformExp,
             "drg",
-            io_update_device=False,
+            io_update_device=io_update_device,
             drg_destination=0x1,
             use_dds2=True,
             nodwell=1,
         )
 
-    @io_update_device(False, proto_rev=STA_PROTO_REV_9)
-    def test_drg_nodwell_amplitude_no_io_update_device(self):
+    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    def test_drg_nodwell_amplitude(self, io_update_device):
         self.execute(
-            AD9910WaveformExp,
-            "drg",
-            io_update_device=False,
-            drg_destination=0x2,
-            nodwell=1,
+            AD9910WaveformExp, "drg", io_update_device, drg_destination=0x2, nodwell=1
         )
 
-    @io_update_device(True, proto_rev=STA_PROTO_REV_9)
-    def test_att_single_tone(self):
-        self.execute(AD9910WaveformExp, "att_single_tone")
-
-    @io_update_device(False, proto_rev=STA_PROTO_REV_9)
-    def test_att_single_tone_no_io_update_device(self):
-        self.execute(AD9910WaveformExp, "att_single_tone", io_update_device=False)
+    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    def test_att_single_tone(self, io_update_device):
+        self.execute(
+            AD9910WaveformExp, "att_single_tone", io_update_device=io_update_device
+        )

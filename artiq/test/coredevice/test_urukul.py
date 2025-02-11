@@ -1,4 +1,4 @@
-from artiq.coredevice.urukul import STA_PROTO_REV_8, STA_PROTO_REV_9, urukul_sta_rf_sw
+from artiq.coredevice.urukul import STA_PROTO_REV_9, urukul_sta_rf_sw
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 
@@ -240,13 +240,6 @@ class UrukulExp(EnvExperiment):
         self.set_dataset("dt", self.core.mu_to_seconds(
             self.core.get_rtio_counter_mu() - t0) / n)
 
-    # Note, cfg_io_update is tested in test_ad9910.py
-    @kernel
-    def io_update(self):
-        self.core.break_realtime()
-        self.dev.init()
-        self.dev.io_update.pulse_mu(8)
-
     @kernel
     def sync(self):
         self.core.break_realtime()
@@ -385,9 +378,6 @@ class UrukulTest(ExperimentCase):
             dt = self.dataset_mgr.get("dt")
             print(dt)
             self.assertLess(dt, 5 * us)
-
-    def test_io_update(self):
-        self.execute(UrukulExp, "io_update")
 
     def test_sync(self):
         self.execute(UrukulExp, "sync")
