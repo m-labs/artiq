@@ -115,6 +115,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tab_widget.tabCloseRequested.connect(self.close_mdi_area)
         self.setCentralWidget(self.tab_widget)
 
+        self.tab_widget.currentChanged.connect(self.on_tab_changed)
+
         plus_button = QtWidgets.QToolButton()
         plus_button.setText("+")
         plus_button.setToolTip("Add new workspace")
@@ -122,6 +124,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tab_widget.setCornerWidget(plus_button, QtCore.Qt.TopLeftCorner)
 
         self.add_mdi_area("Workspace 1")
+
+    def on_tab_changed(self, index):
+        mdi_area = self.tab_widget.widget(index)
+        if isinstance(mdi_area, MdiArea):
+            for subwindow in mdi_area.subWindowList():
+                if subwindow.isMinimized():
+                    subwindow.setWindowState(QtCore.Qt.WindowNoState)
+                    subwindow.setWindowState(QtCore.Qt.WindowMinimized)
 
     def add_mdi_area(self, title):
         """Create a new MDI area (tab) with the given title."""
