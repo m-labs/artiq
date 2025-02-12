@@ -44,6 +44,7 @@ ARTIQ-9 (Unreleased)
 * Python 3.12 and 3.13 support.
 * The Zadig driver installer was added to the MSYS2 offline installer.
 * ``artiq.coredevice.fmcdio_vhdci_eem`` has been removed.
+* Optional SSL support with mutual certificate authentication was added between components running on computers.
 
 Breaking changes:
 
