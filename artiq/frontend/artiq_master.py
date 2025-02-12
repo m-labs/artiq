@@ -12,6 +12,7 @@ from sipyco.logging_tools import Server as LoggingServer
 from sipyco.broadcast import Broadcaster
 from sipyco import common_args
 from sipyco.asyncio_tools import atexit_register_coroutine, SignalHandler
+from sipyco.tools import SimpleSSLConfig
 
 from artiq import __version__ as artiq_version
 from artiq.master.log import log_args, init_log
@@ -57,6 +58,12 @@ def get_argparser():
               "(default: %(default)s)"))
     log_args(parser)
 
+    parser.add_argument("--ssl", nargs=3, metavar=('CERT', 'KEY', 'PEER'), default=None,
+                        help="Enable SSL authentication: "
+                             "CERT: server certificate file, "
+                             "KEY: server private key, "
+                             "PEER: client certificate to trust "
+                             "(default: %(default)s)")
     parser.add_argument("--name",
                         help="friendly name, displayed in dashboards "
                              "to identify master instead of server address")
@@ -77,9 +84,14 @@ def main():
     atexit.register(signal_handler.teardown)
     bind = common_args.bind_address_from_args(args)
 
+    ssl_config = None
+    if args.ssl:
+        ssl_config = SimpleSSLConfig(local_cert=args.ssl[0],
+                                     local_key=args.ssl[1],
+                                     peer_cert=args.ssl[2])
     server_broadcast = Broadcaster()
     loop.run_until_complete(server_broadcast.start(
-        bind, args.port_broadcast))
+        bind, args.port_broadcast, ssl_config))
     atexit_register_coroutine(server_broadcast.stop, loop=loop)
 
     log_forwarder.callback = lambda msg: server_broadcast.broadcast("log", msg)
@@ -148,7 +160,7 @@ def main():
         "experiment_db": experiment_db,
     }, allow_parallel=True)
     loop.run_until_complete(server_control.start(
-        bind, args.port_control))
+        bind, args.port_control, ssl_config))
     atexit_register_coroutine(server_control.stop, loop=loop)
 
     server_notify = Publisher({
@@ -160,12 +172,12 @@ def main():
         "explist_status": experiment_db.status,
     })
     loop.run_until_complete(server_notify.start(
-        bind, args.port_notify))
+        bind, args.port_notify, ssl_config))
     atexit_register_coroutine(server_notify.stop, loop=loop)
 
     server_logging = LoggingServer()
     loop.run_until_complete(server_logging.start(
-        bind, args.port_logging))
+        bind, args.port_logging, ssl_config))
     atexit_register_coroutine(server_logging.stop, loop=loop)
 
     print("ARTIQ master is now ready.")
