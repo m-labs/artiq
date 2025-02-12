@@ -25,6 +25,7 @@ ARTIQ-9 (Unreleased)
 * Support for coredevice reflashing through the new ``flash`` tool in ``artiq_coremgmt``.
 * ``artiq_coremgmt`` now supports configuring satellites.
 * ``artiq.coredevice.fmcdio_vhdci_eem`` has been removed.
+* Optional SSL support with mutual certificate authentication was added between master and clients.
 
 ARTIQ-8
 -------
