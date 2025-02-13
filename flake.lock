@@ -108,11 +108,11 @@
     "src-migen": {
       "flake": false,
       "locked": {
-        "lastModified": 1735131698,
-        "narHash": "sha256-P4vaF+9iVekRAC2/mc9G7IwI6baBpPAxiDQ8uye4sAs=",
+        "lastModified": 1738906518,
+        "narHash": "sha256-GproDJowtcgbccsT+I0mObzFhE483shcS8MSszKXwlc=",
         "owner": "m-labs",
         "repo": "migen",
-        "rev": "4c2ae8dfeea37f235b52acb8166f12acaaae4f7c",
+        "rev": "2828df54594673653a641ab551caf6c6b1bfeee5",
         "type": "github"
       },
       "original": {
@@ -124,11 +124,11 @@
     "src-misoc": {
       "flake": false,
       "locked": {
-        "lastModified": 1736416570,
-        "narHash": "sha256-tbcN/fzejZIaYbTbwk8Ir1glYevESqMinMeDB3z8oxg=",
+        "lastModified": 1739428011,
+        "narHash": "sha256-ymvkR6ldCp+Kj29YGnaVuoM9Vi2GNxaqPlK0DWOCcgQ=",
         "ref": "refs/heads/master",
-        "rev": "1f5318e9edc1085ac77e9b85b8f5e03371dba54c",
-        "revCount": 2464,
+        "rev": "47a3d8096dfae234599fd5406807cf2d92b6a351",
+        "revCount": 2473,
         "submodules": true,
         "type": "git",
         "url": "https://github.com/m-labs/misoc.git"
