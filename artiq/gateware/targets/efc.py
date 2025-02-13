@@ -29,10 +29,10 @@ class Satellite(BaseSoC, AMPSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, gateware_identifier_str=None, hw_rev="v1.1", **kwargs):
+    def __init__(self, gateware_identifier_str=None, efc_hw_rev="v1.1", afe_hw_rev="v1.3", **kwargs):
         BaseSoC.__init__(self,
                  cpu_type="vexriscv",
-                 hw_rev=hw_rev,
+                 hw_rev=efc_hw_rev,
                  cpu_bus_width=64,
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
@@ -248,15 +248,18 @@ def main():
     builder_args(parser)
     parser.set_defaults(output_dir="artiq_efc")
     parser.add_argument("-V", "--variant", default="shuttler")
-    parser.add_argument("--hw-rev", choices=["v1.0", "v1.1"], default="v1.1", 
-                        help="Hardware revision")
+    parser.add_argument("--efc-hw-rev", choices=["v1.0", "v1.1"], default="v1.1", 
+                        help="EFC hardware revision")
+    parser.add_argument("--afe-hw-rev", choices=["v1.0", "v1.1", "v1.2", "v1.3"],
+                        default="v1.3", help="AFE hardware revision")
     parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
     args = parser.parse_args()
 
     argdict = dict()
     argdict["gateware_identifier_str"] = args.gateware_identifier_str
-    argdict["hw_rev"] = args.hw_rev
+    argdict["efc_hw_rev"] = args.efc_hw_rev
+    argdict["afe_hw_rev"] = args.afe_hw_rev
 
     soc = Satellite(**argdict)
     build_artiq_soc(soc, builder_argdict(args))
