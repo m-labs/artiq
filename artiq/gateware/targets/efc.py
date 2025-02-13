@@ -156,14 +156,26 @@ class Satellite(BaseSoC, AMPSoC):
                 Subsignal('mosi', Pins('fmc0:LA00_CC_N')),
                 Subsignal('cs_n', Pins('fmc0:LA02_P fmc0:LA01_CC_N')),
                 IOStandard("LVCMOS18")),
-            ('afe_adc_spi', 0,
-                Subsignal('clk', Pins('fmc0:LA29_P')),
-                Subsignal('mosi', Pins('fmc0:LA29_N')),
-                Subsignal('miso', Pins('fmc0:LA30_N')),
-                Subsignal('cs_n', Pins('fmc0:LA28_P')),
-                IOStandard("LVCMOS18")),
             ('afe_adc_error_n', 0, Pins('fmc0:LA28_N'), IOStandard("LVCMOS18")),
         ]
+
+        if afe_hw_rev in ("v1.0", "v1.1", "v1.2"):
+            afe_adc_io = ('afe_adc_spi', 0,
+                            Subsignal('clk', Pins('fmc0:LA29_P')),
+                            Subsignal('mosi', Pins('fmc0:LA29_N')),
+                            Subsignal('miso', Pins('fmc0:LA30_N')),
+                            Subsignal('cs_n', Pins('fmc0:LA28_P')),
+                            IOStandard("LVCMOS18"))
+        elif afe_hw_rev == "v1.3":
+            afe_adc_io = ('afe_adc_spi', 0,
+                            Subsignal('clk', Pins('fmc0:LA29_N')),
+                            Subsignal('mosi', Pins('fmc0:LA28_P')),
+                            Subsignal('miso', Pins('fmc0:LA30_N')),
+                            Subsignal('cs_n', Pins('fmc0:LA29_P')),
+                            IOStandard("LVCMOS18"))
+        else:
+            raise ValueError("Unknown AFE hardware revision", afe_hw_rev)
+        shuttler_io.append(afe_adc_io)
 
         platform.add_extension(shuttler_io)
 
