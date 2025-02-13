@@ -127,6 +127,7 @@ class _StandaloneBase(MiniSoC, AMPSoC):
             Instance("BUFG", i_I=cdr_clk, o_O=cdr_clk_buf)
         ]
 
+        self.platform.add_period_constraint(cdr_clk_out, 8.)
         self.crg.configure(cdr_clk_buf)
 
         self.submodules += SMAClkinForward(self.platform)
