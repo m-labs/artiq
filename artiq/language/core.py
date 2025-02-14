@@ -121,7 +121,7 @@ def rpc(arg=None, flags={}):
     return arg
 
 
-@rpc
+@rpc(flags={"async"})
 def print_rpc(a: T):
     print(a)
 
