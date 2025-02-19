@@ -169,6 +169,88 @@
       '';
     };
 
+    # TODO: remove once updated to nixpkgs 25.04
+    numpy2 = with pkgs;
+     let cfg = writeTextFile {
+       name = "site.cfg";
+       text = lib.generators.toINI { } {
+         ${blas.implementation} = {
+           include_dirs = "${lib.getDev blas}/include:${lib.getDev lapack}/include";
+           library_dirs = "${blas}/lib:${lapack}/lib";
+           runtime_library_dirs = "${blas}/lib:${lapack}/lib";
+           libraries = "lapack,lapacke,blas,cblas";
+         };
+         lapack = {
+           include_dirs = "${lib.getDev lapack}/include";
+           library_dirs = "${lapack}/lib";
+           runtime_library_dirs = "${lapack}/lib";
+         };
+         blas = {
+           include_dirs = "${lib.getDev blas}/include";
+           library_dirs = "${blas}/lib";
+           runtime_library_dirs = "${blas}/lib";
+         };
+       };
+     };
+     in python3Packages.buildPythonPackage rec {
+      pname = "numpy";
+      version = "2.2.2";
+      pyproject = true;
+
+      src = fetchPypi {
+        inherit pname version;
+        extension = "tar.gz";
+        hash = "sha256-7WkG9hg01odzjSWYiuEXaDcFY2k2zGBb4LsgiyPfTY8=";
+      };
+      # Disable static linking
+      # https://github.com/numba/llvmlite/issues/93
+      postPatch = ''
+        # remove needless reference to full Python path stored in built wheel
+        substituteInPlace numpy/meson.build \
+          --replace-fail 'py.full_path()' "'python'"
+      '';
+      # Set directory containing llvm-config binary
+      build-system = with python3Packages; [ cython gfortran meson-python pkg-config ];
+      preConfigure = ''
+        sed -i 's/-faltivec//' numpy/distutils/system_info.py
+        export OMP_NUM_THREADS=$((NIX_BUILD_CORES > 64 ? 64 : NIX_BUILD_CORES))
+      '';
+      buildInputs = [ blas lapack ];
+
+      preBuild = ''
+        ln -s ${cfg} site.cfg
+      '';
+
+      enableParallelBuilding = true;
+      nativeCheckInputs = with python3Packages; [
+          hypothesis
+          pytestCheckHook
+          pytest-xdist
+          setuptools
+          typing-extensions
+        ];
+
+      preCheck = ''
+        pushd $out
+      '';
+
+      postCheck = ''
+        popd
+      '';
+
+      # https://github.com/numpy/numpy/blob/a277f6210739c11028f281b8495faf7da298dbef/numpy/_pytesttester.py#L180
+      pytestFlagsArray = [
+        "-m"
+        "not\\ slow" # fast test suite
+      ];
+
+      disabledTests =
+        [
+          # Tries to import numpy.distutils.msvccompiler, removed in setuptools 74.0
+          "test_api_importable"
+        ];
+    };
+
     artiq-upstream = pkgs.python3Packages.buildPythonPackage rec {
       pname = "artiq";
       version = artiqVersion;
@@ -183,7 +265,7 @@
       # keep llvm_x and lld_x in sync with llvmlite
       propagatedBuildInputs =
         [pkgs.llvm_15 pkgs.lld_15 sipyco.packages.x86_64-linux.sipyco pythonparser llvmlite-new pkgs.qt6.qtsvg artiq-comtools.packages.x86_64-linux.artiq-comtools]
-        ++ (with pkgs.python3Packages; [pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial levenshtein h5py pyqt6 qasync tqdm lmdb jsonschema platformdirs]);
+        ++ (with pkgs.python3Packages; [pyqtgraph pygit2 numpy2 dateutil scipy prettytable pyserial levenshtein h5py pyqt6 qasync tqdm lmdb jsonschema platformdirs]);
 
       dontWrapQtApps = true;
       postFixup = ''
@@ -246,7 +328,7 @@
     misoc = pkgs.python3Packages.buildPythonPackage {
       name = "misoc";
       src = src-misoc;
-      propagatedBuildInputs = with pkgs.python3Packages; [jinja2 numpy migen pyserial asyncserial];
+      propagatedBuildInputs = with pkgs.python3Packages; [jinja2 numpy2 migen pyserial asyncserial];
     };
 
     microscope = pkgs.python3Packages.buildPythonPackage rec {
