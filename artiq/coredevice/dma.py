@@ -48,6 +48,7 @@ class DMARecordContextManager:
     """
     name: Kernel[str]
     saved_now_mu: Kernel[int64]
+    enable_ddma: Kernel[bool]
 
     def __init__(self):
         self.name = ""
@@ -83,10 +84,11 @@ class CoreDMA:
         self.epoch    = 0
 
     @kernel
-    def record(self, name: str, enable_ddma: bool = False) -> DMARecordContextManager:
-        """Returns a context manager that will record a DMA trace called `name`.
+    def prepare_record(self, name: str, enable_ddma: bool = False):
+        """Prepares a context manager that will record a DMA trace called `name`.
         Any previously recorded trace with the same name is overwritten.
         The trace will persist across kernel switches.
+        The context manager must be called separately, using `with core_dma.recorder`.
 
         In DRTIO context, distributed DMA can be toggled with `enable_ddma`.
         Enabling it allows running DMA on satellites, rather than sending all
@@ -97,7 +99,9 @@ class CoreDMA:
         self.epoch += 1
         self.recorder.name = name
         self.recorder.enable_ddma = enable_ddma
-        return self.recorder
+        # NAC3: return value [...] must be a primitive or a tuple of primitives
+        # call the recorder separately
+        # return self.recorder
 
     @kernel
     def erase(self, name: str):
@@ -114,14 +118,14 @@ class CoreDMA:
         delay_mu(advance_mu)
 
     @kernel
-    def get_handle(self, name: str) -> tuple[int32, int64, int32]:
+    def get_handle(self, name: str) -> tuple[int32, int64, int32, bool]:
         """Returns a handle to a previously recorded DMA trace. The returned handle
         is only valid until the next call to :meth:`record` or :meth:`erase`."""
         (advance_mu, ptr, uses_ddma) = dma_retrieve(name)
         return (self.epoch, advance_mu, ptr, uses_ddma)
 
     @kernel
-    def playback_handle(self, handle: tuple[int32, int64, int32]):
+    def playback_handle(self, handle: tuple[int32, int64, int32, bool]):
         """Replays a handle obtained with :meth:`get_handle`. Using this function
         is much faster than :meth:`playback` for replaying a set of traces repeatedly,
         but offloads the overhead of managing the handles onto the programmer."""
