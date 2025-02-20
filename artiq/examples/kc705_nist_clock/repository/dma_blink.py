@@ -1,9 +1,14 @@
 from artiq.experiment import *
+from artiq.coredevice.core import Core
+from artiq.coredevice.dma import CoreDMA
+from artiq.coredevice.ttl import TTLOut
 
-
-# NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/75
-
+@nac3
 class DMABlink(EnvExperiment):
+    core: KernelInvariant[Core]
+    core_dma: KernelInvariant[CoreDMA]
+    led: KernelInvariant[TTLOut]
+
     def build(self):
         self.setattr_device("core")
         self.setattr_device("core_dma")
@@ -11,13 +16,14 @@ class DMABlink(EnvExperiment):
 
     @kernel
     def record(self):
-        with self.core_dma.record("blink"):
+        self.core_dma.prepare_record("blink")
+        with self.core_dma.recorder:
             for i in range(5):
-                self.led.pulse(100*ms)
-                delay(100*ms)
+                self.led.pulse(100.*ms)
+                self.core.delay(100.*ms)
             for i in range(5):
-                self.led.pulse(50*ms)
-                delay(50*ms)
+                self.led.pulse(50.*ms)
+                self.core.delay(50.*ms)
 
     @kernel
     def run(self):
