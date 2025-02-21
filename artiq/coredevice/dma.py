@@ -75,7 +75,7 @@ class CoreDMA:
     """
 
     core: KernelInvariant[Core]
-    recorder: KernelInvariant[DMARecordContextManager]
+    recorder: Kernel[DMARecordContextManager]
     epoch: Kernel[int32]
 
     def __init__(self, dmgr, core_device="core"):
