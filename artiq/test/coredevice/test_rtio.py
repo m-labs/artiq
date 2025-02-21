@@ -10,6 +10,7 @@ from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 from artiq.coredevice import exceptions
 from artiq.coredevice.core import Core
+from artiq.coredevice.dma import CoreDMA
 from artiq.coredevice.ttl import TTLOut, TTLInOut, TTLClockGen
 from artiq.coredevice.ad9914 import AD9914
 from artiq.coredevice.comm_mgmt import CommMgmt
@@ -719,7 +720,14 @@ class RPCTest(ExperimentCase):
         self.assertLess(self.dataset_mgr.get("rpc_time_stddev"), 1*ms)
 
 
+@nac3
 class _DMA(EnvExperiment):
+    core: KernelInvariant[Core]
+    core_dma: KernelInvariant[CoreDMA]
+    ttl_out: KernelInvariant[TTLOut]
+    trace_name: Kernel[str]
+    delta: Kernel[int64]
+
     def build(self, trace_name="test_rtio"):
         self.setattr_device("core")
         self.setattr_device("core_dma")
@@ -728,31 +736,37 @@ class _DMA(EnvExperiment):
         self.delta = int64(0)
 
     @kernel
-    def record(self, for_handle=True):
-        with self.core_dma.record(self.trace_name):
+    def record(self, for_handle: bool = True):
+        self.core_dma.prepare_record(self.trace_name)
+        with self.core_dma.recorder:
             # When not using the handle, retrieving the DMA trace
             # in dma.playback() can be slow. Allow some time.
             if not for_handle:
-                delay(1*ms)
-            delay(100*ns)
+                self.core.delay(1.*ms)
+            self.core.delay(100.*ns)
             self.ttl_out.on()
-            delay(100*ns)
+            self.core.delay(100.*ns)
             self.ttl_out.off()
 
-    @kernel
-    def record_many(self, n):
-        t1 = self.core.get_rtio_counter_mu()
-        with self.core_dma.record(self.trace_name):
-            for i in range(n//2):
-                delay(100*ns)
-                self.ttl_out.on()
-                delay(100*ns)
-                self.ttl_out.off()
-        t2 = self.core.get_rtio_counter_mu()
-        self.set_dataset("dma_record_time", self.core.mu_to_seconds(t2 - t1))
+    @rpc
+    def set_record_time(self, time: float):
+        self.set_dataset("dma_record_time", time)
 
     @kernel
-    def playback(self, use_handle=True):
+    def record_many(self, n: int32):
+        t1 = self.core.get_rtio_counter_mu()
+        self.core_dma.prepare_record(self.trace_name)
+        with self.core_dma.recorder:
+            for i in range(n//2):
+                self.core.delay(100.*ns)
+                self.ttl_out.on()
+                self.core.delay(100.*ns)
+                self.ttl_out.off()
+        t2 = self.core.get_rtio_counter_mu()
+        self.set_record_time(self.core.mu_to_seconds(t2 - t1))
+
+    @kernel
+    def playback(self, use_handle: bool = True):
         if use_handle:
             handle = self.core_dma.get_handle(self.trace_name)
             self.core.break_realtime()
@@ -764,17 +778,21 @@ class _DMA(EnvExperiment):
             self.core_dma.playback(self.trace_name)
         self.delta = now_mu() - start
 
+    @rpc
+    def set_playback_time(self, time: float):
+        self.set_dataset("dma_playback_time", time)
+
     @kernel
-    def playback_many(self, n, add_delay=False):
+    def playback_many(self, n: int32, add_delay: bool = False):
         handle = self.core_dma.get_handle(self.trace_name)
         self.core.break_realtime()
         t1 = self.core.get_rtio_counter_mu()
         for i in range(n):
             if add_delay:
-                delay(2*us)
+                self.core.delay(2.*us)
             self.core_dma.playback_handle(handle)
         t2 = self.core.get_rtio_counter_mu()
-        self.set_dataset("dma_playback_time", self.core.mu_to_seconds(t2 - t1))
+        self.set_playback_time(self.core.mu_to_seconds(t2 - t1))
 
     @kernel
     def erase(self):
@@ -782,12 +800,14 @@ class _DMA(EnvExperiment):
 
     @kernel
     def nested(self):
-        with self.core_dma.record(self.trace_name):
-            with self.core_dma.record(self.trace_name):
+        self.core_dma.prepare_record(self.trace_name)
+        with self.core_dma.recorder:
+            self.core_dma.prepare_record(self.trace_name)
+            with self.core_dma.recorder:
                 pass
 
     @kernel
-    def invalidate(self, mode):
+    def invalidate(self, mode: int32):
         self.record()
         handle = self.core_dma.get_handle(self.trace_name)
         if mode == 0:
@@ -797,7 +817,6 @@ class _DMA(EnvExperiment):
         self.core_dma.playback_handle(handle)
 
 
-@unittest.skip("NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/338")
 class DMATest(ExperimentCase):
     def test_dma_storage(self):
         exp = self.create(_DMA)
