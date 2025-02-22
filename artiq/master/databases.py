@@ -121,27 +121,27 @@ class InteractiveArgDB:
         self.pending = Notifier(dict())
         self.futures = dict()
 
-    async def get(self, rid, arglist_desc, title):
-        self.pending[rid] = {"title": title, "arglist_desc": arglist_desc}
-        self.futures[rid] = asyncio.get_running_loop().create_future()
+    async def get(self, request, arglist_desc, title):
+        self.pending[request] = {"title": title, "arglist_desc": arglist_desc}
+        self.futures[request] = asyncio.get_running_loop().create_future()
         try:
-            value = await self.futures[rid]
+            value = await self.futures[request]
         finally:
-            del self.pending[rid]
-            del self.futures[rid]
+            del self.pending[request]
+            del self.futures[request]
         return value
 
-    def supply(self, rid, values):
+    def supply(self, request, values):
         # quick sanity checks
-        if rid not in self.futures or self.futures[rid].done():
-            raise ValueError("no experiment with this RID is "
+        if request not in self.futures or self.futures[request].done():
+            raise ValueError("no experiment with this RID and pipeline is "
                              "waiting for interactive arguments")
-        if {i[0] for i in self.pending.raw_view[rid]["arglist_desc"]} != set(values.keys()):
+        if {i[0] for i in self.pending.raw_view[request]["arglist_desc"]} != set(values.keys()):
             raise ValueError("supplied and requested keys do not match")
-        self.futures[rid].set_result(values)
+        self.futures[request].set_result(values)
 
-    def cancel(self, rid):
-        if rid not in self.futures or self.futures[rid].done():
-            raise ValueError("no experiment with this RID is "
+    def cancel(self, request):
+        if request not in self.futures or self.futures[request].done():
+            raise ValueError("no experiment with this RID and pipeline is "
                              "waiting for interactive arguments")
-        self.futures[rid].set_result(None)
+        self.futures[request].set_result(None)

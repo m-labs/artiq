@@ -48,6 +48,7 @@ class Worker:
 
         self.rid = None
         self.filename = None
+        self.pipeline_name = None
         self.ipc = None
         self.watchdogs = dict()  # wid -> expiration (using time.monotonic)
 
@@ -226,8 +227,9 @@ class Worker:
             else:
                 func = self.handlers[action]
             try:
-                if getattr(func, "_worker_pass_rid", False):
-                    args = [self.rid] + list(obj["args"])
+                if getattr(func, "_worker_pass_request_key", False):
+                    request_key = (self.rid, self.filename, self.pipeline_name)
+                    args = [request_key] + list(obj["args"])
                 else:
                     args = obj["args"]
                 data = func(*args, **obj["kwargs"])
@@ -266,6 +268,7 @@ class Worker:
     async def build(self, rid, pipeline_name, wd, expid, priority,
                     timeout=15.0):
         self.rid = rid
+        self.pipeline_name = pipeline_name
         if "file" in expid:
             self.filename = os.path.basename(expid["file"])
         await self._create_process(expid["log_level"])
