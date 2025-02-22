@@ -946,7 +946,7 @@ class AD9910:
     @kernel
     def cfg_sw(self, state: TBool):
         """Set CPLD CFG RF switch state. The RF switch is controlled by the
-        logical or of the CPLD configuration shift register
+        logical OR of the CPLD configuration shift register
         RF switch bit and the SW TTL line (if used).
 
         :param state: CPLD CFG RF switch bit
@@ -955,8 +955,7 @@ class AD9910:
 
     @kernel
     def cfg_osk(self, state: TBool):
-        """Set CPLD CFG OSK state. The OSK bit is controlled by the
-        logical or of the CPLD configuration shift register OSK bit.
+        """Set CPLD CFG OSK state.
 
         :param state: CPLD CFG OSK bit
         """
@@ -964,8 +963,7 @@ class AD9910:
 
     @kernel
     def cfg_drctl(self, state: TBool):
-        """Set CPLD CFG DRCTL state. The DRCTL bit is controlled by the
-        logical or of the CPLD configuration shift register DRCTL bit.
+        """Set CPLD CFG DRCTL state.
 
         :param state: CPLD CFG DRCTL bit
         """
@@ -973,8 +971,7 @@ class AD9910:
 
     @kernel
     def cfg_drhold(self, state: TBool):
-        """Set CPLD CFG DRHOLD state. The DRHOLD bit is controlled by the
-        logical or of the CPLD configuration shift register DRHOLD bit.
+        """Set CPLD CFG DRHOLD state.
 
         :param state: CPLD CFG DRHOLD bit
         """
@@ -982,8 +979,7 @@ class AD9910:
 
     @kernel
     def cfg_mask_nu(self, state: TBool):
-        """Set CPLD CFG MASK_NU state. The MASK_NU bit is controlled by the
-        logical or of the CPLD configuration shift register MASK_NU bit.
+        """Set CPLD CFG MASK_NU state.
 
         :param state: CPLD CFG MASK_NU bit
         """
@@ -991,8 +987,7 @@ class AD9910:
 
     @kernel
     def cfg_att_en(self, state: TBool):
-        """Set CPLD CFG ATT_EN state. The ATT_EN bit is controlled by the
-        logical or of the CPLD configuration shift register ATT_EN bit.
+        """Set CPLD CFG ATT_EN state.
 
         :param state: CPLD CFG ATT_EN bit
         """
