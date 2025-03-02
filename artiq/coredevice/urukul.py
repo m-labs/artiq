@@ -1,5 +1,4 @@
 from abc import abstractmethod
-from typing import Union
 
 from numpy import int32, int64
 
@@ -163,7 +162,7 @@ class CPLDVersion:
 
     @abstractmethod
     @kernel
-    def set_profile(self, cpld, channel, profile):
+    def set_profile(self, cpld, channel: TInt32, profile: TInt32):
         pass
 
     @kernel
@@ -661,7 +660,7 @@ class CPLD:
     the DDS channels can fail with the error message ``PLL lock timeout``.
     """
 
-    kernel_invariants = {"refclk", "bus", "core", "io_update", "clk_div"}
+    kernel_invariants = {"refclk", "bus", "core", "io_update", "clk_div", "proto_rev"}
 
     def __init__(self, dmgr, spi_device, io_update_device=None,
                  dds_reset_device=None, sync_device=None,
@@ -751,7 +750,7 @@ class CPLD:
         self.version.io_rst(self)
 
     @kernel
-    def set_profile(self, channel, profile):
+    def set_profile(self, channel: TInt32, profile: TInt32):
         self.version.set_profile(self, channel, profile)
 
     @kernel
@@ -864,7 +863,7 @@ class CPLD:
         self.set_all_att_mu(a)
 
     @kernel
-    def set_all_att_mu(self, att_reg: TInt32): 
+    def set_all_att_mu(self, att_reg: TInt32):
         """Set all four digital step attenuators (in machine units).
         See also :meth:`set_att_mu`.
 
