@@ -705,8 +705,13 @@ class CommKernel:
             python_exn_type = embedding_map.retrieve_object(core_exn.id)
 
         try:
-            python_exn = python_exn_type(
-                nested_exceptions[-1][1].format(*nested_exceptions[0][2]))
+            message = nested_exceptions[0][1].format(*nested_exceptions[0][2])
+        except:
+            message = nested_exceptions[0][1]
+            logger.error("Couldn't format exception message", exc_info=True)
+
+        try:
+            python_exn = python_exn_type(message)
         except Exception as ex:
             python_exn = RuntimeError(
                 f"Exception type={python_exn_type}, which couldn't be "

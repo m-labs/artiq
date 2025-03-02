@@ -86,9 +86,7 @@ Nix development environment
 
     - Enable flakes, for example by adding ``experimental-features = nix-command flakes`` to ``nix.conf``. See also the `NixOS Wiki on flakes <https://nixos.wiki/wiki/flakes>`_.
     - Add ``/opt`` (or your Vivado location) as an Nix sandbox, for example by adding ``extra-sandbox-paths = /opt`` to ``nix.conf``.
-    - Create a file called ``trusted-settings.json`` in ``~/.local/share/nix/``, if it doesn't exist already. Make sure it contains the following:
-
-    ::
+    - Make sure that you have accepted and marked as permanent the additional settings described in :ref:`installing-details`. You can check on this manually by ensuring the file ``trusted-settings.json`` in ``~/.local/share/nix/`` exists and contains the following: ::
 
         {
             "extra-sandbox-paths":{
@@ -102,7 +100,7 @@ Nix development environment
             }
         }
 
-    - If using NixOS, instead make the equivalent changes to your ``configuration.nix``.
+    - If using NixOS, make the equivalent changes to your ``configuration.nix`` instead.
 
 * Clone `the ARTIQ Git repository <https://github.com/m-labs/artiq>`_, or `the ARTIQ-Zynq repository <https://git.m-labs.hk/M-Labs/artiq-zynq>`__ for :ref:`Zynq devices <devices-table>` (Kasli-SoC, ZC706, or EBAZ4205). By default, you are working with the ``master`` branch, which represents the beta version and is not stable (see :doc:`releases`). Checkout the most recent release (``git checkout release-[number]``) for a stable version.
 * If your Vivado installation is not in its default location ``/opt``, open ``flake.nix`` and edit it accordingly (note that the edits must be made in the main ARTIQ flake, even if you are working with Zynq, see also tip below).
@@ -120,7 +118,7 @@ Once you have run ``nix develop`` you are in the ARTIQ development environment. 
 
         $ export PYTHONPATH=/absolute/path/to/your/artiq:$PYTHONPATH
 
-    Note that this only applies for incremental builds. If you want to use ``nix build``, or make changes to the dependencies, look into changing the inputs of the ``flake.nix`` instead. You can do this by replacing the URL of the GitHub ARTIQ repository with ``path:/absolute/path/to/your/artiq``; remember that Nix caches dependencies, so to incorporate new changes you will need to exit the development shell, update the Nix cache with ``nix flake update``, and re-run ``nix develop``.
+    Note that this only applies for incremental builds. If you want to use ``nix build``, or make changes to the dependencies, look into changing the inputs of the ``flake.nix`` instead. You can do this by replacing the URL of the GitHub ARTIQ repository with ``path:/absolute/path/to/your/artiq``; remember that Nix pins dependencies, so to incorporate new changes you will need to exit the development shell, update the environment with ``nix flake update``, and re-run ``nix develop``.
 
 Building only standard binaries
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -138,7 +136,7 @@ The parallel command does exist for ARTIQ-Zynq: ::
 
     $ nix develop git+https://git.m-labs.hk/m-labs/artiq-zynq\?ref=release-[number]
 
-but if you are building ARTIQ-Zynq without intention to change the source, it is not actually necessary to enter the development environment at all; Nix is capable of accessing the official flake remotely for the build itself, eliminating the requirement for any particular environment.
+but if you are building ARTIQ-Zynq without intention to change the source, it is not actually necessary to enter the development environment at all; Nix is capable of accessing the official flake directly to set up the build, eliminating the requirement for any particular environment.
 
 This is equally possible for original ARTIQ, but not as useful, as the development environment (specifically the ``#boards`` shell) is still the easiest way to access the necessary tools for flashing the board. On the other hand, Zynq boards can also be flashed by writing to the SD card directly, which requires no further special tools. As long as you have a functioning Nix/Vivado installation with flakes enabled, you can progress directly to the building instructions below.
 

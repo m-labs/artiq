@@ -1674,7 +1674,14 @@ class Inferencer(algorithm.Visitor):
                 else:
                     typ = typ.find()
 
-                if not (len(typ.args) == arity and len(typ.optargs) == 0):
+                if not types.is_function(typ):
+                    diag = diagnostic.Diagnostic("error",
+                        "function '{attr}{attr_type}' must be a @kernel",
+                        {"attr": attr_name,
+                         "attr_type": printer.name(typ)},
+                        node.loc)
+                    self.engine.process(diag)
+                elif not (len(typ.args) == arity and len(typ.optargs) == 0):
                     diag = diagnostic.Diagnostic("error",
                         "function '{attr}{attr_type}' must accept "
                         "{arity} positional argument{s} and no optional arguments",

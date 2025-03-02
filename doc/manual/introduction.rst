@@ -23,4 +23,4 @@ Core technologies employed include `Python <https://www.python.org/>`_, `Migen <
 
 `Cite ARTIQ <http://dx.doi.org/10.5281/zenodo.51303>`_ as ``Bourdeauducq, Sébastien et al. (2016). ARTIQ 1.0. Zenodo. 10.5281/zenodo.51303``.
 
-Copyright (C) 2014-2024 M-Labs Limited. Licensed under GNU LGPL version 3+.
+Copyright (C) 2014-2025 M-Labs Limited. Licensed under GNU LGPL version 3+.

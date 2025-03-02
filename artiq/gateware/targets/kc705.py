@@ -90,6 +90,7 @@ class _StandaloneBase(MiniSoC, AMPSoC):
                          cpu_bus_width=64,
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
+                         l2_line_size=64,
                          integrated_sram_size=8192,
                          ethmac_nrxslots=4,
                          ethmac_ntxslots=4,
@@ -127,6 +128,7 @@ class _StandaloneBase(MiniSoC, AMPSoC):
             Instance("BUFG", i_I=cdr_clk, o_O=cdr_clk_buf)
         ]
 
+        self.platform.add_period_constraint(cdr_clk_out, 8.)
         self.crg.configure(cdr_clk_buf)
 
         self.submodules += SMAClkinForward(self.platform)
@@ -187,6 +189,7 @@ class _MasterBase(MiniSoC, AMPSoC):
                          cpu_bus_width=64,
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
+                         l2_line_size=64,
                          integrated_sram_size=8192,
                          ethmac_nrxslots=4,
                          ethmac_ntxslots=4,
@@ -335,6 +338,7 @@ class _SatelliteBase(BaseSoC, AMPSoC):
                  cpu_bus_width=64,
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
+                 l2_line_size=64,
                  integrated_sram_size=8192,
                  clk_freq=clk_freq,
                  rtio_sys_merge=True,

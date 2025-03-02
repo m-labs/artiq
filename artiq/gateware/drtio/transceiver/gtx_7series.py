@@ -3,11 +3,11 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.cdc import MultiReg
 
 from misoc.cores.code_8b10b import Encoder, Decoder
+from misoc.cores.gtx_7series_init import *
 from misoc.interconnect.csr import *
 
 from artiq.gateware.drtio.core import TransceiverInterface, ChannelInterface
 from artiq.gateware.drtio.transceiver.clock_aligner import BruteforceClockAligner
-from artiq.gateware.drtio.transceiver.gtx_7series_init import *
 
 
 class GTX_20X(Module):

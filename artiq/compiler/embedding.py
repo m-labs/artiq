@@ -274,6 +274,27 @@ class EmbeddingMap:
             ))
 
 
+class _ValueInfo:
+    """
+    A collection of all values of a particular type.
+
+    Attributes:
+
+    :attr:`objects`: A list of all objects and the location they were added from.
+    :attr:`unchecked_attributes`: The known attributes for this type, and a list of
+        values where we have not yet checked the attribute's presence.
+    """
+    def __init__(self):
+        self.objects: list[tuple[object, source.Range]] = []
+        self.unchecked_attributes: dict[str, list[tuple[object, source.Range]]] = {}
+
+    def append(self, val_and_loc):
+        self.objects.append(val_and_loc)
+
+        for attr_store in self.unchecked_attributes.values():
+            attr_store.append(val_and_loc)
+
+
 class ASTSynthesizer:
     def __init__(self, embedding_map, value_map, quote_function=None, expanded_from=None):
         self.source = ""
@@ -310,7 +331,9 @@ class ASTSynthesizer:
         if len(value) > 0:
             v = value[0]
             is_T = True
-            if isinstance(v, int):
+            if isinstance(v, bool):
+                is_T = False
+            elif isinstance(v, int):
                 T = int
             elif isinstance(v, float):
                 T = float
@@ -805,7 +828,13 @@ class StitchingInferencer(Inferencer):
         # that we can successfully serialize the value of the attribute we
         # are now adding at the code generation stage.
         object_type = value_node.type.find()
-        for object_value, object_loc in self.value_map[object_type]:
+        values: _ValueInfo = self.value_map[object_type]
+
+        # Take all objects whose attribute we haven't checked yet.
+        attribute_objects = values.unchecked_attributes.get(attr_name, values.objects)
+        values.unchecked_attributes[attr_name] = []
+
+        for object_value, object_loc in attribute_objects:
             attr_type_key = (id(object_value), attr_name)
             try:
                 attributes, attr_value_type = self.attr_type_cache[attr_type_key]
@@ -886,7 +915,7 @@ class Stitcher:
         self.functions = {}
 
         self.embedding_map = EmbeddingMap(old_embedding_map)
-        self.value_map = defaultdict(lambda: [])
+        self.value_map = defaultdict(_ValueInfo)
         self.definitely_changed = False
 
         self.destination = destination
@@ -944,7 +973,7 @@ class Stitcher:
                     # value is guaranteed to have it too.
                     continue
 
-                for value, loc in self.value_map[instance_type]:
+                for value, loc in self.value_map[instance_type].objects:
                     if hasattr(value, attribute):
                         continue
 

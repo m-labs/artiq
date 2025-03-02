@@ -5,6 +5,8 @@ RTIO Driver for the Analog Devices AD9834 DDS via 3-wire SPI interface.
 # https://www.analog.com/media/en/technical-documentation/data-sheets/AD9834.pdf
 # https://www.analog.com/media/en/technical-documentation/app-notes/an-1070.pdf
 
+from numpy import int32
+
 from artiq.coredevice import spi2 as spi
 from artiq.experiment import *
 from artiq.language.core import *
@@ -64,167 +66,21 @@ class AD9834:
         self.ctrl_reg = 0x0000  # Reset control register
 
     @kernel
-    def init(self):
+    def write(self, data: TInt32):
         """
-        Initialize the AD9834: configure the SPI bus and reset the DDS.
+        Write a 16-bit word to the AD9834.
 
-        This method performs the necessary setup for the AD9834 device, including:
-        - Configuring the SPI bus parameters (clock polarity, data width, and frequency).
-        - Putting the AD9834 into a reset state to ensure proper initialization.
+        This method sends a 16-bit data word to the AD9834 via the SPI bus. The input
+        data is left-shifted by 16 bits to ensure proper alignment for the SPI controller,
+        allowing for accurate processing of the command by the AD9834.
 
-        The SPI bus is configured to use 16 bits of data width with the clock frequency
-        provided as a parameter when creating the AD9834 instance. After configuring
-        the SPI bus, the method invokes :meth:`enable_reset()` to reset the AD9834.
-        This is an essential step to prepare the device for subsequent configuration
-        of frequency and phase.
+        This method is used internally by other methods to update the control registers
+        and frequency settings of the AD9834. It should not be called directly unless
+        low-level register manipulation is required.
 
-        This method should be called before any other operations are performed
-        on the AD9834 to ensure that the device is in a known state.
+        :param data: The 16-bit word to be sent to the AD9834.
         """
-        self.bus.set_config(spi.SPI_CLK_POLARITY | spi.SPI_END, 16, self.spi_freq, 1)
-        self.enable_reset()
-
-    @kernel
-    def set_frequency_reg(self, freq_reg, frequency: TFloat):
-        """
-        Set the frequency for the specified frequency register.
-
-        This method calculates the frequency word based on the provided frequency in Hz
-        and writes it to the specified frequency register.
-
-        :param freq_reg: The frequency register to write to, must be one of
-                         :const:`AD9834_FREQ_REG_0` or :const:`AD9834_FREQ_REG_1`.
-        :param frequency: The desired frequency in Hz, which will be converted to a
-                         frequency word suitable for the AD9834.
-
-        The frequency word is calculated using the formula:
-
-            ``freq_word = (frequency * (1 << 28)) / clk_freq``
-
-        The result is limited to the lower 28 bits for compatibility with the AD9834.
-
-        The method first sets the control register to enable the appropriate settings,
-        then sends the fourteen least significant bits LSBs and fourteen most significant
-        bits MSBs in two consecutive writes to the specified frequency register.
-        """
-        if freq_reg not in FREQ_REGS:
-            raise ValueError("Invalid frequency register")
-        assert frequency <= 37.5 * MHz, "Frequency exceeds maximum value of 37.5 MHz"
-        freq_word = int((frequency * (1 << 28)) / self.clk_freq) & 0x0FFFFFFF
-        self.ctrl_reg |= AD9834_B28
-        self.write(self.ctrl_reg)
-        lsb = freq_word & 0x3FFF
-        msb = (freq_word >> 14) & 0x3FFF
-        self.write(freq_reg | lsb)
-        self.write(freq_reg | msb)
-
-    @kernel
-    def set_frequency_reg_msb(self, freq_reg, word: TInt32):
-        """
-        Set the fourteen most significant bits MSBs of the specified frequency register.
-
-        This method updates the specified frequency register with the provided MSB value.
-        It configures the control register to indicate that the MSB is being set.
-
-        :param freq_reg: The frequency register to update, must be one of
-                         :const:`AD9834_FREQ_REG_0` or :const:`AD9834_FREQ_REG_1`.
-        :param word: The value to be written to the fourteen MSBs of the frequency register.
-
-        The method first clears the appropriate control bits, sets :const:`AD9834_HLB` to
-        indicate that the MSB is being sent, and then writes the updated control register
-        followed by the MSB value to the specified frequency register.
-        """
-        if freq_reg not in FREQ_REGS:
-            raise ValueError("Invalid frequency register")
-        self.ctrl_reg &= ~AD9834_B28
-        self.ctrl_reg |= AD9834_HLB
-        self.write(self.ctrl_reg)
-        self.write(freq_reg | (word & 0x3FFF))
-
-    @kernel
-    def set_frequency_reg_lsb(self, freq_reg, word: TInt32):
-        """
-        Set the fourteen least significant bits LSBs of the specified frequency register.
-
-        This method updates the specified frequency register with the provided LSB value.
-        It configures the control register to indicate that the LSB is being set.
-
-        :param freq_reg: The frequency register to update, must be one of
-                         :const:`AD9834_FREQ_REG_0` or :const:`AD9834_FREQ_REG_1`.
-        :param word: The value to be written to the fourteen LSBs of the frequency register.
-
-        The method first clears the appropriate control bits and writes the updated control
-        register followed by the LSB value to the specified frequency register.
-        """
-        if freq_reg not in FREQ_REGS:
-            raise ValueError("Invalid frequency register")
-        self.ctrl_reg &= ~AD9834_B28
-        self.ctrl_reg &= ~AD9834_HLB
-        self.write(self.ctrl_reg)
-        self.write(freq_reg | (word & 0x3FFF))
-
-    @kernel
-    def select_frequency_reg(self, freq_reg):
-        """
-        Select the active frequency register for the phase accumulator.
-
-        This method chooses between the two available frequency registers in the AD9834 to
-        control the frequency of the output waveform. The control register is updated
-        to reflect the selected frequency register.
-
-        :param freq_reg: The frequency register to select. Must be one of
-                        :const:`AD9834_FREQ_REG_0` or :const:`AD9834_FREQ_REG_1`.
-        """
-        if freq_reg not in FREQ_REGS:
-            raise ValueError("Invalid frequency register")
-        if freq_reg == FREQ_REGS[0]:
-            self.ctrl_reg &= ~AD9834_FSEL
-        else:
-            self.ctrl_reg |= AD9834_FSEL
-
-        self.ctrl_reg &= ~AD9834_PIN_SW
-        self.write(self.ctrl_reg)
-
-    @kernel
-    def set_phase_reg(self, phase_reg, phase: TInt32):
-        """
-        Set the phase for the specified phase register.
-
-        This method updates the specified phase register with the provided phase value.
-
-        :param phase_reg: The phase register to update, must be one of
-                          :const:`AD9834_PHASE_REG_0` or :const:`AD9834_PHASE_REG_1`.
-        :param phase: The value to be written to the phase register.
-
-        The method masks the phase value to ensure it fits within the 12-bit limit
-        and writes it to the specified phase register.
-        """
-        if phase_reg not in PHASE_REGS:
-            raise ValueError("Invalid phase register")
-        phase_word = phase & 0x0FFF
-        self.write(phase_reg | phase_word)
-
-    @kernel
-    def select_phase_reg(self, phase_reg):
-        """
-        Select the active phase register for the phase accumulator.
-
-        This method chooses between the two available phase registers in the AD9834 to
-        control the phase of the output waveform. The control register is updated
-        to reflect the selected phase register.
-
-        :param phase_reg: The phase register to select. Must be one of
-                        :const:`AD9834_PHASE_REG_0` or :const:`AD9834_PHASE_REG_1`.
-        """
-        if phase_reg not in PHASE_REGS:
-            raise ValueError("Invalid phase register")
-        if phase_reg == PHASE_REGS[0]:
-            self.ctrl_reg &= ~AD9834_PSEL
-        else:
-            self.ctrl_reg |= AD9834_PSEL
-
-        self.ctrl_reg &= ~AD9834_PIN_SW
-        self.write(self.ctrl_reg)
+        self.bus.write(data << 16)
 
     @kernel
     def enable_reset(self):
@@ -253,6 +109,158 @@ class AD9834:
         settings to activate the output.
         """
         self.ctrl_reg &= ~AD9834_RESET
+        self.write(self.ctrl_reg)
+
+    @kernel
+    def init(self):
+        """
+        Initialize the AD9834: configure the SPI bus and reset the DDS.
+
+        This method performs the necessary setup for the AD9834 device, including:
+        - Configuring the SPI bus parameters (clock polarity, data width, and frequency).
+        - Putting the AD9834 into a reset state to ensure proper initialization.
+
+        The SPI bus is configured to use 16 bits of data width with the clock frequency
+        provided as a parameter when creating the AD9834 instance. After configuring
+        the SPI bus, the method invokes :meth:`enable_reset()` to reset the AD9834.
+        This is an essential step to prepare the device for subsequent configuration
+        of frequency and phase.
+
+        This method should be called before any other operations are performed
+        on the AD9834 to ensure that the device is in a known state.
+        """
+        self.bus.set_config(spi.SPI_CLK_POLARITY | spi.SPI_END, 16, self.spi_freq, 1)
+        self.enable_reset()
+
+    @kernel
+    def set_frequency_reg_msb(self, freq_reg: TInt32, word: TInt32):
+        """
+        Set the fourteen most significant bits MSBs of the specified frequency register.
+
+        This method updates the specified frequency register with the provided MSB value.
+        It configures the control register to indicate that the MSB is being set.
+
+        :param freq_reg: The frequency register to write to (0-1).
+        :param word: The value to be written to the fourteen MSBs of the frequency register.
+
+        The method first clears the appropriate control bits, sets :const:`AD9834_HLB` to
+        indicate that the MSB is being sent, and then writes the updated control register
+        followed by the MSB value to the specified frequency register.
+        """
+        assert 0 <= freq_reg <= 1, "Invalid frequency register index"
+        self.ctrl_reg &= ~AD9834_B28
+        self.ctrl_reg |= AD9834_HLB
+        self.write(self.ctrl_reg)
+        self.write(FREQ_REGS[freq_reg] | (word & 0x3FFF))
+
+    @kernel
+    def set_frequency_reg_lsb(self, freq_reg: TInt32, word: TInt32):
+        """
+        Set the fourteen least significant bits LSBs of the specified frequency register.
+
+        This method updates the specified frequency register with the provided LSB value.
+        It configures the control register to indicate that the LSB is being set.
+
+        :param freq_reg: The frequency register to write to (0-1).
+        :param word: The value to be written to the fourteen LSBs of the frequency register.
+
+        The method first clears the appropriate control bits and writes the updated control
+        register followed by the LSB value to the specified frequency register.
+        """
+        assert 0 <= freq_reg <= 1, "Invalid frequency register index"
+        self.ctrl_reg &= ~AD9834_B28
+        self.ctrl_reg &= ~AD9834_HLB
+        self.write(self.ctrl_reg)
+        self.write(FREQ_REGS[freq_reg] | (word & 0x3FFF))
+
+    @kernel
+    def set_frequency_reg(self, freq_reg: TInt32, freq_word: TInt32):
+        """
+        Set the frequency for the specified frequency register using a precomputed frequency word.
+
+        This writes to the 28-bit frequency register in one transfer.
+
+        :param freq_reg: The frequency register to write to (0-1).
+        :param freq_word: The precomputed frequency word.
+        """
+        assert 0 <= freq_reg <= 1, "Invalid frequency register index"
+        self.ctrl_reg |= AD9834_B28
+        self.write(self.ctrl_reg)
+        lsb = freq_word & 0x3FFF
+        msb = (freq_word >> 14) & 0x3FFF
+        self.write(FREQ_REGS[freq_reg] | lsb)
+        self.write(FREQ_REGS[freq_reg] | msb)
+
+    @portable(flags={"fast-math"})
+    def frequency_to_ftw(self, frequency: TFloat) -> TInt32:
+        """Return the 28-bit frequency tuning word corresponding to the given
+        frequency.
+        """
+        assert frequency <= 37.5 * MHz, "Frequency exceeds maximum value of 37.5 MHz"
+        return int((frequency * (1 << 28)) / self.clk_freq) & 0x0FFFFFFF
+
+    @portable(flags={"fast-math"})
+    def turns_to_pow(self, turns: TFloat) -> TInt32:
+        """Return the 12-bit phase offset word corresponding to the given phase
+        in turns."""
+        assert 0.0 <= turns <= 1.0, "Turns exceeds range 0.0 - 1.0"
+        return int32(round(turns * 0x1000)) & int32(0x0FFF)
+
+    @kernel
+    def select_frequency_reg(self, freq_reg: TInt32):
+        """
+        Select the active frequency register for the phase accumulator.
+
+        This method chooses between the two available frequency registers in the AD9834 to
+        control the frequency of the output waveform. The control register is updated
+        to reflect the selected frequency register.
+
+        :param freq_reg: The frequency register to write to (0-1).
+        """
+        assert 0 <= freq_reg <= 1, "Invalid frequency register index"
+        if freq_reg:
+            self.ctrl_reg |= AD9834_FSEL
+        else:
+            self.ctrl_reg &= ~AD9834_FSEL
+
+        self.ctrl_reg &= ~AD9834_PIN_SW
+        self.write(self.ctrl_reg)
+
+    @kernel
+    def set_phase_reg(self, phase_reg: TInt32, phase: TInt32):
+        """
+        Set the phase for the specified phase register.
+
+        This method updates the specified phase register with the provided phase value.
+
+        :param phase_reg: The phase register to write to (0-1).
+        :param phase: The value to be written to the phase register.
+
+        The method masks the phase value to ensure it fits within the 12-bit limit
+        and writes it to the specified phase register.
+        """
+        assert 0 <= phase_reg <= 1, "Invalid phase register index"
+        phase_word = phase & 0x0FFF
+        self.write(PHASE_REGS[phase_reg] | phase_word)
+
+    @kernel
+    def select_phase_reg(self, phase_reg: TInt32):
+        """
+        Select the active phase register for the phase accumulator.
+
+        This method chooses between the two available phase registers in the AD9834 to
+        control the phase of the output waveform. The control register is updated
+        to reflect the selected phase register.
+
+        :param phase_reg: The phase register to write to (0-1).
+        """
+        assert 0 <= phase_reg <= 1, "Invalid phase register index"
+        if phase_reg:
+            self.ctrl_reg |= AD9834_PSEL
+        else:
+            self.ctrl_reg &= ~AD9834_PSEL
+
+        self.ctrl_reg &= ~AD9834_PIN_SW
         self.write(self.ctrl_reg)
 
     @kernel
@@ -329,19 +337,13 @@ class AD9834:
             self.ctrl_reg &= ~AD9834_OPBITEN
         elif msb_2:
             self.ctrl_reg |= AD9834_OPBITEN
-            self.ctrl_reg &= ~AD9834_MODE
-            self.ctrl_reg &= ~AD9834_SIGN_PIB
-            self.ctrl_reg &= ~AD9834_DIV2
+            self.ctrl_reg &= ~(AD9834_MODE | AD9834_SIGN_PIB | AD9834_DIV2)
         elif msb:
-            self.ctrl_reg |= AD9834_OPBITEN
-            self.ctrl_reg &= ~AD9834_MODE
-            self.ctrl_reg &= ~AD9834_SIGN_PIB
-            self.ctrl_reg |= AD9834_DIV2
+            self.ctrl_reg |= AD9834_OPBITEN | AD9834_DIV2
+            self.ctrl_reg &= ~(AD9834_MODE | AD9834_SIGN_PIB)
         elif comp_out:
-            self.ctrl_reg |= AD9834_OPBITEN
+            self.ctrl_reg |= AD9834_OPBITEN | AD9834_SIGN_PIB | AD9834_DIV2
             self.ctrl_reg &= ~AD9834_MODE
-            self.ctrl_reg |= AD9834_SIGN_PIB
-            self.ctrl_reg |= AD9834_DIV2
         else:
             self.ctrl_reg &= ~AD9834_OPBITEN
 
@@ -380,18 +382,56 @@ class AD9834:
         self.write(self.ctrl_reg)
 
     @kernel
-    def write(self, data: TInt32):
+    def set_mu(
+        self,
+        freq_word: TInt32 = 0,
+        phase_word: TInt32 = 0,
+        freq_reg: TInt32 = 0,
+        phase_reg: TInt32 = 0,
+    ):
         """
-        Write a 16-bit word to the AD9834.
+        Set DDS frequency and phase in machine units.
 
-        This method sends a 16-bit data word to the AD9834 via the SPI bus. The input
-        data is left-shifted by 16 bits to ensure proper alignment for the SPI controller,
-        allowing for accurate processing of the command by the AD9834.
+        This method updates the specified frequency and phase registers with the provided
+        machine units, selects the corresponding registers, and enables the output.
 
-        This method is used internally by other methods to update the control registers
-        and frequency settings of the AD9834. It should not be called directly unless
-        low-level register manipulation is required.
-
-        :param data: The 16-bit word to be sent to the AD9834.
+        :param freq_word: Frequency tuning word (28-bit).
+        :param phase_word: Phase tuning word (12-bit).
+        :param freq_reg: Frequency register to write to (0 or 1).
+        :param phase_reg: Phase register to write to (0 or 1).
         """
-        self.bus.write(data << 16)
+        assert 0 <= freq_reg <= 1, "Invalid frequency register index"
+        assert 0 <= phase_reg <= 1, "Invalid phase register index"
+
+        self.set_frequency_reg_lsb(freq_reg, freq_word & 0x3FFF)
+        self.set_frequency_reg_msb(freq_reg, (freq_word >> 14) & 0x3FFF)
+        self.set_phase_reg(phase_reg, phase_word)
+        self.select_frequency_reg(freq_reg)
+        self.select_phase_reg(phase_reg)
+        self.output_enable()
+
+    @kernel
+    def set(
+        self,
+        frequency: TFloat = 0.0,
+        phase: TFloat = 0.0,
+        freq_reg: TInt32 = 0,
+        phase_reg: TInt32 = 0,
+    ):
+        """
+        Set DDS frequency in Hz and phase using fractional turns.
+
+        This method converts the specified frequency and phase to their corresponding
+        machine units, updates the selected registers, and enables the output.
+
+        :param frequency: Frequency in Hz.
+        :param phase: Phase in fractional turns (e.g., 0.5 for 180 degrees).
+        :param freq_reg: Frequency register to write to (0 or 1).
+        :param phase_reg: Phase register to write to (0 or 1).
+        """
+        assert 0 <= freq_reg <= 1, "Invalid frequency register index"
+        assert 0 <= phase_reg <= 1, "Invalid phase register index"
+
+        freq_word = self.frequency_to_ftw(frequency)
+        phase_word = self.turns_to_pow(phase)
+        self.set_mu(freq_word, phase_word, freq_reg, phase_reg)
