@@ -2,6 +2,7 @@ from artiq.coredevice.urukul import STA_PROTO_REV_9, urukul_sta_rf_sw
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 
+# Set to desired device
 CPLD = "urukul_cpld"
 
 

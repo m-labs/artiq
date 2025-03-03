@@ -12,8 +12,8 @@ from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 
 ####################################################################################
-## NOTE: These test are intended to create waveforms from AD9910 Urukul boards
-## (all protocol revisions, see tests below) used with an oscilloscope (2 channels).
+## NOTE: These test are intended to create waveforms from AD9910 Urukul boards used
+## with an oscilloscope (2 channels).  Most tests are for proto_rev = 0x09+.
 ##
 ## Set your oscilloscope to:
 ##
@@ -35,6 +35,52 @@ ATT = 1.0
 CPLD = "urukul1_cpld"
 DDS1 = "urukul1_ch0"
 DDS2 = "urukul1_ch3"
+
+
+def io_update_device(cpld, *required_values, proto_rev=None):
+    """
+    Decorator to mark whether a test requires 'io_update_device' to be set or unset
+    for a given Urukul and optionally check the protocol version.
+
+    Parameters:
+    - device_key: The key identifying the device to check.
+    - *required_values: Boolean values indicating whether 'io_update_device' should be present.
+    - proto_rev (optional): The required protocol revision; the test will be skipped if it does not match.
+    """
+
+    def decorator(test_func):
+        @wraps(test_func)
+        def wrapper(self, *args, **kwargs):
+            for required in required_values:
+                with self.subTest(io_update_device=required):
+                    desc = (
+                        self.device_mgr.get_desc(cpld)
+                        if hasattr(self.device_mgr, "get_desc")
+                        else {}
+                    )
+                    io_update_present = "io_update_device" in desc.get("arguments", [])
+
+                    if io_update_present != required:
+                        self.skipTest(
+                            f"This test requires 'io_update_device' to be {required}."
+                        )
+
+                    if proto_rev is not None:
+                        actual_proto_rev = self.device_mgr.get(cpld).proto_rev
+                        if actual_proto_rev != proto_rev:
+                            self.skipTest(
+                                f"This test requires proto_rev={proto_rev}, "
+                                "but the current proto_rev is {actual_proto_rev}."
+                            )
+
+                    print(
+                        f"Running test: {test_func.__name__} (io_update_device={required})"
+                    )
+                    test_func(self, *args, **kwargs, io_update_device=required)
+
+        return wrapper
+
+    return decorator
 
 
 class AD9910WaveformExp(EnvExperiment):
@@ -417,62 +463,21 @@ class AD9910WaveformExp(EnvExperiment):
         self.core.wait_until_mu(now_mu())
 
 
-def io_update_device(*required_values, proto_rev=None):
-    """
-    Decorator to mark whether a test requires 'io_update_device' to be set or unset
-    and optionally check the protocol version.
-    """
-
-    def decorator(test_func):
-        @wraps(test_func)
-        def wrapper(self, *args, **kwargs):
-            for required in required_values:
-                with self.subTest(io_update_device=required):
-                    desc = (
-                        self.device_mgr.get_desc(CPLD)
-                        if hasattr(self.device_mgr, "get_desc")
-                        else {}
-                    )
-                    io_update_present = "io_update_device" in desc.get("arguments", [])
-
-                    if io_update_present != required:
-                        self.skipTest(
-                            f"This test requires 'io_update_device' to be {required}."
-                        )
-
-                    if proto_rev is not None:
-                        actual_proto_rev = self.device_mgr.get(CPLD).proto_rev
-                        if actual_proto_rev != proto_rev:
-                            self.skipTest(
-                                f"This test requires proto_rev={proto_rev}, "
-                                "but the current proto_rev is {actual_proto_rev}."
-                            )
-
-                    print(
-                        f"Running test: {test_func.__name__} (io_update_device={required})"
-                    )
-                    test_func(self, *args, **kwargs, io_update_device=required)
-
-        return wrapper
-
-    return decorator
-
-
 class AD9910WaveformTest(ExperimentCase):
     def test_instantiate(self):
         self.execute(AD9910WaveformExp, "instantiate")
 
-    @io_update_device(True, False)
+    @io_update_device(CPLD, True, False)
     def test_init(self, io_update_device):
         self.execute(AD9910WaveformExp, "init", io_update_device=io_update_device)
 
-    @io_update_device(True, False)
+    @io_update_device(CPLD, True, False)
     def test_single_tone(self, io_update_device):
         self.execute(
             AD9910WaveformExp, "single_tone", io_update_device=io_update_device
         )
 
-    @io_update_device(True, False, proto_rev=STA_PROTO_REV_8)
+    @io_update_device(CPLD, True, False, proto_rev=STA_PROTO_REV_8)
     def test_toggle_profiles(self, io_update_device):
         self.execute(
             AD9910WaveformExp,
@@ -481,7 +486,7 @@ class AD9910WaveformTest(ExperimentCase):
             multiple_profiles=False,
         )
 
-    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    @io_update_device(CPLD, True, False, proto_rev=STA_PROTO_REV_9)
     def test_toggle_profiles(self, io_update_device):
         self.execute(
             AD9910WaveformExp,
@@ -489,11 +494,11 @@ class AD9910WaveformTest(ExperimentCase):
             io_update_device=io_update_device,
         )
 
-    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    @io_update_device(CPLD, True, False, proto_rev=STA_PROTO_REV_9)
     def test_osk_manual(self, io_update_device):
         self.execute(AD9910WaveformExp, "osk", io_update_device=io_update_device)
 
-    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    @io_update_device(CPLD, True, False, proto_rev=STA_PROTO_REV_9)
     def test_osk_auto(self, io_update_device):
         self.execute(
             AD9910WaveformExp,
@@ -502,11 +507,11 @@ class AD9910WaveformTest(ExperimentCase):
             osk_manual=False,
         )
 
-    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    @io_update_device(CPLD, True, False, proto_rev=STA_PROTO_REV_9)
     def test_drg_normal_frequency(self, io_update_device):
         self.execute(AD9910WaveformExp, "drg", io_update_device=io_update_device)
 
-    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    @io_update_device(CPLD, True, False, proto_rev=STA_PROTO_REV_9)
     def test_drg_normal_phase(self, io_update_device):
         self.execute(
             AD9910WaveformExp,
@@ -516,7 +521,7 @@ class AD9910WaveformTest(ExperimentCase):
             use_dds2=True,
         )
 
-    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    @io_update_device(CPLD, True, False, proto_rev=STA_PROTO_REV_9)
     def test_drg_normal_amplitude(self, io_update_device):
         self.execute(
             AD9910WaveformExp,
@@ -525,13 +530,13 @@ class AD9910WaveformTest(ExperimentCase):
             drg_destination=0x2,
         )
 
-    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    @io_update_device(CPLD, True, False, proto_rev=STA_PROTO_REV_9)
     def test_drg_normal_with_hold_frequency(self, io_update_device):
         self.execute(
             AD9910WaveformExp, "drg", io_update_device=io_update_device, with_hold=True
         )
 
-    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    @io_update_device(CPLD, True, False, proto_rev=STA_PROTO_REV_9)
     def test_drg_normal_with_hold_phase(self, io_update_device):
         self.execute(
             AD9910WaveformExp,
@@ -542,7 +547,7 @@ class AD9910WaveformTest(ExperimentCase):
             with_hold=True,
         )
 
-    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    @io_update_device(CPLD, True, False, proto_rev=STA_PROTO_REV_9)
     def test_drg_normal_with_hold_amplitude(self, io_update_device):
         self.execute(
             AD9910WaveformExp,
@@ -552,13 +557,13 @@ class AD9910WaveformTest(ExperimentCase):
             with_hold=True,
         )
 
-    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    @io_update_device(CPLD, True, False, proto_rev=STA_PROTO_REV_9)
     def test_drg_nodwell_frequency(self, io_update_device):
         self.execute(
             AD9910WaveformExp, "drg", io_update_device=io_update_device, nodwell=1
         )
 
-    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    @io_update_device(CPLD, True, False, proto_rev=STA_PROTO_REV_9)
     def test_drg_nodwell_phase(self, io_update_device):
         self.execute(
             AD9910WaveformExp,
@@ -569,13 +574,13 @@ class AD9910WaveformTest(ExperimentCase):
             nodwell=1,
         )
 
-    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    @io_update_device(CPLD, True, False, proto_rev=STA_PROTO_REV_9)
     def test_drg_nodwell_amplitude(self, io_update_device):
         self.execute(
             AD9910WaveformExp, "drg", io_update_device, drg_destination=0x2, nodwell=1
         )
 
-    @io_update_device(True, False, proto_rev=STA_PROTO_REV_9)
+    @io_update_device(CPLD, True, False, proto_rev=STA_PROTO_REV_9)
     def test_att_single_tone(self, io_update_device):
         self.execute(
             AD9910WaveformExp, "att_single_tone", io_update_device=io_update_device
