@@ -502,11 +502,13 @@ class CoredeviceTest(ExperimentCase):
     def execute_and_test_in_log(self, experiment, string):
         core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]
         mgmt = CommMgmt(core_addr)
-        mgmt.clear_log()
-        self.execute(experiment)
-        log = mgmt.get_log()
-        self.assertIn(string, log)
-        mgmt.close()
+        try:
+            mgmt.clear_log()
+            self.execute(experiment)
+            log = mgmt.get_log()
+            self.assertIn(string, log)
+        finally:
+            mgmt.close()
 
     def test_sequence_error(self):
         self.execute_and_test_in_log(SequenceError, "RTIO sequence error")
