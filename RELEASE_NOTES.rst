@@ -25,7 +25,8 @@ ARTIQ-9 (Unreleased)
 * Support for coredevice reflashing through the new ``flash`` tool in ``artiq_coremgmt``.
 * ``artiq_coremgmt`` now supports configuring satellites.
 * ``artiq.coredevice.fmcdio_vhdci_eem`` has been removed.
-* ``artiq.coredevice.urukul`` and ``artiq.coredevice.ad9910`` have been updated for new Urukul capabilities:
+* ``artiq.coredevice.urukul``, ``artiq.coredevice.ad9910``, and ``artiq.coredevice.ad9912``
+  have been updated for new Urukul capabilities:
    - Digital Ramp Generation (DRG)
    - Individual DDS Channel control:
       * PROFILE
