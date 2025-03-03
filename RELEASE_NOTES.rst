@@ -6,6 +6,10 @@ Release notes
 ARTIQ-9 (Unreleased)
 --------------------
 
+* New hardware support:
+   - Support for the EBAZ4205 Zynq-SoC control card.
+   - Core device driver for the AD9834 DDS, tested with the ZonRi Technology Co., Ltd. AD9834-Module.
+   - Implemented CoaXPress grabber support on ZC706 with Hello-FPGA CXP 4R FMC card.
 * Dashboard:
    - Experiment windows can have different colors, selected by the user.
    - Zotino monitoring now displays the values in volts.
@@ -20,8 +24,6 @@ ARTIQ-9 (Unreleased)
 * Python 3.12 support.
 * Compiler can now give automatic suggestions for ``kernel_invariants``. 
 * Idle kernels now restart when written with ``artiq_coremgmt`` and stop when erased/removed from config.
-* New support for the EBAZ4205 Zynq-SoC control card.
-* New core device driver for the AD9834 DDS, tested with the ZonRi Technology Co., Ltd. AD9834-Module.
 * Support for coredevice reflashing through the new ``flash`` tool in ``artiq_coremgmt``.
 * ``artiq_coremgmt`` now supports configuring satellites.
 * ``artiq.coredevice.fmcdio_vhdci_eem`` has been removed.
