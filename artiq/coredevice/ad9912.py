@@ -272,9 +272,17 @@ class AD9912:
     @kernel
     def cfg_sw(self, state: TBool):
         """Set CPLD CFG RF switch state. The RF switch is controlled by the
-        logical or of the CPLD configuration shift register
+        logical OR of the CPLD configuration shift register
         RF switch bit and the SW TTL line (if used).
 
         :param state: CPLD CFG RF switch bit
         """
         self.cpld.cfg_sw(self.chip_select - 4, state)
+
+    @kernel
+    def cfg_att_en(self, state: TBool):
+        """Set CPLD CFG ATT_EN state.
+
+        :param state: CPLD CFG ATT_EN bit
+        """
+        self.cpld.cfg_att_en(self.chip_select - 4, state)
