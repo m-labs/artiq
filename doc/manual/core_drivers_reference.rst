@@ -170,3 +170,10 @@ Miscellaneous
 
 .. automodule:: artiq.coredevice.grabber
     :members:
+
+
+:mod:`artiq.coredevice.cxp_grabber` module
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: artiq.coredevice.cxp_grabber
+    :members:
