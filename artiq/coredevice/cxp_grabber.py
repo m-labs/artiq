@@ -24,6 +24,7 @@ def cxp_write32(addr: TInt32, val: TInt32) -> TNone:
 
 class CXPGrabber:
     """Driver for the CoaXPress Grabber camera interface."""
+
     kernel_invariants = {
         "core",
         "channel",
@@ -32,6 +33,7 @@ class CXPGrabber:
         "roi_gating_ch",
         "sentinel",
     }
+
     def __init__(self, dmgr, channel, core_device="core", count_width=31):
         self.core = dmgr.get(core_device)
 
