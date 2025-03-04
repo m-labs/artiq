@@ -169,6 +169,7 @@ class CXPGrabber:
     def read32(self, address: TInt32) -> TInt32:
         """
         Read a 32-bit value from camera register
+
         .. note:: This is NOT a real time operation
 
         :param address: 32-bit register address to read from
@@ -180,6 +181,7 @@ class CXPGrabber:
     def write32(self, address: TInt32, value: TInt32):
         """
         Write a 32-bit value to camera register
+
         .. note:: This is NOT a real time operation
 
         :param address: 32-bit register address to be writen
@@ -192,6 +194,7 @@ class CXPGrabber:
         """
         Download the xml setting file to PC from the camera if available
         The file format can be .zip or .xml depending on the camera model
+
         .. note:: This is NOT a real time operation
 
         :param file_path: a relative path on PC
