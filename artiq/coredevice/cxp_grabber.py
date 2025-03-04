@@ -8,7 +8,7 @@ from artiq.experiment import *
 
 
 @syscall(flags={"nounwind"})
-def cxp_download_xml_file() -> TList(TInt32):
+def cxp_download_xml_file(buffer: TList(TInt32)) -> TInt32:
     raise NotImplementedError("syscall not simulated")
 
 
@@ -186,16 +186,18 @@ class CXPGrabber:
         cxp_write32(address, value)
 
     @kernel
-    def download_local_xml(self, file_path):
+    def download_local_xml(self, file_path, buffer_size=102400):
         """
         Download the xml setting file to PC from the camera if available
         The file format can be .zip or .xml depending on the camera model
         .. note:: This is NOT a real time operation
 
         :param file_path: a relative path on PC
+        :param buffer_size: size of read buffer express in bytes and should be in multiple of 4
         """
-        data = cxp_download_xml_file()
-        self._write_file(data, file_path)
+        buffer = [0] * (buffer_size // 4)
+        size_read = cxp_download_xml_file(buffer)
+        self._write_file(buffer[:size_read], file_path)
 
     @rpc
     def _write_file(self, data, file_path):
