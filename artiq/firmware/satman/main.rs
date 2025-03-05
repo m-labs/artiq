@@ -647,7 +647,7 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
         drtioaux::Packet::CoreMgmtDropLinkAck { destination: _destination } => {
             forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
 
-            #[cfg(not(has_drtio_eem))]
+            #[cfg(not(soc_platform = "efc"))]
             unsafe {
                 csr::gt_drtio::txenable_write(0);
             }
@@ -949,7 +949,7 @@ fn startup() {
         io_expander.service().unwrap();
     }
 
-    #[cfg(not(has_drtio_eem))]
+    #[cfg(not(soc_platform = "efc"))]
     unsafe {
         csr::gt_drtio::txenable_write(0xffffffffu32 as _);
     }
