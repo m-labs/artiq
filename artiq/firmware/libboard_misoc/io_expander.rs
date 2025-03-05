@@ -23,7 +23,7 @@ pub struct IoExpander {
 
 impl IoExpander {
     #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
-    pub fn new(index: u8) -> Result<Self, &'static str> {
+    pub fn new(index: u8) -> Result<Self, i2c::Error> {
         const VIRTUAL_LED_MAPPING0: [(u8, u8, u8); 2] = [(0, 0, 6), (1, 1, 6)];
         const VIRTUAL_LED_MAPPING1: [(u8, u8, u8); 2] = [(2, 0, 6), (3, 1, 6)];
 
@@ -79,7 +79,11 @@ impl IoExpander {
                     gpiob: 0x13,
                 },
             },
-            _ => return Err("incorrect I/O expander index"),
+            _ => {
+                #[cfg(feature = "log")]
+                log::error!("incorrect I/O expander index");
+                return Err(i2c::Error::IOExpanderError)
+            }
         };
         if !io_expander.check_ack()? {
             #[cfg(feature = "log")]
@@ -95,14 +99,16 @@ impl IoExpander {
                 gpiob: 0x03,
             };
             if !io_expander.check_ack()? {
-                return Err("Neither MCP23017 nor PCA9539 io expander found.");
+                #[cfg(feature = "log")]
+                log::error!("Neither MCP23017 nor PCA9539 io expander found.");
+                return Err(i2c::Error::IOExpanderError);
             };
         }
         Ok(io_expander)
     }
 
     #[cfg(soc_platform = "efc")]
-    pub fn new() -> Result<Self, &'static str> {
+    pub fn new() -> Result<Self, i2c::Error> {
         const VIRTUAL_LED_MAPPING: [(u8, u8, u8); 2] = [(0, 0, 5), (1, 0, 6)];
 
         let io_expander = IoExpander {
@@ -121,13 +127,15 @@ impl IoExpander {
             },
         };
         if !io_expander.check_ack()? {
-            return Err("MCP23017 io expander not found.");
+            #[cfg(feature = "log")]
+            log::error!("MCP23017 io expander not found.");
+            return Err(i2c::Error::IOExpanderError);
         };
         Ok(io_expander)
     }
 
     #[cfg(soc_platform = "kasli")]
-    fn select(&self) -> Result<(), &'static str> {
+    fn select(&self) -> Result<(), i2c::Error> {
         let mask: u16 = 1 << self.port;
         i2c::switch_select(self.busno, 0x70, mask as u8)?;
         i2c::switch_select(self.busno, 0x71, (mask >> 8) as u8)?;
@@ -135,13 +143,13 @@ impl IoExpander {
     }
 
     #[cfg(soc_platform = "efc")]
-    fn select(&self) -> Result<(), &'static str> {
+    fn select(&self) -> Result<(), i2c::Error> {
         let mask: u16 = 1 << self.port;
         i2c::switch_select(self.busno, 0x70, mask as u8)?;
         Ok(())
     }
 
-    fn write(&self, addr: u8, value: u8) -> Result<(), &'static str> {
+    fn write(&self, addr: u8, value: u8) -> Result<(), i2c::Error> {
         i2c::start(self.busno)?;
         i2c::write(self.busno, self.address)?;
         i2c::write(self.busno, addr)?;
@@ -150,22 +158,26 @@ impl IoExpander {
         Ok(())
     }
 
-    fn check_ack(&self) -> Result<bool, &'static str> {
+    fn check_ack(&self) -> Result<bool, i2c::Error> {
         // Check for ack from io expander
         self.select()?;
         i2c::start(self.busno)?;
-        let ack = i2c::write(self.busno, self.address)?;
+        let ack = match i2c::write(self.busno, self.address) {
+            Ok(()) => true,
+            Err(i2c::Error::Nack) => false,
+            Err(err) => return Err(err)
+        };
         i2c::stop(self.busno)?;
         Ok(ack)
     }
 
-    fn update_iodir(&self) -> Result<(), &'static str> {
+    fn update_iodir(&self) -> Result<(), i2c::Error> {
         self.write(self.registers.iodira, self.iodir[0])?;
         self.write(self.registers.iodirb, self.iodir[1])?;
         Ok(())
     }
 
-    pub fn init(&mut self) -> Result<(), &'static str> {
+    pub fn init(&mut self) -> Result<(), i2c::Error> {
         self.select()?;
 
         for (_led, port, bit) in self.virtual_led_mapping.iter() {
@@ -180,7 +192,7 @@ impl IoExpander {
         Ok(())
     }
 
-    pub fn set_oe(&mut self, port: u8, outputs: u8) -> Result<(), &'static str> {
+    pub fn set_oe(&mut self, port: u8, outputs: u8) -> Result<(), i2c::Error> {
         self.iodir[port as usize] &= !outputs;
         self.update_iodir()?;
         Ok(())
@@ -194,7 +206,7 @@ impl IoExpander {
         }
     }
 
-    pub fn service(&mut self) -> Result<(), &'static str> {
+    pub fn service(&mut self) -> Result<(), i2c::Error> {
         for (led, port, bit) in self.virtual_led_mapping.iter() {
             let level = unsafe { (csr::virtual_leds::status_read() >> led) & 1 };
             self.set(*port, *bit, level != 0);

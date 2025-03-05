@@ -1,12 +1,18 @@
+pub enum Error {
+    NoSPI,
+    InvalidBus,
+    OtherError,
+}
+
+
 #[cfg(has_converter_spi)]
 mod imp {
     use board_misoc::csr;
+    use super::Error;
 
-    const INVALID_BUS: &'static str = "Invalid SPI bus"; 
-
-    pub fn set_config(busno: u8, flags: u8, length: u8, div: u8, cs: u8) -> Result<(), &'static str> {
+    pub fn set_config(busno: u8, flags: u8, length: u8, div: u8, cs: u8) -> Result<(), Error> {
         if busno != 0 {
-            return Err(INVALID_BUS)
+            return Err(Error::InvalidBus)
         }
         unsafe {
             while csr::converter_spi::writable_read() == 0 {}
@@ -33,9 +39,9 @@ mod imp {
         Ok(())
     }
 
-    pub fn write(busno: u8, data: u32) -> Result<(), &'static str> {
+    pub fn write(busno: u8, data: u32) -> Result<(), Error> {
         if busno != 0 {
-            return Err(INVALID_BUS)
+            return Err(Error::InvalidBus)
         }
         unsafe {
             while csr::converter_spi::writable_read() == 0 {}
@@ -44,9 +50,9 @@ mod imp {
         Ok(())
     }
 
-    pub fn read(busno: u8) -> Result<u32, &'static str> {
+    pub fn read(busno: u8) -> Result<u32, Error> {
         if busno != 0 {
-            return Err(INVALID_BUS)
+            return Err(Error::InvalidBus)
         }
         Ok(unsafe {
             while csr::converter_spi::writable_read() == 0 {}
@@ -57,9 +63,11 @@ mod imp {
 
 #[cfg(not(has_converter_spi))]
 mod imp {
-    pub fn set_config(_busno: u8, _flags: u8, _length: u8, _div: u8, _cs: u8) -> Result<(), ()> { Err(()) }
-    pub fn write(_busno: u8,_data: u32) -> Result<(), ()> { Err(()) }
-    pub fn read(_busno: u8,) -> Result<u32, ()> { Err(()) }
+    use super::Error;
+
+    pub fn set_config(_busno: u8, _flags: u8, _length: u8, _div: u8, _cs: u8) -> Result<(), Error> { Err(Error::NoSPI) }
+    pub fn write(_busno: u8,_data: u32) -> Result<(), Error> { Err(Error::NoSPI) }
+    pub fn read(_busno: u8,) -> Result<u32, Error> { Err(Error::NoSPI) }
 }
 
 pub use self::imp::*;
