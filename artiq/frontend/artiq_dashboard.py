@@ -126,16 +126,32 @@ class MainWindow(QtWidgets.QMainWindow):
         self.add_mdi_area("Workspace 1")
 
     def on_tab_changed(self, index):
+        """
+        We want to refresh geometry to properly place minimized windows after resizing
+        from other MDI area.
+        It causes 2 other issues that are addressed here:
+        1. The focus stays on the minimized window.
+        2. If the code below executes, maximized windows get un-maximized - this is not
+            obvious and seems to depend on MDI implementation.
+        """
         mdi_area = self.tab_widget.widget(index)
+        # Check which subwindow is active
         activeSubWindow = mdi_area.activeSubWindow()
+        # Check if active subwindow is maximized. If not, neither window is maximized
+        wasMaximized = activeSubWindow.isMaximized() if activeSubWindow else False
+
         if isinstance(mdi_area, MdiArea):
             for subwindow in mdi_area.subWindowList():
+                # Refresh geometry to properly place minimized windows
                 if subwindow.isMinimized():
                     subwindow.setWindowState(QtCore.Qt.WindowNoState)
                     subwindow.setWindowState(QtCore.Qt.WindowMinimized)
+        # Restore focus and maximization
         if activeSubWindow:
             mdi_area.setActiveSubWindow(activeSubWindow)
             activeSubWindow.widget().setFocus()
+            if wasMaximized:
+                activeSubWindow.setWindowState(QtCore.Qt.WindowMaximized)
 
     def add_mdi_area(self, title):
         """Create a new MDI area (tab) with the given title."""
