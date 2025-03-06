@@ -1,12 +1,10 @@
 from numpy import int64
 
-from artiq.experiment import *
-from artiq.test.hardware_testbench import ExperimentCase
 from artiq.coredevice.ad9910 import (
     _AD9910_REG_FTW,
     _AD9910_REG_PROFILE0,
-    RAM_MODE_RAMPUP,
     RAM_DEST_FTW,
+    RAM_MODE_RAMPUP,
 )
 from artiq.coredevice.urukul import (
     STA_PROTO_REV_8,
@@ -15,7 +13,9 @@ from artiq.coredevice.urukul import (
     ProtoRev9,
     urukul_sta_smp_err,
 )
+from artiq.experiment import *
 from artiq.test.coredevice.test_ad9910_waveform import io_update_device
+from artiq.test.hardware_testbench import ExperimentCase
 
 # Set to desired devices
 CPLD = "urukul_cpld"
@@ -544,7 +544,7 @@ class AD9910Test(ExperimentCase):
         # many edges near expected position
         self.assertGreater(bins2[(dly + 3) & 3], n * 0.9)
 
-    @io_update_device(CPLD, True, False)
+    @io_update_device(CPLD, True, False, proto_rev=STA_PROTO_REV_8)
     def test_sw_readback(self, io_update_device):
         if "sw_device" in self.device_mgr.get_desc(DDS).get("arguments", []):
             self.execute(AD9910Exp, "sw_readback", io_update_device=io_update_device)

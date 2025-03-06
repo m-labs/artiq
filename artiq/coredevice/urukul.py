@@ -3,7 +3,7 @@ from abc import abstractmethod
 from numpy import int32, int64
 
 from artiq.coredevice import spi2 as spi
-from artiq.language.core import at_mu, delay, kernel, now_mu, portable
+from artiq.language.core import at_mu, delay, delay_mu, kernel, now_mu, portable
 from artiq.language.types import TBool, TFloat, TInt32, TInt64
 from artiq.language.units import ms, us
 
