@@ -127,11 +127,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def on_tab_changed(self, index):
         mdi_area = self.tab_widget.widget(index)
+        activeSubWindow = mdi_area.activeSubWindow()
         if isinstance(mdi_area, MdiArea):
             for subwindow in mdi_area.subWindowList():
                 if subwindow.isMinimized():
                     subwindow.setWindowState(QtCore.Qt.WindowNoState)
                     subwindow.setWindowState(QtCore.Qt.WindowMinimized)
+        if activeSubWindow:
+            mdi_area.setActiveSubWindow(activeSubWindow)
+            activeSubWindow.widget().setFocus()
 
     def add_mdi_area(self, title):
         """Create a new MDI area (tab) with the given title."""
