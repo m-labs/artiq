@@ -115,8 +115,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tab_widget.tabCloseRequested.connect(self.close_mdi_area)
         self.setCentralWidget(self.tab_widget)
 
-        self.tab_widget.currentChanged.connect(self.on_tab_changed)
-
         plus_button = QtWidgets.QToolButton()
         plus_button.setText("+")
         plus_button.setToolTip("Add new workspace")
@@ -124,6 +122,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tab_widget.setCornerWidget(plus_button, QtCore.Qt.TopLeftCorner)
 
         self.add_mdi_area("Workspace 1")
+
+        self.tab_widget.currentChanged.connect(self.on_tab_changed)
 
     def on_tab_changed(self, index):
         """
@@ -135,6 +135,8 @@ class MainWindow(QtWidgets.QMainWindow):
             obvious and seems to depend on MDI implementation.
         """
         mdi_area = self.tab_widget.widget(index)
+        if not mdi_area:
+            return
         # Check which subwindow is active
         activeSubWindow = mdi_area.activeSubWindow()
         # Check if active subwindow is maximized. If not, neither window is maximized
