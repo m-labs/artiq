@@ -57,7 +57,7 @@ class CXPGrabber:
     @kernel
     def send_cxp_linktrigger(self, linktrigger, extra_linktrigger=False):
         """
-        Send CoaXpress fixed latency linktrigger to camera
+        Send CoaXpress fixed-latency linktrigger to camera
 
         :param linktrigger: Set linktrigger type:
                             0-1 is available, when extra_linktrigger is False
@@ -78,7 +78,7 @@ class CXPGrabber:
         The coordinates are set around the current position of the RTIO time
         cursor.
 
-        The user must keep the ROI engine disabled for the duration of more
+        The user must keep the ROI engine disabled for a duration of more
         than one video frame after calling this function, as the output
         generated for that video frame is undefined.
 
@@ -117,8 +117,8 @@ class CXPGrabber:
     @kernel
     def gate_roi_pulse(self, mask, dt):
         """
-        Sets a temporary mask for the specified duration (in seconds), before
-        disabling all ROI engines.
+        Sets a temporary mask for the specified duration (in seconds), then
+        disables all ROI engines.
         """
         self.gate_roi(mask)
         delay(dt)
@@ -170,10 +170,10 @@ class CXPGrabber:
         """
         Read a 32-bit value from camera register
 
-        .. note:: This is NOT a real time operation
+        .. warning:: This is NOT a real-time operation.
 
         :param address: 32-bit register address to read from
-        :returns: The 32-bit register value
+        :returns: 32-bit value from register
         """
         return cxp_read32(address)
 
@@ -182,23 +182,23 @@ class CXPGrabber:
         """
         Write a 32-bit value to camera register
 
-        .. note:: This is NOT a real time operation
+        .. warning:: This is NOT a real-time operation.
 
-        :param address: 32-bit register address to be writen
-        :param value: 32-bit value to be writen
+        :param address: 32-bit register address to write to
+        :param value: 32-bit value to be written
         """
         cxp_write32(address, value)
 
     @kernel
     def download_local_xml(self, file_path, buffer_size=102400):
         """
-        Download the xml setting file to PC from the camera if available
-        The file format can be .zip or .xml depending on the camera model
+        Downloads the XML setting file to PC from the camera if available.
+        The file format may be .zip or .xml depending on the camera model.
 
-        .. note:: This is NOT a real time operation
+        .. warning:: This is NOT a real-time operation.
 
         :param file_path: a relative path on PC
-        :param buffer_size: size of read buffer express in bytes and should be in multiple of 4
+        :param buffer_size: size of read buffer expressed in bytes; must be a multiple of 4
         """
         buffer = [0] * (buffer_size // 4)
         size_read = cxp_download_xml_file(buffer)
@@ -209,7 +209,7 @@ class CXPGrabber:
         """
         Write big endian encoded data into a file
 
-        :param data: a list of 32-bit integer
+        :param data: a list of 32-bit integers
         :param file_path: a relative path on PC
         """
         byte_arr = bytearray()
