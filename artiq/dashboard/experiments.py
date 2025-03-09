@@ -735,12 +735,20 @@ class ExperimentManager:
         self.submission_arguments = state["arguments"]
         self.argument_ui_names = state.get("argument_uis", {})
         experiment_mdi = state.get("experiment_mdi", {})
-        for expurl in state["open_docks"]:
+        if 'experiment_mdi' in state:
+            for expurl in state["open_docks"]:
+                tab_widget = self.main_window.centralWidget()
+                mdi_area_name = experiment_mdi[expurl]
+                mdi_area = self.main_window.get_mdi_area_by_name(mdi_area_name)
+                tab_widget.setCurrentWidget(mdi_area)
+                self.open_experiment(expurl)
+        else:
+            # else statement is necessary for migration purpose
             tab_widget = self.main_window.centralWidget()
-            mdi_area_name = experiment_mdi[expurl]
-            mdi_area = self.main_window.get_mdi_area_by_name(mdi_area_name)
+            mdi_area = self.main_window.new_mdi_area()
             tab_widget.setCurrentWidget(mdi_area)
-            self.open_experiment(expurl)
+            for expurl in state["open_docks"]:
+                self.open_experiment(expurl)
 
     def show_quick_open(self):
         if self.is_quick_open_shown:
