@@ -1,4 +1,5 @@
-from numpy import int32, int64
+from numpy import array, int32, int64, uint8, uint16, iinfo
+
 
 from artiq.language.core import syscall, kernel
 from artiq.language.types import TInt32, TNone, TList
@@ -19,6 +20,18 @@ def cxp_read32(addr: TInt32) -> TInt32:
 
 @syscall(flags={"nounwind"})
 def cxp_write32(addr: TInt32, val: TInt32) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+
+@syscall(flags={"nounwind"})
+def cxp_start_roi_viewer(x0: TInt32, x1: TInt32, y0: TInt32, y1: TInt32) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+
+@syscall(flags={"nounwind"})
+def cxp_download_roi_viewer_frame(
+    buffer: TList(TInt64),
+) -> TTuple([TInt32, TInt32, TInt32]):
     raise NotImplementedError("syscall not simulated")
 
 
@@ -217,3 +230,70 @@ class CXPGrabber:
             byte_arr += d.to_bytes(4, "big", signed=True)
         with open(file_path, "wb") as binary_file:
             binary_file.write(byte_arr)
+
+    @kernel
+    def start_roi_viewer(self, x0, x1, y0, y1):
+        """
+        Defines the coordinates of ROI viewer and start the capture.
+
+        Unlike :exc:`setup_roi`, ROI viewer has a maximum size limit of 4096 pixels.
+
+        .. warning:: This is NOT a real-time operation.
+        """
+        cxp_start_roi_viewer(x0, x1, y0, y1)
+
+    @kernel
+    def download_roi_viewer_frame(self, file_path):
+        """
+        Downloads the ROI viewer frame as a PGM file to PC.
+
+        The user must :exc:`start_roi_viewer` and trigger the camera before the frame is avaiable.
+
+        .. warning:: This is NOT a real-time operation.
+
+        :param file_path: a relative path on PC
+        """
+        buffer = [0] * 1024
+        width, height, pixel_width = cxp_download_roi_viewer_frame(buffer)
+        self._write_pgm(buffer, width, height, pixel_width, file_path)
+
+    @rpc
+    def _write_pgm(self, data, width, height, pixel_width, file_path):
+        """
+        Write pixel data into a PGM file.
+
+        :param data: a list of 64-bit integers
+        :param file_path: a relative path on PC
+        """
+        if ".pgm" not in file_path.lower():
+            raise ValueError("The file extension must be .pgm")
+
+        pixels = []
+        width_aligned = (width + 3) & (~3)
+        for d in data[: width_aligned * height // 4]:
+            pixels += [
+                d & 0xFFFF,
+                (d >> 16) & 0xFFFF,
+                (d >> 32) & 0xFFFF,
+                (d >> 48) & 0xFFFF,
+            ]
+
+        if pixel_width == 8:
+            dtype = uint8
+        else:
+            dtype = uint16
+            # pad to 16-bit for compatibility, as most software can only read 8, 16-bit PGM
+            pixels = [p << (16 - pixel_width) for p in pixels]
+
+        # trim the frame if the width is not multiple of 4
+        frame = array([pixels], dtype).reshape((height, width_aligned))[:, :width]
+
+        # save as PGM binary variant
+        # https://en.wikipedia.org/wiki/Netpbm#Description
+        with open(file_path, "wb") as file:
+            file.write(f"P5\n{width} {height}\n{iinfo(dtype).max}\n".encode("ASCII"))
+            if dtype == uint8:
+                file.write(frame.tobytes())
+            else:
+                # PGM use big endian
+                file.write(frame.astype(">u2").tobytes())
