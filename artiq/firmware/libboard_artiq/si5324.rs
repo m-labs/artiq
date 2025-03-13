@@ -127,7 +127,10 @@ fn write_no_ack_value(reg: u8, val: u8) -> Result<()> {
             err => err.into()
         }
     )?;
-    i2c::write(BUSNO, val).unwrap();
+    match i2c::write(BUSNO, val) {
+        Ok(()) | Err(i2c::Error::Nack) => Ok(()),
+        err => err
+    }?;
     i2c::stop(BUSNO).unwrap();
     Ok(())
 }
