@@ -4,6 +4,15 @@ pub enum Error {
     OtherError,
 }
 
+impl From<Error> for &str {
+    fn from(err: Error) -> &'static str {
+        match err {
+            Error::NoSPI => "SPI not supported",
+            Error::InvalidBus => "Invalid SPI bus",
+            Error::OtherError => "other error",
+        }
+    }
+}
 
 #[cfg(has_converter_spi)]
 mod imp {
