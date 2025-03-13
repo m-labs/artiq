@@ -10,12 +10,13 @@ ARTIQ-9 (Unreleased)
    - CoaXPress grabber support on ZC706 with Hello-FPGA CXP 4R FMC card.
    - Improved SDRAM memory controller and DMA cores puts Kasli DMA performance on par with
      other platforms.
-   - Fastino monitoring with Moninj.
-   - Zotino monitoring now displays the values in volts.
+   - DRTIO repeater support across GT/EEM. This enables Shuttler support on DRTIO satellites.
    - Core device reflashing over the network through the new ``flash`` tool in ``artiq_coremgmt``.
      It also supports configuring and reflashing DRTIO satellites over the DRTIO link.
-   - Support for the ultra-low-cost EBAZ4205 Zynq-SoC control card, with core device driver for the
-     AD9834 DDS, tested with the ZonRi Technology Co., Ltd. AD9834-Module.
+   - Fastino monitoring with Moninj.
+   - Zotino monitoring now displays the values in volts.
+   - Support for the ultra-low-cost EBAZ4205 Zynq-7000 control card, with core device driver
+     for the AD9834 DDS, tested with the ZonRi Technology Co., Ltd. AD9834-Module.
 * Dashboard:
    - Experiment windows can have different colors, selected by the user.
    - Schedule display columns can now be reordered and shown/hidden using the table
@@ -25,6 +26,7 @@ ARTIQ-9 (Unreleased)
   reliable connection to the server.
 * Compiler can now give automatic suggestions for ``kernel_invariants``. 
 * Idle kernels now restart when written with ``artiq_coremgmt`` and stop when erased/removed from config.
+* Updated Rust support for Zynq-7000 firmware.
 * Qt6 support.
 * Python 3.12 support.
 * The Zadig driver installer was added to the MSYS2 offline installer.
