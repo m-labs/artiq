@@ -11,7 +11,6 @@ from artiq.coredevice.core import Core
 from artiq.coredevice import spi2 as spi
 from artiq.experiment import *
 from artiq.language.core import *
-from artiq.language.types import *
 from artiq.language.units import *
 
 AD9834_B28 = 1 << 13
@@ -56,7 +55,7 @@ class AD9834:
     """
 
     core: KernelInvariant[Core]
-    bus: KernelInvariant[SPIMaster]
+    bus: KernelInvariant[spi.SPIMaster]
     spi_freq: KernelInvariant[float]
     clk_freq: KernelInvariant[float]
     ctrl_reg: Kernel[int32]
@@ -203,7 +202,7 @@ class AD9834:
         frequency.
         """
         assert frequency <= 37.5 * MHz, "Frequency exceeds maximum value of 37.5 MHz"
-        return int((frequency * float(1 << 28)) / self.clk_freq) & 0x0FFFFFFF
+        return int32((frequency * float(1 << 28)) / self.clk_freq) & 0x0FFFFFFF
 
     @portable
     def turns_to_pow(self, turns: float) -> int32:
@@ -224,7 +223,7 @@ class AD9834:
         :param freq_reg: The frequency register to write to (0-1).
         """
         assert 0 <= freq_reg <= 1, "Invalid frequency register index"
-        if freq_reg:
+        if freq_reg != 0:
             self.ctrl_reg |= AD9834_FSEL
         else:
             self.ctrl_reg &= ~AD9834_FSEL
@@ -261,7 +260,7 @@ class AD9834:
         :param phase_reg: The phase register to write to (0-1).
         """
         assert 0 <= phase_reg <= 1, "Invalid phase register index"
-        if phase_reg:
+        if phase_reg != 0:
             self.ctrl_reg |= AD9834_PSEL
         else:
             self.ctrl_reg &= ~AD9834_PSEL
