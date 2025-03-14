@@ -635,11 +635,13 @@ class CoredeviceTest(ExperimentCase):
     def execute_and_test_in_log(self, experiment, string):
         core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]
         mgmt = CommMgmt(core_addr)
-        mgmt.clear_log()
-        self.execute(experiment)
-        log = mgmt.get_log()
-        self.assertIn(string, log)
-        mgmt.close()
+        try:
+            mgmt.clear_log()
+            self.execute(experiment)
+            log = mgmt.get_log()
+            self.assertIn(string, log)
+        finally:
+            mgmt.close()
 
     def test_sequence_error(self):
         self.execute_and_test_in_log(SequenceError, "RTIO sequence error")
@@ -878,13 +880,6 @@ class DMATest(ExperimentCase):
         self.assertLess(dt/count, 11*us)
 
     def test_dma_playback_time(self):
-        # Skip on Kasli until #946 is resolved.
-        try:
-            # hack to detect Kasli.
-            self.device_mgr.get_desc("ad9914dds0")
-        except KeyError:
-            raise unittest.SkipTest("skipped on Kasli for now")
-
         exp = self.create(_DMA)
         is_zynq = exp.core.target == "cortexa9"
         count = 20000

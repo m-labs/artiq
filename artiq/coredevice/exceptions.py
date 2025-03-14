@@ -2,12 +2,14 @@ import builtins
 from numpy.linalg import LinAlgError
 from artiq.language.core import nac3, UnwrapNoneError
 
+
 """
 This file provides class definition for all the exceptions declared in `EmbeddingMap` in `artiq.language.embedding_map`
 
 For Python builtin exceptions, use the `builtins` module
 For ARTIQ specific exceptions, inherit from `Exception` class
 """
+
 
 AssertionError = builtins.AssertionError
 AttributeError = builtins.AttributeError
@@ -22,6 +24,7 @@ TypeError = builtins.TypeError
 ValueError = builtins.ValueError
 ZeroDivisionError = builtins.ZeroDivisionError
 OSError = builtins.OSError
+
 
 @nac3
 class RTIOUnderflow(Exception):
@@ -78,6 +81,7 @@ class ClockFailure(Exception):
     """Raised when RTIO PLL has lost lock."""
     artiq_builtin = True
 
+
 @nac3
 class I2CError(Exception):
     """Raised when a I2C transaction fails."""
@@ -90,7 +94,13 @@ class SPIError(Exception):
     artiq_builtin = True
 
 
+@nac3
 class UnwrapNoneError(Exception):
     """Raised when unwrapping a none Option."""
     artiq_builtin = True
 
+
+@nac3
+class CXPError(Exception):
+    """Raised when CXP transaction fails."""
+    artiq_builtin = True

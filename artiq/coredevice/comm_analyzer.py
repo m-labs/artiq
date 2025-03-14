@@ -728,15 +728,7 @@ def decoded_dump_to_target(manager, devices, dump, uniform_interval):
         logger.warning("unable to determine DDS sysclk")
         dds_sysclk = 3e9  # guess
 
-    if isinstance(dump.messages[-1], StoppedMessage):
-        m = dump.messages[-1]
-        end_time = get_message_time(m)
-        manager.set_end_time(end_time)
-        messages = dump.messages[:-1]
-    else:
-        logger.warning("StoppedMessage missing")
-        messages = dump.messages
-    messages = sorted(messages, key=get_message_time)
+    messages = sorted(dump.messages, key=get_message_time)
 
     channel_handlers = create_channel_handlers(
         manager, devices, ref_period,
@@ -752,6 +744,8 @@ def decoded_dump_to_target(manager, devices, dump, uniform_interval):
         interval = manager.get_channel("interval", 64, ty=WaveformType.ANALOG)
     slack = manager.get_channel("rtio_slack", 64, ty=WaveformType.ANALOG)
 
+    stopped_messages = []
+
     manager.set_time(0)
     start_time = 0
     for m in messages:
@@ -762,7 +756,10 @@ def decoded_dump_to_target(manager, devices, dump, uniform_interval):
         manager.set_start_time(start_time)
     t0 = start_time
     for i, message in enumerate(messages):
-        if message.channel in channel_handlers:
+        if isinstance(message, StoppedMessage):
+            stopped_messages.append(message)
+            logger.debug(f"StoppedMessage at {get_message_time(message)}")
+        elif message.channel in channel_handlers:
             t = get_message_time(message)
             if t >= 0:
                 if uniform_interval:
@@ -776,3 +773,9 @@ def decoded_dump_to_target(manager, devices, dump, uniform_interval):
             if isinstance(message, OutputMessage):
                 slack.set_value_double(
                     (message.timestamp - message.rtio_counter)*ref_period)
+
+    if not stopped_messages:
+        logger.warning("StoppedMessage missing")
+    else:
+        end_time = get_message_time(stopped_messages[-1])
+        manager.set_end_time(end_time)

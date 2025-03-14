@@ -90,15 +90,24 @@ fn map_frequency_settings(settings: &FrequencySettings) -> Result<FrequencySetti
 
 fn write(reg: u8, val: u8) -> Result<()> {
     i2c::start(BUSNO).unwrap();
-    if !i2c::write(BUSNO, ADDRESS << 1).unwrap() {
-        return Err("Si5324 failed to ack write address")
-    }
-    if !i2c::write(BUSNO, reg).unwrap() {
-        return Err("Si5324 failed to ack register")
-    }
-    if !i2c::write(BUSNO, val).unwrap() {
-        return Err("Si5324 failed to ack value")
-    }
+    i2c::write(BUSNO, ADDRESS << 1).map_err(|err|
+        match err {
+            i2c::Error::Nack => "Si5324 failed to ack write address",
+            err => err.into()
+        }
+    )?;
+    i2c::write(BUSNO, reg).map_err(|err|
+        match err {
+            i2c::Error::Nack => "Si5324 failed to ack register",
+            err => err.into()
+        }
+    )?;
+    i2c::write(BUSNO, val).map_err(|err|
+        match err {
+            i2c::Error::Nack => "Si5324 failed to ack value",
+            err => err.into()
+        }
+    )?;
     i2c::stop(BUSNO).unwrap();
     Ok(())
 }
@@ -106,29 +115,47 @@ fn write(reg: u8, val: u8) -> Result<()> {
 #[cfg(si5324_soft_reset)]
 fn write_no_ack_value(reg: u8, val: u8) -> Result<()> {
     i2c::start(BUSNO).unwrap();
-    if !i2c::write(BUSNO, ADDRESS << 1).unwrap() {
-        return Err("Si5324 failed to ack write address")
-    }
-    if !i2c::write(BUSNO, reg).unwrap() {
-        return Err("Si5324 failed to ack register")
-    }
-    i2c::write(BUSNO, val).unwrap();
+    i2c::write(BUSNO, ADDRESS << 1).map_err(|err|
+        match err {
+            i2c::Error::Nack => "Si5324 failed to ack write address",
+            err => err.into()
+        }
+    )?;
+    i2c::write(BUSNO, reg).map_err(|err|
+        match err {
+            i2c::Error::Nack => "Si5324 failed to ack register",
+            err => err.into()
+        }
+    )?;
+    match i2c::write(BUSNO, val) {
+        Ok(()) | Err(i2c::Error::Nack) => Ok(()),
+        err => err
+    }?;
     i2c::stop(BUSNO).unwrap();
     Ok(())
 }
 
 fn read(reg: u8) -> Result<u8> {
     i2c::start(BUSNO).unwrap();
-    if !i2c::write(BUSNO, ADDRESS << 1).unwrap() {
-        return Err("Si5324 failed to ack write address")
-    }
-    if !i2c::write(BUSNO, reg).unwrap() {
-        return Err("Si5324 failed to ack register")
-    }
+    i2c::write(BUSNO, ADDRESS << 1).map_err(|err|
+        match err {
+            i2c::Error::Nack => "Si5324 failed to ack write address",
+            err => err.into()
+        }
+    )?;
+    i2c::write(BUSNO, reg).map_err(|err|
+        match err {
+            i2c::Error::Nack => "Si5324 failed to ack register",
+            err => err.into()
+        }
+    )?;
     i2c::restart(BUSNO).unwrap();
-    if !i2c::write(BUSNO, (ADDRESS << 1) | 1).unwrap() {
-        return Err("Si5324 failed to ack read address")
-    }
+    i2c::write(BUSNO, (ADDRESS << 1) | 1).map_err(|err|
+        match err {
+            i2c::Error::Nack => "Si5324 failed to ack read address",
+            err => err.into()
+        }
+    )?;
     let val = i2c::read(BUSNO, false).unwrap();
     i2c::stop(BUSNO).unwrap();
     Ok(val)

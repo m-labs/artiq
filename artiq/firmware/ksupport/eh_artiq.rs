@@ -329,7 +329,7 @@ extern fn stop_fn(_version: c_int,
 }
 
 // Must be kept in sync with `nac3artiq::Nac3::new`
-static EXCEPTION_ID_LOOKUP: [(&str, u32); 22] = [
+static EXCEPTION_ID_LOOKUP: [(&str, u32); 23] = [
     ("RTIOUnderflow", 0),
     ("RTIOOverflow", 1),
     ("RTIODestinationUnreachable", 2),
@@ -352,6 +352,7 @@ static EXCEPTION_ID_LOOKUP: [(&str, u32); 22] = [
     ("ZeroDivisionError", 19),
     ("LinAlgError", 20),
     ("UnwrapNoneError", 21),
+    ("CXPError", 22)
 ];
 
 pub fn get_exception_id(name: &str) -> u32 {

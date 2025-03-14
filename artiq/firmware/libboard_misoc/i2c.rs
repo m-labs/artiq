@@ -1,8 +1,34 @@
+#[derive(Debug)]
+pub enum Error {
+    NoI2C,
+    InvalidBus,
+    Nack,
+    SCLLow,
+    SDALow,
+    ArbitrationLost,
+    IOExpanderError,
+    OtherError,
+}
+
+impl From<Error> for &str {
+    fn from(err: Error) -> &'static str {
+        match err {
+            Error::NoI2C => "I2C not supported",
+            Error::InvalidBus => "Invalid I2C bus",
+            Error::Nack => "I2C write was not ACKed",
+            Error::SCLLow => "SCL stuck low",
+            Error::SDALow => "SDA stuck low",
+            Error::ArbitrationLost => "SDA arbitration lost",
+            Error::IOExpanderError => "I2C IO Expander error",
+            Error::OtherError => "other error",
+        }
+    }
+}
+
 #[cfg(has_i2c)]
 mod imp {
     use super::super::{csr, clock};
-
-    const INVALID_BUS: &'static str = "Invalid I2C bus";
+    use super::Error;
 
     fn half_period() { clock::spin_us(100) }
     fn sda_bit(busno: u8) -> u8 { 1 << (2 * busno + 1) }
@@ -52,7 +78,7 @@ mod imp {
         }
     }
 
-    pub fn init() -> Result<(), &'static str> {
+    pub fn init() -> Result<(), Error> {
         for busno in 0..csr::CONFIG_I2C_BUS_COUNT {
             let busno = busno as u8;
             scl_oe(busno, false);
@@ -74,26 +100,26 @@ mod imp {
             }
 
             if !sda_i(busno) {
-                return Err("SDA is stuck low and doesn't get unstuck");
+                return Err(Error::SDALow);
             }
             if !scl_i(busno) {
-                return Err("SCL is stuck low and doesn't get unstuck");
+                return Err(Error::SCLLow);
             }
             // postcondition: SCL and SDA high
         }
         Ok(())
     }
 
-    pub fn start(busno: u8) -> Result<(), &'static str> {
+    pub fn start(busno: u8) -> Result<(), Error> {
         if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
-            return Err(INVALID_BUS)
+            return Err(Error::InvalidBus)
         }
         // precondition: SCL and SDA high
         if !scl_i(busno) {
-            return Err("SCL is stuck low and doesn't get unstuck");
+            return Err(Error::SCLLow);
         }
         if !sda_i(busno) {
-            return Err("SDA arbitration lost");
+            return Err(Error::ArbitrationLost);
         }
         sda_oe(busno, true);
         half_period();
@@ -102,9 +128,9 @@ mod imp {
         Ok(())
     }
 
-    pub fn restart(busno: u8) -> Result<(), &'static str> {
+    pub fn restart(busno: u8) -> Result<(), Error> {
         if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
-            return Err(INVALID_BUS)
+            return Err(Error::InvalidBus)
         }
         // precondition SCL and SDA low
         sda_oe(busno, false);
@@ -116,9 +142,9 @@ mod imp {
         Ok(())
     }
 
-    pub fn stop(busno: u8) -> Result<(), &'static str> {
+    pub fn stop(busno: u8) -> Result<(), Error> {
         if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
-            return Err(INVALID_BUS)
+            return Err(Error::InvalidBus)
         }
         // precondition: SCL and SDA low
         half_period();
@@ -127,15 +153,15 @@ mod imp {
         sda_oe(busno, false);
         half_period();
         if !sda_i(busno) {
-            return Err("SDA arbitration lost");
+            return Err(Error::ArbitrationLost);
         }
         // postcondition: SCL and SDA high
         Ok(())
     }
 
-    pub fn write(busno: u8, data: u8) -> Result<bool, &'static str> {
+    pub fn write(busno: u8, data: u8) -> Result<(), Error> {
         if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
-            return Err(INVALID_BUS)
+            return Err(Error::InvalidBus)
         }
         // precondition: SCL and SDA low
         // MSB first
@@ -156,12 +182,16 @@ mod imp {
         sda_oe(busno, true);
         // postcondition: SCL and SDA low
 
-        Ok(ack)
+        if !ack {
+            return Err(Error::Nack)
+        }
+
+        Ok(())
     }
 
-    pub fn read(busno: u8, ack: bool) -> Result<u8, &'static str> {
+    pub fn read(busno: u8, ack: bool) -> Result<u8, Error> {
         if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
-            return Err(INVALID_BUS)
+            return Err(Error::InvalidBus)
         }
         // precondition: SCL and SDA low
         sda_oe(busno, false);
@@ -188,17 +218,13 @@ mod imp {
         Ok(data)
     }
 
-    pub fn switch_select(busno: u8, address: u8, mask: u8) -> Result<(), &'static str> {
+    pub fn switch_select(busno: u8, address: u8, mask: u8) -> Result<(), Error> {
         // address in 7-bit form
         // mask in format of 1 << channel (or 0 for disabling output)
         // PCA9548 support only for now
         start(busno)?;
-        if !write(busno, address << 1)? {
-            return Err("PCA9548 failed to ack write address")
-        }
-        if !write(busno, mask)? {
-            return Err("PCA9548 failed to ack control word")
-        }
+        write(busno, address << 1)?;
+        write(busno, mask)?;
         stop(busno)?;
         Ok(())
     }
@@ -206,14 +232,15 @@ mod imp {
 
 #[cfg(not(has_i2c))]
 mod imp {
-    const NO_I2C: &'static str = "No I2C support on this platform";
-    pub fn init() -> Result<(), &'static str> { Err(NO_I2C) }
-    pub fn start(_busno: u8) -> Result<(), &'static str> { Err(NO_I2C) }
-    pub fn restart(_busno: u8) -> Result<(), &'static str> { Err(NO_I2C) }
-    pub fn stop(_busno: u8) -> Result<(), &'static str> { Err(NO_I2C) }
-    pub fn write(_busno: u8, _data: u8) -> Result<bool, &'static str> { Err(NO_I2C) }
-    pub fn read(_busno: u8, _ack: bool) -> Result<u8, &'static str> { Err(NO_I2C) }
-    pub fn switch_select(_busno: u8, _address: u8, _mask: u8) -> Result<(), &'static str> { Err(NO_I2C) }
+    use super::Error;
+
+    pub fn init() -> Result<(), Error> { Err(Error::NoI2C) }
+    pub fn start(_busno: u8) -> Result<(), Error> { Err(Error::NoI2C) }
+    pub fn restart(_busno: u8) -> Result<(), Error> { Err(Error::NoI2C) }
+    pub fn stop(_busno: u8) -> Result<(), Error> { Err(Error::NoI2C) }
+    pub fn write(_busno: u8, _data: u8) -> Result<bool, Error> { Err(Error::NoI2C) }
+    pub fn read(_busno: u8, _ack: bool) -> Result<u8, Error> { Err(Error::NoI2C) }
+    pub fn switch_select(_busno: u8, _address: u8, _mask: u8) -> Result<(), Error> { Err(Error::NoI2C) }
 }
 
 pub use self::imp::*;

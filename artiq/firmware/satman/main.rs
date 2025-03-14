@@ -321,8 +321,10 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
         drtioaux::Packet::I2cWriteRequest { destination: _destination, busno, data } => {
             forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
             match i2c::write(busno, data) {
-                Ok(ack) => drtioaux::send(0,
-                    &drtioaux::Packet::I2cWriteReply { succeeded: true, ack: ack }),
+                Ok(()) => drtioaux::send(0,
+                    &drtioaux::Packet::I2cWriteReply { succeeded: true, ack: true }),
+                Err(i2c::Error::Nack) => drtioaux::send(0,
+                    &drtioaux::Packet::I2cWriteReply { succeeded: true, ack: false }),
                 Err(_) => drtioaux::send(0,
                     &drtioaux::Packet::I2cWriteReply { succeeded: false, ack: false })
             }
@@ -647,7 +649,7 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
         drtioaux::Packet::CoreMgmtDropLinkAck { destination: _destination } => {
             forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
 
-            #[cfg(not(has_drtio_eem))]
+            #[cfg(not(soc_platform = "efc"))]
             unsafe {
                 csr::gt_drtio::txenable_write(0);
             }
@@ -949,7 +951,7 @@ fn startup() {
         io_expander.service().unwrap();
     }
 
-    #[cfg(not(has_drtio_eem))]
+    #[cfg(not(soc_platform = "efc"))]
     unsafe {
         csr::gt_drtio::txenable_write(0xffffffffu32 as _);
     }

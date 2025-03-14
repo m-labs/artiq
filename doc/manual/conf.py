@@ -85,7 +85,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'ARTIQ'
-copyright = '2014-2024, M-Labs Limited'
+copyright = '2014-2025, M-Labs Limited'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -171,7 +171,6 @@ html_theme_options = {}
 
 # Add any paths that contain custom themes here, relative to this directory.
 #html_theme_path = []
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".

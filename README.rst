@@ -25,7 +25,7 @@ Core technologies employed include `Python <https://www.python.org/>`_, `Migen <
 License
 =======
 
-Copyright (C) 2014-2024 M-Labs Limited.
+Copyright (C) 2014-2025 M-Labs Limited.
 
 ARTIQ is free software: you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as published by

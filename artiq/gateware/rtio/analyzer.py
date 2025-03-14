@@ -160,10 +160,12 @@ class DMAWriter(Module, AutoCSR):
         self.comb += [
             membus.cyc.eq(self.sink.stb),
             membus.stb.eq(self.sink.stb),
+            membus.cti.eq(Mux(self.sink.last, 0b111, 0b010)),
             self.sink.ack.eq(membus.ack),
             membus.we.eq(1),
             membus.dat_w.eq(dma.convert_signal(self.sink.data, cpu_dw//8))
         ]
+
         if messages_per_dw > 1:
             for i in range(dw//8):
                 self.comb += membus.sel[i].eq(
@@ -201,8 +203,9 @@ class Analyzer(Module, AutoCSR):
 
         self.submodules.message_encoder = MessageEncoder(
             tsc, cri, self.enable.storage)
+        hi_wm = 64 if fifo_depth > 64 else None
         self.submodules.fifo = stream.SyncFIFO(
-            [("data", message_len)], fifo_depth, True)
+            [("data", message_len)], fifo_depth, True, hi_wm=hi_wm)
         self.submodules.converter = stream.Converter(
             message_len, len(membus.dat_w), reverse=True,
             report_valid_token_count=True)

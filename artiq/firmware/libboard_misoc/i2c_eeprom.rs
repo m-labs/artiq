@@ -29,14 +29,14 @@ impl EEPROM {
     }
 
     #[cfg(soc_platform = "kasli")]
-    fn select(&self) -> Result<(), &'static str> {
+    fn select(&self) -> Result<(), i2c::Error> {
         let mask: u16 = 1 << self.port;
         i2c::switch_select(self.busno, 0x70, mask as u8)?;
         i2c::switch_select(self.busno, 0x71, (mask >> 8) as u8)?;
         Ok(())
     }
 
-    pub fn read<'a>(&self, addr: u8, buf: &'a mut [u8]) -> Result<(), &'static str> {
+    pub fn read<'a>(&self, addr: u8, buf: &'a mut [u8]) -> Result<(), i2c::Error> {
         self.select()?;
 
         i2c::start(self.busno)?;
@@ -58,7 +58,7 @@ impl EEPROM {
     /// > The 24AA02XEXX is programmed at the factory with a
     /// > globally unique node address stored in the upper half
     /// > of the array and permanently write-protected.
-    pub fn read_eui48<'a>(&self) -> Result<[u8; 6], &'static str> {
+    pub fn read_eui48<'a>(&self) -> Result<[u8; 6], i2c::Error> {
         let mut buffer = [0u8; 6];
         self.read(0xFA, &mut buffer)?;
         Ok(buffer)

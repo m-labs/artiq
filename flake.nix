@@ -132,7 +132,7 @@
 
       # keep llvm_x in sync with nac3
       propagatedBuildInputs =
-        [pkgs.llvm_14 nac3.packages.x86_64-linux.nac3artiq-pgo sipyco.packages.x86_64-linux.sipyco pkgs.qt6.qtsvg artiq-comtools.packages.x86_64-linux.artiq-comtools]
+        [pkgs.llvm_16 nac3.packages.x86_64-linux.nac3artiq-pgo sipyco.packages.x86_64-linux.sipyco pkgs.qt6.qtsvg artiq-comtools.packages.x86_64-linux.artiq-comtools]
         ++ (with pkgs.python3Packages; [pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial h5py pyqt6 qasync tqdm lmdb jsonschema platformdirs]);
 
       dontWrapQtApps = true;
@@ -157,7 +157,7 @@
       # FIXME: automatically propagate llvm_x dependency
       # cacert is required in the check stage only, as certificates are to be
       # obtained from system elsewhere
-      nativeCheckInputs = [pkgs.llvm_14 pkgs.cacert];
+      nativeCheckInputs = [pkgs.llvm_16 pkgs.cacert];
       checkPhase = ''
         python -m unittest discover -v artiq.test
       '';
@@ -215,7 +215,7 @@
     vivado = pkgs.buildFHSEnv {
       name = "vivado";
       targetPkgs = vivadoDeps;
-      profile = "set -e; source /opt/Xilinx/Vivado/2022.2/settings64.sh";
+      profile = "set -e; source /opt/Xilinx/Vivado/2024.2/settings64.sh";
       runScript = "vivado";
     };
 
@@ -238,9 +238,9 @@
         nativeBuildInputs = [
           (pkgs.python3.withPackages (ps: [migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ps.packaging]))
           rust
-          pkgs.llvmPackages_14.clang-unwrapped
-          pkgs.llvm_14
-          pkgs.lld_14
+          pkgs.llvmPackages_16.clang-unwrapped
+          pkgs.llvm_16
+          pkgs.lld_16
           vivado
           rustPlatform.cargoSetupHook
         ];
@@ -439,9 +439,9 @@
           [
             git
             lit
-            lld_14
-            llvm_14
-            llvmPackages_14.clang-unwrapped
+            lld_16
+            llvm_16
+            llvmPackages_16.clang-unwrapped
             pdf2svg
 
             python3Packages.sphinx
@@ -474,9 +474,9 @@
         packages = [
           rust
 
-          pkgs.llvmPackages_14.clang-unwrapped
-          pkgs.llvm_14
-          pkgs.lld_14
+          pkgs.llvmPackages_16.clang-unwrapped
+          pkgs.llvm_16
+          pkgs.lld_16
 
           packages.x86_64-linux.vivado
           packages.x86_64-linux.openocd-bscanspi
@@ -525,7 +525,7 @@
                 ]
                 ++ ps.paramiko.optional-dependencies.ed25519
           ))
-          pkgs.llvm_14
+          pkgs.llvm_16
           pkgs.openssh
           packages.x86_64-linux.openocd-bscanspi # for the bscanspi bitstreams
         ];
@@ -555,11 +555,15 @@
             # Read "Ok" line when remote successfully locked
             read LOCK_OK
 
+            export ARTIQ_ROOT=`python -c "import artiq; print(artiq.__path__[0])"`/examples/kc705_nist_clock
+            export ARTIQ_LOW_LATENCY=1
+
+            artiq_rtiomap --device-db $ARTIQ_ROOT/device_db.py device_map.bin
+            artiq_mkfs -s ip `python -c "import artiq.examples.kc705_nist_clock.device_db as ddb; print(ddb.core_addr)"`/24 -f device_map device_map.bin kc705_nist_clock.config
+            artiq_flash -t kc705 -H rpi-1 storage -f kc705_nist_clock.config
             artiq_flash -t kc705 -H rpi-1 -d ${packages.x86_64-linux.artiq-board-kc705-nist_clock}
             sleep 30
 
-            export ARTIQ_ROOT=`python -c "import artiq; print(artiq.__path__[0])"`/examples/kc705_nist_clock
-            export ARTIQ_LOW_LATENCY=1
             python -m unittest discover -v artiq.test.coredevice
           )
 
