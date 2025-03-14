@@ -1,7 +1,7 @@
 from migen import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from misoc.interconnect.csr import *
-from misoc.interconnect.stream import Buffer, SyncFIFO
+from misoc.interconnect.stream import AsyncFIFO, Buffer, Endpoint, SyncFIFO
 from misoc.cores.coaxpress.common import char_width, word_layout_dchar, word_width
 from misoc.cores.coaxpress.core import HostTXCore, HostRXCore
 from misoc.cores.coaxpress.core.packet import StreamPacketArbiter
@@ -223,4 +223,130 @@ class ROI(Module):
                 self.out.update.eq(1),
                 self.out.count.eq(reduce(add, count_buf))
             ),
+        ]
+
+class ROICropper(Module):
+    def __init__(self, pixel_4x):
+        self.enable = Signal()
+        self.cfg = Record([
+            ("x0", len(pixel_4x[0].x)),
+            ("y0", len(pixel_4x[0].y)),
+            ("x1", len(pixel_4x[0].x)),
+            ("y1", len(pixel_4x[0].y)),
+        ])
+
+        max_pixel_width = len(pixel_4x[0].gray)
+        self.source = Endpoint([("data", 4 * max_pixel_width)])
+
+        # # #
+
+        roi_4x = [
+            Record([
+                ("x_good", 1),
+                ("y_good", 1),
+                ("gray", max_pixel_width),
+                ("stb", 1),
+                ("eof", 1),
+            ]) for _ in range(4)
+        ]
+
+
+        for i, (pix, roi) in enumerate(zip(pixel_4x, roi_4x)):
+            self.sync += [
+                roi.x_good.eq(0),
+                If((self.cfg.x0 <= pix.x) & (pix.x < self.cfg.x1),
+                    roi.x_good.eq(1)
+                ),
+
+                # the 4 pixels are on the same y level, no need for extra calculation
+                If(pix.y == self.cfg.y0,
+                    roi.y_good.eq(1)
+                ),
+                If(pix.y == self.cfg.y1,
+                    roi.y_good.eq(0)
+                ),
+                If(pix.eof,
+                    roi.x_good.eq(0),
+                    roi.y_good.eq(0)
+                ),
+                roi.gray.eq(pix.gray),
+                roi.stb.eq(pix.stb),
+                roi.eof.eq(pix.eof),
+
+                self.source.data[i * max_pixel_width: (i + 1) * max_pixel_width].eq(0),
+                If((self.enable & roi.stb & roi.x_good & roi.y_good),
+                    self.source.data[i * max_pixel_width: (i + 1) * max_pixel_width].eq(roi.gray)
+                ),
+            ]
+
+            # use the first roi for flow control as the first pixel is always available 
+            if i == 0:
+                self.sync += [
+                    self.source.stb.eq(0),
+                    self.source.eop.eq(0),
+                    If((self.enable & roi.stb & roi.x_good & roi.y_good),
+                        self.source.stb.eq(roi.stb),
+                        self.source.eop.eq(roi.eof),
+                    ),
+                ]
+
+
+class ROIViewer(Module, AutoCSR):
+    def __init__(self, pixel_4x, fifo_depth=1024):
+        self.arm = CSR()
+        self.ready = CSR()
+        self.x0 = CSRStorage(len(pixel_4x[0].x))
+        self.x1 = CSRStorage(len(pixel_4x[0].y))
+        self.y0 = CSRStorage(len(pixel_4x[0].x))
+        self.y1 = CSRStorage(len(pixel_4x[0].y))
+
+        max_pixel_width = len(pixel_4x[0].gray)
+        self.fifo_ack = CSR()
+        self.fifo_data = CSRStatus(4 * max_pixel_width)
+        self.fifo_stb = CSRStatus()
+
+        # # #
+
+        cdr = ClockDomainsRenamer("cxp_gt_rx")
+        self.submodules.cropper = cropper = cdr(ROICropper(pixel_4x))
+        self.submodules.arm_ps = arm_ps = PulseSynchronizer("sys", "cxp_gt_rx")
+        self.submodules.ready_ps = ready_ps = PulseSynchronizer("cxp_gt_rx", "sys")
+        self.sync += [
+            arm_ps.i.eq(self.arm.re),
+            If(ready_ps.o,
+                self.ready.w.eq(1),
+            ).Elif(self.ready.re,
+                self.ready.w.eq(0),
+            ),
+        ]
+        self.sync.cxp_gt_rx += [
+            If(arm_ps.o,
+                cropper.enable.eq(1),
+            ).Elif(pixel_4x[0].eof,
+                cropper.enable.eq(0),
+            ),
+            ready_ps.i.eq(pixel_4x[0].eof),
+        ]
+
+        self.specials += [
+            MultiReg(self.x0.storage, cropper.cfg.x0, "cxp_gt_rx"),
+            MultiReg(self.x1.storage, cropper.cfg.x1, "cxp_gt_rx"),
+            MultiReg(self.y0.storage, cropper.cfg.y0, "cxp_gt_rx"),
+            MultiReg(self.y1.storage, cropper.cfg.y1, "cxp_gt_rx"),
+        ]
+
+        self.submodules.buffer = buffer = cdr(Buffer([("data", 4 * max_pixel_width)]))
+
+        self.submodules.fifo = fifo = ClockDomainsRenamer(
+            {"write": "cxp_gt_rx", "read": "sys"}
+        )(AsyncFIFO([("data", 4 * max_pixel_width)], fifo_depth))
+
+        pipeline = [cropper, buffer, fifo]
+        for s, d in zip(pipeline, pipeline[1:]):
+            self.comb += s.source.connect(d.sink)
+
+        self.sync += [
+            fifo.source.ack.eq(self.fifo_ack.re),
+            self.fifo_data.status.eq(fifo.source.data),
+            self.fifo_stb.status.eq(fifo.source.stb),
         ]
