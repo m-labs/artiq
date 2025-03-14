@@ -129,11 +129,6 @@ class CoreException:
                 '\n\nEnd of Core Device Traceback\n'
 
 
-class InternalError(Exception):
-    """Raised when the runtime encounters an internal error condition."""
-    artiq_builtin = True
-
-
 class CacheError(Exception):
     """Raised when putting a value into a cache row would violate memory safety."""
     artiq_builtin = True
