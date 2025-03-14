@@ -6,7 +6,7 @@ from misoc.cores.coaxpress.phy.low_speed_serdes import HostTXPHYs
 
 from artiq.gateware.rtio import rtlink
 from artiq.gateware.rtio.phy.grabber import Serializer, Synchronizer
-from artiq.gateware.cxp_grabber.core import CXPHostCore, ROI, StreamDecoder
+from artiq.gateware.cxp_grabber.core import CXPHostCore, ROI, ROIViewer, StreamDecoder
 
 
 class CXPGrabber(Module, AutoCSR):
@@ -55,6 +55,9 @@ class CXPGrabber(Module, AutoCSR):
 
         self.submodules.stream_decoder = stream_decoder = StreamDecoder(res_width)
         self.comb += core.rx.source.connect(stream_decoder.sink)
+
+        # ROI Viewer
+        self.submodules.roi_viewer = ROIViewer(stream_decoder.source_pixel4x)
 
         # ROI engines configuration and count gating
         cdr = ClockDomainsRenamer("cxp_gt_rx")
