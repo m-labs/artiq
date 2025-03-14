@@ -149,11 +149,11 @@
     "src-misoc": {
       "flake": false,
       "locked": {
-        "lastModified": 1741001607,
-        "narHash": "sha256-05BGqWV4Zc9ArwaW0uuBYWjg4oTeP4vznPQQjEpQPEM=",
+        "lastModified": 1741935500,
+        "narHash": "sha256-rbh4++/M1FQw57fUKow1MNXpmFfguUH5LlxfklDvUjs=",
         "ref": "refs/heads/master",
-        "rev": "fa73f42f3c163833f17fc99399bb41005970c503",
-        "revCount": 2495,
+        "rev": "ebeff99217e6e23eb410d7c208d1f17443a57322",
+        "revCount": 2496,
         "submodules": true,
         "type": "git",
         "url": "https://github.com/m-labs/misoc.git"
