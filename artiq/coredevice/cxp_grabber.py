@@ -4,8 +4,18 @@ from numpy import array, int32, int64, uint8, uint16, iinfo
 from artiq.language.core import syscall, kernel
 from artiq.language.types import TInt32, TNone, TList
 from artiq.coredevice.rtio import rtio_output, rtio_input_timestamped_data
-from artiq.coredevice.grabber import OutOfSyncException, GrabberTimeoutException
 from artiq.experiment import *
+
+
+class OutOfSyncException(Exception):
+    """Raised when an incorrect number of ROI engine outputs has been
+    retrieved from the RTIO input FIFO."""
+    pass
+
+
+class CXPGrabberTimeoutException(Exception):
+    """Raised when a timeout occurs while attempting to read CoaXPress Grabber RTIO input events."""
+    pass
 
 
 @syscall(flags={"nounwind"})
@@ -153,7 +163,7 @@ class CXPGrabber:
         this call or the next.
 
         If the timeout is reached before data is available, the exception
-        :exc:`artiq.coredevice.grabber.GrabberTimeoutException` is raised.
+        :exc:`CXPGrabberTimeoutException` is raised.
 
         :param timeout_mu: Timestamp at which a timeout will occur. Set to -1
                            (default) to disable timeout.
@@ -162,7 +172,7 @@ class CXPGrabber:
             timeout_mu, self.roi_gating_ch
         )
         if timestamp == -1:
-            raise GrabberTimeoutException("Timeout before Grabber frame available")
+            raise CXPGrabberTimeoutException("Timeout before CoaXPress Grabber frame available")
         if sentinel != self.sentinel:
             raise OutOfSyncException
 
@@ -173,7 +183,7 @@ class CXPGrabber:
             if roi_output == self.sentinel:
                 raise OutOfSyncException
             if timestamp == -1:
-                raise GrabberTimeoutException(
+                raise CXPGrabberTimeoutException(
                     "Timeout retrieving ROIs (attempting to read more ROIs than enabled?)"
                 )
             data[i] = roi_output
