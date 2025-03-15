@@ -15,6 +15,7 @@ import traceback
 from collections import OrderedDict
 import importlib.util
 import linecache
+import threading
 
 import h5py
 
@@ -36,23 +37,42 @@ from artiq import __version__ as artiq_version
 
 
 ipc = None
+ipc_lock = threading.Lock()
 
 
 def get_object():
-    line = ipc.readline().decode()
-    return pyon.decode(line)
+    ipc_lock.acquire()
+    try:
+        line = ipc.readline()
+    finally:
+        ipc_lock.release()
+    return pyon.decode(line.decode())
 
 
 def put_object(obj):
-    ds = pyon.encode(obj)
-    ipc.write((ds + "\n").encode())
+    ds = (pyon.encode(obj) + "\n").encode()
+    ipc_lock.acquire()
+    try:
+        ipc.write(ds)
+    finally:
+        ipc_lock.release()
+
+
+def put_and_get_object(obj):
+    ds = (pyon.encode(obj) + "\n").encode()
+    ipc_lock.acquire()
+    try:
+        ipc.write(ds)
+        line = ipc.readline()
+    finally:
+        ipc_lock.release()
+    return pyon.decode(line.decode())
 
 
 def make_parent_action(action):
     def parent_action(*args, **kwargs):
         request = {"action": action, "args": args, "kwargs": kwargs}
-        put_object(request)
-        reply = get_object()
+        reply = put_and_get_object(request)
         if "action" in reply:
             if reply["action"] == "terminate":
                 sys.exit()
