@@ -1,15 +1,38 @@
 import logging
+import os
 from collections import OrderedDict
 from functools import partial
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
+from artiq import __artiq_dir__ as artiq_dir
 from artiq.gui.tools import LayoutWidget, disable_scroll_wheel, WheelFilter
 from artiq.gui.scanwidget import ScanWidget
 from artiq.gui.scientific_spinbox import ScientificSpinBox
 
 
 logger = logging.getLogger(__name__)
+
+
+class ModifiedValueLabel(QtWidgets.QLabel):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.pixmap = QtGui.QPixmap(os.path.join(artiq_dir, "gui", "pencil.svg"))
+        original_size = self.pixmap.size()
+        self.empty_pixmap = QtGui.QPixmap(original_size)
+        self.empty_pixmap.fill(QtGui.QColorConstants.Transparent)
+        self.setPixmap(self.empty_pixmap)
+        self.setToolTip("Non-default value set")
+
+    def setVisible_(self, visible: bool):
+        """
+        Cannot override setVisible, as it's always called
+        with True argument on startup
+        """
+        if visible:
+            self.setPixmap(self.pixmap)
+        else:
+            self.setPixmap(self.empty_pixmap)
 
 
 class EntryTreeWidget(QtWidgets.QTreeWidget):
@@ -114,6 +137,9 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
                 QtWidgets.QStyle.StandardPixmap.SP_BrowserReload))
         reset_entry.clicked.connect(partial(self.reset_entry, key))
 
+        modified_value_icon = ModifiedValueLabel()
+        widgets["modified_value_icon"] = modified_value_icon
+
         disable_other_scans = QtWidgets.QToolButton()
         widgets["disable_other_scans"] = disable_other_scans
         disable_other_scans.setIcon(
@@ -124,11 +150,16 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
             partial(self._disable_other_scans, key))
         if not isinstance(entry, ScanEntry):
             disable_other_scans.setVisible(False)
+            entry.modifiedValue.connect(modified_value_icon.setVisible_)
+        else:
+            for widget in entry.widgets.values():
+                widget.modifiedValue.connect(modified_value_icon.setVisible_)
 
         tool_buttons = LayoutWidget()
         tool_buttons.layout.setRowStretch(0, 1)
         tool_buttons.layout.setRowStretch(3, 1)
-        tool_buttons.addWidget(reset_entry, 1)
+        tool_buttons.addWidget(reset_entry, 1, 0)
+        tool_buttons.addWidget(modified_value_icon, 1, 1)
         tool_buttons.addWidget(disable_other_scans, 2)
         self.setItemWidget(widget_item, 2, tool_buttons)
 
@@ -158,7 +189,16 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
         # results in a bug.
 
         widgets["entry"].deleteLater()
-        widgets["entry"] = procdesc_to_entry(argument["desc"])(argument)
+        new_entry = procdesc_to_entry(argument["desc"])(argument)
+        widgets["entry"] = new_entry
+        if "modified_value_icon" in widgets:
+            widgets["modified_value_icon"].setVisible_(False)
+            if not isinstance(new_entry, ScanEntry):
+                new_entry.modifiedValue.connect(widgets["modified_value_icon"].setVisible_)
+            else:
+                for widget in new_entry.widgets.values():
+                    widget.modifiedValue.connect(widgets["modified_value_icon"].setVisible_)
+
         widgets["disable_other_scans"].setVisible(
             isinstance(widgets["entry"], ScanEntry))
         widgets["fix_layout"].deleteLater()
@@ -192,12 +232,25 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
 
 
 class StringEntry(QtWidgets.QLineEdit):
+    modifiedValue = QtCore.pyqtSignal(bool)
+
     def __init__(self, argument):
         QtWidgets.QLineEdit.__init__(self)
         self.setText(argument["state"])
+        self.procdesc = argument["desc"]
+
         def update(text):
             argument["state"] = text
+            self.modifiedValue.emit(not self.is_default())
         self.textEdited.connect(update)
+
+    def is_default(self):
+        value = self.text()
+        default_value = self.default_state(self.procdesc)
+        if value != default_value:
+            return False
+        else:
+            return True
 
     @staticmethod
     def state_to_value(state):
@@ -209,12 +262,25 @@ class StringEntry(QtWidgets.QLineEdit):
 
 
 class BooleanEntry(QtWidgets.QCheckBox):
+    modifiedValue = QtCore.pyqtSignal(bool)
+
     def __init__(self, argument):
         QtWidgets.QCheckBox.__init__(self)
         self.setChecked(argument["state"])
+        self.procdesc = argument["desc"]
+
         def update(checked):
             argument["state"] = bool(checked)
+            self.modifiedValue.emit(not self.is_default())
         self.stateChanged.connect(update)
+
+    def is_default(self):
+        value = bool(self.isChecked())
+        default_value = bool(self.default_state(self.procdesc))
+        if value != default_value:
+            return False
+        else:
+            return True
 
     @staticmethod
     def state_to_value(state):
@@ -226,15 +292,16 @@ class BooleanEntry(QtWidgets.QCheckBox):
 
 
 class EnumerationEntry(QtWidgets.QWidget):
+    modifiedValue = QtCore.pyqtSignal(bool)
     quickStyleClicked = QtCore.pyqtSignal()
 
     def __init__(self, argument):
         QtWidgets.QWidget.__init__(self)
         layout = QtWidgets.QHBoxLayout()
         self.setLayout(layout)
-        procdesc = argument["desc"]
-        choices = procdesc["choices"]
-        if procdesc["quickstyle"]:
+        self.procdesc = argument["desc"]
+        choices = self.procdesc["choices"]
+        if self.procdesc["quickstyle"]:
             self.btn_group = QtWidgets.QButtonGroup()
             for i, choice in enumerate(choices):
                 button = QtWidgets.QPushButton(choice)
@@ -256,7 +323,18 @@ class EnumerationEntry(QtWidgets.QWidget):
 
             def update(index):
                 argument["state"] = choices[index]
+                self.modifiedValue.emit(not self.is_default())
             self.combo_box.currentIndexChanged.connect(update)
+
+    def is_default(self):
+        if self.procdesc["quickstyle"]:
+            return True
+        value = self.combo_box.currentText()
+        default_value = self.default_state(self.procdesc)
+        if value != default_value:
+            return False
+        else:
+            return True
 
     @staticmethod
     def state_to_value(state):
@@ -271,26 +349,38 @@ class EnumerationEntry(QtWidgets.QWidget):
 
 
 class NumberEntryInt(QtWidgets.QSpinBox):
+    modifiedValue = QtCore.pyqtSignal(bool)
+
     def __init__(self, argument):
         QtWidgets.QSpinBox.__init__(self)
         disable_scroll_wheel(self)
-        procdesc = argument["desc"]
-        self.setSingleStep(procdesc["step"])
-        if procdesc["min"] is not None:
-            self.setMinimum(procdesc["min"])
+        self.procdesc = argument["desc"]
+        self.setSingleStep(self.procdesc["step"])
+        if self.procdesc["min"] is not None:
+            self.setMinimum(self.procdesc["min"])
         else:
             self.setMinimum(-((1 << 31) - 1))
-        if procdesc["max"] is not None:
-            self.setMaximum(procdesc["max"])
+        if self.procdesc["max"] is not None:
+            self.setMaximum(self.procdesc["max"])
         else:
             self.setMaximum((1 << 31) - 1)
-        if procdesc["unit"]:
-            self.setSuffix(" " + procdesc["unit"])
+        if self.procdesc["unit"]:
+            self.setSuffix(" " + self.procdesc["unit"])
 
         self.setValue(argument["state"])
+
         def update(value):
             argument["state"] = value
+            self.modifiedValue.emit(not self.is_default())
         self.valueChanged.connect(update)
+
+    def is_default(self):
+        value = self.value()
+        default_value = self.default_state(self.procdesc)
+        if value != default_value:
+            return False
+        else:
+            return True
 
     @staticmethod
     def state_to_value(state):
@@ -316,30 +406,42 @@ class NumberEntryInt(QtWidgets.QSpinBox):
 
 
 class NumberEntryFloat(ScientificSpinBox):
+    modifiedValue = QtCore.pyqtSignal(bool)
+
     def __init__(self, argument):
         ScientificSpinBox.__init__(self)
         disable_scroll_wheel(self)
-        procdesc = argument["desc"]
-        scale = procdesc["scale"]
-        self.setDecimals(procdesc["precision"])
+        self.procdesc = argument["desc"]
+        scale = self.procdesc["scale"]
+        self.setDecimals(self.procdesc["precision"])
         self.setSigFigs()
-        self.setSingleStep(procdesc["step"]/scale)
+        self.setSingleStep(self.procdesc["step"]/scale)
         self.setRelativeStep()
-        if procdesc["min"] is not None:
-            self.setMinimum(procdesc["min"]/scale)
+        if self.procdesc["min"] is not None:
+            self.setMinimum(self.procdesc["min"]/scale)
         else:
             self.setMinimum(float("-inf"))
-        if procdesc["max"] is not None:
-            self.setMaximum(procdesc["max"]/scale)
+        if self.procdesc["max"] is not None:
+            self.setMaximum(self.procdesc["max"]/scale)
         else:
             self.setMaximum(float("inf"))
-        if procdesc["unit"]:
-            self.setSuffix(" " + procdesc["unit"])
+        if self.procdesc["unit"]:
+            self.setSuffix(" " + self.procdesc["unit"])
 
         self.setValue(argument["state"]/scale)
+
         def update(value):
             argument["state"] = value*scale
+            self.modifiedValue.emit(not self.is_default())
         self.valueChanged.connect(update)
+
+    def is_default(self):
+        value = self.value()
+        default_value = self.default_state(self.procdesc)
+        if value*self.procdesc["scale"] != default_value:
+            return False
+        else:
+            return True
 
     @staticmethod
     def state_to_value(state):
@@ -354,8 +456,13 @@ class NumberEntryFloat(ScientificSpinBox):
 
 
 class _NoScan(LayoutWidget):
+    modifiedValue = QtCore.pyqtSignal(bool)
+
     def __init__(self, procdesc, state):
         LayoutWidget.__init__(self)
+
+        self.procdesc = procdesc
+        self.state = state
 
         scale = procdesc["scale"]
         self.value = ScientificSpinBox()
@@ -378,8 +485,10 @@ class _NoScan(LayoutWidget):
         self.addWidget(self.value, 0, 1)
 
         self.value.setValue(state["value"]/scale)
+
         def update(value):
             state["value"] = value*scale
+            self.modified_value_update()
         self.value.valueChanged.connect(update)
 
         self.repetitions = QtWidgets.QSpinBox()
@@ -393,14 +502,30 @@ class _NoScan(LayoutWidget):
 
         def update_repetitions(value):
             state["repetitions"] = value
+            self.modified_value_update()
         self.repetitions.valueChanged.connect(update_repetitions)
+
+    def modified_value_update(self):
+        self.modifiedValue.emit(not self.is_default())
+
+    def is_default(self):
+        default = True
+        default_state = ScanEntry.default_state(self.procdesc)["NoScan"]
+        for type_ in default_state.keys():
+            if self.state[type_] != default_state[type_]:
+                default = False
+                break
+        return default
 
 
 class _RangeScan(LayoutWidget):
+    modifiedValue = QtCore.pyqtSignal(bool)
+
     def __init__(self, procdesc, state):
         LayoutWidget.__init__(self)
-
+        self.procdesc = procdesc
         scale = procdesc["scale"]
+        self.state = state
 
         def apply_properties(widget):
             widget.setDecimals(procdesc["precision"])
@@ -456,22 +581,26 @@ class _RangeScan(LayoutWidget):
             scanner.setStart(value)
             if start.value() != value:
                 start.setValue(value)
+            self.modified_value_update()
 
         def update_stop(value):
             state["stop"] = value*scale
             scanner.setStop(value)
             if stop.value() != value:
                 stop.setValue(value)
+            self.modified_value_update()
 
         def update_npoints(value):
             state["npoints"] = value
             scanner.setNum(value)
             if npoints.value() != value:
                 npoints.setValue(value)
+            self.modified_value_update()
 
         def update_randomize(value):
             state["randomize"] = value
             randomize.setChecked(value)
+            self.modified_value_update()
 
         scanner.startChanged.connect(update_start)
         scanner.numChanged.connect(update_npoints)
@@ -485,10 +614,27 @@ class _RangeScan(LayoutWidget):
         scanner.setStop(state["stop"]/scale)
         randomize.setChecked(state["randomize"])
 
+    def modified_value_update(self):
+        self.modifiedValue.emit(not self.is_default())
+
+    def is_default(self):
+        default = True
+        default_state = ScanEntry.default_state(self.procdesc)["RangeScan"]
+        for type_ in default_state.keys():
+            if self.state[type_] != default_state[type_]:
+                default = False
+                break
+        return default
+
 
 class _CenterScan(LayoutWidget):
+    modifiedValue = QtCore.pyqtSignal(bool)
+
     def __init__(self, procdesc, state):
         LayoutWidget.__init__(self)
+
+        self.procdesc = procdesc
+        self.state = state
 
         scale = procdesc["scale"]
 
@@ -542,25 +688,46 @@ class _CenterScan(LayoutWidget):
 
         def update_center(value):
             state["center"] = value*scale
+            self.modified_value_update()
 
         def update_span(value):
             state["span"] = value*scale
+            self.modified_value_update()
 
         def update_step(value):
             state["step"] = value*scale
+            self.modified_value_update()
 
         def update_randomize(value):
             state["randomize"] = value
+            self.modified_value_update()
 
         center.valueChanged.connect(update_center)
         span.valueChanged.connect(update_span)
         step.valueChanged.connect(update_step)
         randomize.stateChanged.connect(update_randomize)
 
+    def modified_value_update(self):
+        self.modifiedValue.emit(not self.is_default())
+
+    def is_default(self):
+        default = True
+        default_state = ScanEntry.default_state(self.procdesc)["CenterScan"]
+        for type_ in default_state.keys():
+            if self.state[type_] != default_state[type_]:
+                default = False
+                break
+        return default
+
 
 class _ExplicitScan(LayoutWidget):
-    def __init__(self, state):
+    modifiedValue = QtCore.pyqtSignal(bool)
+
+    def __init__(self, procdesc, state):
         LayoutWidget.__init__(self)
+
+        self.procdesc = procdesc
+        self.state = state
 
         self.value = QtWidgets.QLineEdit()
         self.addWidget(QtWidgets.QLabel("Sequence:"), 0, 0)
@@ -572,13 +739,28 @@ class _ExplicitScan(LayoutWidget):
             QtCore.QRegularExpression(regexp)))
 
         self.value.setText(" ".join([str(x) for x in state["sequence"]]))
+
         def update(text):
             if self.value.hasAcceptableInput():
                 state["sequence"] = [float(x) for x in text.split()]
+            self.modified_value_update()
         self.value.textEdited.connect(update)
+
+    def modified_value_update(self):
+        self.modifiedValue.emit(not self.is_default())
+
+    def is_default(self):
+        default = True
+        default_state = ScanEntry.default_state(self.procdesc)["ExplicitScan"]
+        for type_ in default_state.keys():
+            if self.state[type_] != default_state[type_]:
+                default = False
+                break
+        return default
 
 
 class ScanEntry(LayoutWidget):
+
     def __init__(self, argument):
         LayoutWidget.__init__(self)
         self.argument = argument
@@ -587,12 +769,13 @@ class ScanEntry(LayoutWidget):
         self.addWidget(self.stack, 1, 0, colspan=4)
 
         procdesc = argument["desc"]
+        self.procdesc = procdesc
         state = argument["state"]
         self.widgets = OrderedDict()
         self.widgets["NoScan"] = _NoScan(procdesc, state["NoScan"])
         self.widgets["RangeScan"] = _RangeScan(procdesc, state["RangeScan"])
         self.widgets["CenterScan"] = _CenterScan(procdesc, state["CenterScan"])
-        self.widgets["ExplicitScan"] = _ExplicitScan(state["ExplicitScan"])
+        self.widgets["ExplicitScan"] = _ExplicitScan(procdesc, state["ExplicitScan"])
         for widget in self.widgets.values():
             self.stack.addWidget(widget)
 
@@ -664,7 +847,16 @@ class ScanEntry(LayoutWidget):
             if button.isChecked():
                 self.stack.setCurrentWidget(self.widgets[ty])
                 self.argument["state"]["selected"] = ty
+                self.widgets[ty].modified_value_update()
                 break
+
+    def is_default(self):
+        default = True
+        for widget in self.widgets.values():
+            if not widget.is_default():
+                default = False
+                break
+        return default
 
 
 def procdesc_to_entry(procdesc):
