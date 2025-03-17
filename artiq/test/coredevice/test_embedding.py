@@ -674,8 +674,13 @@ class IntBoundaryTest(ExperimentCase):
         self.create(_IntBoundary).run()
 
 
-class _BoolListType(EnvExperiment):   
-    def assert_bool(self, obj):
+@nac3
+class _BoolListType(EnvExperiment):
+    x: Kernel[list[bool]]
+    y: Kernel[list[bool]]
+
+    @rpc
+    def assert_bool(self, obj: bool):
         assert isinstance(obj, bool)
 
     def build(self):
