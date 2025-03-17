@@ -264,6 +264,7 @@ extern "C-unwind" fn dma_record_start(name: &CSlice<u8>) {
                        dma_record_output as *const () as u32).unwrap();
         library.rebind(b"rtio_output_wide",
                        dma_record_output_wide as *const () as u32).unwrap();
+        board_misoc::cache::flush_cpu_icache();
 
         DMA_RECORDER.active = true;
         send(&DmaRecordStart(name));
@@ -283,6 +284,7 @@ extern "C-unwind" fn dma_record_stop(duration: i64, enable_ddma: bool) {
                        rtio::output as *const () as u32).unwrap();
         library.rebind(b"rtio_output_wide",
                        rtio::output_wide as *const () as u32).unwrap();
+        board_misoc::cache::flush_cpu_icache();
 
         DMA_RECORDER.active = false;
         send(&DmaRecordStop {
