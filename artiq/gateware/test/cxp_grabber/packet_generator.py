@@ -7,6 +7,11 @@ from collections import namedtuple
 _WORDLAYOUT = namedtuple("WordLayout", ["data", "k", "stb", "eop"])
 
 
+def _switch_bit_order(s, width):
+    bits = "{:0{width}b}".format(s, width=width)
+    return int(bits[::-1], 2)
+
+
 def MonoPixelPacketGenerator(
     x_size,
     y_size,
@@ -21,7 +26,7 @@ def MonoPixelPacketGenerator(
         for x in range(x_size):
             # full white pixel
             gray = (2**pixel_width) - 1
-            packed += gray << x * pixel_width
+            packed += _switch_bit_order(gray, pixel_width) << x * pixel_width
 
         # Line marker
         packet += [
@@ -41,11 +46,13 @@ def MonoPixelPacketGenerator(
 
         for i in range(words_per_image_line):
             serialized = (packed & (0xFFFF_FFFF << i * word_width)) >> i * word_width
+            word = []
+            for j in range(4):
+                word += [C(_switch_bit_order((serialized >> 8 * j) & 0xFF, 8), 8)]
+
             eop = 1 if ((i == words_per_image_line - 1) and with_eol_marked) else 0
             packet.append(
-                _WORDLAYOUT(
-                    data=C(serialized, word_width), k=Replicate(0, 4), stb=1, eop=eop
-                ),
+                _WORDLAYOUT(data=Cat(word), k=Replicate(0, 4), stb=1, eop=eop),
             )
 
     return packet
