@@ -34,7 +34,7 @@ def cxp_write32(addr: TInt32, val: TInt32) -> TNone:
 
 
 @syscall(flags={"nounwind"})
-def cxp_start_roi_viewer(x0: TInt32, x1: TInt32, y0: TInt32, y1: TInt32) -> TNone:
+def cxp_start_roi_viewer(x0: TInt32, y0: TInt32, x1: TInt32, y1: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 
@@ -242,7 +242,7 @@ class CXPGrabber:
             binary_file.write(byte_arr)
 
     @kernel
-    def start_roi_viewer(self, x0, x1, y0, y1):
+    def start_roi_viewer(self, x0, y0, x1, y1):
         """
         Defines the coordinates of ROI viewer and start the capture.
 
@@ -250,7 +250,7 @@ class CXPGrabber:
 
         .. warning:: This is NOT a real-time operation.
         """
-        cxp_start_roi_viewer(x0, x1, y0, y1)
+        cxp_start_roi_viewer(x0, y0, x1, y1)
 
     @kernel
     def download_roi_viewer_frame(self, file_path):
