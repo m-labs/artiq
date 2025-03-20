@@ -1,5 +1,4 @@
-from numpy import array, int32, int64, uint8, uint16, iinfo
-
+from numpy import array, int32, int64, ndarray
 
 from artiq.language.core import syscall, kernel
 from artiq.language.types import TInt32, TNone, TList
@@ -10,11 +9,13 @@ from artiq.experiment import *
 class OutOfSyncException(Exception):
     """Raised when an incorrect number of ROI engine outputs has been
     retrieved from the RTIO input FIFO."""
+
     pass
 
 
 class CXPGrabberTimeoutException(Exception):
     """Raised when a timeout occurs while attempting to read CoaXPress Grabber RTIO input events."""
+
     pass
 
 
@@ -43,6 +44,79 @@ def cxp_download_roi_viewer_frame(
     buffer: TList(TInt64),
 ) -> TTuple([TInt32, TInt32, TInt32]):
     raise NotImplementedError("syscall not simulated")
+
+
+def write_file(data, file_path):
+    """
+    Write big-endian encoded data to PC
+
+    :param data: a list of 32-bit integers
+    :param file_path: a relative path on PC
+
+    **Examples:**
+
+        To download the XML file to PC: ::
+
+            # Prepare a big enough buffer
+            buffer = [0] * 25600
+
+            # Read the XML file and write it to PC
+            cxp_grabber.read_local_xml(buffer)
+            write_file(buffer, "camera_setting.xml")
+
+    """
+    array(data, dtype=">i").tofile(file_path)
+
+
+def write_pgm(frame, file_path, pixel_width):
+    """
+    Write the frame as PGM file to PC.
+
+    :param frame: a 2D array of 32-bit integers
+    :param file_path: a relative path on PC
+    :param pixel_width: bit depth that the PGM will use (8 or 16)
+
+    **Examples:**
+
+        To capture a 32x64 frame and write it as a 8-bit PGM file to PC: ::
+
+                # Prepare a 32x64 2D array
+                frame = numpy.array([[0] * 32] * 64)
+
+                # Setup the camera to use LinkTriger0 and start acquisition
+                # (Read the camera setting XML file for details)
+                cxp_grabber.write32(TRIG_SETTING_ADDR, 0)
+                ...
+
+                # Setup ROI viewer coordinate and start the viewer capture
+                cxp_grabber.start_roi_viewer(0, 0, 32, 64)
+
+                # Send LinkTrigger0
+                cxp_grabber.send_cxp_linktrigger(0)
+
+                # Read the frame from ROI viewer and write it as a 8-bit PGM image to PC
+                cxp_grabber.read_roi_viewer_frame(frame)
+                write_pgm(frame, "frame.pgm", 8)
+
+    """
+    if not isinstance(frame, ndarray):
+        raise ValueError("Frame must be a numpy array")
+
+    if pixel_width == 8:
+        frame = frame.astype("u1")
+    elif pixel_width == 16:
+        # PGM use big-endian
+        frame = frame.astype(">u2")
+    else:
+        raise ValueError("PGM file format only supports 8-bit or 16-bit per pixel")
+
+    # Save as PGM binary variant
+    # https://en.wikipedia.org/wiki/Netpbm#Description
+    with open(file_path, "wb") as file:
+        max_value = (2**pixel_width) - 1
+        width, height = len(frame[0]), len(frame)
+        file.write(f"P5\n{width} {height}\n{max_value}\n".encode("ASCII"))
+        file.write(frame.tobytes())
 
 
 class CXPGrabber:
@@ -172,7 +246,9 @@ class CXPGrabber:
             timeout_mu, self.roi_gating_ch
         )
         if timestamp == -1:
-            raise CXPGrabberTimeoutException("Timeout before CoaXPress Grabber frame available")
+            raise CXPGrabberTimeoutException(
+                "Timeout before CoaXPress Grabber frame available"
+            )
         if sentinel != self.sentinel:
             raise OutOfSyncException
 
@@ -213,33 +289,18 @@ class CXPGrabber:
         cxp_write32(address, value)
 
     @kernel
-    def download_local_xml(self, file_path, buffer_size=102400):
+    def read_local_xml(self, buffer):
         """
-        Downloads the XML setting file to PC from the camera if available.
+        Read the XML setting file from the camera if available.
+        Data will be in 32-bit big-endian encoding.
         The file format may be .zip or .xml depending on the camera model.
 
         .. warning:: This is NOT a real-time operation.
 
-        :param file_path: a relative path on PC
-        :param buffer_size: size of read buffer expressed in bytes; must be a multiple of 4
+        :param buffer: list to be filled
+        :returns: number of 32-bit words read
         """
-        buffer = [0] * (buffer_size // 4)
-        size_read = cxp_download_xml_file(buffer)
-        self._write_file(buffer[:size_read], file_path)
-
-    @rpc
-    def _write_file(self, data, file_path):
-        """
-        Write big endian encoded data into a file
-
-        :param data: a list of 32-bit integers
-        :param file_path: a relative path on PC
-        """
-        byte_arr = bytearray()
-        for d in data:
-            byte_arr += d.to_bytes(4, "big", signed=True)
-        with open(file_path, "wb") as binary_file:
-            binary_file.write(byte_arr)
+        return cxp_download_xml_file(buffer)
 
     @kernel
     def start_roi_viewer(self, x0, y0, x1, y1):
@@ -253,57 +314,27 @@ class CXPGrabber:
         cxp_start_roi_viewer(x0, y0, x1, y1)
 
     @kernel
-    def download_roi_viewer_frame(self, file_path):
+    def read_roi_viewer_frame(self, frame):
         """
-        Downloads the ROI viewer frame as a PGM file to PC.
+        Read the ROI viewer frame.
 
-        The user must :exc:`start_roi_viewer` and trigger the camera before the frame is avaiable.
+        The user must :exc:`start_roi_viewer` and trigger the camera before the frame is available.
 
         .. warning:: This is NOT a real-time operation.
 
-        :param file_path: a relative path on PC
+        :param frame: a 2D array of 32-bit integers
+        :returns: the frame bit depth
         """
         buffer = [0] * 1024
         width, height, pixel_width = cxp_download_roi_viewer_frame(buffer)
-        self._write_pgm(buffer, width, height, pixel_width, file_path)
+        if height != len(frame) or width != len(frame[0]):
+            raise ValueError(
+                "The frame matrix size is not the same as ROI viewer frame size"
+            )
 
-    @rpc
-    def _write_pgm(self, data, width, height, pixel_width, file_path):
-        """
-        Write pixel data into a PGM file.
-
-        :param data: a list of 64-bit integers
-        :param file_path: a relative path on PC
-        """
-        if ".pgm" not in file_path.lower():
-            raise ValueError("The file extension must be .pgm")
-
-        pixels = []
-        width_aligned = (width + 3) & (~3)
-        for d in data[: width_aligned * height // 4]:
-            pixels += [
-                d & 0xFFFF,
-                (d >> 16) & 0xFFFF,
-                (d >> 32) & 0xFFFF,
-                (d >> 48) & 0xFFFF,
-            ]
-
-        if pixel_width == 8:
-            dtype = uint8
-        else:
-            dtype = uint16
-            # pad to 16-bit for compatibility, as most software can only read 8, 16-bit PGM
-            pixels = [p << (16 - pixel_width) for p in pixels]
-
-        # trim the frame if the width is not multiple of 4
-        frame = array([pixels], dtype).reshape((height, width_aligned))[:, :width]
-
-        # save as PGM binary variant
-        # https://en.wikipedia.org/wiki/Netpbm#Description
-        with open(file_path, "wb") as file:
-            file.write(f"P5\n{width} {height}\n{iinfo(dtype).max}\n".encode("ASCII"))
-            if dtype == uint8:
-                file.write(frame.tobytes())
-            else:
-                # PGM use big endian
-                file.write(frame.astype(">u2").tobytes())
+        for y in range(height):
+            offset = (((width + 3) & (~3)) // 4) * y
+            for x in range(width):
+                # each buffer element holds 4 pixels
+                frame[y][x] = (buffer[offset + (x // 4)] >> (16 * (x % 4))) & 0xFFFF
+        return pixel_width
