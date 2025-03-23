@@ -119,6 +119,8 @@ class ExperimentDB:
             new_explist = await _RepoScanner(self.worker_handlers).scan(
                 wd, self.experiment_subdir)
             logger.info("repository scan took %d seconds", time.monotonic()-t1)
+            if hash(str(self.explist.raw_view)) != hash(str(new_explist)):
+                logger.warning("Experiments' settings have changed")
             update_from_dict(self.explist, new_explist)
         finally:
             self._scanning = False
