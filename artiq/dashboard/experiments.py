@@ -87,7 +87,11 @@ class _ArgumentEditor(EntryTreeWidget):
             return
         for name in keys:
             argument = self.manager.get_submission_arguments(self.expurl)[name]
-            procdesc = expdesc["arginfo"][name][0]
+            try:
+                procdesc = expdesc["arginfo"][name][0]
+            except KeyError:
+                logging.warning(f"Default value for {name} is missing")
+                continue
             state = procdesc_to_entry(procdesc).default_state(procdesc)
             argument["desc"] = procdesc
             if update:
