@@ -404,7 +404,10 @@ class PixelCoordinateTracker(Module):
                     pix.x.eq(x_r),
                     pix.y.eq(y_r),
                     pix.gray.eq(self.sink.data[max_pixel_width*i:max_pixel_width*(i+1)]),
-                )
+                ),
+                If(pix.eof,
+                    pix.y.eq(self.y_size),
+                ),
             ]
 
 
