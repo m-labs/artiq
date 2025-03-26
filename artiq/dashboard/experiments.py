@@ -126,9 +126,9 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.options = manager.get_submission_options(expurl)
         self.hdf5_load_directory = os.path.expanduser("~")
 
-        master_layout = QtWidgets.QVBoxLayout()
+        self.master_layout = QtWidgets.QVBoxLayout()
         self._create_argument_editor()
-        master_layout.addWidget(self.argeditor)
+        self.master_layout.addWidget(self.argeditor)
 
         # Create a toggle button that will collapse/expand the options.
         self.fold_toggle = QtWidgets.QToolButton(text="Collapse scheduler settings",
@@ -139,7 +139,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.fold_toggle.setToolTip("Collapse/Expand scheduler settings")
         self.fold_toggle.setArrowType(QtCore.Qt.ArrowType.DownArrow)
         self.fold_toggle.clicked.connect(self.on_fold_toggle)
-        master_layout.addWidget(self.fold_toggle)
+        self.master_layout.addWidget(self.fold_toggle)
 
         # Create a container widget (with a grid layout) for all the foldable
         # options.
@@ -148,7 +148,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.foldable_layout.setSpacing(5)
         self.foldable_layout.setContentsMargins(5, 5, 5, 5)
         self.foldable_container.setLayout(self.foldable_layout)
-        master_layout.addWidget(self.foldable_container)
+        self.master_layout.addWidget(self.foldable_container)
 
         # Create a container widget (with a horizontal layout) for
         # always-visible buttons.
@@ -157,11 +157,11 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.always_visible_layout.setSpacing(5)
         self.always_visible_layout.setContentsMargins(5, 5, 5, 5)
         self.always_visible_container.setLayout(self.always_visible_layout)
-        master_layout.addWidget(self.always_visible_container)
+        self.master_layout.addWidget(self.always_visible_container)
 
         # Set the master layout on the top widget.
         top_widget = QtWidgets.QWidget()
-        top_widget.setLayout(master_layout)
+        top_widget.setLayout(self.master_layout)
         self.setWidget(top_widget)
 
         # --- Create the various widget groups ---
@@ -388,7 +388,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
         editor_class = self.manager.get_argument_editor_class(self.expurl)
         self.argeditor = editor_class(self.manager, self, self.expurl)
-        self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
+        self.master_layout.insertWidget(0, self.argeditor)
         self.argeditor.restore_state(argeditor_state)
         self.apply_window_color()
 
