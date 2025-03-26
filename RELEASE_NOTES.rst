@@ -19,6 +19,7 @@ ARTIQ-9 (Unreleased)
      for the AD9834 DDS, tested with the ZonRi Technology Co., Ltd. AD9834-Module.
 * Dashboard:
    - Experiment windows can have different colors, selected by the user.
+   - The Log pane now adapts to dark system color themes.
    - Schedule display columns can now be reordered and shown/hidden using the table
      header context menu.
    - State files are now automatically backed up upon successful loading.
