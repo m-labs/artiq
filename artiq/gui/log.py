@@ -43,7 +43,7 @@ class _LogFilterProxyModel(QtCore.QSortFilterProxyModel):
 
 
 class _Model(QtCore.QAbstractItemModel):
-    def __init__(self):
+    def __init__(self, palette):
         QtCore.QAbstractTableModel.__init__(self)
 
         self.headers = ["Source", "Message"]
@@ -58,11 +58,16 @@ class _Model(QtCore.QAbstractItemModel):
 
         self.fixed_font = QtGui.QFontDatabase.systemFont(QtGui.QFontDatabase.SystemFont.FixedFont)
 
-        self.white = QtGui.QBrush(QtGui.QColor(255, 255, 255))
-        self.black = QtGui.QBrush(QtGui.QColor(0, 0, 0))
-        self.debug_fg = QtGui.QBrush(QtGui.QColor(55, 55, 55))
-        self.warning_bg = QtGui.QBrush(QtGui.QColor(255, 255, 180))
-        self.error_bg = QtGui.QBrush(QtGui.QColor(255, 150, 150))
+        self.default_bg = palette.base()
+        self.default_fg = palette.text()
+        self.debug_fg = palette.placeholderText()
+        is_dark_mode = self.default_bg.color().lightness() < self.default_fg.color().lightness()
+        if is_dark_mode:
+            self.warning_bg = QtGui.QBrush(QtGui.QColor(90, 74, 0))
+            self.error_bg = QtGui.QBrush(QtGui.QColor(98, 24, 24))
+        else:
+            self.warning_bg = QtGui.QBrush(QtGui.QColor(255, 255, 180))
+            self.error_bg = QtGui.QBrush(QtGui.QColor(255, 150, 150))
 
     def headerData(self, col, orientation, role):
         if (orientation == QtCore.Qt.Orientation.Horizontal
@@ -163,13 +168,13 @@ class _Model(QtCore.QAbstractItemModel):
             elif level >= logging.WARNING:
                 return self.warning_bg
             else:
-                return self.white
+                return self.default_bg
         elif role == QtCore.Qt.ItemDataRole.ForegroundRole:
             level = self.entries[msgnum][0]
             if level <= logging.DEBUG:
                 return self.debug_fg
             else:
-                return self.black
+                return self.default_fg
         elif role == QtCore.Qt.ItemDataRole.DisplayRole:
             v = self.entries[msgnum]
             column = index.column()
@@ -265,7 +270,7 @@ class LogDock(QDockWidgetCloseDetect):
         cw = QtGui.QFontMetrics(self.font()).averageCharWidth()
         self.log.header().resizeSection(0, 26*cw)
 
-        self.model = _Model()
+        self.model = _Model(self.palette())
         self.proxy_model = _LogFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
         self.log.setModel(self.proxy_model)
