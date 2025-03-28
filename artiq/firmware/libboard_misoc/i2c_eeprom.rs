@@ -40,19 +40,20 @@ impl EEPROM {
         self.select()?;
 
         i2c::start(self.busno)?;
-        i2c::write(self.busno, self.address)?;
-        i2c::write(self.busno, addr)?;
+        let read_result = i2c::write(self.busno, self.address)
+            .and_then( |_| i2c::write(self.busno, addr))
+            .and_then( |_| i2c::restart(self.busno))
+            .and_then( |_| i2c::write(self.busno, self.address | 1))?;
+            .and_then( |_| {
+                let buf_len = buf.len();
+                for (i, byte) in buf.iter_mut().enumerate() {
+                    *byte = i2c::read(self.busno, i < buf_len - 1)?;
+                }
+            });
 
-        i2c::restart(self.busno)?;
-        i2c::write(self.busno, self.address | 1)?;
-        let buf_len = buf.len();
-        for (i, byte) in buf.iter_mut().enumerate() {
-            *byte = i2c::read(self.busno, i < buf_len - 1)?;
-        }
+        let stop_result = i2c::stop(self.busno);
 
-        i2c::stop(self.busno)?;
-
-        Ok(())
+        read_result.and(stop_result)
     }
 
     /// > The 24AA02XEXX is programmed at the factory with a
