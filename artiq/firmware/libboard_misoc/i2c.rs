@@ -223,10 +223,11 @@ mod imp {
         // mask in format of 1 << channel (or 0 for disabling output)
         // PCA9548 support only for now
         start(busno)?;
-        write(busno, address << 1)?;
-        write(busno, mask)?;
-        stop(busno)?;
-        Ok(())
+        let write_result = write(busno, address << 1)
+            .and_then( |_| write(busno, mask) );
+        let stop_result = stop(busno);
+
+        write_result.and(stop_result)
     }
 }
 
