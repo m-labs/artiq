@@ -209,7 +209,7 @@ fn terminate(exceptions: &'static [Option<eh_artiq::Exception<'static>>],
     loop {}
 }
 
-extern fn cache_get<'a>(key: &CSlice<u8>) -> *const CSlice<'a, i32> {
+extern fn cache_get<'a>(key: CSlice<u8>) -> *const CSlice<'a, i32> {
     send(&CacheGetRequest {
         key:   str::from_utf8(key.as_ref()).unwrap()
     });
@@ -218,7 +218,7 @@ extern fn cache_get<'a>(key: &CSlice<u8>) -> *const CSlice<'a, i32> {
     })
 }
 
-extern "C-unwind" fn cache_put(key: &CSlice<u8>, list: &CSlice<i32>) {
+extern "C-unwind" fn cache_put(key: CSlice<u8>, list: &CSlice<i32>) {
     send(&CachePutRequest {
         key:   str::from_utf8(key.as_ref()).unwrap(),
         value: list.as_ref()
@@ -251,7 +251,7 @@ fn dma_record_flush() {
     }
 }
 
-extern "C-unwind" fn dma_record_start(name: &CSlice<u8>) {
+extern "C-unwind" fn dma_record_start(name: CSlice<u8>) {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
     unsafe {
@@ -359,7 +359,7 @@ extern fn dma_record_output_wide(target: i32, words: &CSlice<i32>) {
     }
 }
 
-extern fn dma_erase(name: &CSlice<u8>) {
+extern fn dma_erase(name: CSlice<u8>) {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
     send(&DmaEraseRequest { name: name });
@@ -372,7 +372,7 @@ struct DmaTrace {
     uses_ddma: bool,
 }
 
-extern "C-unwind" fn dma_retrieve(name: &CSlice<u8>) -> DmaTrace {
+extern "C-unwind" fn dma_retrieve(name: CSlice<u8>) -> DmaTrace {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
     send(&DmaRetrieveRequest { name: name });

@@ -1524,13 +1524,7 @@ class LLVMIRGenerator:
 
         for i, arg in enumerate(insn.arguments()):
             llarg = self.map(arg)
-            if isinstance(llarg.type, (ll.LiteralStructType, ll.IdentifiedStructType)):
-                llslot = self.llbuilder.alloca(llarg.type)
-                self.llbuilder.store(llarg, llslot)
-                llargs.append(llslot)
-                llarg_attrs[i] = "byval"
-            else:
-                llargs.append(llarg)
+            llargs.append(llarg)
 
         llretty = self.llty_of_type(insn.type, for_return=True)
         is_sret = self.needs_sret(llretty)
