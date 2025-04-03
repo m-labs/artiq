@@ -911,8 +911,8 @@ class AD9910:
     def set_att_mu(self, att: TInt32):
         """Set digital step attenuator in machine units.
 
-        This method will write the attenuator settings of the channel
-        (Urukul proto_rev 0x08, all four channels will be updated at same time).
+        This method will write the attenuator settings of this channel
+        (For Urukul proto_rev 0x08, all four channels will be updated at same time).
         See also
         :meth:`CPLD.get_channel_att <artiq.coredevice.urukul.CPLD.set_att_mu>`.
 
@@ -924,8 +924,8 @@ class AD9910:
     def set_att(self, att: TFloat):
         """Set digital step attenuator in SI units.
 
-        This method will write the attenuator settings of the channel
-        (Urukul proto_rev 0x08, all four channels will be updated at same time).
+        This method will write the attenuator settings of this channel
+        (For Urukul proto_rev 0x08, all four channels will be updated at same time).
         See also
         :meth:`CPLD.get_channel_att <artiq.coredevice.urukul.CPLD.set_att>`.
 
