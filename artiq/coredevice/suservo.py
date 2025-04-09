@@ -114,8 +114,8 @@ class SUServo:
             dds = self.ddses[i]
 
             cpld.init(blind=True)
-            prev_cpld_cfg = cpld.cfg_reg
-            cpld.cfg_write(prev_cpld_cfg | (0xf << urukul.CFG_MASK_NU))
+            prev_cpld_cfg = int64(cpld.cfg_reg)
+            cpld.cfg_mask_nu_all(0xF)
             dds.init(blind=True)
             cpld.cfg_write(prev_cpld_cfg)
 

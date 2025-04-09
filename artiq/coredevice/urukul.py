@@ -152,7 +152,7 @@ class CPLDVersion:
 
     @abstractmethod
     @kernel
-    def init(self, cpld):
+    def init(self, cpld, blind):
         pass
 
     @abstractmethod
@@ -264,7 +264,7 @@ class ProtoRev8(CPLDVersion):
         )
 
     @kernel
-    def cfg_write(self, cpld, cfg: TInt32):
+    def cfg_write(self, cpld, cfg: TInt64):
         """Write to the configuration register.
 
         See :func:`urukul_cfg` for possible flags.
@@ -273,8 +273,8 @@ class ProtoRev8(CPLDVersion):
             :attr:`cfg_reg`.
         """
         cpld.bus.set_config_mu(SPI_CONFIG | spi.SPI_END, 24, SPIT_CFG_WR, CS_CFG)
-        cpld.bus.write(cfg << 8)
-        cpld.cfg_reg = cfg
+        cpld.bus.write(int32(cfg) << 8)
+        cpld.cfg_reg = int64(cfg)
 
     @kernel
     def sta_read(self, cpld) -> TInt32:
@@ -297,13 +297,13 @@ class ProtoRev8(CPLDVersion):
         return cpld.bus.read()
 
     @kernel
-    def init(self, cpld):
+    def init(self, cpld, blind):
         """Initialize Urukul with ProtoRev8.
 
         Resets the DDS I/O interface.
         Does not pulse the DDS ``MASTER_RESET`` as that confuses the AD9910.
         """
-        if urukul_sta_proto_rev(self.sta_read(cpld)) != STA_PROTO_REV_8:
+        if not blind and urukul_sta_proto_rev(self.sta_read(cpld)) != STA_PROTO_REV_8:
             raise ValueError("Urukul proto_rev mismatch")
         cfg = cpld.cfg_reg
         # Don't pulse MASTER_RESET (m-labs/artiq#940)
@@ -447,7 +447,7 @@ class ProtoRev9(CPLDVersion):
         cpld.bus.write(((cfg >> 28) & 0xFFFFFF) << 8)
         cpld.bus.set_config_mu(SPI_CONFIG | spi.SPI_END, 28, SPIT_CFG_WR, CS_CFG)
         cpld.bus.write((cfg & 0xFFFFFFF) << 4)
-        cpld.cfg_reg = cfg
+        cpld.cfg_reg = int64(cfg)
 
     @kernel
     def sta_read(self, cpld) -> TInt32:
@@ -473,13 +473,13 @@ class ProtoRev9(CPLDVersion):
         return cpld.bus.read()
 
     @kernel
-    def init(self, cpld):
+    def init(self, cpld, blind):
         """Initialize Urukul with ProtoRev9.
 
         Resets the DDS I/O interface.
         Does not pulse the DDS ``MASTER_RESET`` as that confuses the AD9910.
         """
-        if urukul_sta_proto_rev(self.sta_read(cpld)) != STA_PROTO_REV_9:
+        if not blind and urukul_sta_proto_rev(self.sta_read(cpld))!= STA_PROTO_REV_9:
             raise ValueError("Urukul proto_rev mismatch")
         cfg = cpld.cfg_reg
         # Don't pulse MASTER_RESET (m-labs/artiq#940)
@@ -698,7 +698,7 @@ class CPLD:
             raise ValueError(f"Urukul unsupported proto_rev: {proto_rev}")
 
         if self.proto_rev == STA_PROTO_REV_8:
-            self.cfg_reg = ProtoRev8.urukul_cfg(
+            self.cfg_reg = int64(ProtoRev8.urukul_cfg(
                 rf_sw=rf_sw,
                 led=0,
                 profile=DEFAULT_PROFILE,
@@ -709,9 +709,9 @@ class CPLD:
                 rst=0,
                 io_rst=0,
                 clk_div=clk_div,
-            )
+            ))
         else:
-            self.cfg_reg = ProtoRev9.urukul_cfg(
+            self.cfg_reg = int64(ProtoRev9.urukul_cfg(
                 rf_sw=rf_sw,
                 led=0,
                 profile=(DEFAULT_PROFILE << 9)
@@ -729,21 +729,21 @@ class CPLD:
                 io_rst=0,
                 clk_div=clk_div,
                 att_en=0,
-            )
+            ))
         self.att_reg = int32(int64(att))
         self.sync_div = sync_div
 
     @kernel
     def cfg_write(self, cfg):
-        self.version.cfg_write(self, cfg)
+        self.version.cfg_write(self, int64(cfg))
 
     @kernel
     def sta_read(self):
         return self.version.sta_read(self)
 
     @kernel
-    def init(self):
-        self.version.init(self)
+    def init(self, blind=False):
+        self.version.init(self, blind)
 
     @kernel
     def io_rst(self):
