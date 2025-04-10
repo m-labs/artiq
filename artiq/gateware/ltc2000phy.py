@@ -5,10 +5,30 @@ from misoc.interconnect.csr import *
 
 class Ltc2000phy(Module, AutoCSR):
     def __init__(self, pads):
-        self.data_in = Signal(16*2*6) # 16 bits per channel, 2 channels, 6 samples per clock cycle, data coming in at sys2x rate => for 100 MHz sysclk we get 200 MHz * 2 * 6 = 2.4 Gbps
+        self.data = Signal(16*24) # 16 bits per channel, 24 phases input at sys clock rate
         self.reset = Signal()
 
         ###
+
+        data_in = Signal(16*2*6) # 16 bits per channel, 2 channels, 6 samples per clock cycle, data coming in at sys2x rate => for 100 MHz sysclk we get 200 MHz * 2 * 6 = 2.4 Gbps
+        counter = Signal()
+
+        data_reg = Signal(16*2*6)
+
+        # First stage: Load data into register, swapping halves
+        self.sync.sys2x += [
+            If(~counter,
+                data_reg.eq(self.data[16*2*6:])  # Load second half first
+            ).Else(
+                data_reg.eq(self.data[:16*2*6])  # Load first half second
+            ),
+            counter.eq(~counter)
+        ]
+
+        # Second stage: Assign registered data to data_in
+        self.sync.sys2x += [
+            data_in.eq(data_reg)
+        ]
 
         dac_clk_se = Signal()
         dac_data_se = Signal(16)
@@ -45,9 +65,9 @@ class Ltc2000phy(Module, AutoCSR):
                     i_OCE=1,
                     i_RST=self.reset,
                     i_CLK=ClockSignal("sys6x"), i_CLKDIV=ClockSignal("sys2x"),
-                    i_D1=self.data_in[0*16 + i], i_D2=self.data_in[2*16 + i],
-                    i_D3=self.data_in[4*16 + i], i_D4=self.data_in[6*16 + i],
-                    i_D5=self.data_in[8*16 + i], i_D6=self.data_in[10*16 + i]
+                    i_D1=data_in[0*16 + i], i_D2=data_in[2*16 + i],
+                    i_D3=data_in[4*16 + i], i_D4=data_in[6*16 + i],
+                    i_D5=data_in[8*16 + i], i_D6=data_in[10*16 + i]
                 ),
                 Instance("OBUFDS",
                     i_I=dac_data_se[i],
@@ -63,9 +83,9 @@ class Ltc2000phy(Module, AutoCSR):
                     i_OCE=1,
                     i_RST=self.reset,
                     i_CLK=ClockSignal("sys6x"), i_CLKDIV=ClockSignal("sys2x"),
-                    i_D1=self.data_in[1*16 + i], i_D2=self.data_in[3*16 + i],
-                    i_D3=self.data_in[5*16 + i], i_D4=self.data_in[7*16 + i],
-                    i_D5=self.data_in[9*16 + i], i_D6=self.data_in[11*16 + i]
+                    i_D1=data_in[1*16 + i], i_D2=data_in[3*16 + i],
+                    i_D3=data_in[5*16 + i], i_D4=data_in[7*16 + i],
+                    i_D5=data_in[9*16 + i], i_D6=data_in[11*16 + i]
                 ),
                 Instance("OBUFDS",
                     i_I=dac_datb_se[i],
