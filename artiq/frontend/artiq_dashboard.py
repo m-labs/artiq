@@ -14,6 +14,7 @@ from sipyco.pc_rpc import AsyncioClient, Client
 from sipyco.broadcast import Receiver
 from sipyco import common_args
 from sipyco.asyncio_tools import atexit_register_coroutine
+from sipyco.tools import SimpleSSLConfig
 from sipyco.sync_struct import Subscriber
 
 from artiq import __artiq_dir__ as artiq_dir, __version__ as artiq_version
@@ -42,6 +43,13 @@ def get_argparser():
     parser.add_argument(
         "--port-broadcast", default=1067, type=int,
         help="TCP port to connect to for broadcasts (default: %(default)s)")
+    parser.add_argument(
+        "--ssl", nargs=3, metavar=('CERT', 'KEY', 'PEER'), default=None,
+        help="Enable SSL authentication: "
+             "CERT: client certificate file, "
+             "KEY: client private key, "
+             "PEER: server certificate to trust "
+             "(default: %(default)s)")
     parser.add_argument(
         "--db-file", default=None,
         help="database file for local GUI settings (default: %(default)s)")
@@ -133,6 +141,12 @@ def main():
                                     server=args.server.replace(":", "."),
                                     port=args.port_notify))
 
+    ssl_config = None
+    if args.ssl:
+        ssl_config = SimpleSSLConfig(local_cert=args.ssl[0],
+                                     local_key=args.ssl[1],
+                                     peer_cert=args.ssl[2])
+
     forced_platform = []
     if (QtGui.QGuiApplication.platformName() == "wayland" and
             not os.getenv("QT_QPA_PLATFORM")):
@@ -149,11 +163,11 @@ def main():
     for target in "schedule", "experiment_db", "dataset_db", "device_db", "interactive_arg_db":
         client = AsyncioClient()
         loop.run_until_complete(client.connect_rpc(
-            args.server, args.port_control, target))
+            args.server, args.port_control, target, ssl_config=ssl_config))
         atexit.register(client.close_rpc)
         rpc_clients[target] = client
 
-    master_management = Client(args.server, args.port_control, "master_management")
+    master_management = Client(args.server, args.port_control, "master_management", ssl_config=ssl_config)
     try:
         server_name = master_management.get_name()
     finally:
@@ -176,7 +190,7 @@ def main():
                                   ("interactive_args", interactive_args.Model)):
         subscriber = ModelSubscriber(notifier_name, modelf, report_disconnect)
         loop.run_until_complete(subscriber.connect(
-            args.server, args.port_notify))
+            args.server, args.port_notify, ssl_config=ssl_config))
         atexit_register_coroutine(subscriber.close, loop=loop)
         sub_clients[notifier_name] = subscriber
 
@@ -184,7 +198,7 @@ def main():
     for target in "log", "ccb":
         client = Receiver(target, [], report_disconnect)
         loop.run_until_complete(client.connect(
-            args.server, args.port_broadcast))
+            args.server, args.port_broadcast, ssl_config=ssl_config))
         atexit_register_coroutine(client.close, loop=loop)
         broadcast_clients[target] = client
 
