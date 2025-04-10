@@ -93,19 +93,6 @@ def process_header(output, description):
                 "module": "artiq.coredevice.dma",
                 "class": "CoreDMA"
             }},
-
-            "i2c_switch0": {{
-                "type": "local",
-                "module": "artiq.coredevice.i2c",
-                "class": "I2CSwitch",
-                "arguments": {{"address": 0xe0}}
-            }},
-            "i2c_switch1": {{
-                "type": "local",
-                "module": "artiq.coredevice.i2c",
-                "class": "I2CSwitch",
-                "arguments": {{"address": 0xe2}}
-            }},
         }}
         """).format(
             variant=description["variant"],
@@ -211,19 +198,38 @@ class PeripheralManager:
         urukul_name = self.get_name("urukul")
         synchronization = peripheral["synchronization"]
         channel = count(0)
+        busno = (rtio_offset & 0xFF0000)
         pll_en = peripheral["pll_en"]
         clk_div = peripheral.get("clk_div")
         if clk_div is None:
             clk_div = 0 if pll_en else 1
 
         self.gen("""
+            device_db["i2c_sw0_{name}"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.i2c",
+                "class": "I2CSwitch",
+                "arguments": {{"address": 0xe0, "busno": {busno}}}
+            }}
+            device_db["i2c_sw1_{name}"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.i2c",
+                "class": "I2CSwitch",
+                "arguments": {{"address": 0xe2, "busno": {busno}}}
+            }}""",
+            name=urukul_name,
+            busno=busno)
+        self.gen("""
             device_db["eeprom_{name}"] = {{
                 "type": "local",
                 "module": "artiq.coredevice.kasli_i2c",
                 "class": "KasliEEPROM",
-                "arguments": {{"port": "EEM{eem}"}}
-            }}
-
+                "arguments": {{
+                    "port": "EEM{eem}",
+                    "busno": {busno},
+                    "sw0_device": "i2c_sw0_{name}",
+                    "sw1_device": "i2c_sw1_{name}"}}
+                }}
             device_db["spi_{name}"] = {{
                 "type": "local",
                 "module": "artiq.coredevice.spi2",
@@ -232,6 +238,7 @@ class PeripheralManager:
             }}""",
             name=urukul_name,
             eem=peripheral["ports"][0],
+            busno=busno,
             channel=rtio_offset+next(channel))
         if synchronization:
             self.gen("""
