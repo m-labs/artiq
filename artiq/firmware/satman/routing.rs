@@ -4,8 +4,8 @@ use board_artiq::{drtioaux, drtio_routing};
 use board_misoc::csr;
 use core::cmp::min;
 use proto_artiq::drtioaux_proto::PayloadStatus;
-use SAT_PAYLOAD_MAX_SIZE;
-use MASTER_PAYLOAD_MAX_SIZE;
+use proto_artiq::drtioaux_proto::SAT_PAYLOAD_MAX_SIZE;
+use proto_artiq::drtioaux_proto::MASTER_PAYLOAD_MAX_SIZE;
 
 /* represents data that has to be sent with the aux protocol */
 #[derive(Debug)]
@@ -30,7 +30,7 @@ macro_rules! get_slice_fn {
             let status = PayloadStatus::from_status(first, last);
             data_slice[..len].clone_from_slice(&self.data[self.it..self.it+len]);
             self.it += len;
-    
+
             SliceMeta {
                 destination: self.destination,
                 len: len as u16,
@@ -71,7 +71,7 @@ impl Sliceable {
 // from both master and satellite, e.g. DDMA and Subkernel.
 
 pub struct Router {
-    upstream_queue: VecDeque<drtioaux::Packet>, 
+    upstream_queue: VecDeque<drtioaux::Packet>,
     local_queue: VecDeque<drtioaux::Packet>,
     #[cfg(has_drtio_routing)]
     downstream_queue: VecDeque<(usize, drtioaux::Packet)>,
