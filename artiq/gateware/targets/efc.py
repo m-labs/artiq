@@ -18,7 +18,7 @@ from artiq.gateware.drtio.transceiver import eem_serdes
 from artiq.gateware.drtio.rx_synchronizer import NoRXSynchronizer
 from artiq.gateware.drtio import *
 from artiq.gateware.shuttler import Shuttler
-from artiq.gateware.targets.ltc2000 import LTC2000DDSModule
+from artiq.gateware.targets.ltc2000 import LTC2000
 from artiq.build_soc import *
 
 ltc2000_pads = [
@@ -280,10 +280,11 @@ class Satellite(BaseSoC, AMPSoC):
             print("LTC2000 DAC SPI at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
             self.rtio_channels.append(rtio.Channel.from_phy(ltc2000_spi_phy))
 
-            ltc2000_dds = LTC2000DDSModule(self.platform, ltc2000_pads)
-            self.submodules += ltc2000_dds
-            print("LTC2000 DAC at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
-            self.rtio_channels.append(rtio.Channel.from_phy(ltc2000_dds))
+            self.submodules.ltc2000_dds = LTC2000(self.platform, ltc2000_pads)
+
+            for phy in self.ltc2000_dds.phys:
+                print("LTC2000 {} at RTIO channel 0x{:06x}".format(phy.name, len(self.rtio_channels)))
+                self.rtio_channels.append(rtio.Channel.from_phy(phy))
 
             self.clock_domains.cd_sys2x = ClockDomain(reset_less=True)
             self.clock_domains.cd_sys6x = ClockDomain(reset_less=True)
@@ -331,7 +332,7 @@ class Satellite(BaseSoC, AMPSoC):
 
         # satellite (master-controlled) RTIO
         self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels, lane_count=sed_lanes)
-        self.comb += [ 
+        self.comb += [
             self.drtiosat.async_errors.eq(self.local_io.async_errors),
             self.local_io.sed_spread_enable.eq(self.drtiosat.sed_spread_enable.storage)
         ]
@@ -361,7 +362,7 @@ def main():
     builder_args(parser)
     parser.set_defaults(output_dir="artiq_efc")
     parser.add_argument("-V", "--variant", default="shuttler")
-    parser.add_argument("--efc-hw-rev", choices=["v1.0", "v1.1"], default="v1.1", 
+    parser.add_argument("--efc-hw-rev", choices=["v1.0", "v1.1"], default="v1.1",
                         help="EFC hardware revision")
     parser.add_argument("--afe-hw-rev", choices=["v1.0", "v1.1", "v1.2", "v1.3"],
                         default="v1.3", help="AFE hardware revision")

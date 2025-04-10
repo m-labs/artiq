@@ -1,0 +1,267 @@
+[
+  {
+    "name": "Basic Linear Ramp",
+    "description": "Linear amplitude increase +2 per cycle with 32-bit damp",
+    "cycles": 50,
+    "shift": 0,
+    "coefficients": {
+      "amp": 1000,
+      "damp": 131072,
+      "ddamp": 0,
+      "dddamp": 0,
+      "phase_offset": 0,
+      "ftw": 0,
+      "chirp": 0
+    },
+    "validation": {
+      "final_amplitude": 1098,
+      "amplitude_tolerance": 2,
+      "monotonic": "non_decreasing",
+      "check_updates": true
+    },
+    "output": {
+      "detailed": true,
+      "save_csv": true
+    }
+  },
+  {
+    "name": "Fast Linear Ramp",
+    "description": "Fast linear increase +10 per cycle",
+    "cycles": 20,
+    "shift": 0,
+    "coefficients": {
+      "amp": 500,
+      "damp": 655360,
+      "ddamp": 0,
+      "dddamp": 0,
+      "phase_offset": 0,
+      "ftw": 0,
+      "chirp": 0
+    },
+    "validation": {
+      "final_amplitude": 690,
+      "amplitude_tolerance": 2,
+      "monotonic": "non_decreasing",
+      "check_updates": true
+    }
+  },
+  {
+    "name": "Quadratic Growth with Shift",
+    "description": "Quadratic amplitude increase, updates every 4 cycles",
+    "cycles": 100,
+    "shift": 2,
+    "coefficients": {
+      "amp": 500,
+      "damp": 65536,
+      "ddamp": 500000000,
+      "dddamp": 0,
+      "phase_offset": 0,
+      "ftw": 0,
+      "chirp": 0
+    },
+    "validation": {
+      "final_amplitude": 559,
+      "amplitude_tolerance": 5,
+      "monotonic": "non_decreasing",
+      "check_updates": true
+    }
+  },
+  {
+    "name": "Cubic Polynomial",
+    "description": "Full cubic polynomial with all derivatives",
+    "cycles": 80,
+    "shift": 1,
+    "coefficients": {
+      "amp": 2000,
+      "damp": 131072,
+      "ddamp": 300000000,
+      "dddamp": 15000000,
+      "phase_offset": 0,
+      "ftw": 0,
+      "chirp": 0
+    },
+    "validation": {
+      "final_amplitude": 2156,
+      "amplitude_tolerance": 10,
+      "monotonic": "non_decreasing",
+      "check_updates": true
+    }
+  },
+  {
+    "name": "High Shift Test",
+    "description": "Test shift=4 (updates every 16 cycles) with +5 per update",
+    "cycles": 200,
+    "shift": 4,
+    "coefficients": {
+      "amp": 10000,
+      "damp": 327680,
+      "ddamp": 0,
+      "dddamp": 0,
+      "phase_offset": 0,
+      "ftw": 0,
+      "chirp": 0
+    },
+    "validation": {
+      "final_amplitude": 10062,
+      "amplitude_tolerance": 3,
+      "monotonic": "non_decreasing",
+      "check_updates": true
+    }
+  },
+  {
+    "name": "Phase and Frequency Test",
+    "description": "Test with phase offset and frequency components (constant amplitude)",
+    "cycles": 60,
+    "shift": 0,
+    "coefficients": {
+      "amp": 8000,
+      "damp": 0,
+      "ddamp": 0,
+      "dddamp": 0,
+      "phase_offset": 1000,
+      "ftw": 500,
+      "chirp": 10
+    },
+    "validation": {
+      "final_amplitude": 8000,
+      "amplitude_tolerance": 1,
+      "check_updates": true
+    }
+  },
+  {
+    "name": "Decreasing Amplitude",
+    "description": "Test decreasing amplitude -3 per cycle",
+    "cycles": 40,
+    "shift": 0,
+    "coefficients": {
+      "amp": 15000,
+      "damp": -196608,
+      "ddamp": 0,
+      "dddamp": 0,
+      "phase_offset": 0,
+      "ftw": 0,
+      "chirp": 0
+    },
+    "validation": {
+      "final_amplitude": 15000,
+      "amplitude_tolerance": 2,
+      "check_updates": false
+    }
+  },
+  {
+    "name": "Zero Start Acceleration",
+    "description": "Start from zero with quadratic acceleration",
+    "cycles": 60,
+    "shift": 0,
+    "coefficients": {
+      "amp": 0,
+      "damp": 0,
+      "ddamp": 250000000,
+      "dddamp": 0,
+      "phase_offset": 0,
+      "ftw": 0,
+      "chirp": 0
+    },
+    "validation": {
+      "final_amplitude": 103,
+      "amplitude_tolerance": 5,
+      "monotonic": "non_decreasing",
+      "check_updates": true
+    }
+  },
+  {
+    "name": "Complex Polynomial",
+    "description": "Complex polynomial with all derivatives and phase/frequency",
+    "cycles": 120,
+    "shift": 3,
+    "coefficients": {
+      "amp": 5000,
+      "damp": 98304,
+      "ddamp": -32768,
+      "dddamp": 8192,
+      "phase_offset": 500,
+      "ftw": 1000,
+      "chirp": 5
+    },
+    "validation": {
+      "final_amplitude": 5000,
+      "amplitude_tolerance": 5,
+      "check_updates": false
+    }
+  },
+  {
+    "name": "Maximum Rate Test",
+    "description": "Test very high rate (+100 per cycle)",
+    "cycles": 10,
+    "shift": 0,
+    "coefficients": {
+      "amp": 1000,
+      "damp": 6553600,
+      "ddamp": 0,
+      "dddamp": 0,
+      "phase_offset": 0,
+      "ftw": 0,
+      "chirp": 0
+    },
+    "validation": {
+      "final_amplitude": 1900,
+      "amplitude_tolerance": 5,
+      "monotonic": "non_decreasing",
+      "check_updates": true
+    }
+  },
+  {
+      "name": "18-Bit Phase Resolution Demonstration",
+      "description": "Proves that phase resolution is now 18 bits instead of 4 bits",
+      "cycles": 20,
+      "shift": 0,
+      "coefficients": {
+          "amp": 5000,
+          "damp": 0,
+          "ddamp": 0,
+          "dddamp": 0,
+          "phase_offset": 200000,
+          "ftw": 0,
+          "chirp": 0
+      },
+      "validation": {
+          "check_updates": true,
+          "final_ptw": 200000,
+          "ptw_tolerance": 0
+      }
+  },
+  {
+      "name": "Phase Value Near 16-Bit Boundary",
+      "description": "Test phase value that would overflow 16-bit representation",
+      "cycles": 15,
+      "shift": 0,
+      "coefficients": {
+          "amp": 3000,
+          "damp": 0,
+          "phase_offset": 65540,
+          "ftw": 0,
+          "chirp": 0
+      },
+      "validation": {
+          "check_updates": true,
+          "final_ptw": 65540
+      }
+  },
+  {
+      "name": "Maximum 18-Bit Phase Value",
+      "description": "Test the maximum possible 18-bit phase value",
+      "cycles": 10,
+      "shift": 0,
+      "coefficients": {
+          "amp": 1000,
+          "damp": 0,
+          "phase_offset": 262143,
+          "ftw": 0,
+          "chirp": 0
+      },
+      "validation": {
+          "check_updates": true,
+          "final_ptw": 262143
+      }
+  }
+]
