@@ -43,12 +43,13 @@ impl EEPROM {
         let read_result = i2c::write(self.busno, self.address)
             .and_then( |_| i2c::write(self.busno, addr))
             .and_then( |_| i2c::restart(self.busno))
-            .and_then( |_| i2c::write(self.busno, self.address | 1))?;
+            .and_then( |_| i2c::write(self.busno, self.address | 1))
             .and_then( |_| {
                 let buf_len = buf.len();
                 for (i, byte) in buf.iter_mut().enumerate() {
                     *byte = i2c::read(self.busno, i < buf_len - 1)?;
                 }
+                Ok(())
             });
 
         let stop_result = i2c::stop(self.busno);
