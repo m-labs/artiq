@@ -303,8 +303,9 @@ class PixelUnpacker(Module):
 
         sink_cases = {}
         for i in range(ring_buf_size//sink_dw):
+            byte = [self.sink.data[i * 8 : (i + 1) * 8] for i in range(sink_dw // 8)]
             sink_cases[i] = [
-                ring_buf[sink_dw*i:sink_dw*(i+1)].eq(self.sink.data),
+                ring_buf[sink_dw*i:sink_dw*(i+1)].eq(Cat([b[::-1] for b in byte])),
             ]
         self.sync += If(self.sink.stb, Case(w_cnt, sink_cases))
 
@@ -314,7 +315,7 @@ class PixelUnpacker(Module):
             for j in range(4):
                 source_cases[i].append(
                     self.source.data[max_pixel_width * j : max_pixel_width * (j + 1)].eq(
-                        ring_buf[(source_dw * i) + (size * j) : (source_dw * i) + (size * (j + 1))]
+                        ring_buf[(source_dw * i) + (size * j) : (source_dw * i) + (size * (j + 1))][::-1]
                     )
                 )
 
@@ -403,7 +404,10 @@ class PixelCoordinateTracker(Module):
                     pix.x.eq(x_r),
                     pix.y.eq(y_r),
                     pix.gray.eq(self.sink.data[max_pixel_width*i:max_pixel_width*(i+1)]),
-                )
+                ),
+                If(pix.eof,
+                    pix.y.eq(self.y_size),
+                ),
             ]
 
 

@@ -151,11 +151,12 @@ impl IoExpander {
 
     fn write(&self, addr: u8, value: u8) -> Result<(), i2c::Error> {
         i2c::start(self.busno)?;
-        i2c::write(self.busno, self.address)?;
-        i2c::write(self.busno, addr)?;
-        i2c::write(self.busno, value)?;
-        i2c::stop(self.busno)?;
-        Ok(())
+        let write_result = i2c::write(self.busno, self.address)
+            .and_then( |_| i2c::write(self.busno, addr))
+            .and_then( |_| i2c::write(self.busno, value));
+
+        let stop_result = i2c::stop(self.busno);
+        write_result.and(stop_result)
     }
 
     fn check_ack(&self) -> Result<bool, i2c::Error> {
