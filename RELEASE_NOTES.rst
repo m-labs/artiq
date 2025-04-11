@@ -32,6 +32,16 @@ ARTIQ-9 (Unreleased)
 * Python 3.12 support.
 * The Zadig driver installer was added to the MSYS2 offline installer.
 * ``artiq.coredevice.fmcdio_vhdci_eem`` has been removed.
+* ``artiq.coredevice.urukul``, ``artiq.coredevice.ad9910``, and ``artiq.coredevice.ad9912``
+  have been updated for new Urukul capabilities:
+   - Digital Ramp Generation (DRG)
+   - Individual DDS Channel control:
+      * PROFILE
+      * IO_UPDATE
+      * OSK
+      * DRCTRL
+      * DRHOLD
+      * ATT_EN
 
 ARTIQ-8
 -------

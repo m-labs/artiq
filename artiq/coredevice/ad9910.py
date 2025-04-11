@@ -1,13 +1,11 @@
 from numpy import int32, int64
 
-from artiq.language.core import (
-    kernel, delay, portable, delay_mu, now_mu, at_mu)
-from artiq.language.units import us, ms
-from artiq.language.types import TBool, TInt32, TInt64, TFloat, TList, TTuple
-
 from artiq.coredevice import spi2 as spi
 from artiq.coredevice import urukul
-from artiq.coredevice.urukul import DEFAULT_PROFILE
+from artiq.coredevice.urukul import DEFAULT_PROFILE, _RegIOUpdate
+from artiq.language.core import at_mu, delay, delay_mu, kernel, now_mu, portable
+from artiq.language.types import TBool, TFloat, TInt32, TInt64, TList, TTuple
+from artiq.language.units import ms, us
 
 # Work around ARTIQ-Python import machinery
 urukul_sta_pll_lock = urukul.urukul_sta_pll_lock
@@ -174,8 +172,12 @@ class AD9910:
         self.sysclk_per_mu = int(round(sysclk * self.core.ref_period))
         self.sysclk = sysclk
 
-        if isinstance(sync_delay_seed, str) or isinstance(io_update_delay,
-                                                          str):
+        if not self.cpld.io_update:
+            self.io_update = _RegIOUpdate(self.cpld, self.chip_select)
+        else:
+            self.io_update = self.cpld.io_update
+
+        if isinstance(sync_delay_seed, str) or isinstance(io_update_delay, str):
             if sync_delay_seed != io_update_delay:
                 raise ValueError("When using EEPROM, sync_delay_seed must be "
                                  "equal to io_update_delay")
@@ -425,7 +427,10 @@ class AD9910:
     @kernel
     def set_cfr2(self, 
                  asf_profile_enable: TInt32 = 1, 
+                 drg_destination: TInt32 = 0,
                  drg_enable: TInt32 = 0, 
+                 drg_nodwell_high: TInt32 = 0,
+                 drg_nodwell_low: TInt32 = 0,
                  effective_ftw: TInt32 = 1,
                  sync_validation_disable: TInt32 = 0, 
                  matched_latency_enable: TInt32 = 0):
@@ -434,19 +439,27 @@ class AD9910:
         This method does not pulse ``IO_UPDATE``.
 
         :param asf_profile_enable: Enable amplitude scale from single tone profiles.
+        :param drg_destination: Digital ramp destination. Determines the parameter to modulate:
+            * 0: Frequency
+            * 1: Phase
+            * 2: Amplitude
         :param drg_enable: Digital ramp enable.
+        :param drg_nodwell_high: Digital ramp no-dwell high.
+        :param drg_nodwell_low: Digital ramp no-dwell low.
         :param effective_ftw: Read effective FTW.
         :param sync_validation_disable: Disable the SYNC_SMP_ERR pin indicating
             (active high) detection of a synchronization pulse sampling error.
-        :param matched_latency_enable: Simultaneous application of amplitude,
-            phase, and frequency changes to the DDS arrive at the output
-
-            * matched_latency_enable = 0: in the order listed
-            * matched_latency_enable = 1: simultaneously.
+        :param matched_latency_enable: Control the application timing of amplitude,
+            phase, and frequency changes at the DDS output:
+            * 0: Changes are applied in the order listed.
+            * 1: Changes are applied simultaneously.
         """
         self.write32(_AD9910_REG_CFR2,
                      (asf_profile_enable << 24) |
+                     (drg_destination << 20) |
                      (drg_enable << 19) |
+                     (drg_nodwell_high << 18) |
+                     (drg_nodwell_low << 17) |
                      (effective_ftw << 16) |
                      (matched_latency_enable << 7) |
                      (sync_validation_disable << 5))
@@ -471,7 +484,7 @@ class AD9910:
 
         # Set SPI mode
         self.set_cfr1()
-        self.cpld.io_update.pulse(1 * us)
+        self.io_update.pulse(1 * ms)
         delay(1 * ms)
         if not blind:
             # Use the AUX DAC setting to identify and confirm presence
@@ -484,15 +497,15 @@ class AD9910:
         # read effective FTW
         # sync timing validation disable (enabled later)
         self.set_cfr2(sync_validation_disable=1)
-        self.cpld.io_update.pulse(1 * us)
+        self.io_update.pulse(1 * ms)
         cfr3 = (0x0807c000 | (self.pll_vco << 24) |
                 (self.pll_cp << 19) | (self.pll_en << 8) |
                 (self.pll_n << 1))
         self.write32(_AD9910_REG_CFR3, cfr3 | 0x400)  # PFD reset
-        self.cpld.io_update.pulse(1 * us)
+        self.io_update.pulse(1 * us)
         if self.pll_en:
             self.write32(_AD9910_REG_CFR3, cfr3)
-            self.cpld.io_update.pulse(1 * us)
+            self.io_update.pulse(1 * ms)
             if blind:
                 delay(100 * ms)
             else:
@@ -509,6 +522,9 @@ class AD9910:
         if self.sync_data.sync_delay_seed >= 0 and not blind:
             self.tune_sync_delay(self.sync_data.sync_delay_seed)
         delay(1 * ms)
+        # FIXME: Re-write the configuration (needed for proper
+        # initialization when using _RegIOUpdate).
+        self.cpld.cfg_write(self.cpld.cfg_reg)
 
     @kernel
     def power_down(self, bits: TInt32 = 0b1111):
@@ -517,7 +533,7 @@ class AD9910:
         :param bits: Power-down bits, see datasheet
         """
         self.set_cfr1(power_down=bits)
-        self.cpld.io_update.pulse(1 * us)
+        self.io_update.pulse(1 * us)
 
     @kernel
     def set_mu(self, ftw: TInt32 = 0, pow_: TInt32 = 0, asf: TInt32 = 0x3fff,
@@ -593,7 +609,7 @@ class AD9910:
                 if not ram_destination == RAM_DEST_POW:
                     self.set_pow(pow_)
         delay_mu(int64(self.sync_data.io_update_delay))
-        self.cpld.io_update.pulse_mu(8)  # assumes 8 mu > t_SYN_CCLK
+        self.io_update.pulse_mu(8)  # assumes 8 mu > t_SYN_CCLK
         at_mu(now_mu() & ~7)  # clear fine TSC again
         if phase_mode != PHASE_MODE_CONTINUOUS:
             self.set_cfr1()
@@ -895,7 +911,9 @@ class AD9910:
     def set_att_mu(self, att: TInt32):
         """Set digital step attenuator in machine units.
 
-        This method will write the attenuator settings of all four channels. See also
+        This method will write the attenuator settings of this channel
+        (For Urukul proto_rev 0x08, all four channels will be updated at same time).
+        See also
         :meth:`CPLD.get_channel_att <artiq.coredevice.urukul.CPLD.set_att_mu>`.
 
         :param att: Attenuation setting, 8-bit digital.
@@ -906,7 +924,9 @@ class AD9910:
     def set_att(self, att: TFloat):
         """Set digital step attenuator in SI units.
 
-        This method will write the attenuator settings of all four channels. See also 
+        This method will write the attenuator settings of this channel
+        (For Urukul proto_rev 0x08, all four channels will be updated at same time).
+        See also
         :meth:`CPLD.get_channel_att <artiq.coredevice.urukul.CPLD.set_att>`.
 
         :param att: Attenuation in dB.
@@ -934,12 +954,52 @@ class AD9910:
     @kernel
     def cfg_sw(self, state: TBool):
         """Set CPLD CFG RF switch state. The RF switch is controlled by the
-        logical or of the CPLD configuration shift register
+        logical OR of the CPLD configuration shift register
         RF switch bit and the SW TTL line (if used).
 
         :param state: CPLD CFG RF switch bit
         """
         self.cpld.cfg_sw(self.chip_select - 4, state)
+
+    @kernel
+    def cfg_osk(self, state: TBool):
+        """Set CPLD CFG OSK state.
+
+        :param state: CPLD CFG OSK bit
+        """
+        self.cpld.cfg_osk(self.chip_select - 4, state)
+
+    @kernel
+    def cfg_drctl(self, state: TBool):
+        """Set CPLD CFG DRCTL state.
+
+        :param state: CPLD CFG DRCTL bit
+        """
+        self.cpld.cfg_drctl(self.chip_select - 4, state)
+
+    @kernel
+    def cfg_drhold(self, state: TBool):
+        """Set CPLD CFG DRHOLD state.
+
+        :param state: CPLD CFG DRHOLD bit
+        """
+        self.cpld.cfg_drhold(self.chip_select - 4, state)
+
+    @kernel
+    def cfg_mask_nu(self, state: TBool):
+        """Set CPLD CFG MASK_NU state.
+
+        :param state: CPLD CFG MASK_NU bit
+        """
+        self.cpld.cfg_mask_nu(self.chip_select - 4, state)
+
+    @kernel
+    def cfg_att_en(self, state: TBool):
+        """Set CPLD CFG ATT_EN state.
+
+        :param state: CPLD CFG ATT_EN bit
+        """
+        self.cpld.cfg_att_en(self.chip_select - 4, state)
 
     @kernel
     def set_sync(self, 
@@ -978,10 +1038,10 @@ class AD9910:
         Also modifies CFR2.
         """
         self.set_cfr2(sync_validation_disable=1)  # clear SMP_ERR
-        self.cpld.io_update.pulse(1 * us)
+        self.io_update.pulse(1 * us)
         delay(10 * us)  # slack
         self.set_cfr2(sync_validation_disable=0)  # enable SMP_ERR
-        self.cpld.io_update.pulse(1 * us)
+        self.io_update.pulse(1 * us)
 
     @kernel
     def tune_sync_delay(self,
@@ -1069,18 +1129,18 @@ class AD9910:
         t = now_mu() + 8 & ~7
         at_mu(t + delay_start)
         # assumes a maximum t_SYNC_CLK period
-        self.cpld.io_update.pulse_mu(16 - delay_start)  # realign
+        self.io_update.pulse_mu(16 - delay_start)  # realign
         # disable DRG autoclear and LRR on io_update
         self.set_cfr1()
         # stop DRG
         self.write64(_AD9910_REG_RAMP_STEP, 0, 0)
         at_mu(t + 0x1000 + delay_stop)
-        self.cpld.io_update.pulse_mu(16 - delay_stop)  # realign
+        self.io_update.pulse_mu(16 - delay_stop)  # realign
         ftw = self.read32(_AD9910_REG_FTW)  # read out effective FTW
         delay(100 * us)  # slack
         # disable DRG
         self.set_cfr2(drg_enable=0)
-        self.cpld.io_update.pulse_mu(8)
+        self.io_update.pulse_mu(8)
         return ftw & 1
 
     @kernel

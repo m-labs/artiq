@@ -54,6 +54,11 @@ class AD9912:
         assert sysclk <= 1e9
         self.ftw_per_hz = 1 / sysclk * (int64(1) << 48)
 
+        if not self.cpld.io_update:
+            self.io_update = urukul._RegIOUpdate(self.cpld, self.chip_select)
+        else:
+            self.io_update = self.cpld.io_update
+
     @kernel
     def write(self, addr: TInt32, data: TInt32, length: TInt32):
         """Variable length write to a register.
@@ -105,7 +110,7 @@ class AD9912:
         """
         # SPI mode
         self.write(AD9912_SER_CONF, 0x99, length=1)
-        self.cpld.io_update.pulse(2 * us)
+        self.io_update.pulse(2 * us)
         # Verify chip ID and presence
         prodid = self.read(AD9912_PRODIDH, length=2)
         if (prodid != 0x1982) and (prodid != 0x1902):
@@ -114,17 +119,17 @@ class AD9912:
         # HSTL power down, CMOS power down
         pwrcntrl1 = 0x80 | ((~self.pll_en & 1) << 4)
         self.write(AD9912_PWRCNTRL1, pwrcntrl1, length=1)
-        self.cpld.io_update.pulse(2 * us)
+        self.io_update.pulse(2 * us)
         if self.pll_en:
             self.write(AD9912_N_DIV, self.pll_n // 2 - 2, length=1)
-            self.cpld.io_update.pulse(2 * us)
+            self.io_update.pulse(2 * us)
             # I_cp = 375 µA, VCO high range
             if self.cpld.refclk < 11e6:
                 # enable SYSCLK PLL Doubler
                 self.write(AD9912_PLLCFG, 0b00001101, length=1)
             else:
                 self.write(AD9912_PLLCFG, 0b00000101, length=1)
-            self.cpld.io_update.pulse(2 * us)
+            self.io_update.pulse(2 * us)
         delay(1 * ms)
 
     @kernel
@@ -191,7 +196,7 @@ class AD9912:
         self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, 32,
                                urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write(int32(ftw))
-        self.cpld.io_update.pulse(10 * ns)
+        self.io_update.pulse(10 * ns)
 
     @kernel
     def get_mu(self) -> TTuple([TInt64, TInt32]):
@@ -272,9 +277,25 @@ class AD9912:
     @kernel
     def cfg_sw(self, state: TBool):
         """Set CPLD CFG RF switch state. The RF switch is controlled by the
-        logical or of the CPLD configuration shift register
+        logical OR of the CPLD configuration shift register
         RF switch bit and the SW TTL line (if used).
 
         :param state: CPLD CFG RF switch bit
         """
         self.cpld.cfg_sw(self.chip_select - 4, state)
+
+    @kernel
+    def cfg_mask_nu(self, state: TBool):
+        """Set CPLD CFG MASK_NU state.
+
+        :param state: CPLD CFG MASK_NU bit
+        """
+        self.cpld.cfg_mask_nu(self.chip_select - 4, state)
+
+    @kernel
+    def cfg_att_en(self, state: TBool):
+        """Set CPLD CFG ATT_EN state.
+
+        :param state: CPLD CFG ATT_EN bit
+        """
+        self.cpld.cfg_att_en(self.chip_select - 4, state)
