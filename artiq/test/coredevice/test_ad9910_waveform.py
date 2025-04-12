@@ -1,6 +1,5 @@
 from functools import wraps
 
-import artiq.coredevice.spi2 as spi
 from artiq.coredevice.ad9910 import (
     _AD9910_REG_ASF,
     _AD9910_REG_RAMP_LIMIT,
@@ -32,9 +31,9 @@ AMP = 1.0
 ATT = 1.0
 
 # Set to desired devices
-CPLD = "urukul1_cpld"
-DDS1 = "urukul1_ch0"
-DDS2 = "urukul1_ch3"
+CPLD = "urukul_cpld"
+DDS1 = "urukul_ch0"
+DDS2 = "urukul_ch3"
 
 
 def io_update_device(cpld, *required_values, proto_rev=None):
@@ -53,11 +52,12 @@ def io_update_device(cpld, *required_values, proto_rev=None):
         def wrapper(self, *args, **kwargs):
             for required in required_values:
                 with self.subTest(io_update_device=required):
-                    desc = (
-                        self.device_mgr.get_desc(cpld)
-                        if hasattr(self.device_mgr, "get_desc")
-                        else {}
-                    )
+                    try:
+                        desc = self.device_mgr.get_desc(cpld)
+                    except Exception:
+                        self.skipTest(
+                            "Failed to get description of device '{}'".format(cpld)
+                        )
                     io_update_present = "io_update_device" in desc.get("arguments", [])
 
                     if io_update_present != required:
