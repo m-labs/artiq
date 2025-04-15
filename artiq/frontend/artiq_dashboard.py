@@ -84,10 +84,12 @@ class EditableTabBar(QtWidgets.QTabBar):
                 new_name = new_name.strip()
                 tab_widget = self.parent()
                 if isinstance(tab_widget, QtWidgets.QTabWidget):
-                    if tab_name_exists(tab_widget, new_name, ignore_index=index):
+                    if tab_name_exists(tab_widget, new_name,
+                                       ignore_index=index):
                         QtWidgets.QMessageBox.warning(
                             self, "Duplicate Tab Name",
-                            "Another workspace already has that name. Please choose a unique name."
+                            "Another workspace already has that name. "
+                            "Please choose a unique name."
                         )
                         return
                 self.setTabText(index, new_name)
@@ -95,6 +97,7 @@ class EditableTabBar(QtWidgets.QTabBar):
                     mdi_area = tab_widget.widget(index)
                     mdi_area.setTabName(new_name)
         super().mouseDoubleClickEvent(event)
+
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, server):
@@ -127,19 +130,20 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def on_tab_changed(self, index):
         """
-        We want to refresh geometry to properly place minimized windows after resizing
-        from other MDI area.
+        We want to refresh geometry to properly place minimized windows after
+        resizing from other MDI area.
         It causes 2 other issues that are addressed here:
         1. The focus stays on the minimized window.
-        2. If the code below executes, maximized windows get un-maximized - this is not
-            obvious and seems to depend on MDI implementation.
+        2. If the code below executes, maximized windows get un-maximized -
+           this is not obvious and seems to depend on MDI implementation.
         """
         mdi_area = self.tab_widget.widget(index)
         if not mdi_area:
             return
         # Check which subwindow is active
         activeSubWindow = mdi_area.activeSubWindow()
-        # Check if active subwindow is maximized. If not, neither window is maximized
+        # Check if active subwindow is maximized. If not, neither window is
+        # maximized
         wasMaximized = activeSubWindow.isMaximized() if activeSubWindow else False
 
         if isinstance(mdi_area, MdiArea):
