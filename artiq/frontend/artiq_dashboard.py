@@ -122,7 +122,8 @@ class MainWindow(QtWidgets.QMainWindow):
         plus_button.setText("+")
         plus_button.setToolTip("Add new workspace")
         plus_button.clicked.connect(self.new_mdi_area)
-        self.tab_widget.setCornerWidget(plus_button, QtCore.Qt.TopLeftCorner)
+        self.tab_widget.setCornerWidget(plus_button,
+                                        QtCore.Qt.Corner.TopLeftCorner)
 
         self.add_mdi_area("Workspace 1")
 
@@ -263,8 +264,10 @@ class MdiArea(QtWidgets.QMdiArea):
             QtGui.QKeySequence('Ctrl+Shift+C'), self)
         self.cascade.activated.connect(
             lambda: self.cascadeSubWindows())
-        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.setHorizontalScrollBarPolicy(
+                QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setVerticalScrollBarPolicy(
+                QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
     def paintEvent(self, event):
         QtWidgets.QMdiArea.paintEvent(self, event)
