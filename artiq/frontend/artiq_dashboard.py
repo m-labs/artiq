@@ -61,6 +61,44 @@ def get_argparser():
     return parser
 
 
+def tab_name_exists(tab_widget, name, ignore_index=None):
+    for i in range(tab_widget.count()):
+        if ignore_index is not None and i == ignore_index:
+            continue
+        widget = tab_widget.widget(i)
+        if hasattr(widget, "tab_name") and widget.tab_name == name:
+            return True
+    return False
+
+
+class EditableTabBar(QtWidgets.QTabBar):
+    def mouseDoubleClickEvent(self, event):
+        index = self.tabAt(event.pos())
+        if index != -1:
+            current_name = self.tabText(index)
+            new_name, ok = QtWidgets.QInputDialog.getText(
+                self, "Rename Workspace", "Enter a new name:",
+                text=current_name
+            )
+            if ok and new_name.strip():
+                new_name = new_name.strip()
+                tab_widget = self.parent()
+                if isinstance(tab_widget, QtWidgets.QTabWidget):
+                    if tab_name_exists(tab_widget, new_name,
+                                       ignore_index=index):
+                        QtWidgets.QMessageBox.warning(
+                            self, "Duplicate Tab Name",
+                            "Another workspace already has that name. "
+                            "Please choose a unique name."
+                        )
+                        return
+                self.setTabText(index, new_name)
+                if isinstance(tab_widget, QtWidgets.QTabWidget):
+                    mdi_area = tab_widget.widget(index)
+                    mdi_area.setTabName(new_name)
+        super().mouseDoubleClickEvent(event)
+
+
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, server):
         QtWidgets.QMainWindow.__init__(self)
@@ -74,19 +112,138 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.exit_request = asyncio.Event()
 
+        self.tab_widget = QtWidgets.QTabWidget()
+        self.tab_widget.setTabBar(EditableTabBar())
+        self.tab_widget.setTabsClosable(True)
+        self.tab_widget.tabCloseRequested.connect(self.close_mdi_area)
+        self.setCentralWidget(self.tab_widget)
+
+        plus_button = QtWidgets.QToolButton()
+        plus_button.setText("+")
+        plus_button.setToolTip("Add new workspace")
+        plus_button.clicked.connect(self.new_mdi_area)
+        self.tab_widget.setCornerWidget(plus_button,
+                                        QtCore.Qt.Corner.TopLeftCorner)
+
+        self.add_mdi_area("Workspace 1")
+
+        self.tab_widget.currentChanged.connect(self.on_tab_changed)
+
+    def on_tab_changed(self, index):
+        """
+        We want to refresh geometry to properly place minimized windows after
+        resizing from other MDI area.
+        It causes 2 other issues that are addressed here:
+        1. The focus stays on the minimized window.
+        2. If the code below executes, maximized windows get un-maximized -
+           this is not obvious and seems to depend on MDI implementation.
+        """
+        mdi_area = self.tab_widget.widget(index)
+        if not mdi_area:
+            return
+        # Check which subwindow is active
+        activeSubWindow = mdi_area.activeSubWindow()
+        # Check if active subwindow is maximized. If not, neither window is
+        # maximized
+        wasMaximized = activeSubWindow.isMaximized() if activeSubWindow else False
+
+        if isinstance(mdi_area, MdiArea):
+            for subwindow in mdi_area.subWindowList():
+                # Refresh geometry to properly place minimized windows
+                if subwindow.isMinimized():
+                    subwindow.setWindowState(QtCore.Qt.WindowNoState)
+                    subwindow.setWindowState(QtCore.Qt.WindowMinimized)
+        # Restore focus and maximization
+        if activeSubWindow:
+            mdi_area.setActiveSubWindow(activeSubWindow)
+            activeSubWindow.widget().setFocus()
+            if wasMaximized:
+                activeSubWindow.setWindowState(QtCore.Qt.WindowMaximized)
+
+    def add_mdi_area(self, title):
+        """Create a new MDI area (tab) with the given title."""
+        mdi_area = MdiArea()
+        mdi_area.setTabName(title)
+        index = self.tab_widget.addTab(mdi_area, title)
+        self.tab_widget.setTabToolTip(index, "Double click to rename")
+
+    def new_mdi_area(self):
+        """Add a new MDI area (tab) with an auto-generated unique title."""
+        count = self.tab_widget.count() + 1
+        title = f"Workspace {count}"
+        while tab_name_exists(self.tab_widget, title):
+            count = count + 1
+            title = f"Workspace {count}"
+        self.add_mdi_area(title)
+        self.tab_widget.setCurrentIndex(self.tab_widget.count() - 1)
+
+    def close_mdi_area(self, index):
+        """Handle closing an MDI area (tab)."""
+        if self.tab_widget.count() == 1:
+            logging.warning("Cannot close last workspace")
+            return
+        mdi_area = self.tab_widget.widget(index)
+        for experiment in mdi_area.subWindowList():
+            mdi_area.removeSubWindow(experiment)
+            experiment.close()
+        self.tab_widget.removeTab(index)
+        mdi_area.deleteLater()
+
     def closeEvent(self, event):
         event.ignore()
         self.exit_request.set()
 
     def save_state(self):
+        """
+        Save MainWindow state including MDI areas.
+        (This is separate from the QMainWindow state.)
+        """
+        mdi_areas = [self.tab_widget.tabText(i) for i in range(self.tab_widget.count())]
         return {
             "state": bytes(self.saveState()),
-            "geometry": bytes(self.saveGeometry())
+            "geometry": bytes(self.saveGeometry()),
+            "mdi_areas": mdi_areas,
         }
 
+    def _remove_init_mdi_areas(self):
+        """In order to handle the case of the first start of the
+        dashboard, we add new mdi_area in the init. It cannot be
+        done in restore_state because it is not called in that
+        special case. However, if the restore state is called,
+        we remove it.
+        """
+        if self.tab_widget.count() == 1:
+            mdi_area = self.tab_widget.widget(0)
+            for experiment in mdi_area.subWindowList():
+                mdi_area.removeSubWindow(experiment)
+                experiment.close()
+            self.tab_widget.removeTab(0)
+            mdi_area.deleteLater()
+
     def restore_state(self, state):
+        """Restore MainWindow state including MDI areas."""
+        self._remove_init_mdi_areas()
+        if self.tab_widget.count() == 1:
+            mdi_area = self.tab_widget.widget(0)
+            for experiment in mdi_area.subWindowList():
+                mdi_area.removeSubWindow(experiment)
+                experiment.close()
+            self.tab_widget.removeTab(0)
+            mdi_area.deleteLater()
         self.restoreGeometry(QtCore.QByteArray(state["geometry"]))
         self.restoreState(QtCore.QByteArray(state["state"]))
+        for title in state.get("mdi_areas", []):
+            self.add_mdi_area(title)
+
+    def get_mdi_area_by_name(self, name):
+        """
+        Given a name (i.e. tab title), return the corresponding MDI area.
+        Returns None if not found.
+        """
+        for i in range(self.tab_widget.count()):
+            if self.tab_widget.tabText(i) == name:
+                return self.tab_widget.widget(i)
+        return None
 
 
 class MdiArea(QtWidgets.QMdiArea):
@@ -107,6 +264,10 @@ class MdiArea(QtWidgets.QMdiArea):
             QtGui.QKeySequence('Ctrl+Shift+C'), self)
         self.cascade.activated.connect(
             lambda: self.cascadeSubWindows())
+        self.setHorizontalScrollBarPolicy(
+                QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setVerticalScrollBarPolicy(
+                QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
     def paintEvent(self, event):
         QtWidgets.QMdiArea.paintEvent(self, event)
@@ -115,6 +276,9 @@ class MdiArea(QtWidgets.QMdiArea):
         y = (self.height() - self.pixmap.height()) // 2
         painter.setOpacity(0.5)
         painter.drawPixmap(x, y, self.pixmap)
+
+    def setTabName(self, name):
+        self.tab_name = name
 
 
 def main():
@@ -190,11 +354,6 @@ def main():
 
     # initialize main window
     main_window = MainWindow(args.server if server_name is None else server_name)
-    smgr.register(main_window)
-    mdi_area = MdiArea()
-    mdi_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-    mdi_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-    main_window.setCentralWidget(mdi_area)
 
     # create UI components
     expmgr = experiments.ExperimentManager(main_window,
@@ -204,6 +363,7 @@ def main():
                                            rpc_clients["schedule"],
                                            rpc_clients["experiment_db"])
     smgr.register(expmgr)
+    smgr.register(main_window)
     d_shortcuts = shortcuts.ShortcutsDock(main_window, expmgr)
     smgr.register(d_shortcuts)
     d_explorer = explorer.ExplorerDock(expmgr, d_shortcuts,
