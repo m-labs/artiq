@@ -34,8 +34,10 @@ ARTIQ-9 (Unreleased)
 * ``artiq.coredevice.fmcdio_vhdci_eem`` has been removed.
 * ``artiq.coredevice.urukul``, ``artiq.coredevice.ad9910``, and ``artiq.coredevice.ad9912``
   have been updated for new Urukul capabilities:
+
    - Digital Ramp Generation (DRG)
    - Individual DDS Channel control:
+
       * PROFILE
       * IO_UPDATE
       * OSK
