@@ -334,7 +334,7 @@ class AD9910:
         The profile to write to and the step, start, and end address
         need to be configured in advance and separately using
         :meth:`set_profile_ram` and the parent CPLD
-        :meth:`~artiq.coredevice.urukul.CPLD.set_profile`.
+        :meth:`~artiq.coredevice.urukul.ProtoRev9.set_profile`.
 
         :param data: Data to be written to RAM.
         """
@@ -356,7 +356,7 @@ class AD9910:
         The profile to read from and the step, start, and end address
         need to be configured before and separately using
         :meth:`set_profile_ram` and the parent CPLD 
-        :meth:`~artiq.coredevice.urukul.CPLD.set_profile`.
+        :meth:`~artiq.coredevice.urukul.ProtoRev9.set_profile`.
 
         :param data: List to be filled with data read from RAM.
         """
