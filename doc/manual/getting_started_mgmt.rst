@@ -245,6 +245,53 @@ Verify the log in the GUI. If you are happy with the result, commit the new vers
 
 Notice that commands other than ``git commit`` and ``git push`` are no longer necessary. The Git hook should cause a repository rescan automatically, and submitting the experiment in the dashboard should run the new version, with enthusiasm included.
 
+Setting up secure communications
+--------------------------------
+
+By default, ARTIQ network communications are deliberately kept as simple as possible. Among other things, this means all requests and replies are in principle unencrypted and unauthenticated. That is, the master doesn't verify where requests come from, but simply serves any requests it receives, and both requests and replies are readable by anyone (or anyone capable of intercepting those communications).
+
+In most cases, especially when the management system is being run wholly on a single machine, or within a closed lab network, these unencrypted communications are probably perfectly satisfactory. In some circumstances, however, you may prefer to use encrypted or trusted communications. The ARTIQ management system supports secure communication over TLS/SSL, which will both encrypt and authenticate all messages sent by and from masters and clients.
+
+.. And controller managers?
+
+.. warning::
+    This feature does not extend to communications with the core device, which does not support encryption. Network communications between the host and core device will still be unprotected.
+
+Generating keys and certificates
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In order to use SSL communications, it's first necessary to generate a key and certificate for both master and client. Various cryptographic libraries provide functions to do this automatically. Using the common `OpenSSL library <https://openssl-library.org/>`_, the following command will produce both files: ::
+
+    $ openssl req -x509 -newkey rsa -keyout <name>.key -nodes -out <name>.pem -sha256 -subj "/"
+
+The ensuing ``<name>.key`` and ``<name>.pem`` files identify a matching key and certificate. Run this command twice, replacing ``<name>`` e.g. with ``master`` the first time, ``client`` the second time, as appropriate.
+
+.. tip::
+
+    OpenSSL is available as a MSYS2 package (``pacman -S openssl``) as well as through Nix (``nix-shell -p openssl``). If you use any other library or command, note that all further information normally included with certificates (domain name, country, organization, etc.) is unnecessary here and can be excluded.
+
+If you are unfamiliar with cryptography, you should know that any given key-certificate set is, in principle, as good as any other; if you lose track of these files, you can always generate new ones using the same command. On the other hand, it is important to keep track of which keys and certificates were generated together. A certificate is useless without its matching key, and *cannot* be used with any other key.
+
+Note also that the key file **is secret**, and shouldn't be known to anybody except its owner. On the other hand, certificates are fine to share; in fact, this is a certificate's primary purpose. It serves as a way to definitively identify a particular keyholder *without* disclosing any secrets.
+
+Starting the management system with SSL
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To communicate securely, the master must have access to its own key and certificate (to use in its communications) as well as the client certificate (to identify legitimate clients). Place these files in the same directory you run the master from. Using the appropriate flag will enable SSL automatically: ::
+
+    $ artiq_master --ssl <server.pem> <server.key> <client.pem>
+
+Conversely, clients (:mod:`~artiq.frontend.artiq_client` or :mod:`~artiq.frontend.artiq_dashboard`) require the client key and certificate as well as the certificate of the server: ::
+
+    $ artiq_client --ssl <client.pem> <client.key> <server.pem>
+    $ artiq_dashboard --ssl <client.pem> <client.key> <server.pem>
+
+Note that the client key and certificate *must* match the client certificate given to the master, or they will not be recognized as legitimate. Multiple parallel clients should simply share the same key and certificate.
+
+.. note::
+
+    If you understand the basics of TLS/SSL and web certificates, you might find it helpful to know that the given client certificate is really understood by the master as a certificate authority. That is to say, if you'd prefer to generate new keys for new clients, you can ensure they'll be recognized by signing their certificates with the original client key. In this context, however, reusing a single client key is perfectly acceptable.
+
 The ARTIQ session
 -----------------
 
