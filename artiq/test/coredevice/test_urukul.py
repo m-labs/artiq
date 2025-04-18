@@ -1,5 +1,6 @@
 from artiq.coredevice.urukul import STA_PROTO_REV_9, urukul_sta_rf_sw
 from artiq.experiment import *
+from artiq.master.worker_db import DeviceError
 from artiq.test.hardware_testbench import ExperimentCase
 
 # Set to desired device
@@ -269,8 +270,8 @@ class UrukulTest(ExperimentCase):
     def get_or_skip(self, device_name):
         try:
             return self.device_mgr.get(device_name)
-        except Exception:
-            self.skipTest(f"Failed to get device '{device_name}'")
+        except DeviceError as e:
+            raise self.skipTest(f"test device not available '{e.args}'")
 
     def test_instantiate(self):
         self.execute(UrukulExp, "instantiate")
