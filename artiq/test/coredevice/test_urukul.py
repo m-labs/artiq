@@ -1,5 +1,3 @@
-import unittest
-
 from artiq.coredevice.urukul import STA_PROTO_REV_9, urukul_sta_rf_sw
 from artiq.experiment import *
 from artiq.master.worker_db import DeviceError
