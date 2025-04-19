@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 from collections import OrderedDict
@@ -162,6 +163,9 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
         tool_buttons.addWidget(modified_value_icon, 1, 1)
         tool_buttons.addWidget(disable_other_scans, 2)
         self.setItemWidget(widget_item, 2, tool_buttons)
+
+    def update_defaults(self):
+        asyncio.ensure_future(self._update_defaults())
 
     def _get_group(self, key):
         if key in self._groups:
