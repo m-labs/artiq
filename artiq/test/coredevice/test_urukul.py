@@ -1,5 +1,6 @@
 from artiq.coredevice.urukul import STA_PROTO_REV_9, urukul_sta_rf_sw
 from artiq.experiment import *
+from artiq.master.worker_db import DeviceError
 from artiq.test.hardware_testbench import ExperimentCase
 
 # Set to desired device
@@ -266,6 +267,12 @@ class UrukulExp(EnvExperiment):
 
 
 class UrukulTest(ExperimentCase):
+    def get_or_skip(self, device_name):
+        try:
+            return self.device_mgr.get(device_name)
+        except DeviceError as e:
+            self.skipTest(f"test device not available '{e.args}'")
+
     def test_instantiate(self):
         self.execute(UrukulExp, "instantiate")
 
@@ -299,11 +306,11 @@ class UrukulTest(ExperimentCase):
         self.assertEqual(sw_get, sw_set)
 
     def test_att_enables(self):
-        if self.device_mgr.get(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "att_enables")
 
     def test_att_enable_speed(self):
-        if self.device_mgr.get(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "att_enable_speed")
             dt = self.dataset_mgr.get("dt")
             print(dt)
@@ -337,44 +344,44 @@ class UrukulTest(ExperimentCase):
         self.assertLess(dt, 5 * us)
 
     def test_osk(self):
-        if self.device_mgr.get(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "osk")
 
     def test_osk_speed(self):
-        if self.device_mgr.get(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "osk_speed")
             dt = self.dataset_mgr.get("dt")
             print(dt)
             self.assertLess(dt, 5 * us)
 
     def test_drctl(self):
-        if self.device_mgr.get(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "drctl")
 
     def test_drctl_speed(self):
-        if self.device_mgr.get(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "drctl_speed")
             dt = self.dataset_mgr.get("dt")
             print(dt)
             self.assertLess(dt, 5 * us)
 
     def test_drhold(self):
-        if self.device_mgr.get(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "drhold")
 
     def test_drhold_speed(self):
-        if self.device_mgr.get(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "drhold_speed")
             dt = self.dataset_mgr.get("dt")
             print(dt)
             self.assertLess(dt, 5 * us)
 
     def test_mask_nu(self):
-        if self.device_mgr.get(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "mask_nu")
 
     def test_mask_nu_speed(self):
-        if self.device_mgr.get(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "mask_nu_speed")
             dt = self.dataset_mgr.get("dt")
             print(dt)
