@@ -326,6 +326,10 @@
                         "pll_vco": {
                             "type": "integer"
                         },
+                        "proto_rev": {
+                            "type": "integer",
+                            "default": 8
+                        },
                         "dds": {
                             "type": "string",
                             "enum": ["ad9910", "ad9912"],
