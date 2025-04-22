@@ -386,7 +386,7 @@ class LogDockManager:
         flags = (QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable |
                  QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetFloatable)
         if len(self.docks) > 1:
-            flags |= QtWidgets.QDockWidget.DockWidgetClosable
+            flags |= QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetClosable
         for dock in self.docks.values():
             dock.setFeatures(flags)
 
