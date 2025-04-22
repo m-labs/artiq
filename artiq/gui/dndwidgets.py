@@ -112,7 +112,7 @@ class DragDropFlowLayoutWidget(QtWidgets.QWidget):
 
     def _get_index(self, pos):
         for i in range(self.layout.count()):
-            if self.itemAt(i).geometry().contains(pos):
+            if self.itemAt(i).geometry().contains(pos.toPoint()):
                 return i
         return -1
 
@@ -129,7 +129,7 @@ class DragDropFlowLayoutWidget(QtWidgets.QWidget):
             pixmapi = QtWidgets.QApplication.style().standardIcon(
                 QtWidgets.QStyle.StandardPixmap.SP_FileIcon)
             drag.setPixmap(pixmapi.pixmap(32))
-            drag.exec_(QtCore.Qt.MoveAction)
+            drag.exec(QtCore.Qt.DropAction.MoveAction)
         event.accept()
 
     def dragEnterEvent(self, event):
