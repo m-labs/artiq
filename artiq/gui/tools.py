@@ -32,7 +32,7 @@ class DoubleClickLineEdit(QtWidgets.QLineEdit):
 
     def keyPressEvent(self, event):
         key = event.key()
-        if key == QtCore.Qt.Key_Escape and not self.isReadOnly():
+        if key == QtCore.Qt.Key.Key_Escape and not self.isReadOnly():
             self.editingFinished.emit()
         else:
             QtWidgets.QLineEdit.keyPressEvent(self, event)
