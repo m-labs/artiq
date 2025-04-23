@@ -200,7 +200,7 @@
       ## Modifies PATH to pass the wrapped python environment (i.e. python3.withPackages(...) to subprocesses.
       ## Allows subprocesses using python to find all packages you have installed
       makeWrapperArgs = [
-        ''--run 'if [ ! -z "$NIX_PYTHONPREFIX" ]; then export PATH=$NIX_PYTHONPREFIX/bin:$PATH;fi' ''
+        ''--run 'if [ ! -z "$NIX_PYTHONPREFIX" ]; then export PYTHONPATH=`pwd`:$PYTHONPATH; export PATH=$NIX_PYTHONPREFIX/bin:$PATH;fi' ''
         "--set FONTCONFIG_FILE ${pkgs.fontconfig.out}/etc/fonts/fonts.conf"
       ];
 
