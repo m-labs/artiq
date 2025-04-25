@@ -328,7 +328,7 @@
                         },
                         "proto_rev": {
                             "type": "integer",
-                            "default": 8
+                            "default": 9
                         },
                         "dds": {
                             "type": "string",
