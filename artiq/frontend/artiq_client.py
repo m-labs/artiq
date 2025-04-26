@@ -16,7 +16,7 @@ from sipyco.pc_rpc import Client
 from sipyco.sync_struct import Subscriber
 from sipyco.broadcast import Receiver
 from sipyco import common_args, pyon
-from sipyco.asyncio_tools import SignalHandler
+from sipyco.tools import SignalHandler
 
 from artiq.tools import (scale_from_metadata, short_format, parse_arguments,
                          parse_devarg_override)

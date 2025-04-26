@@ -10,7 +10,7 @@ import sys
 from PyQt6 import QtCore, QtGui, QtWidgets
 from qasync import QEventLoop
 
-from sipyco.asyncio_tools import atexit_register_coroutine
+from sipyco.tools import atexit_register_coroutine
 from sipyco import common_args
 
 from artiq import __version__ as artiq_version

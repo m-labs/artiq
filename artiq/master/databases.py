@@ -5,7 +5,7 @@ import lmdb
 from sipyco.sync_struct import (Notifier, process_mod, ModAction,
                                 update_from_dict)
 from sipyco import pyon
-from sipyco.asyncio_tools import TaskObject
+from sipyco.tools import TaskObject
 
 from artiq.tools import file_import
 
