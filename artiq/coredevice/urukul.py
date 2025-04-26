@@ -162,7 +162,7 @@ class CPLD:
                  dds_reset_device=None, sync_device=None,
                  sync_sel=0, clk_sel=0, clk_div=0, rf_sw=0,
                  refclk=125e6, att=0x00000000, sync_div=None,
-                 core_device="core"):
+                 proto_rev=0x09, core_device="core"):
 
         self.core = dmgr.get(core_device)
         self.refclk = refclk
