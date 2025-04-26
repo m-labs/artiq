@@ -1,6 +1,8 @@
 import os, sys, tempfile, subprocess, io
 from functools import wraps
-from numpy import int32, int64
+from numpy import int32, int64, uint32, uint64, float64, bool_, str_, ndarray
+from types import GenericAlias, ModuleType, SimpleNamespace
+from typing import _GenericAlias, Generic, TypeVar
 
 import nac3artiq
 
@@ -29,13 +31,45 @@ def rtio_get_counter() -> int64:
 def test_exception_id_sync(id: int32):
     raise NotImplementedError("syscall not simulated")
 
-artiq_builtins = {
-    "none": none,
-    "virtual": virtual,
-    "_ConstGenericMarker": _ConstGenericMarker,
-    "Option": Option,
-}
+nac3_builtins = {
+    "int": int,
+    "float": float,
+    "bool": bool,
+    "str": str,
+    "list": list,
+    "tuple": tuple,
+    "Exception": Exception,
 
+    "types": {
+        "GenericAlias": GenericAlias,
+        "ModuleType": ModuleType,
+    },
+
+    "typing": {
+        "_GenericAlias": _GenericAlias,
+        "TypeVar": TypeVar,
+    },
+
+    "numpy": {
+        "int32": int32,
+        "int64": int64,
+        "uint32": uint32,
+        "uint64": uint64,
+        "float64": float64,
+        "bool_": bool_,
+        "str_": str_,
+        "ndarray": ndarray,
+    },
+
+    "artiq": {
+        "Kernel": Kernel,
+        "KernelInvariant": KernelInvariant,
+        "_ConstGenericMarker": _ConstGenericMarker,
+        "none": none,
+        "virtual": virtual,
+        "Option": Option,
+    },
+}
 
 @nac3
 class Core:
@@ -84,7 +118,7 @@ class Core:
 
         self.target = target
         self.analyzed = False
-        self.compiler = nac3artiq.NAC3(target, artiq_builtins)
+        self.compiler = nac3artiq.NAC3(target, nac3_builtins)
         
         self.analyzer_proxy_name = analyzer_proxy
         self.analyze_at_run_end = analyze_at_run_end
