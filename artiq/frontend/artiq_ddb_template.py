@@ -215,6 +215,7 @@ class PeripheralManager:
         clk_div = peripheral.get("clk_div")
         if clk_div is None:
             clk_div = 0 if pll_en else 1
+        proto_rev = peripheral["proto_rev"]
 
         self.gen("""
             device_db["eeprom_{name}"] = {{
@@ -275,14 +276,16 @@ class PeripheralManager:
                     "io_update_device": "ttl_{name}_io_update",
                     "refclk": {refclk},
                     "clk_sel": {clk_sel},
-                    "clk_div": {clk_div}
+                    "clk_div": {clk_div},
+                    "proto_rev": {proto_rev}
                 }}
             }}""",
             name=urukul_name,
             sync_device="\"ttl_{name}_sync\"".format(name=urukul_name) if synchronization else "None",
             refclk=peripheral.get("refclk", self.primary_description["rtio_frequency"]),
             clk_sel=peripheral["clk_sel"],
-            clk_div=clk_div)
+            clk_div=clk_div,
+            proto_rev=proto_rev)
         dds = peripheral["dds"]
         pll_vco = peripheral.get("pll_vco")
         for i in range(4):
@@ -514,7 +517,8 @@ class PeripheralManager:
                     "arguments": {{
                         "spi_device": "spi_{urukul_name}",
                         "refclk": {refclk},
-                        "clk_sel": {clk_sel}
+                        "clk_sel": {clk_sel},
+                        "proto_rev": {proto_rev}
                     }}
                 }}
                 device_db["{urukul_name}_dds"] = {{
@@ -532,6 +536,7 @@ class PeripheralManager:
                 urukul_channel=rtio_offset+next(channel),
                 refclk=peripheral.get("refclk", self.primary_description["rtio_frequency"]),
                 clk_sel=peripheral["clk_sel"],
+                proto_rev=peripheral["proto_rev"],
                 pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "",
                 pll_n=peripheral["pll_n"],  pll_en=peripheral["pll_en"])
         return next(channel)

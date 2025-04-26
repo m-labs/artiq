@@ -3,7 +3,7 @@
 import argparse
 import asyncio
 
-from sipyco.asyncio_tools import SignalHandler
+from sipyco.tools import SignalHandler
 
 from artiq.coredevice.comm_moninj import *
 

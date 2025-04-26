@@ -4,7 +4,15 @@ from artiq.gateware import ad9_dds
 from artiq.gateware.rtio.phy.wishbone import RT2WB
 
 from artiq.coredevice.spi2 import SPI_CONFIG_ADDR, SPI_DATA_ADDR, SPI_END
-from artiq.coredevice.urukul import CS_DDS_CH0, CS_DDS_MULTI, CFG_IO_UPDATE, CS_CFG
+from artiq.coredevice.urukul import (
+    CS_CFG,
+    CS_DDS_CH0,
+    CS_DDS_MULTI,
+    STA_PROTO_REV_8,
+    STA_PROTO_REV_9,
+    ProtoRev8,
+    ProtoRev9,
+)
 
 from artiq.coredevice.ad9912_reg import AD9912_POW1
 from artiq.coredevice.ad9910 import _AD9910_REG_PROFILE0, _AD9910_REG_PROFILE7, _AD9910_REG_FTW
@@ -62,7 +70,7 @@ class AD9914(Module):
 
 
 class UrukulMonitor(Module):
-    def __init__(self, spi_phy, io_update_phy, dds, nchannels=4):
+    def __init__(self, spi_phy, io_update_phy, dds, proto_rev, nchannels=4):
         self.spi_phy = spi_phy
         self.io_update_phy = io_update_phy
 
@@ -102,12 +110,24 @@ class UrukulMonitor(Module):
             self.submodules += monitor
 
             self.sync.rio_phy += [
-                If(ch_sel & self.is_io_update(), self.probes[i].eq(monitor.ftw))
+                If(ch_sel & self.is_io_update(proto_rev, flags), self.probes[i].eq(monitor.ftw))
             ]
 
-    def is_io_update(self):
-        # shifted 8 bits left for 32-bit bus
-        reg_io_upd = (self.cs == CS_CFG) & self.current_data[8 + CFG_IO_UPDATE]
+    def is_io_update(self, proto_rev, flags):
+        if proto_rev == STA_PROTO_REV_8:
+            # shifted 8 bits left for 32-bit bus
+            reg_io_upd = (self.cs == CS_CFG) & self.current_data[8 + ProtoRev8.CFG_IO_UPDATE]
+        elif proto_rev == STA_PROTO_REV_9:
+            # cfg_write for proto_rev 9 takes two transfers, CFG_IO_UPDATES are in the last one
+            reg_io_upd = (self.cs == CS_CFG) & (flags & SPI_END) & (
+                self.current_data[4 + (ProtoRev9.CFG_IO_UPDATE - 32)] |
+                self.current_data[4 + ((ProtoRev9.CFG_IO_UPDATE + 1) - 32)] |
+                self.current_data[4 + ((ProtoRev9.CFG_IO_UPDATE + 2) - 32)] |
+                self.current_data[4 + ((ProtoRev9.CFG_IO_UPDATE + 3) - 32)]
+            )
+        else:
+            raise ValueError("Invalid proto_rev")
+
         phy_io_upd = False
         if self.io_update_phy:
             phy_io_upd = self.io_update_phy.rtlink.o.stb & self.io_update_phy.rtlink.o.data

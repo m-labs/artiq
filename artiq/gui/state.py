@@ -3,7 +3,7 @@ from collections import OrderedDict
 import logging
 import shutil
 
-from sipyco.asyncio_tools import TaskObject
+from sipyco.tools import TaskObject
 from sipyco import pyon
 
 

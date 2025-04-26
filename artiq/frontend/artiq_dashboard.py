@@ -13,7 +13,7 @@ from qasync import QEventLoop
 from sipyco.pc_rpc import AsyncioClient, Client
 from sipyco.broadcast import Receiver
 from sipyco import common_args
-from sipyco.asyncio_tools import atexit_register_coroutine
+from sipyco.tools import atexit_register_coroutine
 from sipyco.sync_struct import Subscriber
 
 from artiq import __artiq_dir__ as artiq_dir, __version__ as artiq_version
