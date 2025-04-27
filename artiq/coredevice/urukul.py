@@ -367,8 +367,8 @@ class ProtoRev9:
     @kernel
     def set_profile(self, cpld: CPLD, channel: int32, profile: int32):
         """Set the CFG.PROFILE[0:2] pins for the given channel.
-        :param profile: PROFILE pins in numeric representation (0-7).
         :param channel: Channel (0-3).
+        :param profile: PROFILE pins in numeric representation (0-7).
         """
         cfg = cpld.cfg_reg & ~int64(7 << (CFG_PROFILE + channel * 3))
         cfg |= int64((profile & 7) << (CFG_PROFILE + channel * 3))
