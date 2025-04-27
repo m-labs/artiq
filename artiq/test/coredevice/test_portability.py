@@ -19,7 +19,7 @@ def _run_on_host(k_class, *args, **kwargs):
     return k_inst
 
 
-@nac3
+@compile
 class _Primes(EnvExperiment):
     core: KernelInvariant[Core]
     maximum: KernelInvariant[int32]
@@ -47,7 +47,7 @@ class _Primes(EnvExperiment):
                 self._add_output(x)
 
 
-@nac3
+@compile
 class _Math(EnvExperiment):
     core: KernelInvariant[Core]
     x: KernelInvariant[float]
@@ -63,7 +63,7 @@ class _Math(EnvExperiment):
         self.x_sqrt = self.x**0.5
 
 
-@nac3
+@compile
 class _Misc(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -95,7 +95,7 @@ class _Misc(EnvExperiment):
         self.list_copy_out = self.list_copy_in
 
 
-@nac3
+@compile
 class _PulseLogger(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -126,7 +126,7 @@ class _PulseLogger(EnvExperiment):
         self.off(now_mu())
 
 
-@nac3
+@compile
 class _Pulses(EnvExperiment):
     core: KernelInvariant[Core]
     a: KernelInvariant[_PulseLogger]
@@ -156,12 +156,12 @@ class _Pulses(EnvExperiment):
                     self.d.pulse(400+i, 20.*us)
 
 
-@nac3
+@compile
 class _MyException(Exception):
     pass
 
 
-@nac3
+@compile
 class _NestedFinally(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -189,7 +189,7 @@ class _NestedFinally(EnvExperiment):
             self._trace(2)
 
 
-@nac3
+@compile
 class _NestedExceptions(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -223,7 +223,7 @@ class _NestedExceptions(EnvExperiment):
             self._trace(4)
 
 
-@nac3
+@compile
 class _Exceptions(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -274,7 +274,7 @@ class _Exceptions(EnvExperiment):
                 self._trace(104)
 
 
-@nac3
+@compile
 class _RPCExceptions(EnvExperiment):
     core: KernelInvariant[Core]
     catch: KernelInvariant[bool]
@@ -309,7 +309,7 @@ class _RPCExceptions(EnvExperiment):
             self.success = True
 
 
-@nac3
+@compile
 class _Keywords(EnvExperiment):
     core: KernelInvariant[Core]
     value: KernelInvariant[int32]

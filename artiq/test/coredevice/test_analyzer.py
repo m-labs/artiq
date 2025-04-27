@@ -11,7 +11,7 @@ from artiq.coredevice.ttl import TTLOut, TTLInOut
 from artiq.test.hardware_testbench import ExperimentCase
 
 
-@nac3
+@compile
 class CreateTTLPulse(EnvExperiment):
     core: KernelInvariant[Core]
     loop_in: KernelInvariant[TTLInOut]
@@ -40,7 +40,7 @@ class CreateTTLPulse(EnvExperiment):
             self.loop_in.count(self.loop_in.gate_both_mu(int64(1200)))
 
 
-@nac3
+@compile
 class WriteLog(EnvExperiment):
     core: KernelInvariant[Core]
 

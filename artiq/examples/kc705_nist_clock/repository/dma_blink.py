@@ -3,7 +3,7 @@ from artiq.coredevice.core import Core
 from artiq.coredevice.dma import CoreDMA
 from artiq.coredevice.ttl import TTLOut
 
-@nac3
+@compile
 class DMABlink(EnvExperiment):
     core: KernelInvariant[Core]
     core_dma: KernelInvariant[CoreDMA]

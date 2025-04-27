@@ -19,7 +19,7 @@ def core_log(s: str):
     ...
 
 
-@nac3
+@compile
 class CheckLog(EnvExperiment):
     core: KernelInvariant[Core]
 

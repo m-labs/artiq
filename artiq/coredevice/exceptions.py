@@ -1,6 +1,6 @@
 import builtins
 from numpy.linalg import LinAlgError
-from artiq.language.core import nac3, UnwrapNoneError
+from artiq.language.core import compile, UnwrapNoneError
 
 
 """
@@ -26,7 +26,7 @@ ZeroDivisionError = builtins.ZeroDivisionError
 OSError = builtins.OSError
 
 
-@nac3
+@compile
 class RTIOUnderflow(Exception):
     """Raised when the CPU or DMA core fails to submit a RTIO event early
     enough (with respect to the event's timestamp).
@@ -36,7 +36,7 @@ class RTIOUnderflow(Exception):
     artiq_builtin = True
 
 
-@nac3
+@compile
 class RTIOOverflow(Exception):
     """Raised when at least one event could not be registered into the RTIO
     input FIFO because it was full (CPU not reading fast enough).
@@ -48,7 +48,7 @@ class RTIOOverflow(Exception):
     artiq_builtin = True
 
 
-@nac3
+@compile
 class RTIODestinationUnreachable(Exception):
     """Raised when a RTIO operation could not be completed due to a DRTIO link
     being down.
@@ -56,19 +56,19 @@ class RTIODestinationUnreachable(Exception):
     artiq_builtin = True
 
 
-@nac3
+@compile
 class CacheError(Exception):
     """Raised when putting a value into a cache row would violate memory safety."""
     artiq_builtin = True
 
 
-@nac3
+@compile
 class DMAError(Exception):
     """Raised when performing an invalid DMA operation."""
     artiq_builtin = True
 
 
-@nac3
+@compile
 class SubkernelError(Exception):
     """Raised when an operation regarding a subkernel is invalid 
     or cannot be completed.
@@ -76,31 +76,31 @@ class SubkernelError(Exception):
     artiq_builtin = True
 
 
-@nac3
+@compile
 class ClockFailure(Exception):
     """Raised when RTIO PLL has lost lock."""
     artiq_builtin = True
 
 
-@nac3
+@compile
 class I2CError(Exception):
     """Raised when a I2C transaction fails."""
     artiq_builtin = True
 
 
-@nac3
+@compile
 class SPIError(Exception):
     """Raised when a SPI transaction fails."""
     artiq_builtin = True
 
 
-@nac3
+@compile
 class UnwrapNoneError(Exception):
     """Raised when unwrapping a none Option."""
     artiq_builtin = True
 
 
-@nac3
+@compile
 class CXPError(Exception):
     """Raised when CXP transaction fails."""
     artiq_builtin = True

@@ -9,7 +9,7 @@ time results in collision errors.
 
 from numpy import int32, int64
 
-from artiq.language.core import nac3, Kernel, KernelInvariant, kernel, portable, extern
+from artiq.language.core import compile, Kernel, KernelInvariant, kernel, portable, extern
 from artiq.coredevice.core import Core
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 
@@ -35,7 +35,7 @@ SPI_LSB_FIRST = 0x40
 SPI_HALF_DUPLEX = 0x80
 
 
-@nac3
+@compile
 class SPIMaster:
     """Core device Serial Peripheral Interface (SPI) bus master.
 
@@ -261,7 +261,7 @@ def spi_read(busno: int32) -> int32:
     raise NotImplementedError("syscall not simulated")
 
 
-@nac3
+@compile
 class NRTSPIMaster:
     """Core device non-realtime Serial Peripheral Interface (SPI) bus master.
     Owns one non-realtime SPI bus.

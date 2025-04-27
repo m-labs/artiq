@@ -5,20 +5,20 @@ from artiq.coredevice.rtio import rtio_output, rtio_input_timestamped_data
 from artiq.coredevice.core import Core
 
 
-@nac3
+@compile
 class OutOfSyncException(Exception):
     """Raised when an incorrect number of ROI engine outputs has been
     retrieved from the RTIO input FIFO."""
     pass
 
 
-@nac3
+@compile
 class GrabberTimeoutException(Exception):
     """Raised when a timeout occurs while attempting to read Grabber RTIO input events."""
     pass
 
 
-@nac3
+@compile
 class Grabber:
     """Driver for the Grabber camera interface."""
     core: KernelInvariant[Core]

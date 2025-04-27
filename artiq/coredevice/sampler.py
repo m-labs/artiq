@@ -1,6 +1,6 @@
 from numpy import int32
 
-from artiq.language.core import nac3, kernel, portable, Kernel, KernelInvariant
+from artiq.language.core import compile, kernel, portable, Kernel, KernelInvariant
 from artiq.language.units import ns
 
 from artiq.coredevice.core import Core
@@ -42,7 +42,7 @@ def adc_mu_to_volt(data: int32, gain: int32 = 0, corrected_fs: bool = True) -> f
     return float(data)* volt_per_lsb
 
 
-@nac3
+@compile
 class Sampler:
     """Sampler ADC.
 

@@ -1,6 +1,6 @@
 from numpy import int32
 
-from artiq.language.core import nac3, Kernel, KernelInvariant, kernel, portable
+from artiq.language.core import compile, Kernel, KernelInvariant, kernel, portable
 from artiq.language.units import us
 
 from artiq.coredevice.core import Core
@@ -19,7 +19,7 @@ ALMAZNY_LEGACY_OE_SHIFT = 12
 ALMAZNY_LEGACY_SPIT_WR = 32
 
 
-@nac3
+@compile
 class AlmaznyLegacy:
     """
     Almazny (High-frequency mezzanine board for Mirny)
@@ -131,7 +131,7 @@ class AlmaznyLegacy:
         self.core.delay(100. * us)
 
 
-@nac3
+@compile
 class AlmaznyChannel:
     """
     Driver for one Almazny channel.

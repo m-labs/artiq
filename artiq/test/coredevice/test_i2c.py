@@ -7,7 +7,7 @@ from artiq.coredevice.core import Core
 from artiq.coredevice.i2c import I2CSwitch, i2c_read_byte
 
 
-@nac3
+@compile
 class I2CSwitchTest(EnvExperiment):
     core: KernelInvariant[Core]
     i2c_switch: KernelInvariant[I2CSwitch]
@@ -32,7 +32,7 @@ class I2CSwitchTest(EnvExperiment):
         self.set_passed(passed)
 
 
-@nac3
+@compile
 class NonexistentI2CBus(EnvExperiment):
     core: KernelInvariant[Core]
     broken_switch: KernelInvariant[I2CSwitch]

@@ -1,6 +1,6 @@
 from numpy import int32
 
-from artiq.language.core import nac3, extern, kernel, KernelInvariant
+from artiq.language.core import compile, extern, kernel, KernelInvariant
 from artiq.coredevice.core import Core
 
 
@@ -13,7 +13,7 @@ def cache_put(key: str, value: list[int32]):
     raise NotImplementedError("syscall not simulated")
 
 
-@nac3
+@compile
 class CoreCache:
     """Core device cache access"""
 

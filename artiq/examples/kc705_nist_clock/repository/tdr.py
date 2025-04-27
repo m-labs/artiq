@@ -7,12 +7,12 @@ from artiq.coredevice.core import Core
 from artiq.coredevice.ttl import TTLOut, TTLInOut
 
 
-@nac3
+@compile
 class PulseNotReceivedError(Exception):
     pass
 
 
-@nac3
+@compile
 class TDR(EnvExperiment):
     """Time domain reflectometer.
 

@@ -71,7 +71,7 @@ nac3_builtins = {
     },
 }
 
-@nac3
+@compile
 class Core:
     """Core device driver.
 

@@ -7,7 +7,7 @@ alone could achieve.
 
 from numpy import int32, int64
 
-from artiq.language.core import nac3, extern, kernel, Kernel, KernelInvariant
+from artiq.language.core import compile, extern, kernel, Kernel, KernelInvariant
 from artiq.coredevice.exceptions import DMAError
 from artiq.coredevice.core import Core
 
@@ -34,7 +34,7 @@ def dma_playback(timestamp: int64, ptr: int32, enable_ddma: bool):
     raise NotImplementedError("syscall not simulated")
 
 
-@nac3
+@compile
 class DMARecordContextManager:
     """Context manager returned by :meth:`CoreDMA.record()`.
 
@@ -67,7 +67,7 @@ class DMARecordContextManager:
         at_mu(self.saved_now_mu)
 
 
-@nac3
+@compile
 class CoreDMA:
     """Core device Direct Memory Access (DMA) driver.
 

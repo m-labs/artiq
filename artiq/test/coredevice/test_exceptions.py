@@ -20,7 +20,7 @@ Ensures same exception is raised on both kernel and host in either case
 exception_names = EmbeddingMap().string_map
 
 
-@nac3
+@compile
 class _TestExceptionSync(EnvExperiment):
     def build(self):
         self.setattr_device("core")

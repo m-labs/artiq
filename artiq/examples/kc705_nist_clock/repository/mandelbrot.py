@@ -6,7 +6,7 @@ from artiq.experiment import *
 from artiq.coredevice.core import Core
 
 
-@nac3
+@compile
 class Mandelbrot(EnvExperiment):
     """Mandelbrot set demo"""
 

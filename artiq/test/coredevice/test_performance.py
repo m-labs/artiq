@@ -27,7 +27,7 @@ time_start = 0
 time_end = 0
 
 
-@nac3
+@compile
 class _Transfer(EnvExperiment):
     core: KernelInvariant[Core]
     count: KernelInvariant[int32]
@@ -229,7 +229,7 @@ class TransferTest(ExperimentCase):
         print("Async throughput: {:>6.2f}MiB/s".format(results))
 
 
-@nac3
+@compile
 class _KernelOverhead(EnvExperiment):
     core: KernelInvariant[Core]
 

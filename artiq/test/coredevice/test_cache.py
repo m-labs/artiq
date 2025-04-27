@@ -9,7 +9,7 @@ from artiq.coredevice.exceptions import CacheError
 from artiq.test.hardware_testbench import ExperimentCase
 
 
-# NAC3TODO @nac3
+# NAC3TODO @compile
 class _Cache(EnvExperiment):
     core: KernelInvariant[Core]
     core_cache: KernelInvariant[CoreCache]

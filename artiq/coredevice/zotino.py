@@ -6,7 +6,7 @@ time results in a collision error.
 
 from numpy import int32
 
-from artiq.language.core import nac3, kernel
+from artiq.language.core import compile, kernel
 from artiq.coredevice.spi2 import *
 from artiq.coredevice.ad53xx import SPI_AD53XX_CONFIG, AD53xx
 
@@ -20,7 +20,7 @@ _SPI_CS_DAC = 1
 _SPI_CS_SR = 2
 
 
-@nac3
+@compile
 class Zotino(AD53xx):
     """ Zotino 32-channel, 16-bit 1MSPS DAC.
 

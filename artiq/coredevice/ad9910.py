@@ -60,7 +60,7 @@ RAM_MODE_CONT_RAMPUP = 4
 # Default profile for RAM mode
 _DEFAULT_PROFILE_RAM = 0
 
-@nac3
+@compile
 class SyncDataUser:
     core: KernelInvariant[Core]
     sync_delay_seed: Kernel[int32]
@@ -76,7 +76,7 @@ class SyncDataUser:
         pass
 
 
-@nac3
+@compile
 class SyncDataEeprom:
     core: KernelInvariant[Core]
     eeprom_device: KernelInvariant[KasliEEPROM]  # NAC3TODO support generic EEPROM driver
@@ -109,7 +109,7 @@ class SyncDataEeprom:
         self.io_update_delay = int32(io_update_delay)
 
 
-@nac3
+@compile
 class AD9910:
     """
     AD9910 DDS channel on Urukul.

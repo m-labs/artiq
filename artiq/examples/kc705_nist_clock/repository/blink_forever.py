@@ -2,7 +2,7 @@ from artiq.experiment import *
 from artiq.coredevice.core import Core
 from artiq.coredevice.ttl import TTLOut
 
-@nac3
+@compile
 class BlinkForever(EnvExperiment):
     core: KernelInvariant[Core]
     led: KernelInvariant[TTLOut]

@@ -63,14 +63,14 @@ CONFIG_SEND_COUNT_EVENT = 0b0100
 CONFIG_RESET_TO_ZERO = 0b1000
 
 
-@nac3
+@compile
 class CounterOverflow(Exception):
     """Raised when an edge counter value is read which indicates that the
     counter might have overflowed."""
     pass
 
 
-@nac3
+@compile
 class EdgeCounter:
     """RTIO TTL edge counter driver driver.
 

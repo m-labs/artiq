@@ -14,7 +14,7 @@ class _PayloadNOP(EnvExperiment):
         pass
 
 
-@nac3
+@compile
 class _PayloadCoreNOP(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -26,7 +26,7 @@ class _PayloadCoreNOP(EnvExperiment):
         pass
 
 
-@nac3
+@compile
 class _PayloadCoreSend100Ints(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -43,7 +43,7 @@ class _PayloadCoreSend100Ints(EnvExperiment):
             self.devnull(42)
 
 
-@nac3
+@compile
 class _PayloadCoreSend1MB(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -60,7 +60,7 @@ class _PayloadCoreSend1MB(EnvExperiment):
         self.devnull(data)
 
 
-@nac3
+@compile
 class _PayloadCorePrimes(EnvExperiment):
     core: KernelInvariant[Core]
 

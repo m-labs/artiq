@@ -108,7 +108,7 @@ def voltage_to_mu(voltage: float, offset_dacs: int32 = 0x2000, vref: float = 5.)
     return code
 
 
-@nac3
+@compile
 class _DummyTTL:
     @kernel
     def on(self):
@@ -119,7 +119,7 @@ class _DummyTTL:
         pass
 
 
-@nac3
+@compile
 class AD53xx:
     """Analog devices AD53[67][0123] family of multi-channel Digital to Analog
     Converters.

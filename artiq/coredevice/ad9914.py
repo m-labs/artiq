@@ -42,7 +42,7 @@ AD9914_FUD       = 0x80
 AD9914_GPIO      = 0x81
 
 
-@nac3
+@compile
 class AD9914:
     """Driver for one AD9914 DDS channel.
 

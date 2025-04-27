@@ -10,7 +10,7 @@ from artiq.coredevice.urukul import *
 from artiq.coredevice.ttl import TTLOut
 
 
-@nac3
+@compile
 class AD9912:
     """
     AD9912 DDS channel on Urukul.

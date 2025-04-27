@@ -10,7 +10,7 @@ def sleep_rpc():
     sleep(1)
 
 
-@nac3
+@compile
 class CorePause(EnvExperiment):
     core: KernelInvariant[Core]
 

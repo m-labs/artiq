@@ -7,7 +7,7 @@ from artiq.coredevice.ttl import TTLOut
 from artiq.coredevice.edge_counter import EdgeCounter
 
 
-@nac3
+@compile
 class EdgeCounterExp(EnvExperiment):
     core: KernelInvariant[Core]
     loop_in_counter: KernelInvariant[EdgeCounter]

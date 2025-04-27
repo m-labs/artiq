@@ -64,7 +64,7 @@ def is_enter_pressed() -> bool:
             return False
 
 
-@nac3
+@compile
 class SinaraTester(EnvExperiment):
     core: KernelInvariant[Core]
 

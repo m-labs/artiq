@@ -107,7 +107,7 @@ def urukul_sta_proto_rev(sta: int32) -> int32:
     return (sta >> STA_PROTO_REV) & 0x7f
 
 
-@nac3
+@compile
 class CPLD:
     """Urukul CPLD SPI router and configuration interface.
 
@@ -428,7 +428,7 @@ class CPLD:
         self.cfg_write(cfg)
 
 
-@nac3
+@compile
 class _RegIOUpdate:
     core: KernelInvariant[Core]
     cpld: KernelInvariant[CPLD]

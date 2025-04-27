@@ -13,7 +13,7 @@ _SDCARD_SPI_CONFIG = (0*SPI_OFFLINE | 0*SPI_END |
                       0*SPI_LSB_FIRST | 0*SPI_HALF_DUPLEX)
 
 
-@nac3
+@compile
 class CardTest(EnvExperiment):
     core: KernelInvariant[Core]
     spi_mmc: KernelInvariant[SPIMaster]

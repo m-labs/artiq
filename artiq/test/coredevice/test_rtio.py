@@ -21,7 +21,7 @@ from artiq.coredevice.comm_analyzer import (StoppedMessage, OutputMessage, Input
 artiq_low_latency = os.getenv("ARTIQ_LOW_LATENCY")
 
 
-@nac3
+@compile
 class RTIOCounter(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -39,12 +39,12 @@ class RTIOCounter(EnvExperiment):
         self.report(self.core.mu_to_seconds(t1 - t0))
 
 
-@nac3
+@compile
 class InvalidCounter(Exception):
     pass
 
 
-@nac3
+@compile
 class WaitForRTIOCounter(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -60,12 +60,12 @@ class WaitForRTIOCounter(EnvExperiment):
             raise InvalidCounter
 
 
-@nac3
+@compile
 class PulseNotReceived(Exception):
     pass
 
 
-@nac3
+@compile
 class RTT(EnvExperiment):
     core: KernelInvariant[Core]
     ttl_inout: KernelInvariant[TTLInOut]
@@ -98,7 +98,7 @@ class RTT(EnvExperiment):
         self.report(self.core.mu_to_seconds(t1 - t0))
 
 
-@nac3
+@compile
 class Loopback(EnvExperiment):
     core: KernelInvariant[Core]
     loop_in: KernelInvariant[TTLInOut]
@@ -132,7 +132,7 @@ class Loopback(EnvExperiment):
         self.report(self.core.mu_to_seconds(t1 - t0))
 
 
-@nac3
+@compile
 class ClockGeneratorLoopback(EnvExperiment):
     core: KernelInvariant[Core]
     loop_clock_in: KernelInvariant[TTLInOut]
@@ -161,7 +161,7 @@ class ClockGeneratorLoopback(EnvExperiment):
         self.report(self.loop_clock_in.count(now_mu()))
 
 
-@nac3
+@compile
 class PulseRate(EnvExperiment):
     core: KernelInvariant[Core]
     ttl_out: KernelInvariant[TTLOut]
@@ -192,7 +192,7 @@ class PulseRate(EnvExperiment):
         self.report(self.core.mu_to_seconds(dt))
 
 
-@nac3
+@compile
 class PulseRateAD9914DDS(EnvExperiment):
     core: KernelInvariant[Core]
     ad9914dds0: KernelInvariant[AD9914]
@@ -230,7 +230,7 @@ class PulseRateAD9914DDS(EnvExperiment):
                 return
 
 
-@nac3
+@compile
 class LoopbackCount(EnvExperiment):
     core: KernelInvariant[Core]
     loop_in: KernelInvariant[TTLInOut]
@@ -262,12 +262,12 @@ class LoopbackCount(EnvExperiment):
         self.report(self.loop_in.count(now_mu()))
 
 
-@nac3
+@compile
 class IncorrectPulseTiming(Exception):
     pass
 
 
-@nac3
+@compile
 class LoopbackGateTiming(EnvExperiment):
     core: KernelInvariant[Core]
     loop_in: KernelInvariant[TTLInOut]
@@ -334,12 +334,12 @@ class LoopbackGateTiming(EnvExperiment):
             raise IncorrectPulseTiming("Only one pulse should be received")
 
 
-@nac3
+@compile
 class IncorrectLevel(Exception):
     pass
 
 
-@nac3
+@compile
 class Level(EnvExperiment):
     core: KernelInvariant[Core]
     loop_in: KernelInvariant[TTLInOut]
@@ -368,7 +368,7 @@ class Level(EnvExperiment):
             raise IncorrectLevel
 
 
-@nac3
+@compile
 class Watch(EnvExperiment):
     core: KernelInvariant[Core]
     loop_in: KernelInvariant[TTLInOut]
@@ -404,7 +404,7 @@ class Watch(EnvExperiment):
             raise IncorrectLevel
 
 
-@nac3
+@compile
 class Underflow(EnvExperiment):
     core: KernelInvariant[Core]
     ttl_out: KernelInvariant[TTLOut]
@@ -421,7 +421,7 @@ class Underflow(EnvExperiment):
             self.ttl_out.pulse(25.*ns)
 
 
-@nac3
+@compile
 class SequenceError(EnvExperiment):
     core: KernelInvariant[Core]
     ttl_out: KernelInvariant[TTLOut]
@@ -439,7 +439,7 @@ class SequenceError(EnvExperiment):
             self.core.delay(-75.*us)
 
 
-@nac3
+@compile
 class Collision(EnvExperiment):
     core: KernelInvariant[Core]
     ttl_out_serdes: KernelInvariant[TTLOut]
@@ -459,7 +459,7 @@ class Collision(EnvExperiment):
             pass
 
 
-@nac3
+@compile
 class AddressCollision(EnvExperiment):
     core: KernelInvariant[Core]
     loop_in: KernelInvariant[TTLInOut]
@@ -477,7 +477,7 @@ class AddressCollision(EnvExperiment):
             pass
 
 
-@nac3
+@compile
 class TimeKeepsRunning(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -494,7 +494,7 @@ class TimeKeepsRunning(EnvExperiment):
         self.report(now_mu())
 
 
-@nac3
+@compile
 class Handover(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -515,7 +515,7 @@ class Handover(EnvExperiment):
         self.k("t2")
 
 
-@nac3
+@compile
 class Rounding(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -535,12 +535,12 @@ class Rounding(EnvExperiment):
         self.report(t2 - t1)
 
 
-@nac3
+@compile
 class DummyException(Exception):
     pass
 
 
-@nac3
+@compile
 class HandoverException(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -679,7 +679,7 @@ class CoredeviceTest(ExperimentCase):
         self.assertEqual(dt, 8000)
 
 
-@nac3
+@compile
 class RPCTiming(EnvExperiment):
     core: KernelInvariant[Core]
     repeats: KernelInvariant[int32]
@@ -722,7 +722,7 @@ class RPCTest(ExperimentCase):
         self.assertLess(self.dataset_mgr.get("rpc_time_stddev"), 1*ms)
 
 
-@nac3
+@compile
 class _DMA(EnvExperiment):
     core: KernelInvariant[Core]
     core_dma: KernelInvariant[CoreDMA]

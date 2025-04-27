@@ -83,7 +83,7 @@ SERVO_COEFF_SHIFT = 14
 SERVO_T_CYCLE = (32+12+192+24+4)*ns  # Must match gateware ADC parameters
 
 
-@nac3
+@compile
 class Phaser:
     """Phaser 4-channel, 16-bit, 1 GS/s DAC coredevice driver.
 
@@ -858,7 +858,7 @@ class Phaser:
         return best
 
 
-@nac3
+@compile
 class PhaserChannel:
     """Phaser channel IQ pair.
 
@@ -1296,7 +1296,7 @@ class PhaserChannel:
 
 
 
-@nac3
+@compile
 class PhaserOscillator:
     """Phaser IQ channel oscillator (NCO/DDS).
 
@@ -1359,7 +1359,7 @@ class PhaserOscillator:
         self.set_amplitude_phase_mu(asf, pow, clr)
 
 
-@nac3
+@compile
 class Miqro:
     """
     Miqro pulse generator.

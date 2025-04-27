@@ -16,8 +16,8 @@ from artiq.language import import_cache
 __all__ = [
     "Kernel", "KernelInvariant", "virtual", "ConstGeneric",
     "round64", "floor64", "ceil64",
-    "extern", "kernel", "portable", "nac3", "rpc",
-    "print_rpc",
+    "extern", "kernel", "portable", "compile",
+    "rpc", "print_rpc",
     "Option", "Some", "none", "UnwrapNoneError",
     "set_time_manager",
     "parallel", "legacy_parallel", "sequential",
@@ -101,9 +101,9 @@ def portable(function):
     return function
 
 
-def nac3(cls):
+def compile(cls):
     """
-    Decorates a class to be analyzed by NAC3.
+    Registers a class to be compiled by ARTIQ.
     All classes containing kernels or portable methods must use this decorator.
     """
     _register_class(cls)
@@ -126,7 +126,7 @@ def print_rpc(a: T):
     print(a)
 
 
-@nac3
+@compile
 class UnwrapNoneError(Exception):
     """Raised when unwrapping a none Option."""
     artiq_builtin = True
@@ -191,7 +191,7 @@ def set_time_manager(time_manager):
     _time_manager = time_manager
 
 
-@nac3
+@compile
 class _ParallelContextManager:
     """In a parallel block, all statements start their execution at
     the same time.
@@ -211,7 +211,7 @@ class _ParallelContextManager:
     def __exit__(self, *exc_info):
         _time_manager.exit()
 
-@nac3
+@compile
 class _SequentialContextManager:
     """In a sequential block, statements are executed one after another, with
     the time increasing as one moves down the statement list."""

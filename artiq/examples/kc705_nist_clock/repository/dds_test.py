@@ -4,7 +4,7 @@ from artiq.coredevice.ad9914 import AD9914
 from artiq.coredevice.ttl import TTLOut
 
 
-@nac3
+@compile
 class DDSTest(EnvExperiment):
     """DDS test"""
 

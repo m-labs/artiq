@@ -6,7 +6,7 @@ from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 from artiq.coredevice.core import Core
 
-@nac3
+@compile
 class _Stress(EnvExperiment):
     core: KernelInvariant[Core]
 

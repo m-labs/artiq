@@ -11,7 +11,7 @@ on Mirny-style prefixed SPI buses.
 from numpy import int32, int64
 from math import floor, ceil
 
-from artiq.language.core import nac3, Kernel, KernelInvariant, kernel, portable, round64
+from artiq.language.core import compile, Kernel, KernelInvariant, kernel, portable, round64
 from artiq.language.units import us, GHz, MHz
 from artiq.coredevice.core import Core
 from artiq.coredevice.mirny import Mirny
@@ -40,7 +40,7 @@ ADF5356_MAX_MODULUS2 = int32(1 << 28)  # FIXME: ADF5356 has 28 bits MOD2
 ADF5356_MAX_R_CNT = int32(1023)
 
 
-@nac3
+@compile
 class ADF5356:
     """Analog Devices AD[45]35[56] family of GHz PLLs.
 

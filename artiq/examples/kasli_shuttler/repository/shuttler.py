@@ -64,7 +64,7 @@ def shuttler_dds_ddamp_mu(volt_per_us_square: float) -> int64:
 def shuttler_dds_dddamp_mu(volt_per_us_cube: float) -> int64:
     return shuttler_volt_dddamp_mu(volt_per_us_cube / CORDIC_GAIN)
 
-@nac3
+@compile
 class Shuttler(EnvExperiment):
     core: KernelInvariant[Core]
     shuttler0_leds: KernelInvariant[list[TTLOut]]

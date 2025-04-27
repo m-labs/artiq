@@ -5,7 +5,7 @@ from artiq.coredevice.core import Core
 from artiq.coredevice.ad9914 import AD9914
 
 
-@nac3
+@compile
 class DDSSetter(EnvExperiment):
     """DDS Setter"""
 

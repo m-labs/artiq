@@ -1,7 +1,7 @@
 from artiq.experiment import *
 
 
-@nac3
+@compile
 class Precompile(EnvExperiment):
     hello_str: Kernel[str]
 

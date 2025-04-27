@@ -25,7 +25,7 @@ port_mapping = {
 }
 
 
-@nac3
+@compile
 class KasliEEPROM:
     core: KernelInvariant[Core]
     sw0: KernelInvariant[I2CSwitch]

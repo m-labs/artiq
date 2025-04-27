@@ -5,7 +5,7 @@ from artiq.coredevice.core import Core
 from artiq.coredevice.ttl import TTLOut
 from artiq.coredevice.suservo import SUServo, Channel as SUServoChannel
 
-@nac3
+@compile
 class SUServoDemo(EnvExperiment):
     core: KernelInvariant[Core]
     led0: KernelInvariant[TTLOut]

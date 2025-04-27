@@ -109,7 +109,7 @@ class RoundtripTest(ExperimentCase):
         self.assertArrayRoundtrip(numpy.array([[1, 2], [3]], dtype=object))
 
 
-@nac3
+@compile
 class _DefaultArg(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -133,7 +133,7 @@ class DefaultArgTest(ExperimentCase):
         self.assertEqual(exp.run(), 42)
 
 
-@nac3
+@compile
 class _RPCTypes(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -316,7 +316,7 @@ class RPCCallsTest(ExperimentCase):
         exp.async_in_try()
 
 
-@nac3
+@compile
 class _Annotation(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -339,7 +339,7 @@ class AnnotationTest(ExperimentCase):
         exp.monomorphize([])
 
 
-@nac3
+@compile
 class _Async(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -364,7 +364,7 @@ class AsyncTest(ExperimentCase):
         exp.run()
 
 
-@nac3
+@compile
 class _Payload1MB(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -387,7 +387,7 @@ class LargePayloadTest(ExperimentCase):
         exp.run()
 
 
-@nac3
+@compile
 class _ListTuple(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -423,7 +423,7 @@ class _ListTuple(EnvExperiment):
             [int32(base_b + i) for i in range(n)]
 
 
-@nac3
+@compile
 class _NestedTupleList(EnvExperiment):
     core: KernelInvariant[Core]
     data: KernelInvariant[list[tuple[int32, list[tuple[str, list[float], list[int32]]]]]]
@@ -445,7 +445,7 @@ class _NestedTupleList(EnvExperiment):
             raise ValueError
 
 
-@nac3
+@compile
 class _EmptyList(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -475,7 +475,7 @@ class ListTupleTest(ExperimentCase):
         self.create(_EmptyList).run()
 
 
-@nac3
+@compile
 class _ArrayQuoting(EnvExperiment):
     core: KernelInvariant[Core]
     vec_i32: KernelInvariant[ndarray[int32, Literal[1]]]
@@ -520,7 +520,7 @@ class ArrayQuotingTest(ExperimentCase):
         self.create(_ArrayQuoting).run()
 
 
-@nac3
+@compile
 class _Assert(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -552,7 +552,7 @@ class AssertTest(ExperimentCase):
         check_fail(lambda: exp.check_msg(False), "foo")
 
 
-@nac3
+@compile
 class _NumpyBool(EnvExperiment):
     core: KernelInvariant[Core]
     np_true: KernelInvariant[bool]
@@ -577,7 +577,7 @@ class NumpyBoolTest(ExperimentCase):
         self.create(_NumpyBool).run()
 
 
-@nac3
+@compile
 class _Alignment(EnvExperiment):
     core: KernelInvariant[Core]
     a: KernelInvariant[bool]
@@ -622,7 +622,7 @@ class AlignmentTest(ExperimentCase):
         self.create(_Alignment).run()
 
 
-@nac3
+@compile
 class _NumpyQuoting(EnvExperiment):
     core: KernelInvariant[Core]
 
@@ -641,7 +641,7 @@ class NumpyQuotingTest(ExperimentCase):
         self.create(_NumpyQuoting).run()
 
 
-@nac3
+@compile
 class _IntBoundary(EnvExperiment):
     core: KernelInvariant[Core]
     int32_min: KernelInvariant[int32]
@@ -674,7 +674,7 @@ class IntBoundaryTest(ExperimentCase):
         self.create(_IntBoundary).run()
 
 
-@nac3
+@compile
 class _BoolListType(EnvExperiment):
     x: Kernel[list[bool]]
     y: Kernel[list[bool]]

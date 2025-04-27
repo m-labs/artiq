@@ -1,6 +1,6 @@
 from numpy import int32, int64
 
-from artiq.language.core import nac3, Kernel, KernelInvariant, kernel, portable, Option, none
+from artiq.language.core import compile, Kernel, KernelInvariant, kernel, portable, Option, none
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 from artiq.coredevice.core import Core
 from artiq.coredevice.spi2 import *
@@ -15,7 +15,7 @@ def shuttler_volt_to_mu(volt: float) -> int32:
     return round(float(1 << 16) * (volt / 20.0)) & 0xffff
 
 
-@nac3
+@compile
 class Config:
     """Shuttler configuration registers interface.
 
@@ -109,7 +109,7 @@ class Config:
         return rtio_input_data(self.channel)
 
 
-@nac3
+@compile
 class DCBias:
     """Shuttler Core cubic DC-bias spline.
 
@@ -189,7 +189,7 @@ class DCBias:
             delay_mu(int64(self.core.ref_multiplier))
 
 
-@nac3
+@compile
 class DDS:
     """Shuttler Core DDS spline.
 
@@ -287,7 +287,7 @@ class DDS:
             delay_mu(int64(self.core.ref_multiplier))
 
 
-@nac3
+@compile
 class Trigger:
     """Shuttler Core spline coefficients update trigger.
 
@@ -349,7 +349,7 @@ _AD4115_REG_CH0 = 0x10
 _AD4115_REG_SETUPCON0 = 0x20
 
 
-@nac3
+@compile
 class Relay:
     """Shuttler AFE relay switches.
 
@@ -395,7 +395,7 @@ class Relay:
         self.bus.write(en << 16)
 
 
-@nac3
+@compile
 class ADC:
     """Shuttler AFE ADC (AD4115) driver.
 

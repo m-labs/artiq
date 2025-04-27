@@ -17,7 +17,7 @@ from artiq.coredevice.phaser import Phaser
 from artiq.coredevice.shuttler import DCBias as ShuttlerDCBias, DDS as ShuttlerDDS
 
 
-@nac3
+@compile
 class NAC3Devices(EnvExperiment):
     core: KernelInvariant[Core]
     core_cache: KernelInvariant[CoreCache]

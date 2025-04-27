@@ -22,7 +22,7 @@ from artiq.coredevice.exceptions import RTIOOverflow
 # 3 Set input sensitivity and sample
 
 
-@nac3
+@compile
 class TTLOut:
     """RTIO TTL output driver.
 
@@ -88,7 +88,7 @@ class TTLOut:
         self.off()
 
 
-@nac3
+@compile
 class TTLInOut:
     """RTIO TTL input/output driver.
 
@@ -463,7 +463,7 @@ class TTLInOut:
         return success
 
 
-@nac3
+@compile
 class TTLClockGen:
     """RTIO TTL clock generator driver.
 

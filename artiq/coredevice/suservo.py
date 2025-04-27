@@ -36,7 +36,7 @@ def adc_mu_to_volts(x: int32, gain: int32, corrected_fs: bool = True) -> float:
     return sampler_adc_mu_to_volt(val, gain, corrected_fs)
 
 
-@nac3
+@compile
 class SUServo:
     """Sampler-Urukul Servo parent and configuration device.
 
@@ -256,7 +256,7 @@ class SUServo:
         return adc_mu_to_volts(val, gain, self.corrected_fs)
 
 
-@nac3
+@compile
 class Channel:
     """Sampler-Urukul Servo channel
 

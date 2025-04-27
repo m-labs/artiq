@@ -1,7 +1,7 @@
 """RTIO driver for Mirny (4-channel GHz PLLs)
 """
 
-from artiq.language.core import nac3, Kernel, KernelInvariant, kernel, portable
+from artiq.language.core import compile, Kernel, KernelInvariant, kernel, portable
 from artiq.language.units import us
 
 from numpy import int32
@@ -33,7 +33,7 @@ WE = 1 << 24
 PROTO_REV_MATCH = 0x0
 
 
-@nac3
+@compile
 class Mirny:
     """
     Mirny PLL-based RF generator.

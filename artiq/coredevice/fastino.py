@@ -3,14 +3,14 @@ streaming DAC.
 """
 from numpy import int32, int64
 
-from artiq.language.core import nac3, kernel, portable, KernelInvariant
+from artiq.language.core import compile, kernel, portable, KernelInvariant
 from artiq.coredevice.rtio import (rtio_output, rtio_output_wide,
                                    rtio_input_data)
 from artiq.language.units import ns
 from artiq.coredevice.core import Core
 
 
-@nac3
+@compile
 class Fastino:
     """Fastino 32-channel, 16-bit, 2.5 MS/s per channel streaming DAC
 

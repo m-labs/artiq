@@ -4,7 +4,7 @@ Non-realtime drivers for I2C chips on the core device.
 
 from numpy import int32
 
-from artiq.language.core import nac3, extern, kernel, KernelInvariant
+from artiq.language.core import compile, extern, kernel, KernelInvariant
 from artiq.coredevice.exceptions import I2CError
 from artiq.coredevice.core import Core
 
@@ -143,7 +143,7 @@ def i2c_read_many(busno: int32, busaddr: int32, addr: int32, data: list[int32]):
         i2c_stop(busno)
 
 
-@nac3
+@compile
 class I2CSwitch:
     """Driver for the I2C bus switch.
 
@@ -223,7 +223,7 @@ class TCA6424A:
         self._write24(0x84, outputs_le)  # set levels
 
 
-@nac3
+@compile
 class PCF8574A:
     """Driver for the PCF8574 I2C remote 8-bit I/O expander.
 
