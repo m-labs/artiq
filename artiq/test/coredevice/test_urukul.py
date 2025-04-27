@@ -1,20 +1,43 @@
-from artiq.coredevice.urukul import STA_PROTO_REV_9, urukul_sta_rf_sw
+from numpy import int32, int64
+
+from artiq.coredevice.core import Core
+from artiq.coredevice.urukul import (
+    CPLD,
+    STA_PROTO_REV_9,
+    urukul_sta_rf_sw,
+)
 from artiq.experiment import *
 from artiq.master.worker_db import DeviceError
 from artiq.test.hardware_testbench import ExperimentCase
 
 # Set to desired device
-CPLD = "urukul_cpld"
+_CPLD = "urukul_cpld"
 
 
+@compile
 class UrukulExp(EnvExperiment):
+    core: KernelInvariant[Core]
+    dev: KernelInvariant[CPLD]
+
     def build(self, runner):
         self.setattr_device("core")
-        self.dev = self.get_device(CPLD)
+        self.dev = self.get_device(_CPLD)
         self.runner = runner
 
     def run(self):
         getattr(self, self.runner)()
+
+    @rpc
+    def report_int32(self, name: str, data: int32):
+        self.set_dataset(name, data)
+
+    @rpc
+    def report_list_int32(self, name: str, data: list[int32]):
+        self.set_dataset(name, data)
+
+    @rpc
+    def report_float(self, name: str, data: float):
+        self.set_dataset(name, data)
 
     @kernel
     def instantiate(self):
@@ -36,7 +59,7 @@ class UrukulExp(EnvExperiment):
         self.core.break_realtime()
         self.dev.init()
         sta = self.dev.sta_read()
-        self.set_dataset("sta", sta)
+        self.report_int32("sta", sta)
 
     @kernel
     def io_rst(self):
@@ -61,8 +84,10 @@ class UrukulExp(EnvExperiment):
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
             self.dev.cfg_sw(2, bool(i & 1))
-        self.set_dataset("dt", self.core.mu_to_seconds(
-            self.core.get_rtio_counter_mu() - t0) / n)
+        self.report_float(
+            "dt",
+            self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / float(n),
+        )
 
     @kernel
     def switches_readback(self):
@@ -71,8 +96,8 @@ class UrukulExp(EnvExperiment):
         sw_set = 0b1010
         self.dev.cfg_switches(sw_set)
         sta_get = self.dev.sta_read()
-        self.set_dataset("sw_set", sw_set)
-        self.set_dataset("sta_get", sta_get)
+        self.report_int32("sw_set", sw_set)
+        self.report_int32("sta_get", sta_get)
 
     @kernel
     def att_enables(self):
@@ -91,8 +116,10 @@ class UrukulExp(EnvExperiment):
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
             self.dev.cfg_att_en(1, bool(i & 1))
-        self.set_dataset("dt", self.core.mu_to_seconds(
-            self.core.get_rtio_counter_mu() - t0) / n)
+        self.report_float(
+            "dt",
+            self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / float(n),
+        )
 
     @kernel
     def att(self):
@@ -105,9 +132,9 @@ class UrukulExp(EnvExperiment):
         att_get = self.dev.get_att_mu()
         # confirm backing state
         att_reg = self.dev.att_reg
-        self.set_dataset("att_set", att_set)
-        self.set_dataset("att_get", att_get)
-        self.set_dataset("att_reg", att_reg)
+        self.report_int32("att_set", att_set)
+        self.report_int32("att_get", att_get)
+        self.report_int32("att_reg", att_reg)
 
     @kernel
     def att_channel(self):
@@ -115,7 +142,7 @@ class UrukulExp(EnvExperiment):
         self.dev.init()
         # clear backing state
         self.dev.att_reg = 0
-        att_set = int32(0x87654321)
+        att_set = int64(0x87654321)
         # set individual attenuators
         self.dev.set_att_mu(0, 0x21)
         self.dev.set_att_mu(1, 0x43)
@@ -125,9 +152,9 @@ class UrukulExp(EnvExperiment):
         att_get = self.dev.get_att_mu()
         # confirm backing state
         att_reg = self.dev.att_reg
-        self.set_dataset("att_set", att_set)
-        self.set_dataset("att_get", att_get)
-        self.set_dataset("att_reg", att_reg)
+        self.report_int32("att_set", int32(att_set))
+        self.report_int32("att_get", att_get)
+        self.report_int32("att_reg", att_reg)
 
     @kernel
     def att_channel_get(self):
@@ -135,8 +162,7 @@ class UrukulExp(EnvExperiment):
         self.dev.init()
         # clear backing state
         self.dev.att_reg = 0
-        att_set = [int32(0x21), int32(0x43), 
-                   int32(0x65), int32(0x87)]
+        att_set = [int32(0x21), int32(0x43), int32(0x65), int32(0x87)]
         # set individual attenuators
         for i in range(len(att_set)):
             self.dev.set_att_mu(i, att_set[i])
@@ -147,9 +173,9 @@ class UrukulExp(EnvExperiment):
             att_get[i] = self.dev.get_channel_att_mu(i)
         # confirm backing state
         att_reg = self.dev.att_reg
-        self.set_dataset("att_set", att_set)
-        self.set_dataset("att_get", att_get)
-        self.set_dataset("att_reg", att_reg)
+        self.report_list_int32("att_set", att_set)
+        self.report_list_int32("att_get", att_get)
+        self.report_int32("att_reg", att_reg)
 
     @kernel
     def att_speed(self):
@@ -158,9 +184,11 @@ class UrukulExp(EnvExperiment):
         n = 10
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
-            self.dev.set_att(3, 30 * dB)
-        self.set_dataset("dt", self.core.mu_to_seconds(
-            self.core.get_rtio_counter_mu() - t0) / n)
+            self.dev.set_att(3, float(30) * dB)
+        self.report_float(
+            "dt",
+            self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / float(n),
+        )
 
     @kernel
     def osk(self):
@@ -179,8 +207,10 @@ class UrukulExp(EnvExperiment):
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
             self.dev.cfg_osk(1, bool(i & 1))
-        self.set_dataset("dt", self.core.mu_to_seconds(
-            self.core.get_rtio_counter_mu() - t0) / n)
+        self.report_float(
+            "dt",
+            self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / float(n),
+        )
 
     @kernel
     def drctl(self):
@@ -199,8 +229,10 @@ class UrukulExp(EnvExperiment):
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
             self.dev.cfg_drctl(2, bool(i & 1))
-        self.set_dataset("dt", self.core.mu_to_seconds(
-            self.core.get_rtio_counter_mu() - t0) / n)
+        self.report_float(
+            "dt",
+            self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / float(n),
+        )
 
     @kernel
     def drhold(self):
@@ -219,8 +251,10 @@ class UrukulExp(EnvExperiment):
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
             self.dev.cfg_drhold(1, bool(i & 1))
-        self.set_dataset("dt", self.core.mu_to_seconds(
-            self.core.get_rtio_counter_mu() - t0) / n)
+        self.report_float(
+            "dt",
+            self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / float(n),
+        )
 
     @kernel
     def mask_nu(self):
@@ -239,8 +273,10 @@ class UrukulExp(EnvExperiment):
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
             self.dev.cfg_mask_nu(2, bool(i & 1))
-        self.set_dataset("dt", self.core.mu_to_seconds(
-            self.core.get_rtio_counter_mu() - t0) / n)
+        self.report_float(
+            "dt",
+            self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / float(n),
+        )
 
     @kernel
     def sync(self):
@@ -306,11 +342,11 @@ class UrukulTest(ExperimentCase):
         self.assertEqual(sw_get, sw_set)
 
     def test_att_enables(self):
-        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(_CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "att_enables")
 
     def test_att_enable_speed(self):
-        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(_CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "att_enable_speed")
             dt = self.dataset_mgr.get("dt")
             print(dt)
@@ -334,7 +370,7 @@ class UrukulTest(ExperimentCase):
         self.assertListEqual(att_set, self.dataset_mgr.get("att_get"))
         att_reg = self.dataset_mgr.get("att_reg")
         for att in att_set:
-            self.assertEqual(att, att_reg & 0xff)
+            self.assertEqual(att, att_reg & 0xFF)
             att_reg >>= 8
 
     def test_att_speed(self):
@@ -344,44 +380,44 @@ class UrukulTest(ExperimentCase):
         self.assertLess(dt, 5 * us)
 
     def test_osk(self):
-        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(_CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "osk")
 
     def test_osk_speed(self):
-        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(_CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "osk_speed")
             dt = self.dataset_mgr.get("dt")
             print(dt)
             self.assertLess(dt, 5 * us)
 
     def test_drctl(self):
-        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(_CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "drctl")
 
     def test_drctl_speed(self):
-        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(_CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "drctl_speed")
             dt = self.dataset_mgr.get("dt")
             print(dt)
             self.assertLess(dt, 5 * us)
 
     def test_drhold(self):
-        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(_CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "drhold")
 
     def test_drhold_speed(self):
-        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(_CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "drhold_speed")
             dt = self.dataset_mgr.get("dt")
             print(dt)
             self.assertLess(dt, 5 * us)
 
     def test_mask_nu(self):
-        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(_CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "mask_nu")
 
     def test_mask_nu_speed(self):
-        if self.get_or_skip(CPLD).proto_rev == STA_PROTO_REV_9:
+        if self.get_or_skip(_CPLD).proto_rev == STA_PROTO_REV_9:
             self.execute(UrukulExp, "mask_nu_speed")
             dt = self.dataset_mgr.get("dt")
             print(dt)
