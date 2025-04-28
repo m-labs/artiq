@@ -594,7 +594,7 @@ class CPLD:
 
         # if self.proto_rev == STA_PROTO_REV_8:
         #     self.cfg_reg = int64(
-        #         self.version8.urukul_cfg(
+        #         self.version.urukul_cfg(
         #             rf_sw=rf_sw,
         #             led=0,
         #             profile=DEFAULT_PROFILE,
