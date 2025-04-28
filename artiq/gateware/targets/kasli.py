@@ -846,11 +846,18 @@ def main():
     else:
         raise ValueError("Invalid DRTIO role")
 
-    has_shuttler = any(peripheral["type"] == "shuttler" for peripheral in description["peripherals"])
+    has_coaxpress_sfp, has_shuttler = False, False
+    for peripheral in description["peripherals"]:
+        if peripheral["type"] == "coaxpress_sfp":
+            has_coaxpress_sfp = True
+        elif peripheral["type"] == "shuttler":
+            has_shuttler = True
     if has_shuttler and (description["drtio_role"] == "standalone"):
         raise ValueError("Shuttler requires DRTIO, please switch role to master")
     if description["enable_wrpll"] and description["hw_rev"] in ["v1.0", "v1.1"]:
         raise ValueError("Kasli {} does not support WRPLL".format(description["hw_rev"])) 
+    if has_coaxpress_sfp:
+        raise ValueError("Kasli doesn't support CoaXPress-SFP")
 
     soc = cls(description, gateware_identifier_str=args.gateware_identifier_str, **soc_kasli_argdict(args))
     args.variant = description["variant"]
