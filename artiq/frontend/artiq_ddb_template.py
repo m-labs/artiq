@@ -749,6 +749,18 @@ class PeripheralManager:
                 spi=spi_name)
         return 0
 
+    def process_coaxpress_sfp(self, rtio_offset, peripheral):
+        self.gen("""
+            device_db["{name}"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.cxp_grabber",
+                "class": "CXPGrabber",
+                "arguments": {{"channel": 0x{channel:06x}}}
+            }}""",
+            name=self.get_name("coaxpress_sfp"),
+            channel=rtio_offset)
+        return 3
+
     def process(self, rtio_offset, peripheral):
         processor = getattr(self, "process_"+str(peripheral["type"]))
         return processor(rtio_offset, peripheral)
