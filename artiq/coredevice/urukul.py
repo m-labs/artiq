@@ -51,7 +51,7 @@ STA_IFC_MODE = 12
 STA_PROTO_REV = 16
 
 # supported hardware and CPLD code version
-STA_PROTO_REV_8 = 0x08
+STA_PROTO_REV_8 = 0x08  # See NAC3TODO below for more details
 STA_PROTO_REV_9 = 0x09
 
 # chip select (decoded)
@@ -97,6 +97,7 @@ def urukul_sta_proto_rev(sta: int32) -> int32:
     return (sta >> STA_PROTO_REV) & 0x7F
 
 
+'''
 @compile
 class ProtoRev8:
     """
@@ -246,6 +247,7 @@ class ProtoRev8:
         :param state: MASK_NU state as a 4-bit integer.
         """
         cpld._configure_all_bits(ProtoRev8.CFG_MASK_NU, state)
+'''
 
 
 @compile
@@ -527,14 +529,21 @@ class CPLD:
     sync_div: Kernel[int32]
     proto_rev: Kernel[int32]
     # NAC3TODO
-    # Current limitations encountered:
-    # - Base and sub class inheritance is not directly supported.
-    # - Using generics (like TypeVar/Generic) can work around the inheritance issue.
-    # - However, generics with future references and circular dependencies in type
-    #   hints, as is needed here, is also not supported.
-    # TODO: Make single version once supported.
-    version8: KernelInvariant[ProtoRev8]
-    version9: KernelInvariant[ProtoRev9]
+    #
+    # Currently, only proto_rev=0x09 is supported. This is due to the following limitations:
+    #
+    # - Inheritance between base and derived classes is not fully supported.
+    # - Generics (TypeVar/Generic) can be used to work around this.
+    # - However, application of type vars to a generic class is not currently supported (e.g.):
+    #
+    #           class A(Generic[T]):
+    #               def __init__(self):
+    #                   pass
+    #               def fun(self, a: A[T]) -> A[T]:
+    #                   pass
+    #
+    # TODO: Add other proto_revs once supported.
+    version: KernelInvariant[ProtoRev9]
 
     def __init__(
         self,
@@ -579,177 +588,117 @@ class CPLD:
             sync_div = 0
 
         self.proto_rev = proto_rev
-        if proto_rev != STA_PROTO_REV_8 and proto_rev != STA_PROTO_REV_9:
-            raise ValueError(f"Urukul unsupported proto_rev: {proto_rev}")
-        self.version8 = ProtoRev8()
-        self.version9 = ProtoRev9()
+        if proto_rev == STA_PROTO_REV_8 or proto_rev != STA_PROTO_REV_9:
+            raise ValueError(f"NAC3: Urukul unsupported proto_rev: {proto_rev}")
+        self.version = ProtoRev9()
 
-        if self.proto_rev == STA_PROTO_REV_8:
-            self.cfg_reg = int64(
-                self.version8.urukul_cfg(
-                    rf_sw=rf_sw,
-                    led=0,
-                    profile=DEFAULT_PROFILE,
-                    io_update=0,
-                    mask_nu=0,
-                    clk_sel=clk_sel,
-                    sync_sel=sync_sel,
-                    rst=0,
-                    io_rst=0,
-                    clk_div=clk_div,
-                )
+        # if self.proto_rev == STA_PROTO_REV_8:
+        #     self.cfg_reg = int64(
+        #         self.version8.urukul_cfg(
+        #             rf_sw=rf_sw,
+        #             led=0,
+        #             profile=DEFAULT_PROFILE,
+        #             io_update=0,
+        #             mask_nu=0,
+        #             clk_sel=clk_sel,
+        #             sync_sel=sync_sel,
+        #             rst=0,
+        #             io_rst=0,
+        #             clk_div=clk_div,
+        #         )
+        #     )
+        # else:
+        self.cfg_reg = int64(
+            self.version.urukul_cfg(
+                rf_sw=rf_sw,
+                led=0,
+                profile=(DEFAULT_PROFILE << 9)
+                | (DEFAULT_PROFILE << 6)
+                | (DEFAULT_PROFILE << 3)
+                | DEFAULT_PROFILE,
+                osk=0,
+                drctl=0,
+                drhold=0,
+                io_update=0,
+                mask_nu=0,
+                clk_sel=clk_sel,
+                sync_sel=sync_sel,
+                rst=0,
+                io_rst=0,
+                clk_div=clk_div,
+                att_en=0,
             )
-        else:
-            self.cfg_reg = int64(
-                self.version9.urukul_cfg(
-                    rf_sw=rf_sw,
-                    led=0,
-                    profile=(DEFAULT_PROFILE << 9)
-                    | (DEFAULT_PROFILE << 6)
-                    | (DEFAULT_PROFILE << 3)
-                    | DEFAULT_PROFILE,
-                    osk=0,
-                    drctl=0,
-                    drhold=0,
-                    io_update=0,
-                    mask_nu=0,
-                    clk_sel=clk_sel,
-                    sync_sel=sync_sel,
-                    rst=0,
-                    io_rst=0,
-                    clk_div=clk_div,
-                    att_en=0,
-                )
-            )
+        )
         self.att_reg = int32(int64(att))
         self.sync_div = sync_div
 
     @kernel
-    def _not_implemented(self, *args, **kwargs):
-        raise NotImplementedError(
-            "This function is not implemented for this Urukul version."
-        )
-
-    @kernel
     def cfg_write(self, cfg: int64):
-        if self.proto_rev == STA_PROTO_REV_8:
-            self.version8.cfg_write(self, cfg)
-        else:
-            self.version9.cfg_write(self, cfg)
+        self.version.cfg_write(self, cfg)
 
     @kernel
     def sta_read(self) -> int32:
-        if self.proto_rev == STA_PROTO_REV_8:
-            return self.version8.sta_read(self)
-        elif self.proto_rev == STA_PROTO_REV_9:
-            return self.version9.sta_read(self)
-        else:
-            return 0
+        return self.version.sta_read(self)
 
     @kernel
     def init(self):
-        if self.proto_rev == STA_PROTO_REV_8:
-            self.version8.init(self)
-        else:
-            self.version9.init(self)
+        self.version.init(self)
 
     @kernel
     def io_rst(self):
-        if self.proto_rev == STA_PROTO_REV_8:
-            self.version8.io_rst(self)
-        else:
-            self.version9.io_rst(self)
+        self.version.io_rst(self)
 
     @kernel
     def set_profile(self, channel: int32, profile: int32):
-        if self.proto_rev == STA_PROTO_REV_8:
-            self.version8.set_profile(self, channel, profile)
-        else:
-            self.version9.set_profile(self, channel, profile)
+        self.version.set_profile(self, channel, profile)
 
     @kernel
     def _configure_bit(self, bit_offset: int32, channel: int32, on: bool):
-        if self.proto_rev == STA_PROTO_REV_8:
-            self.version8._configure_bit(self, bit_offset, channel, on)
-        else:
-            self.version9._configure_bit(self, bit_offset, channel, on)
+        self.version._configure_bit(self, bit_offset, channel, on)
 
     @kernel
     def _configure_all_bits(self, bit_offset: int32, state: int32):
-        if self.proto_rev == STA_PROTO_REV_8:
-            self.version8._configure_all_bits(self, bit_offset, state)
-        else:
-            self.version9._configure_all_bits(self, bit_offset, state)
+        self.version._configure_all_bits(self, bit_offset, state)
 
     @kernel
     def cfg_mask_nu(self, channel: int32, on: bool):
-        if self.proto_rev == STA_PROTO_REV_8:
-            self.version8.cfg_mask_nu(self, channel, on)
-        else:
-            self.version9.cfg_mask_nu(self, channel, on)
+        self.version.cfg_mask_nu(self, channel, on)
 
     @kernel
     def cfg_mask_nu_all(self, state: int32):
-        if self.proto_rev == STA_PROTO_REV_8:
-            self.version8.cfg_mask_nu_all(self, state)
-        else:
-            self.version9.cfg_mask_nu_all(self, state)
+        self.version.cfg_mask_nu_all(self, state)
 
     @kernel
     def cfg_att_en(self, channel: int32, on: bool):
-        if self.proto_rev == STA_PROTO_REV_8:
-            self._not_implemented()
-        else:
-            self.version9.cfg_att_en(self, channel, on)
+        self.version.cfg_att_en(self, channel, on)
 
     @kernel
     def cfg_att_en_all(self, state: int32):
-        if self.proto_rev == STA_PROTO_REV_8:
-            self._not_implemented()
-        else:
-            self.version9.cfg_att_en_all(self, state)
+        self.version.cfg_att_en_all(self, state)
 
     @kernel
     def cfg_osk(self, channel: int32, on: bool):
-        if self.proto_rev == STA_PROTO_REV_8:
-            self._not_implemented()
-        else:
-            self.version9.cfg_osk(self, channel, on)
+        self.version.cfg_osk(self, channel, on)
 
     @kernel
     def cfg_osk_all(self, state: int32):
-        if self.proto_rev == STA_PROTO_REV_8:
-            self._not_implemented()
-        else:
-            self.version9.cfg_osk_all(self, state)
+        self.version.cfg_osk_all(self, state)
 
     @kernel
     def cfg_drctl(self, channel: int32, on: bool):
-        if self.proto_rev == STA_PROTO_REV_8:
-            self._not_implemented()
-        else:
-            self.version9.cfg_drctl(self, channel, on)
+        self.version.cfg_drctl(self, channel, on)
 
     @kernel
     def cfg_drctl_all(self, state: int32):
-        if self.proto_rev == STA_PROTO_REV_8:
-            self._not_implemented()
-        else:
-            self.version9.cfg_drctl_all(self, state)
+        self.version.cfg_drctl_all(self, state)
 
     @kernel
     def cfg_drhold(self, channel: int32, on: bool):
-        if self.proto_rev == STA_PROTO_REV_8:
-            self._not_implemented()
-        else:
-            self.version9.cfg_drhold(self, channel, on)
+        self.version.cfg_drhold(self, channel, on)
 
     @kernel
     def cfg_drhold_all(self, state: int32):
-        if self.proto_rev == STA_PROTO_REV_8:
-            self._not_implemented()
-        else:
-            self.version9.cfg_drhold_all(self, state)
+        self.version.cfg_drhold_all(self, state)
 
     @kernel
     def cfg_sw(self, channel: int32, on: bool):
@@ -920,13 +869,13 @@ class _RegIOUpdate:
         (in machine units).
         The time cursor is advanced by the specified duration."""
         cfg = self.cpld.cfg_reg
-        if self.cpld.proto_rev == STA_PROTO_REV_8:
-            self.cpld.cfg_write(cfg | int64(1 << ProtoRev8.CFG_IO_UPDATE))
-        else:
-            self.cpld.cfg_write(
-                int64(cfg)
-                | (int64(1) << (ProtoRev9.CFG_IO_UPDATE + (self.chip_select - 4)))
-            )
+        # if self.cpld.proto_rev == STA_PROTO_REV_8:
+        #     self.cpld.cfg_write(cfg | int64(1 << ProtoRev8.CFG_IO_UPDATE))
+        # else:
+        self.cpld.cfg_write(
+            int64(cfg)
+            | (int64(1) << (ProtoRev9.CFG_IO_UPDATE + (self.chip_select - 4)))
+        )
         delay_mu(t)
         self.cpld.cfg_write(cfg)
 
@@ -936,12 +885,12 @@ class _RegIOUpdate:
         (in seconds).
         The time cursor is advanced by the specified duration."""
         cfg = self.cpld.cfg_reg
-        if self.cpld.proto_rev == STA_PROTO_REV_8:
-            self.cpld.cfg_write(cfg | int64(1 << ProtoRev8.CFG_IO_UPDATE))
-        else:
-            self.cpld.cfg_write(
-                int64(cfg)
-                | (int64(1) << (ProtoRev9.CFG_IO_UPDATE + (self.chip_select - 4)))
-            )
+        # if self.cpld.proto_rev == STA_PROTO_REV_8:
+        #     self.cpld.cfg_write(cfg | int64(1 << ProtoRev8.CFG_IO_UPDATE))
+        # else:
+        self.cpld.cfg_write(
+            int64(cfg)
+            | (int64(1) << (ProtoRev9.CFG_IO_UPDATE + (self.chip_select - 4)))
+        )
         self.cpld.core.delay(t)
         self.cpld.cfg_write(cfg)
