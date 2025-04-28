@@ -146,7 +146,7 @@
             "properties": {
                 "type": {
                     "type": "string",
-                    "enum": ["dio", "dio_spi", "urukul", "novogorny", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser", "hvamp", "shuttler"]
+                    "enum": ["dio", "dio_spi", "urukul", "novogorny", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser", "hvamp", "shuttler", "coaxpress_sfp"]
                 },
                 "board": {
                     "type": "string"
@@ -652,6 +652,26 @@
                         }
                     },
                     "required": ["ports"]
+                }
+            }, {
+                "title": "COAXPRESS_SFP",
+                "if": {
+                    "properties": {
+                        "type": {
+                            "const": "coaxpress_sfp"
+                        }
+                    }
+                },
+                "then": {
+                    "properties": {
+                        "roi_engine_count": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 32,
+                            "default": 16,
+                            "description": "Number of ROI engines."
+                        }
+                    }
                 }
             }]
         }
