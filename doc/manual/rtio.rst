@@ -1,44 +1,75 @@
 ARTIQ Real-Time I/O concepts
 ============================
 
-The ARTIQ Real-Time I/O design employs several concepts to achieve its goals of high timing resolution on the nanosecond scale and low latency on the microsecond scale while still not sacrificing a readable and extensible language.
+ARTIQ's Real-Time Input-Output (RTIO) design helps achieve its goals of high timing resolution and low latency. The concepts that together form RTIO define:
 
-In a typical environment two very different classes of hardware need to be controlled. One class is the vast arsenal of diverse laboratory hardware that interfaces with and is controlled from a typical PC. The other is specialized real-time hardware that requires tight coupling and a low-latency interface to a CPU. The ARTIQ code that describes a given experiment is composed of two types of "programs": regular Python code that is executed on the host and ARTIQ *kernels* that are executed on a *core device*. The CPU that executes the ARTIQ kernels has direct access to specialized programmable I/O timing logic (part of the *gateware*). The two types of code can invoke each other and transitions between them are seamless.
+  * how ARTIQ times its commands, from a user perspective;
+  * how ARTIQ gets its ns-timing resolution and µs latency.
 
-The ARTIQ kernels do not interface with the real-time gateware directly. That would lead to imprecise, indeterminate, and generally unpredictable timing. Instead the CPU operates at one end of a bank of FIFO (first-in-first-out) buffers while the real-time gateware at the other end guarantees the *all or nothing* level of excellent timing precision.
+In this tutorial, our goal is to understand these RTIO concepts so that we can achieve this timing resolution and latency in the programs we'll write.
 
-A FIFO for an output channel holds timestamps and event data describing when and what is to be executed. The CPU feeds events into this FIFO. A FIFO for an input channel contains timestamps and event data for events that have been recorded by the real-time gateware and are waiting to be read out by the CPU on the other end.
+Consider a typical lab environment. One generally controls two different classes of hardware:
 
+  * standalone hardware that interfaces with a PC; for example, a controller for an actuator;
+  * hardware that interfaces the standalone hardware to the PC, such as a data acquisition (DAQ) module.
 
-Timeline and terminology
-------------------------
+Having the second class allows for better performance than with direct control from the PC (e.g. lower latency), being purpose-built for that function(s). However, flexibility may be lost.
 
-The set of all input and output events on all channels constitutes the *timeline*. A high-resolution wall clock (``rtio_counter_mu``) counts clock cycles and manages the precise timing of the events. Output events are executed when their timestamp matches the current clock value. Input events are recorded when they reach the gateware and stamped with the current clock value accordingly.
+ARTIQ extends the flexibility of the second class of hardware. The user writes a program in Python, the program gets sent to specialized hardware, and finally the hardware executes the program. This way, we combine much better timing and latency performance of dedicated hardware with the flexibility of a Python program.
 
-The kernel runtime environment maintains a timeline cursor (called ``now_mu``) used as the timestamp when output events are submitted to the FIFOs. Both ``now_mu`` and ``rtio_counter_mu`` are counted in integer *machine units,* or mu, rather than SI units. The machine unit represents the maximum resolution of RTIO timing in an ARTIQ system. The duration of a machine unit is the *reference period* of the system, and may be changed by the user, but normally corresponds to a duration of one nanosecond.
+To facilitate this, ARTIQ code is composed of two program types: 
 
-The timeline cursor ``now_mu`` can be moved forward or backward on the timeline using :func:`artiq.language.core.delay` and :func:`artiq.language.core.delay_mu` (for delays given in SI units or machine units respectively). The absolute value of ``now_mu`` on the timeline can be retrieved using :func:`artiq.language.core.now_mu` and it can be set using :func:`artiq.language.core.at_mu`. The difference between the cursor and the wall clock is referred to as *slack.* A system is considered in a situation of *positive slack* when the cursor is ahead of the wall clock, i.e., in the future; respectively, it is in *negative slack* if the cursor is behind the wall clock, i.e. in the past.
+  1. Python code, executed on the *host* device (a PC);
+  2. ARTIQ kernels, executed on a *core device* (an FPGA-based device).
 
-RTIO timestamps, the timeline cursor, and the ``rtio_counter_mu`` wall clock are all counted relative to the core device startup/boot time. The wall clock keeps running across experiments.
+The core device may then access specialized programmable I/O timing logic: part of the *gateware*. This allows ARTIQ kernels and Python code to invoke each other seamlessly.
 
-Absolute timestamps can be large numbers. They are represented internally as 64-bit integers. With a typical one-nanosecond machine unit, this covers a range of hundreds of years. Conversions between such a large integer number and a floating point representation can cause loss of precision through cancellation. When computing the difference of absolute timestamps, use ``self.core.mu_to_seconds(t2-t1)``, not ``self.core.mu_to_seconds(t2)-self.core.mu_to_seconds(t1)`` (see :meth:`~artiq.coredevice.core.Core.mu_to_seconds`). When accumulating time, do it in machine units and not in SI units, so that rounding errors do not accumulate.
+To ensure the ARTIQ kernels, the gateware and the lab hardware all talk to each other seamlessly, they interface as follows. The core device's CPU sends events to a bank of FIFO (first-in-first-out) buffers, effectively queuing up events. More precisely, the FIFO holds event data and timestamps. Then, the real-time gateware receives these events from the FIFO. It's the gateware that guarantees *all or nothing* precise timing: if an event's timing isn't accurate, for example because the timestamped event was received from the CPU too late, then it isn't sent to the gateware and so isn't executed on it. Therefore, we can execute precisely timed, timestamped events.
 
-.. note::
-  Absolute timestamps are also referred to as *RTIO fine timestamps,* because they run on a significantly finer resolution than the timestamps of the so-called *coarse RTIO clock,* the actual clocking signal provided to or generated by the core device. The frequency of the coarse RTIO clock is set by the core device :ref:`clocking settings <core-device-clocking>` but is most commonly 125MHz, which corresponds to eight one-nanosecond machine units per coarse RTIO cycle.
+Timeline
+--------
 
-  The *coarse timestamp* of an event is its timestamp as according to the lower resolution of the coarse clock.   It is in practice a truncated version of the fine timestamp. In general, ARTIQ offers *precision* on the fine level, but *operates* at the coarse level; this is rarely relevant to the user, but understanding it may clarify the behavior of some RTIO issues (e.g. sequence errors).
+Everything in an ARTIQ experiment occurs on a timeline. But, we must take care: it's not simply a matter of event X happening at time t1, event Y happening at time t2, and so on. The technicalities of ARTIQ infrastructure requires additional considerations for timing events properly. To give us the necessary foundations, let's define the relevant terminology:
 
-  .. Related: https://github.com/m-labs/artiq/issues/1237
+Terminology
+^^^^^^^^^^^
 
-The following basic example shows how to place output events on the timeline. It emits a precisely timed 2 µs pulse::
+- **Experiment**: a sequence of timestamped events, typically defined from Python code and run on an ARTIQ kernel.
+- **Timeline**: the schedule of all input and output events on all channels.
+- **Wall clock**: the actual time in the real world. That is, the time we'd read if we looked at an (accurate) clock on the wall. In ARTIQ programs, this takes the value ``rtio_counter_mu``.
+- **Timeline Cursor** (or simply **Cursor**): a timestamp that we move programmatically along the timeline, so that we can stamp output events with this time when they're submitted. Although, this doesn't have to be the wall clock time: it can be earlier or later. In ARTIQ programs and the kernel runtime, this timestamp takes the value ``now_mu``.
+- ``mu``: machine units. These are ARTIQ's internal units of time: an integer, rather than SI units. One ``mu`` corresponds to one reference period (or clock cycle) of the system: by default and for typical core devices, this is one nanosecond (although is user-changeable). Thus, ``mu`` represents the maximum timing resolution.
+- **Slack**: the difference between the timeline cursor and the wall clock.
+
+  - **Positive slack**: the cursor is ahead of the wall clock (i.e. lies in the future).
+  - **Negative slack**: the cursor is behind the wall clock (i.e. lies in the past).
+
+Correspondingly, there are two types of events:
+
+1. **Output events**, executed when their scheduled time matches the timeline cursor's timestamp.
+2. **Input events**, timestamped when they reach the gateware (with the current wall clock value).
+
+Due to the technical constraints of the core device, if we want deterministic and precise timing, we can't use only the wall clock. We ought to prepare timings in advance: prepare to receive inputs, and prepare to execute outputs. That's why we use the timeline cursor. We move that along the timeline programatically, and use that to precisely time when we want outputs to be executed, or want to receive inputs.
+
+How do we move the timeline cursor? We have (Python) methods that explicitly interact with the cursor, such as :func:`artiq.language.core.delay` and :func:`artiq.language.core.delay_mu` (for delays given in SI units or machine units respectively). We also have methods run to perform an experiment, such as :func:`artiq.coredevice.ttl.TTLInOut.pulse_mu`, that advance the cursor. We can also retrieve and set the absolute value of ``now_mu`` using :meth:`artiq.language.core.now_mu()` and it can be set using :meth:`artiq.language.core.at_mu()` respectively.
+
+Overall, respecting the technical constraints, we therefore want to build in slack so that the cursor stays ahead of the wall clock as we perform our experiment.
+
+Let's shortly recap what timings we must consider. We have: 
+
+- the wall clock time;
+- the timeline cursor;
+- and timestamps of (RTIO) events.
+
+Now we can consider a basic example. Let's place two output events on the timeline to emit a precisely timed 2 µs pulse::
 
   ttl.on()
   delay(2*us)
   ttl.off()
 
-The device ``ttl`` represents a single digital output channel (:class:`artiq.coredevice.ttl.TTLOut`). The :meth:`artiq.coredevice.ttl.TTLOut.on` method places an rising edge on the timeline at the current cursor position (``now_mu``). Then the cursor is moved forward 2 µs and a falling edge is placed at the new cursor position. Later, when the wall clock reaches the respective timestamps, the RTIO gateware executes the two events.
+The device ``ttl`` represents a single digital output channel (:class:`artiq.coredevice.ttl.TTLOut`). The :meth:`artiq.coredevice.ttl.TTLOut.on` method places a rising edge on the timeline at the current cursor position (``now_mu``). Then the cursor is moved forward 2 µs and a falling edge is placed at the new cursor position. Later, when the wall clock reaches the respective timestamps, the RTIO gateware executes the two events.
 
-The following diagram shows what is going on at the different levels of the software and gateware stack (assuming one machine unit of time is 1 ns):
+Let's further examine what's going on at the different levels of the software and gateware stack with the following timing diagram shows(where we've assumed ``mu`` is 1 ns):
 
 .. wavedrom::
 
@@ -59,19 +90,34 @@ The following diagram shows what is going on at the different levels of the soft
     ]
   }
 
-This sequence is exactly equivalent to::
+Let's break down what's going on. :meth:`ttl.on() <artiq.coredevice.ttl.TTLOut.on>` places a rising edge RTIO **event** on the timeline at the current cursor position. The timeline cursor ``now_mu`` starts at 7000, and advances by 2000 after :func:`delay(2*μs) <artiq.language.core.delay>` is called. The wall clock ``rtio_counter_mu`` at the time it was processed by the ARTIQ kernel was 2600. So, the slack is 7000 - 2600 = 4400, and is positive. So now, these ``ttl`` and ``delay`` RTIO events are then safely scheduled on the core device, and finally executed when the wall clock reaches those timestamps.
+
+In fact, this sequence is exactly equivalent to::
 
   ttl.pulse(2*us)
 
-This method :meth:`artiq.coredevice.ttl.TTLOut.pulse` advances the timeline cursor (using :func:`~artiq.language.core.delay` internally) by exactly the amount given. ther methods such as :meth:`~artiq.coredevice.ttl.TTLOut.on`, :meth:`~artiq.coredevice.ttl.TTLOut.off`, :meth:`~artiq.coredevice.ad9914.AD9914.set` do not modify the timeline cursor. The latter are called *zero-duration* methods.
+This method :meth:`artiq.coredevice.ttl.TTLOut.pulse` advances the timeline cursor (using :func:`~artiq.language.core.delay` internally) by exactly the amount given.
+
+.. note::
+  Methods such as :meth:`~artiq.coredevice.ttl.TTLOut.on`, :meth:`~artiq.coredevice.ttl.TTLOut.off`, :meth:`~artiq.coredevice.ad9914.AD9914.set`, and some other methods are *zero-duration* methods, since they do not modify the timeline cursor.
+
+.. note::
+  Wall clock time is measured as follows. Time zero is when the core device was booted up (and therefore keeps running across experiments), and we count machine units from there. For default ``mu`` and a 64-bit integer, we can therefore run ARTIQ for hundreds of years. Although, take care to avoid rounding errors: when computing the difference of absolute timestamps, use ``self.core.mu_to_seconds(t2-t1)``, not ``self.core.mu_to_seconds(t2)-self.core.mu_to_seconds(t1)`` (see :meth:`~artiq.coredevice.core.Core.mu_to_seconds`). Likewise, accumulate time in machine units and not in SI units.
+
+.. note::
+  internally, there's two types of timestamps: coarse and fine. The clock of the core device runs  the coarse resolution, with clock frequency typically 125MHz. The fine resolution timestamp allows an event to be timed with more precision. In general, ARTIQ offers precision at fine resolution, but operates at coarse resolution, affecting the behavior of some RTIO issues (e.g. sequence errors).
+
+  .. Related: https://github.com/m-labs/artiq/issues/1237
 
 Output errors and exceptions
 ----------------------------
 
+Now that we have a better understanding of the timeline, we can understand the causes of errors that may arise in RTIO output events, as we shall detail below.
+
 Underflows
 ^^^^^^^^^^
 
-A RTIO ouput event must always be programmed with a timestamp in the future. In other words, the timeline cursor ``now_mu`` must be in advance of the current wall clock ``rtio_counter_mu``: the past cannot be altered. The following example tries to place a rising edge event on the timeline. If the current cursor is in the past, an :class:`artiq.coredevice.exceptions.RTIOUnderflow` exception is thrown. The experiment attempts to handle the exception by moving the cursor forward and repeating the programming of the rising edge::
+An output event must always be programmed with a timestamp in the future. That is, the timeline cursor must be later than the wall clock: ``now_mu`` > ``rtio_counter_mu``. Let’s place a rising edge event on the timeline, and raise an error if we encounter an underflow::
 
   try:
       ttl.on()
@@ -80,7 +126,7 @@ A RTIO ouput event must always be programmed with a timestamp in the future. In 
       delay(16.6667*ms)
       ttl.on()
 
-Once the timeline cursor has overtaken the wall clock, the exception does not reoccur and the event can be scheduled successfully. This can also be thought of as adding positive slack to the system.
+So, if the current cursor is in the past, an :class:`artiq.coredevice.exceptions.RTIOUnderflow` exception is thrown. The experiment attempts to handle the exception by moving the cursor forward and repeating the programming of the rising edge. Once the timeline cursor has overtaken the wall clock, the exception does not reoccur and the event can be scheduled successfully. This can also be thought of as adding positive slack to the system. The following figure illustrates the two cases of error and no error:
 
 .. wavedrom::
 
@@ -112,7 +158,7 @@ Sequence errors
 
 A sequence error occurs when a sequence of coarse timestamps cannot be transferred to the gateware. Internally, the gateware stores output events in an array of FIFO buffers (the 'lanes'). Within each particular lane, the coarse timestamps of events must be strictly increasing.
 
-If an event with a timestamp coarsely equal to or lesser than the previous timestamp is submitted, *or* if the current lane is nearly full, the scaleable event dispatcher (SED) selects the next lane, wrapping around once the final lane is reached. If this lane also contains an event with a timestamp equal to or beyond the one being submitted, the placement fails and a sequence error occurs.
+If an event with a timestamp coarsely equal to or lesser than the previous timestamp is submitted, *or* if the current lane is nearly full, the scaleable event dispatcher (SED) selects the next lane, wrapping around once the final lane is reached. If this lane also contains an event with a timestamp equal to or later than the one being submitted, the placement fails and a sequence error occurs.
 
 .. note::
   For performance reasons, unlike :class:`~artiq.coredevice.exceptions.RTIOUnderflow`, most gateware errors do not halt execution of the kernel, because the kernel cannot wait for potential error reports before continuing. As a result, sequence errors are not raised as exceptions and cannot be caught. Instead, the offending event -- in this case, the event that could not be queued -- is discarded, the experiment continues, and the error is reported in the core log. To check the core log, use the command ``artiq_coremgmt log``.
@@ -136,7 +182,7 @@ Other notes:
 
 Collisions
 ^^^^^^^^^^
-A collision occurs when events are submitted to a given RTIO output channel at a resolution the channel is not equipped to handle. Some channels implement 'replacement behavior', meaning that RTIO events submitted to the same timestamp will override each other (for example, if a ``ttl.off()`` and ``ttl.on()`` are scheduled to the same timestamp, the latter automatically overrides the former and only ``ttl.on()`` will be submitted to the channel). On the other hand, if replacement behavior is absent or disabled, or if the two events have the same coarse timestamp with differing fine timestamps, a collision error will be reported.
+Collision errors are possible when two events have similar or same timestamps. For example, a collision occurs when events are submitted to a given RTIO output channel at a resolution the channel is not equipped to handle. Some channels implement 'replacement behavior', meaning that RTIO events submitted to the same timestamp will override each other (for example, if a ``ttl.off()`` and ``ttl.on()`` are scheduled to the same timestamp, the latter automatically overrides the former and only ``ttl.on()`` will be submitted to the channel). On the other hand, if replacement behavior is absent or disabled, or if the two events have the same coarse timestamp with differing fine timestamps, a collision error will be reported.
 
 Like sequence errors, collisions originate in gateware and do not stop the execution of the kernel. The offending event is discarded and the problem is reported asynchronously via the core log.
 
@@ -156,11 +202,9 @@ Input channels detect events, timestamp them, and place them in a buffer for the
       delay(2*us)
       output.pulse(500*ns)
 
-Note that many input methods will necessarily involve the wall clock catching up to the timeline cursor or advancing before it. This is to be expected: managing output events means working to plan the future, but managing input events means working to react to the past. For input channels, it is the past that is under discussion.
+Note that many input methods may involve the wall clock catching up to the timeline cursor or advancing later than it. We should expect this: for output events, we're planning future events, whereas for input events, we're reacting to past events.
 
-In this case, the :meth:`~artiq.coredevice.ttl.TTLInOut.gate_rising` waits for the duration of the 500ns interval (or *gate window*) and records an event for each rising edge. At the end of the interval it exits, leaving the timeline cursor at the end of the interval (``now_mu = rtio_counter_mu``). :meth:`~artiq.coredevice.ttl.TTLInOut.count` unloads these events from the input buffers and counts the number of events recorded, during which the wall clock necessarily advances (``rtio_counter_mu > now_mu``). Accordingly, before we place any further output events, a :func:`~artiq.language.core.delay` is necessary to re-establish positive slack.
-
-Similar situations arise with methods such as :meth:`TTLInOut.sample_get <artiq.coredevice.ttl.TTLInOut.sample_get>` and :meth:`TTLInOut.watch_done <artiq.coredevice.ttl.TTLInOut.watch_done>`.
+In our example and as illustrated below, the :meth:`~artiq.coredevice.ttl.TTLInOut.gate_rising` monitors the input for rising edges during the the 500ns gate interval, recording an event for each detected edge. At the end of the interval, [:meth:`~artiq.coredevice.ttl.TTLInOut.gate_rising` exits, leaving the timeline cursor positioned at the end of the interval (` rtio_counter_mu = now_mu`). Then, [:meth:`~artiq.coredevice.ttl.TTLInOut.count` unloads these events from the input buffers and counts them, during which the wall clock advances (``rtio_counter_mu > now_mu``). Accordingly, before we place any further output events, a :func:`~artiq.language.core.delay` is necessary to re-establish positive slack.
 
 .. wavedrom::
 
@@ -181,12 +225,14 @@ Similar situations arise with methods such as :meth:`TTLInOut.sample_get <artiq.
 
 |
 
-.. ^ for spacing reasons only
+Similar situations arise with methods such as :meth:`TTLInOut.sample_get <artiq.coredevice.ttl.TTLInOut.sample_get>` and :meth:`TTLInOut.watch_done <artiq.coredevice.ttl.TTLInOut.watch_done>`.
 
 Overflow exceptions
 ^^^^^^^^^^^^^^^^^^^
 
-The RTIO input channels buffer input events received while an input gate is open, or when using the sampling API (:meth:`TTLInOut.sample_input <artiq.coredevice.ttl.TTLInOut.sample_input>`) at certain points in time. The events are kept in a FIFO until the CPU reads them out via e.g. :meth:`~artiq.coredevice.ttl.TTLInOut.count`, :meth:`~artiq.coredevice.ttl.TTLInOut.timestamp_mu` or :meth:`~artiq.coredevice.ttl.TTLInOut.sample_get`. The size of these FIFOs is finite and specified in gateware; in practice, it is limited by the resources available to the FPGA, and therefore differs depending on the specific core device being used. If a FIFO is full and another event comes in, this causes an overflow condition. The condition is converted into an :class:`~artiq.coredevice.exceptions.RTIOOverflow` exception that is raised on a subsequent invocation of one of the readout methods. Overflow exceptions are generally best dealt with simply by reading out from the input buffers more frequently. In odd or particular cases, users may consider modifying the length of individual buffers in gateware.
+Overflow exceptions occur when an RTIO input channel receives an input event when the FIFO buffer is already full. 
+
+To understand how this happens, let us examine how input events are processed. The RTIO input channels buffer input events received while an input gate is open, or when using the sampling API (:meth:`TTLInOut.sample_input <artiq.coredevice.ttl.TTLInOut.sample_input>`) at certain points in time. The events are kept in a FIFO until the CPU reads them out via e.g. :meth:`~artiq.coredevice.ttl.TTLInOut.count`, :meth:`~artiq.coredevice.ttl.TTLInOut.timestamp_mu` or :meth:`~artiq.coredevice.ttl.TTLInOut.sample_get`. The size of these FIFOs is finite and specified in gateware; in practice, it is limited by the resources available to the FPGA, and therefore differs depending on the specific core device being used. If a FIFO is full and another event comes in, this causes an overflow condition. The condition is converted into an :class:`~artiq.coredevice.exceptions.RTIOOverflow` exception that is raised on a subsequent invocation of one of the readout methods. Overflow exceptions are generally best dealt with simply by reading out from the input buffers more frequently. In odd or particular cases, users may consider modifying the length of individual buffers in gateware.
 
 .. note::
   It is not possible to provoke an :class:`~artiq.coredevice.exceptions.RTIOOverflow` on a RTIO output channel. While output buffers are also of finite size, and can be filled up, the CPU will simply stall the submission of further events until it is once again possible to buffer them. Among other things, this means that padding the timeline cursor with large amounts of positive slack is not always a valid strategy to avoid :class:`~artiq.coredevice.exceptions.RTIOUnderflow` exceptions when generating fast event sequences. In practice only a fixed number of events can be generated in advance, and the rest of the processing will be carried out when the wall clock is much closer to ``now_mu``.
