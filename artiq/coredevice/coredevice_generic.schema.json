@@ -487,6 +487,13 @@
                             },
                             "minItems": 1,
                             "maxItems": 3
+                        },
+                        "roi_engine_count": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 32,
+                            "default": 16,
+                            "description": "Number of ROI engines."
                         }
                     },
                     "required": ["ports"]
