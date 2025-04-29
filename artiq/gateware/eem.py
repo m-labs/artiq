@@ -501,13 +501,13 @@ class Grabber(_EEM):
         return ios
 
     @classmethod
-    def add_std(cls, target, eem, eem_aux=None, eem_aux2=None, ttl_out_cls=None,
+    def add_std(cls, target, eem, eem_aux, eem_aux2, ttl_out_cls, roi_engine_count,
             iostandard=default_iostandard):
         cls.add_extension(target, eem, eem_aux, iostandard=iostandard)
 
         pads = target.platform.request("grabber{}_video".format(eem))
         target.platform.add_period_constraint(pads.clk_p, 14.71)
-        phy = grabber.Grabber(pads)
+        phy = grabber.Grabber(pads, roi_engine_count=roi_engine_count)
         name = "grabber{}".format(len(target.grabber_csr_group))
         setattr(target.submodules, name, phy)
 
