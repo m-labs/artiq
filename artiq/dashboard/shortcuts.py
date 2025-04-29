@@ -17,7 +17,10 @@ class ShortcutsDock(QtWidgets.QDockWidget):
         layout = QtWidgets.QGridLayout()
         top_widget = QtWidgets.QWidget()
         top_widget.setLayout(layout)
-        self.setWidget(top_widget)
+        scroll_area = QtWidgets.QScrollArea()
+        scroll_area.setWidget(top_widget)
+        scroll_area.setWidgetResizable(True)
+        self.setWidget(scroll_area)
         layout.setSpacing(5)
         layout.setContentsMargins(5, 5, 5, 5)
 
@@ -37,7 +40,7 @@ class ShortcutsDock(QtWidgets.QDockWidget):
 
             label = QtWidgets.QLabel()
             label.setSizePolicy(QtWidgets.QSizePolicy.Policy.Ignored,
-                                QtWidgets.QSizePolicy.Policy.Ignored)
+                                label.sizePolicy().verticalPolicy())
             layout.addWidget(label, row, 1)
 
             clear = QtWidgets.QToolButton()
