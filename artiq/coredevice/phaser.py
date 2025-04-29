@@ -867,9 +867,9 @@ class PhaserChannel:
     * :attr:`miqro`: A :class:`Miqro`.
 
     .. note:: The amplitude sum of the oscillators must be less than one to
-        avoid clipping or overflow. If any of the DDS or DUC frequencies are
-        non-zero, it is not sufficient to ensure that the sum in each
-        quadrature is within range.
+        avoid clipping or overflow. Setting a single oscillator to one is also
+        not valid. If any of the DDS or DUC frequencies are non-zero, it is
+        not sufficient to ensure that the sum in each quadrature is within range.
 
     .. note:: The interpolation filter on Phaser has an intrinsic sinc-like
         overshoot in its step response. That overshoot is a direct consequence
