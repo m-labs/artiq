@@ -160,6 +160,10 @@ class ExperimentDB:
                 r.append(prefix + de.name)
         return r
 
+    def root(self):
+        wd, _, _ = self.repo_backend.request_rev(self.cur_rev)
+        self.repo_backend.release_rev(self.cur_rev)
+        return wd
 
 class FilesystemBackend:
     def __init__(self, root):
