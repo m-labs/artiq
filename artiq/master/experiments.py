@@ -161,9 +161,7 @@ class ExperimentDB:
         return r
 
     def root(self):
-        wd, _, _ = self.repo_backend.request_rev(self.cur_rev)
-        self.repo_backend.release_rev(self.cur_rev)
-        return wd
+        return self.repo_backend.root
 
 class FilesystemBackend:
     def __init__(self, root):
@@ -195,6 +193,8 @@ class _GitCheckout:
 
 class GitBackend:
     def __init__(self, root):
+        self.root = os.path.abspath(root)
+
         # lazy import - make dependency optional
         import pygit2
 
