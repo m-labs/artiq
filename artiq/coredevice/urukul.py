@@ -465,7 +465,7 @@ class ProtoRev9(CPLDVersion):
         :return: The status register value.
         """
         cpld.bus.set_config_mu(SPI_CONFIG, 24, SPIT_CFG_WR, CS_CFG)
-        cpld.bus.write(((cpld.cfg_reg >> 24) & 0xFFFFFF) << 8)
+        cpld.bus.write(((cpld.cfg_reg >> 28) & 0xFFFFFF) << 8)
         cpld.bus.set_config_mu(
             SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT, 28, SPIT_CFG_RD, CS_CFG
         )
