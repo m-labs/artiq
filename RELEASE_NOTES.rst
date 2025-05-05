@@ -15,6 +15,7 @@ ARTIQ-9 (Unreleased)
      It also supports configuring and reflashing DRTIO satellites over the DRTIO link.
    - Fastino monitoring with Moninj.
    - Zotino monitoring now displays the values in volts.
+   - artiq_flash can now flash Phaser through a Digilent HS2 Programming cable.
    - Support for the ultra-low-cost EBAZ4205 Zynq-7000 control card, with core device driver
      for the AD9834 DDS, tested with the ZonRi Technology Co., Ltd. AD9834-Module.
 * Dashboard:
