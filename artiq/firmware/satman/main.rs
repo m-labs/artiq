@@ -649,7 +649,7 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
         drtioaux::Packet::CoreMgmtDropLinkAck { destination: _destination } => {
             forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
 
-            #[cfg(not(soc_platform = "efc"))]
+            #[cfg(not(any(soc_platform = "efc", soc_platform = "phaser")))]
             unsafe {
                 csr::gt_drtio::txenable_write(0);
             }
@@ -808,7 +808,7 @@ const SI549_SETTINGS: si549::FrequencySetting = si549::FrequencySetting {
     },
 };
 
-#[cfg(not(soc_platform = "efc"))]
+#[cfg(not(any(soc_platform = "efc", soc_platform = "phaser")))]
 fn sysclk_setup() {
     let switched = unsafe {
         csr::crg::switch_done_read()
@@ -912,7 +912,7 @@ fn startup() {
         io_expander1.service().unwrap();
     }
 
-    #[cfg(not(soc_platform = "efc"))]
+    #[cfg(not(any(soc_platform = "efc", soc_platform = "phaser")))]
     sysclk_setup();
 
     #[cfg(has_si549)]
@@ -951,7 +951,7 @@ fn startup() {
         io_expander.service().unwrap();
     }
 
-    #[cfg(not(soc_platform = "efc"))]
+    #[cfg(not(any(soc_platform = "efc", soc_platform = "phaser")))]
     unsafe {
         csr::gt_drtio::txenable_write(0xffffffffu32 as _);
     }
