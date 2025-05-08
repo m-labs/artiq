@@ -321,7 +321,7 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
         drtioaux::Packet::I2cWriteRequest { destination: _destination, busno, data } => {
             forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
             match i2c::write(busno, data) {
-                Ok(()) => drtioaux::send(0,
+                Ok(_) => drtioaux::send(0,
                     &drtioaux::Packet::I2cWriteReply { succeeded: true, ack: true }),
                 Err(i2c::Error::Nack) => drtioaux::send(0,
                     &drtioaux::Packet::I2cWriteReply { succeeded: true, ack: false }),
