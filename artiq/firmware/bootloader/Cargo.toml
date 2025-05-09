@@ -18,25 +18,3 @@ crc = { version = "1.7", default-features = false }
 board_misoc = { path = "../libboard_misoc", features = ["uart_console", "smoltcp"] }
 smoltcp = { version = "0.8.2", default-features = false, features = ["medium-ethernet", "proto-ipv4", "proto-ipv6", "socket-tcp"] }
 riscv = { version = "0.6.0", features = ["inline-asm"] }
-
-# insanity required by using cargo build-std over xbuild with nix
-# cargo update does not work thanks to ahash 0.7 problems
-[dev-dependencies]
-getopts = "=0.2.21"
-libc = "=0.2.99"
-unicode-width = "=0.1.8"
-addr2line = "=0.16.0"
-hashbrown = "=0.11.0" # must be injected into lockfile manually
-ahash = "=0.7.0" # must be injected into lockfile manually
-miniz_oxide = "=0.4.0"
-rustc-demangle = "=0.1.21"
-hermit-abi = "=0.1.19"
-dlmalloc = "=0.2.1"
-fortanix-sgx-abi = "=0.3.3"
-cc = "=1.0.69"
-compiler_builtins = "=0.1.49"
-version_check = "=0.9.3"
-once_cell = "=1.8.0"
-wasi = "=0.9.0"
-getrandom = "=0.2.0"
-object = "=0.26.2"
