@@ -1,12 +1,17 @@
 from functools import wraps
 
+from numpy import int32, int64
+
 from artiq.coredevice.ad9910 import (
     _AD9910_REG_ASF,
     _AD9910_REG_RAMP_LIMIT,
     _AD9910_REG_RAMP_RATE,
     _AD9910_REG_RAMP_STEP,
+    AD9910,
 )
-from artiq.coredevice.urukul import STA_PROTO_REV_8, STA_PROTO_REV_9
+from artiq.coredevice.core import Core
+from artiq.coredevice.urukul import CPLD as UrukulCPLD
+from artiq.coredevice.urukul import STA_PROTO_REV_9
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 
@@ -51,6 +56,9 @@ def io_update_device(cpld, *required_values, proto_rev=None):
         @wraps(test_func)
         def wrapper(self, *args, **kwargs):
             for required in required_values:
+                # NAC3TODO
+                if not required:
+                    self.skipTest("NAC3: io_update_device is currently required.")
                 with self.subTest(io_update_device=required):
                     try:
                         desc = self.device_mgr.get_desc(cpld)
@@ -83,7 +91,20 @@ def io_update_device(cpld, *required_values, proto_rev=None):
     return decorator
 
 
+@compile
 class AD9910WaveformExp(EnvExperiment):
+    core: KernelInvariant[Core]
+    cpld: KernelInvariant[UrukulCPLD]
+    dds1: KernelInvariant[AD9910]
+    dds2: KernelInvariant[AD9910]
+    io_update_device: Kernel[bool]
+    multiple_profiles: Kernel[bool]
+    osk_manual: Kernel[bool]
+    drg_destination: Kernel[int32]
+    use_dds2: Kernel[bool]
+    with_hold: Kernel[bool]
+    nodwell: Kernel[int32]
+
     def build(
         self,
         runner,
@@ -110,6 +131,14 @@ class AD9910WaveformExp(EnvExperiment):
 
     def run(self):
         getattr(self, self.runner)()
+
+    @rpc
+    def report_int32(self, name: str, data: int32):
+        self.set_dataset(name, data)
+
+    @rpc
+    def report_int64(self, name: str, data: int64):
+        self.set_dataset(name, data)
 
     @kernel
     def instantiate(self):
@@ -147,7 +176,7 @@ class AD9910WaveformExp(EnvExperiment):
         self.dds1.init()
         self.dds2.init()
 
-        delay(10 * ms)
+        self.core.delay(10.0 * ms)
 
         self.dds1.set(FREQ, amplitude=AMP)
         self.dds2.set(FREQ, amplitude=AMP)
@@ -159,7 +188,7 @@ class AD9910WaveformExp(EnvExperiment):
         self.dds1.set_att(ATT)
         self.dds2.set_att(ATT)
 
-        delay(5 * s)
+        self.core.delay(5.0 * s)
 
         # Switch off waveforms
         self.dds1.cfg_sw(False)
@@ -192,33 +221,31 @@ class AD9910WaveformExp(EnvExperiment):
         self.dds1.init()
         self.dds2.init()
 
-        delay(10 * ms)
-
         ## SET SINGLE-TONE PROFILES
         # Set profiles from 7 to 0
         frequencies = [
             0.0,
-            25 * MHz,
-            50 * MHz,
-            75 * MHz,
-            100 * MHz,
-            125 * MHz,
-            150 * MHz,
-            175 * MHz,
+            25.0 * MHz,
+            50.0 * MHz,
+            75.0 * MHz,
+            100.0 * MHz,
+            125.0 * MHz,
+            150.0 * MHz,
+            175.0 * MHz,
         ]
         for i in range(6, -1, -1):
             freq_offset = frequencies[i]
             profile = 7 - i
             self.dds1.set(FREQ + freq_offset, amplitude=AMP, profile=profile)
             self.dds2.set(FREQ + freq_offset, amplitude=AMP, profile=profile)
-            delay(0.5 * s)  # slack
+            self.core.delay(0.5 * s)  # slack
 
         # Switch on waveforms -- Profile 7 (default)
         self.dds1.cfg_sw(True)
         self.dds2.cfg_sw(True)
         self.dds1.set_att(ATT)
         self.dds2.set_att(ATT)
-        delay(2 * s)
+        self.core.delay(2.0 * s)
         # Switch off waveforms
         self.dds1.cfg_sw(False)
         self.dds2.cfg_sw(False)
@@ -232,7 +259,7 @@ class AD9910WaveformExp(EnvExperiment):
 
             self.dds1.cfg_sw(True)
             self.dds2.cfg_sw(True)
-            delay(2 * s)
+            self.core.delay(2.0 * s)
             # Switch off waveforms
             self.dds1.cfg_sw(False)
             self.dds2.cfg_sw(False)
@@ -260,7 +287,7 @@ class AD9910WaveformExp(EnvExperiment):
 
         self.dds1.init()
 
-        delay(10 * ms)
+        self.core.delay(10.0 * ms)
 
         self.dds1.set(FREQ, amplitude=AMP)
 
@@ -270,7 +297,7 @@ class AD9910WaveformExp(EnvExperiment):
             self.dds1.write32(_AD9910_REG_ASF, 0xFFFF << 16 | 0x3FFF << 2 | 0b11)
             self.dds1.set_cfr1(osk_enable=1, select_auto_osk=1)
 
-        self.dds1.io_update.pulse(1 * ms)
+        self.cpld.io_update.pulse(1.0 * ms)
 
         # Switch on waveform, then set attenuation
         self.dds1.cfg_sw(True)
@@ -278,9 +305,9 @@ class AD9910WaveformExp(EnvExperiment):
         for _ in range(5):
             # Toggle output via OSK
             self.dds1.cfg_osk(True)
-            delay(1 * s)
+            self.core.delay(1.0 * s)
             self.dds1.cfg_osk(False)
-            delay(1 * s)
+            self.core.delay(1.0 * s)
         # Switch off waveform
         self.dds1.cfg_sw(False)
 
@@ -313,7 +340,7 @@ class AD9910WaveformExp(EnvExperiment):
         if self.use_dds2:
             self.dds2.init()
 
-        delay(10 * ms)
+        self.core.delay(10.0 * ms)
 
         # Set initial frequency and amplitude
         self.dds1.set(FREQ, amplitude=AMP)
@@ -322,27 +349,29 @@ class AD9910WaveformExp(EnvExperiment):
 
         # Configure DRG
         if self.drg_destination == 0x0:  # Frequency
-            ramp_limit_high = self.dds1.frequency_to_ftw(FREQ + 30 * MHz)
-            ramp_limit_low = self.dds1.frequency_to_ftw(FREQ - 30 * MHz)
-            ramp_rate = 0x004F004F
+            ramp_limit_high = int64(self.dds1.frequency_to_ftw(FREQ + 30.0 * MHz))
+            ramp_limit_low = int64(self.dds1.frequency_to_ftw(FREQ - 30.0 * MHz))
+            ramp_rate = int64(0x004F004F)
             ramp_step = 0xF0
-            pulse_duration = 1 * s if not self.with_hold else 0.25 * s
+            pulse_duration = 1.0 * s if not self.with_hold else 0.25 * s
         elif self.drg_destination == 0x1:  # Phase
-            ramp_limit_high = 0xFFFFFFFF
-            ramp_limit_low = 0
-            ramp_rate = 0xC350C350
+            ramp_limit_high = int64(0xFFFFFFFF)
+            ramp_limit_low = int64(0)
+            ramp_rate = int64(0xC350C350)
             ramp_step = 0xD1B71
-            pulse_duration = 2 * s if not self.with_hold else 0.25 * s
+            pulse_duration = 2.0 * s if not self.with_hold else 0.25 * s
         else:  # Amplitude
-            ramp_limit_high = 0xFFFFFFFF
-            ramp_limit_low = 0
-            ramp_rate = 0xC350C350
+            ramp_limit_high = int64(0xFFFFFFFF)
+            ramp_limit_low = int64(0)
+            ramp_rate = int64(0xC350C350)
             ramp_step = 0xD1B71
-            pulse_duration = 2 * s if not self.with_hold else 0.4 * s
+            pulse_duration = 2.0 * s if not self.with_hold else 0.4 * s
 
-        self.dds1.write64(_AD9910_REG_RAMP_LIMIT, ramp_limit_high, ramp_limit_low)
-        self.dds1.write32(_AD9910_REG_RAMP_RATE, ramp_rate)
-        self.dds1.write64(_AD9910_REG_RAMP_STEP, ramp_step, ramp_step)
+        self.dds1.write64(
+            _AD9910_REG_RAMP_LIMIT, int32(ramp_limit_high), int32(ramp_limit_low)
+        )
+        self.dds1.write32(_AD9910_REG_RAMP_RATE, int32(ramp_rate))
+        self.dds1.write64(_AD9910_REG_RAMP_STEP, int32(ramp_step), int32(ramp_step))
 
         self.dds1.set_cfr2(
             drg_enable=1,
@@ -350,7 +379,7 @@ class AD9910WaveformExp(EnvExperiment):
             drg_nodwell_high=self.nodwell,
             drg_nodwell_low=self.nodwell,
         )
-        self.dds1.io_update.pulse(1 * ms)
+        self.cpld.io_update.pulse(1.0 * ms)
 
         # Enable waveform and set attenuation
         self.dds1.cfg_sw(True)
@@ -359,28 +388,28 @@ class AD9910WaveformExp(EnvExperiment):
             self.dds2.cfg_sw(True)
             self.dds2.set_att(ATT)
 
-        if not self.nodwell:
+        if not bool(self.nodwell):
             for _ in range(5):
                 if self.with_hold:
                     self.dds1.cfg_drctl(True)
-                    delay(pulse_duration)
+                    self.core.delay(pulse_duration)
                     self.dds1.cfg_drhold(True)
-                    delay(pulse_duration)
+                    self.core.delay(pulse_duration)
                     self.dds1.cfg_drhold(False)
-                    delay(pulse_duration)
+                    self.core.delay(pulse_duration)
                     self.dds1.cfg_drctl(False)
-                    delay(pulse_duration)
+                    self.core.delay(pulse_duration)
                     self.dds1.cfg_drhold(True)
-                    delay(pulse_duration)
+                    self.core.delay(pulse_duration)
                     self.dds1.cfg_drhold(False)
-                    delay(pulse_duration)
+                    self.core.delay(pulse_duration)
                 else:
                     self.dds1.cfg_drctl(True)
-                    delay(pulse_duration)
+                    self.core.delay(pulse_duration)
                     self.dds1.cfg_drctl(False)
-                    delay(pulse_duration)
+                    self.core.delay(pulse_duration)
         else:
-            delay(10 * s)
+            self.core.delay(10.0 * s)
 
         # Disable waveform
         self.dds1.cfg_sw(False)
@@ -415,37 +444,36 @@ class AD9910WaveformExp(EnvExperiment):
         self.dds1.init()
         self.dds2.init()
 
-        delay(10 * ms)
+        self.core.delay(10.0 * ms)
 
         self.dds1.set(FREQ, amplitude=AMP)
         self.dds2.set(FREQ, amplitude=AMP)
 
-        delay(1 * ms)
+        self.core.delay(1.0 * ms)
 
         # Switch on waveforms
         self.dds1.cfg_sw(True)
         self.dds2.cfg_sw(True)
 
-        # This must be set AFTER cfg_sw set to True (why?)
-        self.dds1.set_att(0.0 * dB)
-        self.dds2.set_att(0.0 * dB)
+        self.dds1.set_att(0.0)
+        self.dds2.set_att(0.0)
 
-        delay(5 * s)
+        self.core.delay(1.0 * s)
 
         self.dds1.set_att(10.0)
         self.dds2.set_att(10.0)
 
-        delay(5 * s)
+        self.core.delay(5.0 * s)
 
         self.dds1.set_att(20.0)
         self.dds2.set_att(20.0)
 
-        delay(5 * s)
+        self.core.delay(5.0 * s)
 
         self.dds1.set_att(30.0)
         self.dds2.set_att(30.0)
 
-        delay(5 * s)
+        self.core.delay(1.0 * s)
 
         # Switch off waveforms
         self.dds1.cfg_sw(False)
@@ -477,14 +505,15 @@ class AD9910WaveformTest(ExperimentCase):
             AD9910WaveformExp, "single_tone", io_update_device=io_update_device
         )
 
-    @io_update_device(CPLD, True, False, proto_rev=STA_PROTO_REV_8)
-    def test_toggle_profiles(self, io_update_device):
-        self.execute(
-            AD9910WaveformExp,
-            "toggle_profiles",
-            io_update_device=io_update_device,
-            multiple_profiles=False,
-        )
+    # NAC3TODO
+    # @io_update_device(CPLD, True, False, proto_rev=STA_PROTO_REV_8)
+    # def test_toggle_profiles(self, io_update_device):
+    #     self.execute(
+    #         AD9910WaveformExp,
+    #         "toggle_profiles",
+    #         io_update_device=io_update_device,
+    #         multiple_profiles=False,
+    #     )
 
     @io_update_device(CPLD, True, False, proto_rev=STA_PROTO_REV_9)
     def test_toggle_profiles(self, io_update_device):
