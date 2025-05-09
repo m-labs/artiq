@@ -97,6 +97,7 @@ def urukul_sta_proto_rev(sta: int32) -> int32:
     return (sta >> STA_PROTO_REV) & 0x7F
 
 
+# NAC3TODO
 '''
 @compile
 class ProtoRev8:
@@ -592,6 +593,7 @@ class CPLD:
             raise ValueError(f"NAC3: Urukul unsupported proto_rev: {proto_rev}")
         self.version = ProtoRev9()
 
+        # NAC3TODO
         # if self.proto_rev == STA_PROTO_REV_8:
         #     self.cfg_reg = int64(
         #         self.version.urukul_cfg(
@@ -869,6 +871,7 @@ class _RegIOUpdate:
         (in machine units).
         The time cursor is advanced by the specified duration."""
         cfg = self.cpld.cfg_reg
+        # NAC3TODO
         # if self.cpld.proto_rev == STA_PROTO_REV_8:
         #     self.cpld.cfg_write(cfg | int64(1 << ProtoRev8.CFG_IO_UPDATE))
         # else:
@@ -885,6 +888,7 @@ class _RegIOUpdate:
         (in seconds).
         The time cursor is advanced by the specified duration."""
         cfg = self.cpld.cfg_reg
+        # NAC3TODO
         # if self.cpld.proto_rev == STA_PROTO_REV_8:
         #     self.cpld.cfg_write(cfg | int64(1 << ProtoRev8.CFG_IO_UPDATE))
         # else:
