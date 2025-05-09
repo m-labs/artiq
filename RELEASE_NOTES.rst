@@ -16,6 +16,7 @@ ARTIQ-9 (Unreleased)
    - Fastino monitoring with Moninj.
    - Zotino monitoring now displays the values in volts.
    - artiq_flash can now flash Phaser through a Digilent HS2 Programming cable.
+   - artiq_flash can now erase specified flash region(s). 
    - Support for the ultra-low-cost EBAZ4205 Zynq-7000 control card, with core device driver
      for the AD9834 DDS, tested with the ZonRi Technology Co., Ltd. AD9834-Module.
    - Configurable number of Grabber ROI engines through the ``roi_engine_count``
@@ -47,6 +48,18 @@ ARTIQ-9 (Unreleased)
       * DRCTRL
       * DRHOLD
       * ATT_EN
+
+Breaking changes:
+
+* ``artiq_flash``:
+   - ``gateware``, ``firmware``, ``bootloader``, ``storage`` actions are now ``REGION``.
+   - ``write`` and ``erase`` should be used in the format ``CMD=REGION`` instead.
+   - See the example below.
+
+::
+
+  # Erase the storage flash region, flash the gateware, firmware, bootloader and then restart the FPGA device
+  artiq_flash erase=storage write=gateware,firmware,bootloader start -d ./artiq_kasli/master/ --srcbuild
 
 ARTIQ-8
 -------
