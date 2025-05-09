@@ -1,11 +1,13 @@
 from numpy import array, int32, int64, ndarray
 
-from artiq.language.core import syscall, kernel
-from artiq.language.types import TInt32, TNone, TList
+from artiq.language.core import extern, kernel
 from artiq.coredevice.rtio import rtio_output, rtio_input_timestamped_data
+from artiq.coredevice.core import Core
 from artiq.experiment import *
+from typing import Literal
 
 
+@compile
 class OutOfSyncException(Exception):
     """Raised when an incorrect number of ROI engine outputs has been
     retrieved from the RTIO input FIFO."""
@@ -13,40 +15,42 @@ class OutOfSyncException(Exception):
     pass
 
 
+@compile
 class CXPGrabberTimeoutException(Exception):
     """Raised when a timeout occurs while attempting to read CoaXPress Grabber RTIO input events."""
 
     pass
 
 
-@syscall(flags={"nounwind"})
-def cxp_download_xml_file(buffer: TList(TInt32)) -> TInt32:
+@extern
+def cxp_download_xml_file(buffer: list[int32]) -> int32:
     raise NotImplementedError("syscall not simulated")
 
 
-@syscall(flags={"nounwind"})
-def cxp_read32(addr: TInt32) -> TInt32:
+@extern
+def cxp_read32(addr: int32) -> int32:
     raise NotImplementedError("syscall not simulated")
 
 
-@syscall(flags={"nounwind"})
-def cxp_write32(addr: TInt32, val: TInt32) -> TNone:
+@extern
+def cxp_write32(addr: int32, val: int32):
     raise NotImplementedError("syscall not simulated")
 
 
-@syscall(flags={"nounwind"})
-def cxp_start_roi_viewer(x0: TInt32, y0: TInt32, x1: TInt32, y1: TInt32) -> TNone:
+@extern
+def cxp_start_roi_viewer(x0: int32, y0: int32, x1: int32, y1: int32):
     raise NotImplementedError("syscall not simulated")
 
 
-@syscall(flags={"nounwind"})
+@extern
 def cxp_download_roi_viewer_frame(
-    buffer: TList(TInt64),
-) -> TTuple([TInt32, TInt32, TInt32]):
+    buffer: list[int64],
+) -> tuple[int32, int32, int32]:
     raise NotImplementedError("syscall not simulated")
 
 
-def write_file(data, file_path):
+@rpc
+def write_file(data: list[int32], file_path: str):
     """
     Write big-endian encoded data to PC
 
@@ -68,7 +72,8 @@ def write_file(data, file_path):
     array(data, dtype=">i").tofile(file_path)
 
 
-def write_pgm(frame, file_path, pixel_width):
+@rpc
+def write_pgm(frame: ndarray[int32, Literal[2]], file_path: str, pixel_width: int32):
     """
     Write the frame as PGM file to PC.
 
@@ -119,17 +124,16 @@ def write_pgm(frame, file_path, pixel_width):
         file.write(frame.tobytes())
 
 
+@compile
 class CXPGrabber:
     """Driver for the CoaXPress Grabber camera interface."""
 
-    kernel_invariants = {
-        "core",
-        "channel",
-        "trigger_ch",
-        "roi_config_ch",
-        "roi_gating_ch",
-        "sentinel",
-    }
+    core: KernelInvariant[Core]
+    channel: KernelInvariant[int32]
+    trigger_ch: KernelInvariant[int32]
+    roi_config_ch: KernelInvariant[int32]
+    roi_gating_ch: KernelInvariant[int32]
+    sentinel: KernelInvariant[int32]
 
     def __init__(self, dmgr, channel, core_device="core", count_width=31):
         self.core = dmgr.get(core_device)
@@ -152,7 +156,7 @@ class CXPGrabber:
         ]
 
     @kernel
-    def send_cxp_linktrigger(self, linktrigger, extra_linktrigger=False):
+    def send_cxp_linktrigger(self, linktrigger: int32, extra_linktrigger: bool = False):
         """
         Send CoaXpress fixed-latency linktrigger to camera
 
@@ -168,7 +172,7 @@ class CXPGrabber:
         rtio_output(self.trigger_ch << 8, linktrigger << 1 | extra_linktrigger_mask)
 
     @kernel
-    def setup_roi(self, n, x0, y0, x1, y1):
+    def setup_roi(self, n: int32, x0: int32, y0: int32, x1: int32, y1: int32):
         """
         Defines the coordinates of a ROI.
 
@@ -192,7 +196,7 @@ class CXPGrabber:
         delay_mu(c)
 
     @kernel
-    def gate_roi(self, mask):
+    def gate_roi(self, mask: int32):
         """
         Defines which ROI engines produce input events.
 
@@ -212,17 +216,17 @@ class CXPGrabber:
         rtio_output(self.roi_gating_ch << 8, mask)
 
     @kernel
-    def gate_roi_pulse(self, mask, dt):
+    def gate_roi_pulse(self, mask: int32, dt: float):
         """
         Sets a temporary mask for the specified duration (in seconds), then
         disables all ROI engines.
         """
         self.gate_roi(mask)
-        delay(dt)
+        self.core.delay(dt)
         self.gate_roi(0)
 
     @kernel
-    def input_mu(self, data, timeout_mu=-1):
+    def input_mu(self, data: list[int32], timeout_mu: int64 = int64(-1)):
         """
         Retrieves the accumulated values for one frame from the ROI engines.
         Blocks until values are available or timeout is reached.
@@ -245,7 +249,7 @@ class CXPGrabber:
         timestamp, sentinel = rtio_input_timestamped_data(
             timeout_mu, self.roi_gating_ch
         )
-        if timestamp == -1:
+        if timestamp == int64(-1):
             raise CXPGrabberTimeoutException(
                 "Timeout before CoaXPress Grabber frame available"
             )
@@ -258,14 +262,14 @@ class CXPGrabber:
             )
             if roi_output == self.sentinel:
                 raise OutOfSyncException
-            if timestamp == -1:
+            if timestamp == int64(-1):
                 raise CXPGrabberTimeoutException(
                     "Timeout retrieving ROIs (attempting to read more ROIs than enabled?)"
                 )
             data[i] = roi_output
 
     @kernel
-    def read32(self, address: TInt32) -> TInt32:
+    def read32(self, address: int32) -> int32:
         """
         Read a 32-bit value from camera register
 
@@ -277,7 +281,7 @@ class CXPGrabber:
         return cxp_read32(address)
 
     @kernel
-    def write32(self, address: TInt32, value: TInt32):
+    def write32(self, address: int32, value: int32):
         """
         Write a 32-bit value to camera register
 
@@ -289,7 +293,7 @@ class CXPGrabber:
         cxp_write32(address, value)
 
     @kernel
-    def read_local_xml(self, buffer):
+    def read_local_xml(self, buffer: list[int32]) -> int32:
         """
         Read the XML setting file from the camera if available.
         Data will be in 32-bit big-endian encoding.
@@ -303,7 +307,7 @@ class CXPGrabber:
         return cxp_download_xml_file(buffer)
 
     @kernel
-    def start_roi_viewer(self, x0, y0, x1, y1):
+    def start_roi_viewer(self, x0: int32, y0: int32, x1: int32, y1: int32):
         """
         Defines the coordinates of ROI viewer and start the capture.
 
@@ -314,7 +318,7 @@ class CXPGrabber:
         cxp_start_roi_viewer(x0, y0, x1, y1)
 
     @kernel
-    def read_roi_viewer_frame(self, frame):
+    def read_roi_viewer_frame(self, frame: ndarray[int32, Literal[2]]) -> int32:
         """
         Read the ROI viewer frame.
 
@@ -325,7 +329,7 @@ class CXPGrabber:
         :param frame: a 2D array of 32-bit integers
         :returns: the frame bit depth
         """
-        buffer = [0] * 1024
+        buffer = [int64(0)] * int64(1024)
         width, height, pixel_width = cxp_download_roi_viewer_frame(buffer)
         if height != len(frame) or width != len(frame[0]):
             raise ValueError(
@@ -336,5 +340,7 @@ class CXPGrabber:
             offset = (((width + 3) & (~3)) // 4) * y
             for x in range(width):
                 # each buffer element holds 4 pixels
-                frame[y][x] = (buffer[offset + (x // 4)] >> (16 * (x % 4))) & 0xFFFF
+                frame[y][x] = int32(
+                    (buffer[offset + (x // 4)] >> (16 * (x % 4))) & int64(0xFFFF)
+                )
         return pixel_width
