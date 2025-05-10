@@ -248,16 +248,16 @@ Notice that commands other than ``git commit`` and ``git push`` are no longer ne
 Setting up secure communications
 --------------------------------
 
-By default, ARTIQ network communications are deliberately kept as simple as possible. Among other things, this means all management system communications are in princple unencrypted and unauthenticated. In other words, the master doesn't verify where messages come from, but simply reserves any requests it receives, and these communications are in principle readable by anyone.
+By default, ARTIQ network communications are deliberately kept as simple as possible. Among other things, this means all management system communications are unencrypted and unauthenticated. In other words, the master doesn't verify where messages come from, but simply reserves any requests it receives, and these communications are in principle readable by anyone.
 
 Concretely speaking, this means that if an unauthorized actor is able to connect to your master, they will be able to request the execution of arbitrary experiments on your system. Additionally, anyone capable of intercepting your network traffic will be able to read the data you are sending.
 
 In most cases, especially when the management system is being run wholly on a single machine, or within a closed lab network, your communications likely aren't exposed in the first place, and unencrypted communications may be perfectly satisfactory. In other circumstances, however, you may prefer to use encrypted or trusted communications. If you aren't sure how your local network operates, ask your network administrator about security concerns.
 
-The ARTIQ management system supports secure communication over TLS/SSL, which will both encrypt and authenticate all messages sent between masters, clients, and controller managers.
+The ARTIQ management system supports secure communication over TLS/SSL, which will both encrypt and authenticate all data sent between masters, clients, and controller managers.
 
 .. warning::
-    This feature does not extend to communications with the core device, which does not support encryption. Network communications between the host and core device will still be unprotected.
+    This feature does not extend to communications with the core device, which does not support encryption. Network communications between the host and core device will still be unprotected. If you are concerned about these communications, consider connecting the core device to the host machine with a dedicated network interface (e.g. a USB-Ethernet dongle).
 
 Generating keys and certificates
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
