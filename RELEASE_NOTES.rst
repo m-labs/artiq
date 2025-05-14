@@ -8,6 +8,7 @@ ARTIQ-9 (Unreleased)
 
 * Hardware support:
    - CoaXPress grabber support on ZC706 with Hello-FPGA CXP 4R FMC card.
+   - CoaXPress grabber support on Kasli-SoC with CoaXPress-SFP adapter.
    - Improved SDRAM memory controller and DMA cores puts Kasli DMA performance on par with
      other platforms.
    - DRTIO repeater support across GT/EEM. This enables Shuttler support on DRTIO satellites.
