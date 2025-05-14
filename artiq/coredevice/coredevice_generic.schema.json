@@ -654,7 +654,7 @@
                     "required": ["ports"]
                 }
             }, {
-                "title": "COAXPRESS_SFP",
+                "title": "CoaXPress_SFP",
                 "if": {
                     "properties": {
                         "type": {
