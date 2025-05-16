@@ -23,18 +23,20 @@ class FuzzySelectWidget(LayoutWidget):
 
     def __init__(self,
                  choices: List[Tuple[str, int]] = [],
-                 entry_count_limit: int = 10,
+                 entry_count_limit: int | None = None,
                  *args):
         """
         :param choices: The choices the user can select from, given as tuples
             of labels to display and an additional weight added to the
             fuzzy-matching score.
-        :param entry_count_limit: Maximum number of entries to show.
+        :param entry_count_limit: Maximum number of entries to show. If
+            ``None``, shows as many as fit on the screen.
         """
         super().__init__(*args)
+        if entry_count_limit is not None:
+            assert entry_count_limit >= 2, ("Need to allow at least two entries " +
+                                            "to show the '<n> not shown' hint")
         self.entry_count_limit = entry_count_limit
-        assert entry_count_limit >= 2, ("Need to allow at least two entries " +
-                                        "to show the '<n> not shown' hint")
 
         self.line_edit = QtWidgets.QLineEdit(self)
         self.layout.addWidget(self.line_edit)
@@ -83,9 +85,12 @@ class FuzzySelectWidget(LayoutWidget):
             # appears fine on Windows 10/11).
             QtCore.QTimer.singleShot(0, self._update_menu)
 
+    def _global_menu_pos(self):
+        return self.line_edit.mapToGlobal(self.line_edit.rect().bottomLeft())
+
     def _popup_menu(self):
         # Display menu with search results beneath line edit.
-        self.menu.popup(self.line_edit.mapToGlobal(self.line_edit.rect().bottomLeft()))
+        self.menu.popup(self._global_menu_pos())
 
     def _ensure_menu(self):
         if self.menu:
@@ -103,6 +108,34 @@ class FuzzySelectWidget(LayoutWidget):
         if self.abort_when_line_edit_unfocussed:
             self.abort()
 
+    def _compute_entry_count_limit(self):
+        if self.entry_count_limit is not None:
+            # Hard-coded limit configured.
+            return self.entry_count_limit
+
+        # Figure out how many lines fit on the screen.
+
+        # How tall is a line?
+        opt = QtWidgets.QStyleOptionMenuItem()
+        self._ensure_menu()
+        opt.initFrom(self.menu)
+        opt.text = "X"
+        row_height = self.menu.style().sizeFromContents(
+            QtWidgets.QStyle.ContentsType.CT_MenuItem, opt, QtCore.QSize(), self.menu
+        ).height()
+
+        # How much space is on the screen?
+        menu_pos = self._global_menu_pos()
+        screen = QtWidgets.QApplication.screenAt(menu_pos)
+        space = screen.availableGeometry().bottom() - menu_pos.y()
+
+        # Leave just a little bit of space to avoid the menu being pushed up on macOS
+        # (shadows?).
+        padding = row_height // 2
+
+        # At least two lines, for the best match and the <n> not shown message.
+        return max(2, (space - padding) // row_height)
+
     def _update_menu(self):
         if not self.update_when_text_changed:
             return
@@ -119,12 +152,6 @@ class FuzzySelectWidget(LayoutWidget):
             self.line_edit.setFocus()
             return
 
-        # Truncate the list, leaving room for the "<n> not shown" entry.
-        num_omitted = 0
-        if len(filtered_choices) > self.entry_count_limit:
-            num_omitted = len(filtered_choices) - (self.entry_count_limit - 1)
-            filtered_choices = filtered_choices[:self.entry_count_limit - 1]
-
         # We are going to end up with a menu shown and the line edit losing
         # focus.
         self.abort_when_line_edit_unfocussed = False
@@ -135,7 +162,12 @@ class FuzzySelectWidget(LayoutWidget):
             self.menu.hide()
             self.menu.clear()
 
-        self._ensure_menu()
+        # Truncate the list, leaving room for the "<n> not shown" entry.
+        entry_count_limit = self._compute_entry_count_limit()
+        num_omitted = 0
+        if len(filtered_choices) > entry_count_limit:
+            num_omitted = len(filtered_choices) - (entry_count_limit - 1)
+            filtered_choices = filtered_choices[:entry_count_limit - 1]
 
         first_action = None
         last_action = None
