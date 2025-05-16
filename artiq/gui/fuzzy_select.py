@@ -85,9 +85,7 @@ class FuzzySelectWidget(LayoutWidget):
 
     def _popup_menu(self):
         # Display menu with search results beneath line edit.
-        menu_pos = self.line_edit.mapToGlobal(self.line_edit.pos())
-        menu_pos.setY(menu_pos.y() + self.line_edit.height())
-        self.menu.popup(menu_pos)
+        self.menu.popup(self.line_edit.mapToGlobal(self.line_edit.rect().bottomLeft()))
 
     def _ensure_menu(self):
         if self.menu:
