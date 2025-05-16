@@ -77,7 +77,11 @@ class FuzzySelectWidget(LayoutWidget):
     def _activate(self):
         self.update_when_text_changed = True
         if not self.menu:
-            self._update_menu()
+            # Make sure the geometry has been processed before showing the popup (in
+            # case the parent has just been created). With an immediate call, the
+            # _QuickOpenDialog() is menu shown slightly misaligned on macOS (though it
+            # appears fine on Windows 10/11).
+            QtCore.QTimer.singleShot(0, self._update_menu)
 
     def _popup_menu(self):
         # Display menu with search results beneath line edit.
