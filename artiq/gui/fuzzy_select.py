@@ -169,7 +169,10 @@ class FuzzySelectWidget(LayoutWidget):
         self.line_edit.installEventFilter(self.line_edit_up_down_filter)
 
         self.abort_when_menu_hidden = True
-        self.menu.show()
+        # Show menu again if it was hidden. As per the Qt docs, it is important to
+        # use popup() here instead of show(), which would indeed lead to wrong
+        # positioning on Windows 11.
+        self._popup_menu()
         if first_action:
             self.menu.setActiveAction(first_action)
             self.menu.setFocus()
