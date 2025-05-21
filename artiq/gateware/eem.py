@@ -627,8 +627,9 @@ class SUServo(_EEM):
 
             for i, signal in enumerate("sw0 sw1 sw2 sw3".split()):
                 pads = target.platform.request("{}_{}".format(eem_urukuli, signal))
-                target.specials += DifferentialOutput(
-                    su.iir.ctrl[j*4 + i].en_out, pads.p, pads.n)
+                sw_r = Signal(attr={"iob"})
+                target.sync += sw_r.eq(su.iir.ctrl[j*4 + i].en_out)
+                target.specials += DifferentialOutput(sw_r, pads.p, pads.n)
 
 
 class Mirny(_EEM):
