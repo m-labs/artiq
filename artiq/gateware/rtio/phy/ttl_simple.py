@@ -8,8 +8,10 @@ from artiq.gateware.rtio import rtlink
 class Output(Module):
     def __init__(self, pad, pad_n=None):
         self.rtlink = rtlink.Interface(rtlink.OInterface(1))
-        pad_o = Signal(reset_less=True)
-        self.probes = [pad_o]
+        pad_o = Signal(reset_less=True, attr={"iob"})
+        # Duplicate of pad_o so pad_o can be placed into IOB
+        pad_o_probe = Signal(reset_less=True)
+        self.probes = [pad_o_probe]
         override_en = Signal()
         override_o = Signal()
         self.overrides = [override_en, override_o]
@@ -17,15 +19,21 @@ class Output(Module):
         # # #
 
         pad_k = Signal()
+        pad_o_pre = Signal()
+        self.comb += [
+            If(override_en,
+                pad_o_pre.eq(override_o)
+            ).Else(
+                pad_o_pre.eq(pad_k)
+            )
+        ]
+
         self.sync.rio_phy += [
             If(self.rtlink.o.stb,
                 pad_k.eq(self.rtlink.o.data)
             ),
-            If(override_en,
-                pad_o.eq(override_o)
-            ).Else(
-                pad_o.eq(pad_k)
-            )
+            pad_o_probe.eq(pad_o_pre),
+            pad_o.eq(pad_o_pre),
         ]
         if pad_n is None:
             self.comb += pad.eq(pad_o)
@@ -150,7 +158,7 @@ class ClockGen(Module):
 
         # # #
 
-        pad_o = Signal()
+        pad_o = Signal(attr={"iob"})
         if pad_n is None:
             self.comb += pad.eq(pad_o)
         else:
