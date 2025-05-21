@@ -155,7 +155,7 @@ class Urukul(_EEM):
             ),
         ]
         ttls = [(6, eem, "io_update"),
-                (7, eem, "dds_reset_sync_in", Misc("IOB=TRUE"))]
+                (7, eem, "dds_reset_sync_in")]
         if eem_aux is not None:
             ttls += [(0, eem_aux, "sync_clk"),
                      (1, eem_aux, "sync_in"),
