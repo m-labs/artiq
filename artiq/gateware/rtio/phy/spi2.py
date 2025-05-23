@@ -107,7 +107,7 @@ class SPIMaster(Module):
                 interface.cs_polarity.eq(Replicate(
                     config.cs_polarity, len(interface.cs_polarity))),
                 interface.clk_polarity.eq(config.clk_polarity),
-                If(self.rtlink.o.stb,
+                If(self.rtlink.o.stb & spi.writable & self.rtlink.o.address,
                     interface.half_duplex_next.eq(data.half_duplex),
                     interface.offline_next.eq(data.offline),
                 ).Else(
