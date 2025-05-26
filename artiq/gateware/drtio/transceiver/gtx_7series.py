@@ -282,13 +282,13 @@ class GTX(Module, TransceiverInterface):
         self.clk_path_ready = Signal()
         # # #
 
-        refclk = Signal()
+        self.refclk = Signal()
 
         self.specials += Instance("IBUFDS_GTE2",
             i_CEB=0,
             i_I=clock_pads.p,
             i_IB=clock_pads.n,
-            o_O=refclk,
+            o_O=self.refclk,
             p_CLKCM_CFG="TRUE",
             p_CLKRCV_TRST="TRUE",
             p_CLKSWING_CFG=3
@@ -301,7 +301,7 @@ class GTX(Module, TransceiverInterface):
             else:
                 mode = "master" if i == master else "slave"
             # Note: RX phase alignment is to be done on individual lanes, not multi-lane.
-            gtx = GTX_20X(refclk, pads[i], clk_freq, tx_mode=mode, rx_mode="single")
+            gtx = GTX_20X(self.refclk, pads[i], clk_freq, tx_mode=mode, rx_mode="single")
             self.gtxs.append(gtx)
             setattr(self.submodules, "gtx"+str(i), gtx)
             channel_interface = ChannelInterface(gtx.encoder, gtx.decoders)
