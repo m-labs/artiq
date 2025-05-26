@@ -64,6 +64,7 @@ class SinaraTester(EnvExperiment):
         self.legacy_almaznys = dict()
         self.almaznys = dict()
         self.shuttler = dict()
+        self.coaxpress_sfps = dict()
 
         ddb = self.get_device_db()
         for name, desc in ddb.items():
@@ -116,6 +117,8 @@ class SinaraTester(EnvExperiment):
                         "relay": self.get_device("{}_relay".format(shuttler_name)),
                         "adc": self.get_device("{}_adc".format(shuttler_name)),
                     })
+                elif (module, cls) == ("artiq.coredevice.cxp_grabber", "CXPGrabber"):
+                    self.coaxpress_sfps[name] = self.get_device(name)
 
         # Remove Urukul, Sampler, Zotino and Mirny control signals
         # from TTL outs (tested separately) and remove Urukuls covered by
@@ -165,6 +168,7 @@ class SinaraTester(EnvExperiment):
         self.suservos = sorted(self.suservos.items(), key=lambda x: x[1].channel)
         self.suschannels = sorted(self.suschannels.items(), key=lambda x: x[1].channel)
         self.shuttler = sorted(self.shuttler.items(), key=lambda x: x[1]["leds"][0].channel)
+        self.coaxpress_sfps = sorted(self.coaxpress_sfps.items(), key=lambda x: x[1].channel)
 
     @kernel
     def test_led(self, led):
@@ -926,6 +930,72 @@ class SinaraTester(EnvExperiment):
                 print("FAILED")
                 print("Shuttler Remote AFE Board ADC has abnormal readings.")
                 print(f"ADC Readings:", " ".join(["{:.2f}".format(x) for x in adc_readings]))
+
+    @kernel
+    def boA2448_250cm_setup(self, dev):
+        self.core.break_realtime()
+
+        # from the camera XML file
+        ACQ_MODE = 0x10000BB4
+        ACQ_START = 0x10000498
+        ACQ_ABORT = 0x100004B0
+        TRIG_MODE_INDEX = 0x10001424
+        TRIG_SRC_INDEX = 0x100081AC
+        TEST_PATTERN = 0x10003500
+        PIXEL_FORMAT = 0x100078B4
+
+        bit_depth, bit_depth_code = 8, 17301505  # MONO8
+
+        dev.write32(ACQ_ABORT, 1)  # clear any previous untriggered acquisition
+
+        dev.write32(PIXEL_FORMAT, bit_depth_code)
+        dev.write32(TEST_PATTERN, 2)  # full white test pattern
+
+        dev.write32(TRIG_SRC_INDEX, 7)  # CXPTrigger0
+        dev.write32(TRIG_MODE_INDEX, 1)  # enable triggered image acquisition
+
+        dev.write32(ACQ_MODE, 1)  # single frame acquisition mode
+        dev.write32(ACQ_START, 1)  # switch on image acquisition
+        return bit_depth
+
+    @kernel
+    def test_coaxpress_sfp_rois(self, dev, rois, bit_depth):
+        self.core.break_realtime()
+        counts = [0] * len(rois)
+        expected_counts = [0] * len(rois)
+        mask = 0
+
+        for i in range(len(rois)):
+            i = rois[i][0]
+            x0 = rois[i][1]
+            y0 = rois[i][2]
+            x1 = rois[i][3]
+            y1 = rois[i][4]
+            mask |= 1 << i
+            # assume image is full white
+            expected_counts[i] = ((2**bit_depth) - 1) * (x1 - x0) * (y1 - y0)
+            dev.setup_roi(i, x0, y0, x1, y1)
+
+        dev.gate_roi(mask)
+        dev.send_cxp_linktrigger(0)
+        dev.input_mu(counts)
+        delay(100 * ms)
+        dev.gate_roi(0)
+
+        if counts == expected_counts:
+            print("PASSED")
+        else:
+            print("FAILED")
+            print("ROI counts:", counts)
+
+    def test_coaxpress_sfps(self):
+        print("*** Testing CoaXPress-SFPs.")
+        rois = [[0, 0, 0, 2, 2], [1, 0, 0, 2048, 2048]]
+        for name, dev in self.coaxpress_sfps:
+            print("Connect boA2448-250cm to {} and wait for green LED. Press ENTER when done".format(name))
+            input()
+            bit_depth = self.boA2448_250cm_setup(dev)
+            self.test_coaxpress_sfp_rois(dev, rois, bit_depth)
                
     def run(self, tests):
         print("****** Sinara system tester ******")
