@@ -303,11 +303,13 @@ class ProtoRev8(CPLDVersion):
         Resets the DDS I/O interface.
         Does not pulse the DDS ``MASTER_RESET`` as that confuses the AD9910.
         """
-        if not blind and urukul_sta_proto_rev(self.sta_read(cpld)) != STA_PROTO_REV_8:
-            raise ValueError("Urukul proto_rev mismatch")
         cfg = cpld.cfg_reg
         # Don't pulse MASTER_RESET (m-labs/artiq#940)
         cpld.cfg_reg = cfg | (0 << ProtoRev8.CFG_RST) | (1 << ProtoRev8.CFG_IO_RST)
+        if blind:
+            cpld.cfg_write(cpld.cfg_reg)
+        elif urukul_sta_proto_rev(self.sta_read(cpld))!= STA_PROTO_REV_8:
+            raise ValueError("Urukul proto_rev mismatch")
         delay(100 * us)  # reset, slack
         cpld.cfg_write(cfg)
         if cpld.sync_div:
@@ -479,11 +481,13 @@ class ProtoRev9(CPLDVersion):
         Resets the DDS I/O interface.
         Does not pulse the DDS ``MASTER_RESET`` as that confuses the AD9910.
         """
-        if not blind and urukul_sta_proto_rev(self.sta_read(cpld))!= STA_PROTO_REV_9:
-            raise ValueError("Urukul proto_rev mismatch")
         cfg = cpld.cfg_reg
         # Don't pulse MASTER_RESET (m-labs/artiq#940)
         cpld.cfg_reg = cfg | (0 << ProtoRev9.CFG_RST) | (1 << ProtoRev9.CFG_IO_RST)
+        if blind:
+            cpld.cfg_write(cpld.cfg_reg)
+        elif urukul_sta_proto_rev(self.sta_read(cpld))!= STA_PROTO_REV_9:
+            raise ValueError("Urukul proto_rev mismatch")
         delay(100 * us)  # reset, slack
         cpld.cfg_write(cfg)
         if cpld.sync_div:
