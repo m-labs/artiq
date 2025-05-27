@@ -483,7 +483,7 @@ class ProtoRev9(CPLDVersion):
         """
         cfg = cpld.cfg_reg
         # Don't pulse MASTER_RESET (m-labs/artiq#940)
-        cpld.cfg_reg = cfg | (0 << ProtoRev9.CFG_RST) | (1 << ProtoRev9.CFG_IO_RST)
+        cpld.cfg_reg = cfg | (int64(0) << ProtoRev9.CFG_RST) | (int64(1) << ProtoRev9.CFG_IO_RST)
         if blind:
             cpld.cfg_write(cpld.cfg_reg)
         elif urukul_sta_proto_rev(self.sta_read(cpld))!= STA_PROTO_REV_9:
@@ -498,8 +498,8 @@ class ProtoRev9(CPLDVersion):
     @kernel
     def io_rst(self, cpld):
         """Pulse IO_RST"""
-        cpld.cfg_write(cpld.cfg_reg | (1 << ProtoRev9.CFG_IO_RST))
-        cpld.cfg_write(cpld.cfg_reg & ~(1 << ProtoRev9.CFG_IO_RST))
+        cpld.cfg_write(cpld.cfg_reg | (int64(1) << int64(ProtoRev9.CFG_IO_RST)))
+        cpld.cfg_write(cpld.cfg_reg & ~(int64(1) << int64(ProtoRev9.CFG_IO_RST)))
 
     @kernel
     def set_profile(self, cpld, channel: TInt32, profile: TInt32):
