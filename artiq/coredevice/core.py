@@ -68,6 +68,13 @@ nac3_builtins = {
         "none": none,
         "virtual": virtual,
         "Option": Option,
+
+        # Decorators
+        "compile": compile,
+        "extern": extern,
+        "kernel": kernel,
+        "portable": portable,
+        "rpc": rpc,
     },
 }
 
