@@ -80,6 +80,13 @@ fix unreliable DRTIO master-satellite links?
 
 Inconsistent DRTIO connections, especially with odd or absent errors in the core logs, are often a symptom of overheating either in the master or satellite boards. Check the core device fans for failure or defects. Improve air circulation around the crate or attach additional fans to see if that improves or resolves the issue. In the long term, fan trays to be rack-mounted together with the crate are a clean solution to these kinds of problems.
 
+fix delay between DRTIO master and satellite cores?
+---------------------------------------------------
+
+Strictly speaking, you don't. Some measure of latency between cores in a DRTIO system is physically inevitable (information needs time to travel). ARTIQ deliberately makes no attempt to compensate for this latency -- in part because of complexity, but primarily because synchronization of events in real experiments will ultimately also depend on user-supplied components, which come *after* any attempted compensation within ARTIQ.
+
+On the other hand, ARTIQ DRTIO goes to a great deal of care to ensure that latency between master and satellite is always *deterministic*, and therefore constant in an unchanging system. See also the :doc:`drtio` page. This means it can be reliably compensated for, once measured, generally by delaying events scheduled to the master core by an appropriate amount.
+
 add or remove EEM peripherals or DRTIO satellites?
 --------------------------------------------------
 
