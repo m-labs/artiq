@@ -150,7 +150,7 @@ def main():
         client = AsyncioClient()
         loop.run_until_complete(client.connect_rpc(
             args.server, args.port_control, target))
-        atexit.register(client.close_rpc)
+        atexit_register_coroutine(client.close_rpc)
         rpc_clients[target] = client
 
     master_management = Client(args.server, args.port_control, "master_management")
