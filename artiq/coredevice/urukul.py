@@ -173,19 +173,21 @@ class ProtoRev8:
         return cpld.bus.read()
 
     @kernel
-    def init(self, cpld: CPLD):
+    def init(self, cpld: CPLD, blind: bool):
         """Initialize Urukul with ProtoRev8.
         Resets the DDS I/O interface.
         Does not pulse the DDS ``MASTER_RESET`` as that confuses the AD9910.
         """
-        if urukul_sta_proto_rev(self.sta_read(cpld)) != STA_PROTO_REV_8:
-            raise ValueError("Urukul proto_rev mismatch")
         cfg = cpld.cfg_reg
         # Don't pulse MASTER_RESET (m-labs/artiq#940)
         cpld.cfg_reg = (
             cfg | int64(0 << ProtoRev8.CFG_RST) | int64(1 << ProtoRev8.CFG_IO_RST)
         )
-        cpld.core.delay(100.0 * us)  # reset, slack
+        if blind:
+            cpld.cfg_write(cpld.cfg_reg)
+        elif urukul_sta_proto_rev(self.sta_read(cpld))!= STA_PROTO_REV_8:
+            raise ValueError("Urukul proto_rev mismatch")
+        cpld.core.delay(100. * us)  # reset, slack
         cpld.cfg_write(cfg)
         if bool(cpld.sync_div):
             at_mu(now_mu() & ~int64(0xF))  # align to RTIO/2
@@ -334,7 +336,7 @@ class ProtoRev9:
         :return: The status register value.
         """
         cpld.bus.set_config_mu(SPI_CONFIG, 24, SPIT_CFG_WR, CS_CFG)
-        cpld.bus.write((int32((cpld.cfg_reg >> 24) & int64(0xFFFFFF)) << 8))
+        cpld.bus.write((int32((cpld.cfg_reg >> 28) & int64(0xFFFFFF)) << 8))
         cpld.bus.set_config_mu(
             SPI_CONFIG | SPI_END | SPI_INPUT, 28, SPIT_CFG_RD, CS_CFG
         )
@@ -342,19 +344,21 @@ class ProtoRev9:
         return cpld.bus.read()
 
     @kernel
-    def init(self, cpld: CPLD):
+    def init(self, cpld: CPLD, blind: bool):
         """Initialize Urukul with ProtoRev9.
         Resets the DDS I/O interface.
         Does not pulse the DDS ``MASTER_RESET`` as that confuses the AD9910.
         """
-        if urukul_sta_proto_rev(self.sta_read(cpld)) != STA_PROTO_REV_9:
-            raise ValueError("Urukul proto_rev mismatch")
         cfg = cpld.cfg_reg
         # Don't pulse MASTER_RESET (m-labs/artiq#940)
         cpld.cfg_reg = (
-            cfg | int64(0 << ProtoRev9.CFG_RST) | int64(1 << ProtoRev9.CFG_IO_RST)
+            cfg | (int64(0) << ProtoRev9.CFG_RST) | (int64(1) << ProtoRev9.CFG_IO_RST)
         )
-        cpld.core.delay(100.0 * us)  # reset, slack
+        if blind:
+            cpld.cfg_write(cpld.cfg_reg)
+        elif urukul_sta_proto_rev(self.sta_read(cpld))!= STA_PROTO_REV_9:
+            raise ValueError("Urukul proto_rev mismatch")
+        cpld.core.delay(100. * us)  # reset, slack
         cpld.cfg_write(cfg)
         if bool(cpld.sync_div):
             at_mu(now_mu() & ~int64(0xF))  # align to RTIO/2
@@ -364,8 +368,8 @@ class ProtoRev9:
     @kernel
     def io_rst(self, cpld: CPLD):
         """Pulse IO_RST"""
-        cpld.cfg_write(cpld.cfg_reg | int64(1 << ProtoRev9.CFG_IO_RST))
-        cpld.cfg_write(cpld.cfg_reg & ~int64(1 << ProtoRev9.CFG_IO_RST))
+        cpld.cfg_write(cpld.cfg_reg | (int64(1) << ProtoRev9.CFG_IO_RST))
+        cpld.cfg_write(cpld.cfg_reg & ~(int64(1) << ProtoRev9.CFG_IO_RST))
 
     @kernel
     def set_profile(self, cpld: CPLD, channel: int32, profile: int32):
@@ -643,8 +647,8 @@ class CPLD:
         return self.version.sta_read(self)
 
     @kernel
-    def init(self):
-        self.version.init(self)
+    def init(self, blind: bool = False):
+        self.version.init(self, blind)
 
     @kernel
     def io_rst(self):

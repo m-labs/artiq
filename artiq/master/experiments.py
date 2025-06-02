@@ -160,6 +160,8 @@ class ExperimentDB:
                 r.append(prefix + de.name)
         return r
 
+    def root(self):
+        return self.repo_backend.root
 
 class FilesystemBackend:
     def __init__(self, root):
@@ -191,6 +193,8 @@ class _GitCheckout:
 
 class GitBackend:
     def __init__(self, root):
+        self.root = os.path.abspath(root)
+
         # lazy import - make dependency optional
         import pygit2
 

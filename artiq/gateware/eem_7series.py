@@ -96,7 +96,16 @@ def peripheral_grabber(module, peripheral, **kwargs):
         port, port_aux, port_aux2 = peripheral["ports"]
     else:
         raise ValueError("wrong number of ports")
-    eem.Grabber.add_std(module, port, port_aux, port_aux2, **kwargs)
+
+    eem.Grabber.add_std(
+        module,
+        port,
+        port_aux,
+        port_aux2,
+        ttl_out_cls=None,
+        roi_engine_count=peripheral["roi_engine_count"],
+        **kwargs
+    )
 
 
 def peripheral_mirny(module, peripheral, **kwargs):

@@ -3,6 +3,7 @@ from migen.genlib.cdc import MultiReg
 from misoc.interconnect.csr import *
 from misoc.cores.coaxpress.phy.high_speed_gtx import HostRXPHYs
 from misoc.cores.coaxpress.phy.low_speed_serdes import HostTXPHYs
+from misoc.cores.coaxpress.phy.asymmetric_gtx import HostTRXPHYs
 
 from artiq.gateware.rtio import rtlink
 from artiq.gateware.rtio.phy.grabber import Serializer, Synchronizer
@@ -13,12 +14,12 @@ class CXPGrabber(Module, AutoCSR):
     def __init__(
         self,
         refclk,
-        tx_pads,
-        rx_pads,
+        gt_pads,
         sys_clk_freq,
         roi_engine_count=8,
         res_width=16,
         count_width=31,
+        non_gt_tx_pads=None,
     ):
         assert count_width <= 31
 
@@ -42,9 +43,14 @@ class CXPGrabber(Module, AutoCSR):
 
         # # #
 
-        self.submodules.phy_tx = tx = HostTXPHYs(tx_pads, sys_clk_freq)
-        self.submodules.phy_rx = rx = HostRXPHYs(refclk, rx_pads, sys_clk_freq)
-        self.submodules.core = core = CXPHostCore(tx.phys[0], rx.phys[0], sys_clk_freq)
+        if non_gt_tx_pads:
+            self.submodules.phy_tx = tx = HostTXPHYs(non_gt_tx_pads, sys_clk_freq)
+            self.submodules.phy_rx = rx = HostRXPHYs(refclk, gt_pads, sys_clk_freq)
+            self.submodules.core = core = CXPHostCore(tx.phys[0], rx.phys[0], sys_clk_freq)
+        else:
+            self.submodules.phy = trx = HostTRXPHYs(refclk, gt_pads, sys_clk_freq)
+            self.submodules.core = core = CXPHostCore(trx.phys[0], trx.phys[0], sys_clk_freq)
+
         self.sync.rio += [
             If(self.trigger.o.stb,
                 core.tx.trig_extra_linktrig.eq(self.trigger.o.data[:nbit_extra_linktrig]),

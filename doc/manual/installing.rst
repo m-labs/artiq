@@ -105,7 +105,11 @@ To find more packages you can browse the `Nix package search <https://search.nix
 
     $ nix profile list
 
-  finding the entry with its ``Original flake URL`` listed as the GitHub ARTIQ repository, noting its index number (in a fresh Nix system it will normally be the only entry, at index 0), and running: ::
+  finding the entry with its ``Original flake URL`` listed as the GitHub ARTIQ repository, copying its name, and running: ::
+
+    $ nix profile remove [name]
+
+  In older Nix installations, profiles were kept track of by index number rather than name. In this case, simply use: ::
 
     $ nix profile remove [index]
 

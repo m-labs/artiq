@@ -211,6 +211,9 @@ class PeripheralManager:
         urukul_name = self.get_name("urukul")
         synchronization = peripheral["synchronization"]
         channel = count(0)
+        destination = rtio_offset >> 16
+        # Indicates the I2C bus 0 on the same DRTIO destination as the Urukul
+        busno = destination << 16
         pll_en = peripheral["pll_en"]
         clk_div = peripheral.get("clk_div")
         if clk_div is None:
@@ -222,9 +225,12 @@ class PeripheralManager:
                 "type": "local",
                 "module": "artiq.coredevice.kasli_i2c",
                 "class": "KasliEEPROM",
-                "arguments": {{"port": "EEM{eem}"}}
-            }}
-
+                "arguments": {{
+                    "port": "EEM{eem}",
+                    "busno": {busno},
+                    "sw0_device": "i2c_switch0{dest}",
+                    "sw1_device": "i2c_switch1{dest}"}}
+                }}
             device_db["spi_{name}"] = {{
                 "type": "local",
                 "module": "artiq.coredevice.spi2",
@@ -233,6 +239,8 @@ class PeripheralManager:
             }}""",
             name=urukul_name,
             eem=peripheral["ports"][0],
+            busno=busno,
+            dest="" if destination == 0 else "_{}".format(destination),
             channel=rtio_offset+next(channel))
         if synchronization:
             self.gen("""
@@ -713,6 +721,18 @@ class PeripheralManager:
                 spi=spi_name)
         return 0
 
+    def process_coaxpress_sfp(self, rtio_offset, peripheral):
+        self.gen("""
+            device_db["{name}"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.cxp_grabber",
+                "class": "CXPGrabber",
+                "arguments": {{"channel": 0x{channel:06x}}}
+            }}""",
+            name=self.get_name("coaxpress_sfp"),
+            channel=rtio_offset)
+        return 3
+
     def process(self, rtio_offset, peripheral):
         processor = getattr(self, "process_"+str(peripheral["type"]))
         return processor(rtio_offset, peripheral)
@@ -771,11 +791,25 @@ def process(output, primary_description, satellites):
             raise ValueError("Invalid DRTIO role for satellite at destination {}".format(destination))
         peripherals, satellite_drtio_peripherals = split_drtio_eem(description["peripherals"])
         drtio_peripherals.extend(satellite_drtio_peripherals)
+        busno = destination << 16
 
         print(textwrap.dedent("""
             # DEST#{dest} peripherals
 
+            device_db["i2c_switch0_{dest}"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.i2c",
+                "class": "I2CSwitch",
+                "arguments": {{"address": 0xe0, "busno": {busno}}}
+            }}
+            device_db["i2c_switch1_{dest}"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.i2c",
+                "class": "I2CSwitch",
+                "arguments": {{"address": 0xe2, "busno": {busno}}}
+            }}
             device_db["core"]["arguments"]["satellite_cpu_targets"][{dest}] = \"{target}\"""").format(
+                busno=busno,
                 dest=destination,
                 target=get_cpu_target(description)),
             file=output)

@@ -1,7 +1,7 @@
 import logging
 import logging.handlers
 
-from sipyco.logging_tools import SourceFilter
+from sipyco.logs import SourceFilter
 
 
 class LogForwarder(logging.Handler):

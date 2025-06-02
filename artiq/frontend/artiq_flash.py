@@ -216,7 +216,7 @@ class ProgrammerXC7(Programmer):
         Programmer.__init__(self, client, preinit_script)
         self._proxy = proxy
 
-        if board != "efc":
+        if board not in ["efc", "phaser"]:
             add_commands(self._board_script,
                 "source {boardfile}",
                 boardfile=self._transfer_script("board/{}.cfg".format(board)))
@@ -257,6 +257,13 @@ def main():
     config = {
         "kasli": {
             "programmer":   partial(ProgrammerXC7, board="kasli", proxy="bscan_spi_xc7a100t.bit"),
+            "gateware":     ("spi0", 0x000000),
+            "bootloader":   ("spi0", 0x400000),
+            "storage":      ("spi0", 0x440000),
+            "firmware":     ("spi0", 0x450000),
+        },
+        "phaser": {
+            "programmer":   partial(ProgrammerXC7, board="phaser", proxy="bscan_spi_xc7a100t.bit"),
             "gateware":     ("spi0", 0x000000),
             "bootloader":   ("spi0", 0x400000),
             "storage":      ("spi0", 0x440000),

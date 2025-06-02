@@ -62,7 +62,7 @@ class ProxyClient():
         except:
             logger.error("analyzer proxy reported failure", exc_info=True)
         finally:
-            remote.close_rpc()
+            await remote.close_rpc()
 
     async def _reconnect(self):
         while True:

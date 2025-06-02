@@ -1050,7 +1050,7 @@ fn process_kern_hwreq(request: &kern::Message, self_destination: u8) -> Result<b
         }
         &kern::I2cWriteRequest { busno, data } => {
             match i2c::write(busno as u8, data) {
-                Ok(()) => kern_send(
+                Ok(_) => kern_send(
                     &kern::I2cWriteReply { succeeded: true, ack: true }),
                 Err(i2c::Error::Nack) => kern_send(
                     &kern::I2cWriteReply { succeeded: true, ack: false }),
