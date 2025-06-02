@@ -262,7 +262,7 @@ class SimpleApplet:
 
     def req_close(self):
         if self.embed is None:
-            self.req.dataset_ctl.close_rpc()
+            self.loop.run_until_complete(self.req.dataset_ctl.close_rpc())
 
     def create_main_widget(self):
         self.main_widget = self.main_widget_class(self.args, self.req)
