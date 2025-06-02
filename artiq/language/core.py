@@ -54,17 +54,19 @@ def ceil64(x):
 
 
 # Delay NAC3 analysis until all referenced variables are supposed to exist on the CPython side.
-_registered_functions = set()
-_registered_classes = set()
+_registered_functions = dict()
+_registered_classes = dict()
 _registered_modules = set()
 
 def _register_function(fun):
-    import_cache.add_module_to_cache(getmodule(fun))
-    _registered_functions.add(fun)
+    module = getmodule(fun)
+    import_cache.add_module_to_cache(module)
+    _registered_functions[fun] = module
 
 def _register_class(cls):
-    import_cache.add_module_to_cache(getmodule(cls))
-    _registered_classes.add(cls)
+    module = getmodule(cls)
+    import_cache.add_module_to_cache(module)
+    _registered_classes[cls] = module
 
 def register_content_module(module):
     # for kernels sent by content, they have no modules
