@@ -12,11 +12,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1734270714,
-        "narHash": "sha256-7bzGn/hXLIsLQHGQsvo+uoIFUrw9DjXSlMC449BY4ME=",
+        "lastModified": 1748847424,
+        "narHash": "sha256-BXpxu3fowHV0u6DVTYn6efQ8X3PV6qC4TgiuCsSy3/0=",
         "owner": "m-labs",
         "repo": "artiq-comtools",
-        "rev": "7e3152314af8f5987370e33b347b2ec2697567ed",
+        "rev": "5552bf9b5e6e150dafbaf5cd20bd68c82949ac9a",
         "type": "github"
       },
       "original": {
@@ -30,11 +30,11 @@
         "systems": "systems"
       },
       "locked": {
-        "lastModified": 1710146030,
-        "narHash": "sha256-SZ5L6eA7HJ/nmkzGG7/ISclqe6oZdOZTNoesiInkXPQ=",
+        "lastModified": 1731533236,
+        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
         "owner": "numtide",
         "repo": "flake-utils",
-        "rev": "b1d9ab70662946ef0850d488da1c9019f3a9752a",
+        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
         "type": "github"
       },
       "original": {
@@ -48,17 +48,38 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1748443024,
-        "narHash": "sha256-HXa0YOLL8h2nx3WrWeAvGdJl8t+SlIKvshgWeRbK23o=",
+        "lastModified": 1748853543,
+        "narHash": "sha256-kDV77jz+OMaWIWo5kVvr+/ouqR6K4RGYXCHkmE8WN1w=",
         "ref": "refs/heads/master",
-        "rev": "0e9166f9d8c35bcb1d0b717ef30c7aa7fc48dd0a",
-        "revCount": 1652,
+        "rev": "67c17667d6d55eaccec0a79d8e99aea1ab326b6e",
+        "revCount": 1659,
         "type": "git",
         "url": "https://git.m-labs.hk/m-labs/nac3.git"
       },
       "original": {
         "type": "git",
         "url": "https://git.m-labs.hk/m-labs/nac3.git"
+      }
+    },
+    "naersk": {
+      "inputs": {
+        "nixpkgs": [
+          "nac3",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1745925850,
+        "narHash": "sha256-cyAAMal0aPrlb1NgzMxZqeN1mAJ2pJseDhm2m6Um8T0=",
+        "owner": "nix-community",
+        "repo": "naersk",
+        "rev": "38bc60bbc157ae266d4a0c96671c6c742ee17a5f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "naersk",
+        "type": "github"
       }
     },
     "nixpkgs": {
@@ -81,6 +102,7 @@
       "inputs": {
         "artiq-comtools": "artiq-comtools",
         "nac3": "nac3",
+        "naersk": "naersk",
         "rust-overlay": "rust-overlay",
         "sipyco": "sipyco",
         "src-migen": "src-migen",
@@ -117,11 +139,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1748312725,
-        "narHash": "sha256-unr3nhb64l55qP7fF1tTum6D0rK6QucT8Tu3Mq5qOfI=",
+        "lastModified": 1748848542,
+        "narHash": "sha256-ZOTF/NX7SltbYg+OGSfyjo3uTiaCZJJiITZriKt4YdY=",
         "owner": "m-labs",
         "repo": "sipyco",
-        "rev": "e8af971120bd59a1256059d6ba47df072023b279",
+        "rev": "dd3fc30a5b530279f8d75ae77b4de51f3b9870a3",
         "type": "github"
       },
       "original": {

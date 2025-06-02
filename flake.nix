@@ -14,7 +14,7 @@
 
     naersk = {
       url = "github:nix-community/naersk";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.nixpkgs.follows = "nac3/nixpkgs";
     };
 
     artiq-comtools = {
