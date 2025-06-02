@@ -43,7 +43,7 @@ class DatasetCtl:
                     logger.error("Invalid operation: %s", op_name)
                     return
             finally:
-                remote.close_rpc()
+                await remote.close_rpc()
         except:
             logger.error("Failed %s operation on %s", op_name,
                         key_or_mod, exc_info=True)
