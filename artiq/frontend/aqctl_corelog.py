@@ -8,7 +8,7 @@ import re
 
 from sipyco.pc_rpc import Server
 from sipyco import common_args
-from sipyco.logging_tools import log_with_name
+from sipyco.logs import log_with_name
 from sipyco.tools import SignalHandler
 from sipyco.keepalive import async_open_connection
 

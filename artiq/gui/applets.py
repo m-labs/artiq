@@ -12,7 +12,7 @@ from types import SimpleNamespace
 from PyQt6 import QtCore, QtGui, QtWidgets
 
 from sipyco.pipe_ipc import AsyncioParentComm
-from sipyco.logging_tools import LogParser
+from sipyco.logs import LogParser
 from sipyco import pyon
 
 from artiq.gui.entries import procdesc_to_entry, EntryTreeWidget

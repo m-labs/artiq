@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 from sipyco.pc_rpc import Server as RPCServer
 from sipyco.sync_struct import Publisher
-from sipyco.logging_tools import Server as LoggingServer
+from sipyco.logs import Server as LoggingServer
 from sipyco.broadcast import Broadcaster
 from sipyco import common_args
 from sipyco.tools import atexit_register_coroutine, SignalHandler

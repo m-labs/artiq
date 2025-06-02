@@ -4,7 +4,7 @@ from functools import partial
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 
-from sipyco.logging_tools import SourceFilter
+from sipyco.logs import SourceFilter
 from artiq.gui.tools import (LayoutWidget, log_level_to_name,
                              QDockWidgetCloseDetect)
 

@@ -6,7 +6,7 @@ import subprocess
 import time
 
 from sipyco import pipe_ipc, pyon
-from sipyco.logging_tools import LogParser
+from sipyco.logs import LogParser
 from sipyco.packed_exceptions import current_exc_packed
 
 from artiq.tools import asyncio_wait_or_cancel

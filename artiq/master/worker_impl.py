@@ -21,7 +21,7 @@ import h5py
 
 from sipyco import pipe_ipc, pyon
 from sipyco.packed_exceptions import raise_packed_exc
-from sipyco.logging_tools import multiline_log_config
+from sipyco.logs import multiline_log_config
 
 import artiq
 from artiq import tools
