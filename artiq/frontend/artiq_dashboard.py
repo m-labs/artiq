@@ -139,8 +139,6 @@ class MainWindow(QtWidgets.QMainWindow):
            this is not obvious and seems to depend on MDI implementation.
         """
         mdi_area = self.tab_widget.widget(index)
-        if not mdi_area:
-            return
         # Check which subwindow is active
         activeSubWindow = mdi_area.activeSubWindow()
         # Check if active subwindow is maximized. If not, neither window is
