@@ -83,19 +83,17 @@ class EditableTabBar(QtWidgets.QTabBar):
             if ok and new_name.strip():
                 new_name = new_name.strip()
                 tab_widget = self.parent()
-                if isinstance(tab_widget, QtWidgets.QTabWidget):
-                    if tab_name_exists(tab_widget, new_name,
-                                       ignore_index=index):
-                        QtWidgets.QMessageBox.warning(
-                            self, "Duplicate Tab Name",
-                            "Another workspace already has that name. "
-                            "Please choose a unique name."
-                        )
-                        return
+                if tab_name_exists(tab_widget, new_name,
+                                   ignore_index=index):
+                    QtWidgets.QMessageBox.warning(
+                        self, "Duplicate Tab Name",
+                        "Another workspace already has that name. "
+                        "Please choose a unique name."
+                    )
+                    return
                 self.setTabText(index, new_name)
-                if isinstance(tab_widget, QtWidgets.QTabWidget):
-                    mdi_area = tab_widget.widget(index)
-                    mdi_area.setTabName(new_name)
+                mdi_area = tab_widget.widget(index)
+                mdi_area.setTabName(new_name)
         super().mouseDoubleClickEvent(event)
 
 
@@ -145,12 +143,11 @@ class MainWindow(QtWidgets.QMainWindow):
         # maximized
         wasMaximized = activeSubWindow.isMaximized() if activeSubWindow else False
 
-        if isinstance(mdi_area, MdiArea):
-            for subwindow in mdi_area.subWindowList():
-                # Refresh geometry to properly place minimized windows
-                if subwindow.isMinimized():
-                    subwindow.setWindowState(QtCore.Qt.WindowNoState)
-                    subwindow.setWindowState(QtCore.Qt.WindowMinimized)
+        for subwindow in mdi_area.subWindowList():
+            # Refresh geometry to properly place minimized windows
+            if subwindow.isMinimized():
+                subwindow.setWindowState(QtCore.Qt.WindowNoState)
+                subwindow.setWindowState(QtCore.Qt.WindowMinimized)
         # Restore focus and maximization
         if activeSubWindow:
             mdi_area.setActiveSubWindow(activeSubWindow)
