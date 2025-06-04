@@ -218,13 +218,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def restore_state(self, state):
         """Restore MainWindow state including MDI areas."""
         self._remove_init_mdi_areas()
-        if self.tab_widget.count() == 1:
-            mdi_area = self.tab_widget.widget(0)
-            for experiment in mdi_area.subWindowList():
-                mdi_area.removeSubWindow(experiment)
-                experiment.close()
-            self.tab_widget.removeTab(0)
-            mdi_area.deleteLater()
         self.restoreGeometry(QtCore.QByteArray(state["geometry"]))
         self.restoreState(QtCore.QByteArray(state["state"]))
         for title in state.get("mdi_areas", []):
