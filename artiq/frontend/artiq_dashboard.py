@@ -146,14 +146,14 @@ class MainWindow(QtWidgets.QMainWindow):
         for subwindow in mdi_area.subWindowList():
             # Refresh geometry to properly place minimized windows
             if subwindow.isMinimized():
-                subwindow.setWindowState(QtCore.Qt.WindowNoState)
-                subwindow.setWindowState(QtCore.Qt.WindowMinimized)
+                subwindow.setWindowState(QtCore.Qt.WindowState.WindowNoState)
+                subwindow.setWindowState(QtCore.Qt.WindowState.WindowMinimized)
         # Restore focus and maximization
         if activeSubWindow:
             mdi_area.setActiveSubWindow(activeSubWindow)
             activeSubWindow.widget().setFocus()
             if wasMaximized:
-                activeSubWindow.setWindowState(QtCore.Qt.WindowMaximized)
+                activeSubWindow.setWindowState(QtCore.Qt.WindowState.WindowMaximized)
 
     def add_mdi_area(self, title):
         """Create a new MDI area (tab) with the given title."""
