@@ -83,14 +83,6 @@ class EditableTabBar(QtWidgets.QTabBar):
             if ok and new_name.strip():
                 new_name = new_name.strip()
                 tab_widget = self.parent()
-                if tab_name_exists(tab_widget, new_name,
-                                   ignore_index=index):
-                    QtWidgets.QMessageBox.warning(
-                        self, "Duplicate Tab Name",
-                        "Another workspace already has that name. "
-                        "Please choose a unique name."
-                    )
-                    return
                 self.setTabText(index, new_name)
                 mdi_area = tab_widget.widget(index)
                 mdi_area.setTabName(new_name)
@@ -164,11 +156,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def new_mdi_area(self):
         """Add a new MDI area (tab) with an auto-generated unique title."""
-        count = self.tab_widget.count() + 1
-        title = f"Workspace {count}"
+        idx = 1
+        title = f"Workspace {idx}"
         while tab_name_exists(self.tab_widget, title):
-            count = count + 1
-            title = f"Workspace {count}"
+            idx = idx + 1
+            title = f"Workspace {idx}"
         self.add_mdi_area(title)
         self.tab_widget.setCurrentIndex(self.tab_widget.count() - 1)
 
