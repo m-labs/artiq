@@ -825,18 +825,21 @@ class ExperimentManager:
     def save_state(self):
         for expurl, dock in self.open_experiments.items():
             self.dock_states[expurl] = dock.save_state()
-        experiment_mdi = {}
-        for expurl, dock in self.open_experiments.items():
-            experiment_mdi[expurl] = dock.mdiArea().tab_name
+
+        mdi_experiment = {}
+        for index in range(self.main_window.centralWidget().count()):
+            mdi_area = self.main_window.centralWidget().widget(index)
+            mdi_experiment[index] = []
+            for experiment in mdi_area.subWindowList():
+                mdi_experiment[index].append(experiment.expurl)
         return {
             "scheduling": dict(self.submission_scheduling),
             "options": dict(self.submission_options),
             "arguments": dict(self.submission_arguments),
             "docks": dict(self.dock_states),
             "argument_uis": dict(self.argument_ui_names),
-            "open_docks": set(self.open_experiments.keys()),
             "colors": dict(self.colors),
-            "experiment_mdi": experiment_mdi
+            "mdi_experiment": mdi_experiment
         }
 
     def restore_state(self, state):
@@ -848,13 +851,12 @@ class ExperimentManager:
         self.submission_arguments.update(state["arguments"])
         self.argument_ui_names.update(state.get("argument_uis", {}))
         self.colors.update(state.get("colors", {}))
-        experiment_mdi = state.get("experiment_mdi", {})
-        for expurl in state["open_docks"]:
-            tab_widget = self.main_window.centralWidget()
-            mdi_area_name = experiment_mdi[expurl]
-            mdi_area = self.main_window.get_mdi_area_by_name(mdi_area_name)
-            tab_widget.setCurrentWidget(mdi_area)
-            self.open_experiment(expurl)
+        mdi_experiment = state.get("mdi_experiment", {})
+        for index, mdi in mdi_experiment.items():
+            mdi_area = self.main_window.centralWidget().widget(index)
+            self.main_window.centralWidget().setCurrentWidget(mdi_area)
+            for expurl in mdi:
+                self.open_experiment(expurl)
 
     def show_quick_open(self):
         if self.is_quick_open_shown:

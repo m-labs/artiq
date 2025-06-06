@@ -223,16 +223,6 @@ class MainWindow(QtWidgets.QMainWindow):
         for title in state.get("mdi_areas", []):
             self.add_mdi_area(title)
 
-    def get_mdi_area_by_name(self, name):
-        """
-        Given a name (i.e. tab title), return the corresponding MDI area.
-        Returns None if not found.
-        """
-        for i in range(self.tab_widget.count()):
-            if self.tab_widget.tabText(i) == name:
-                return self.tab_widget.widget(i)
-        return None
-
 
 class MdiArea(QtWidgets.QMdiArea):
     def __init__(self):
