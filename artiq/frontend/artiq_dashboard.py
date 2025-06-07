@@ -19,6 +19,7 @@ from sipyco.sync_struct import Subscriber
 from artiq import __artiq_dir__ as artiq_dir, __version__ as artiq_version
 from artiq.tools import get_user_config_dir
 from artiq.gui.models import ModelSubscriber
+from artiq.gui.tools import EditableMdiTabBar
 from artiq.gui import state, log
 from artiq.dashboard import (experiments, shortcuts, explorer,
                              moninj, datasets, schedule, applets_ccb,
@@ -71,54 +72,6 @@ def tab_name_exists(tab_widget, name, ignore_index=None):
     return False
 
 
-class EditableTabBar(QtWidgets.QTabBar):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self._editor = QtWidgets.QLineEdit(self)
-        self._editor.setWindowFlags(QtCore.Qt.WindowType.Popup)
-        self._editor.setFocusProxy(self)
-        self._editor.editingFinished.connect(self.handleEditingFinished)
-        self._editor.installEventFilter(self)
-
-    def eventFilter(self, widget, event):
-        if (
-            event.type() == QtCore.QEvent.Type.MouseButtonPress
-            and not self._editor.geometry().contains(event.globalPosition().toPoint())
-        ) or (
-            event.type() == QtCore.QEvent.Type.KeyPress
-            and event.key() == QtCore.Qt.Key.Key_Escape
-        ):
-            self._editor.hide()
-            return True
-
-        return super().eventFilter(widget, event)
-
-    def mouseDoubleClickEvent(self, event):
-        index = self.tabAt(event.pos())
-        if index >= 0:
-            self.editTab(index)
-
-    def editTab(self, index):
-        rect = self.tabRect(index)
-        self._editor.setFixedSize(rect.size())
-        self._editor.move(self.mapToGlobal(rect.topLeft()))
-        self._editor.setText(self.tabText(index))
-        if not self._editor.isVisible():
-            self._editor.show()
-
-    def handleEditingFinished(self):
-        index = self.currentIndex()
-        if index >= 0:
-            self._editor.hide()
-            self.set_tab_name(index, self._editor.text())
-
-    def set_tab_name(self, index, name):
-        self.setTabText(index, name)
-        tab_widget = self.parent()
-        mdi_area = tab_widget.widget(index)
-        mdi_area.setTabName(name)
-
-
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, server):
         QtWidgets.QMainWindow.__init__(self)
@@ -133,7 +86,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.exit_request = asyncio.Event()
 
         self.tab_widget = QtWidgets.QTabWidget()
-        self.tab_widget.setTabBar(EditableTabBar(self))
+        self.tab_widget.setTabBar(EditableMdiTabBar(self))
         self.tab_widget.setTabsClosable(True)
         self.tab_widget.tabCloseRequested.connect(self.close_mdi_area)
         self.setCentralWidget(self.tab_widget)
