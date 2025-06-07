@@ -150,14 +150,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tab_widget.currentChanged.connect(self.on_tab_changed)
 
     def on_tab_changed(self, index):
-        """
-        We want to refresh geometry to properly place minimized windows after
-        resizing from other MDI area.
-        It causes 2 other issues that are addressed here:
-        1. The focus stays on the minimized window.
-        2. If the code below executes, maximized windows get un-maximized -
-           this is not obvious and seems to depend on MDI implementation.
-        """
+        # We want to refresh geometry to properly place minimized windows after
+        # resizing from other MDI area.
+        # It causes 2 other issues that are addressed here:
+        # 1. The focus stays on the minimized window.
+        # 2. If the code below executes, maximized windows get un-maximized -
+        #    this is not obvious and seems to depend on MDI implementation.
         mdi_area = self.tab_widget.widget(index)
         # Check which subwindow is active
         activeSubWindow = mdi_area.activeSubWindow()
@@ -178,7 +176,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 activeSubWindow.setWindowState(QtCore.Qt.WindowState.WindowMaximized)
 
     def add_mdi_area(self, title):
-        """Create a new MDI area (tab) with the given title."""
+        # Create a new MDI area (tab) with the given title
         mdi_area = MdiArea()
         mdi_area.setTabName(title)
         index = self.tab_widget.addTab(mdi_area, title)
@@ -187,7 +185,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tab_widget.setTabsClosable(self.tab_widget.count() > 1)
 
     def new_mdi_area(self):
-        """Add a new MDI area (tab) with an auto-generated unique title."""
+        # Add a new MDI area (tab) with an auto-generated unique title
         idx = 1
         title = f"Workspace {idx}"
         while tab_name_exists(self.tab_widget, title):
@@ -197,7 +195,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tab_widget.setCurrentIndex(self.tab_widget.count() - 1)
 
     def close_mdi_area(self, index):
-        """Handle closing an MDI area (tab)."""
         if self.tab_widget.count() == 1:
             logging.warning("Cannot close last workspace")
             return
@@ -222,10 +219,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.exit_request.set()
 
     def save_state(self):
-        """
-        Save MainWindow state including MDI areas.
-        (This is separate from the QMainWindow state.)
-        """
+        # Save MainWindow state including MDI areas.
+        # (This is separate from the QMainWindow state.)
         mdi_areas = [self.tab_widget.tabText(i) for i in range(self.tab_widget.count())]
         return {
             "state": bytes(self.saveState()),
@@ -234,7 +229,7 @@ class MainWindow(QtWidgets.QMainWindow):
         }
 
     def restore_state(self, state):
-        """Restore MainWindow state including MDI areas."""
+        # Restore MainWindow state including MDI areas
         self.restoreGeometry(QtCore.QByteArray(state["geometry"]))
         self.restoreState(QtCore.QByteArray(state["state"]))
         for index, title in enumerate(state.get("mdi_areas", [])):
