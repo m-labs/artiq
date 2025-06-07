@@ -72,21 +72,45 @@ def tab_name_exists(tab_widget, name, ignore_index=None):
 
 
 class EditableTabBar(QtWidgets.QTabBar):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self._editor = QtWidgets.QLineEdit(self)
+        self._editor.setWindowFlags(QtCore.Qt.WindowType.Popup)
+        self._editor.setFocusProxy(self)
+        self._editor.editingFinished.connect(self.handleEditingFinished)
+        self._editor.installEventFilter(self)
+
+    def eventFilter(self, widget, event):
+        if (
+            event.type() == QtCore.QEvent.Type.MouseButtonPress
+            and not self._editor.geometry().contains(event.globalPosition().toPoint())
+        ) or (
+            event.type() == QtCore.QEvent.Type.KeyPress
+            and event.key() == QtCore.Qt.Key.Key_Escape
+        ):
+            self._editor.hide()
+            return True
+
+        return super().eventFilter(widget, event)
+
     def mouseDoubleClickEvent(self, event):
         index = self.tabAt(event.pos())
-        if index != -1:
-            current_name = self.tabText(index)
-            new_name, ok = QtWidgets.QInputDialog.getText(
-                self, "Rename Workspace", "Enter a new name:",
-                text=current_name
-            )
-            if ok and new_name.strip():
-                new_name = new_name.strip()
-                tab_widget = self.parent()
-                self.setTabText(index, new_name)
-                mdi_area = tab_widget.widget(index)
-                mdi_area.setTabName(new_name)
-        super().mouseDoubleClickEvent(event)
+        if index >= 0:
+            self.editTab(index)
+
+    def editTab(self, index):
+        rect = self.tabRect(index)
+        self._editor.setFixedSize(rect.size())
+        self._editor.move(self.mapToGlobal(rect.topLeft()))
+        self._editor.setText(self.tabText(index))
+        if not self._editor.isVisible():
+            self._editor.show()
+
+    def handleEditingFinished(self):
+        index = self.currentIndex()
+        if index >= 0:
+            self._editor.hide()
+            self.set_tab_name(index, self._editor.text())
 
     def set_tab_name(self, index, name):
         self.setTabText(index, name)
@@ -109,7 +133,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.exit_request = asyncio.Event()
 
         self.tab_widget = QtWidgets.QTabWidget()
-        self.tab_widget.setTabBar(EditableTabBar())
+        self.tab_widget.setTabBar(EditableTabBar(self))
         self.tab_widget.setTabsClosable(True)
         self.tab_widget.tabCloseRequested.connect(self.close_mdi_area)
         self.setCentralWidget(self.tab_widget)
