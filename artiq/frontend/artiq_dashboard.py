@@ -88,6 +88,12 @@ class EditableTabBar(QtWidgets.QTabBar):
                 mdi_area.setTabName(new_name)
         super().mouseDoubleClickEvent(event)
 
+    def set_tab_name(self, index, name):
+        self.setTabText(index, name)
+        tab_widget = self.parent()
+        mdi_area = tab_widget.widget(index)
+        mdi_area.setTabName(name)
+
 
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, server):
@@ -180,6 +186,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.tab_widget.setTabsClosable(self.tab_widget.count() > 1)
 
+    def rename_mdi_area(self, index, title):
+        if self.tab_widget.count() < index + 1:
+            logging.warning("Requested workspace does not exist")
+            return
+        tab_bar = self.tab_widget.tabBar()
+        tab_bar.set_tab_name(index, title)
+
     def closeEvent(self, event):
         event.ignore()
         self.exit_request.set()
@@ -196,28 +209,17 @@ class MainWindow(QtWidgets.QMainWindow):
             "mdi_areas": mdi_areas,
         }
 
-    def _remove_init_mdi_areas(self):
-        """In order to handle the case of the first start of the
-        dashboard, we add new mdi_area in the init. It cannot be
-        done in restore_state because it is not called in that
-        special case. However, if the restore state is called,
-        we remove it.
-        """
-        if self.tab_widget.count() == 1:
-            mdi_area = self.tab_widget.widget(0)
-            for experiment in mdi_area.subWindowList():
-                mdi_area.removeSubWindow(experiment)
-                experiment.close()
-            self.tab_widget.removeTab(0)
-            mdi_area.deleteLater()
-
     def restore_state(self, state):
         """Restore MainWindow state including MDI areas."""
-        self._remove_init_mdi_areas()
         self.restoreGeometry(QtCore.QByteArray(state["geometry"]))
         self.restoreState(QtCore.QByteArray(state["state"]))
-        for title in state.get("mdi_areas", []):
-            self.add_mdi_area(title)
+        for index, title in enumerate(state.get("mdi_areas", [])):
+            if index == 0:
+                # The first workspace is created always in init in order to
+                # handle the case of no state to restore
+                self.rename_mdi_area(index, title)
+            else:
+                self.add_mdi_area(title)
 
 
 class MdiArea(QtWidgets.QMdiArea):
