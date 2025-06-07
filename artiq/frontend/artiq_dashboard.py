@@ -154,6 +154,8 @@ class MainWindow(QtWidgets.QMainWindow):
         index = self.tab_widget.addTab(mdi_area, title)
         self.tab_widget.setTabToolTip(index, "Double click to rename")
 
+        self.tab_widget.setTabsClosable(self.tab_widget.count() > 1)
+
     def new_mdi_area(self):
         """Add a new MDI area (tab) with an auto-generated unique title."""
         idx = 1
@@ -175,6 +177,8 @@ class MainWindow(QtWidgets.QMainWindow):
             experiment.close()
         self.tab_widget.removeTab(index)
         mdi_area.deleteLater()
+
+        self.tab_widget.setTabsClosable(self.tab_widget.count() > 1)
 
     def closeEvent(self, event):
         event.ignore()
