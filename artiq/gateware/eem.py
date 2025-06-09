@@ -236,10 +236,13 @@ class Urukul(_EEM):
         target.rtio_channels.append(rtio.Channel.from_phy(spi_phy, ififo_depth=4))
 
         pads = target.platform.request("urukul{}_dds_reset_sync_in".format(eem))
-        if sync_gen_cls is not None:  # AD9910 variant and SYNC_IN from EEM
-            phy = sync_gen_cls(pad=pads.p, pad_n=pads.n, ftw_width=4)
-            target.submodules += phy
-            target.rtio_channels.append(rtio.Channel.from_phy(phy))
+        if dds_type == "ad9912":
+            # DDS_RESET for AD9912 variant only
+            target.specials += DifferentialOutput(0, pads.p, pads.n)
+        elif sync_gen_cls is not None:  # AD9910 variant and SYNC_IN from EEM
+            sync_phy = sync_gen_cls(pad=pads.p, pad_n=pads.n, ftw_width=4)
+            target.submodules += sync_phy
+            target.rtio_channels.append(rtio.Channel.from_phy(sync_phy))
 
         pads = target.platform.request("urukul{}_io_update".format(eem))
         io_upd_phy = ttl_out_cls(pads.p, pads.n)
