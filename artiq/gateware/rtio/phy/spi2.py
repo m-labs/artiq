@@ -1,6 +1,6 @@
 from migen import *
 
-from misoc.cores.spi2 import SPIMachine, SPIInterfaceXC7Diff, SPIInterface
+from misoc.cores.spi2 import SPIMachine, SPIInterfaceXC7, SPIInterface
 from artiq.gateware.rtio import rtlink
 
 
@@ -63,11 +63,7 @@ class SPIMaster(Module):
         if hasattr(pads, "mosi"):
             spi.reg.sdo.attr.add("iob")
 
-        if pads_n is None:
-            interface = SPIInterface(pads)
-        else:
-            interface = SPIInterfaceXC7Diff(pads, pads_n, sdo=spi.reg.sdo)
-        interface = to_rio_phy(interface)
+        interface = to_rio_phy(SPIInterfaceXC7(pads, pads_n, sdo=spi.reg.sdo))
         self.submodules += interface, spi
 
         self.rtlink = rtlink.Interface(
