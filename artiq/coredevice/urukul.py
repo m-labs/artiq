@@ -732,7 +732,7 @@ class CPLD:
                 rst=0,
                 io_rst=0,
                 clk_div=clk_div,
-                att_en=0,
+                att_en=0b1111,
             ))
         self.att_reg = int32(int64(att))
         self.sync_div = sync_div
