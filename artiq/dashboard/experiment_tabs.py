@@ -49,6 +49,7 @@ class MultipleTabsManagement:
         self.tab_widget = QtWidgets.QTabWidget()
         self.tab_widget.setTabBar(EditableMdiTabBar(main_window))
         self.tab_widget.setTabsClosable(True)
+        self.tab_widget.setMovable(True)
         self.tab_widget.tabCloseRequested.connect(self.close_mdi_area)
         main_window.setCentralWidget(self.tab_widget)
 
