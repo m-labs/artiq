@@ -73,6 +73,7 @@ class _InteractiveArgsRequest(EntryTreeWidget):
 class _InteractiveArgsView(QtWidgets.QStackedWidget):
     supplied = QtCore.pyqtSignal(int, dict)
     cancelled = QtCore.pyqtSignal(int)
+    alert = QtCore.pyqtSignal()
 
     def __init__(self):
         QtWidgets.QStackedWidget.__init__(self)
@@ -114,6 +115,7 @@ class _InteractiveArgsView(QtWidgets.QStackedWidget):
         assert first == last
         self.setCurrentIndex(0)
         self._insert_widget(first)
+        self.alert.emit()
 
     def rowsRemoved(self, parent, first, last):
         assert first == last
@@ -122,20 +124,36 @@ class _InteractiveArgsView(QtWidgets.QStackedWidget):
         widget.deleteLater()
         if self.tabs.count() == 0:
             self.setCurrentIndex(1)
+        self.alert.emit()
 
 
 class InteractiveArgsDock(QtWidgets.QDockWidget):
-    def __init__(self, interactive_args_sub, interactive_args_rpc):
+    def __init__(self, interactive_args_sub, interactive_args_rpc,
+                 main_window):
         QtWidgets.QDockWidget.__init__(self, "Interactive Args")
         self.setObjectName("Interactive Args")
         self.setFeatures(
-            self.DockWidgetFeature.DockWidgetMovable | self.DockWidgetFeature.DockWidgetFloatable)
+            self.DockWidgetFeature.DockWidgetMovable |
+            self.DockWidgetFeature.DockWidgetFloatable)
         self.interactive_args_rpc = interactive_args_rpc
+        self.main_window = main_window
         self.request_view = _InteractiveArgsView()
         self.request_view.supplied.connect(self.supply)
         self.request_view.cancelled.connect(self.cancel)
+        self.request_view.alert.connect(self._set_alert)
         self.setWidget(self.request_view)
         interactive_args_sub.add_setmodel_callback(self.request_view.setModel)
+
+    def _set_alert(self):
+        tabbar = self._find_tab_bar()
+        if tabbar is None:
+            return
+        tabbar_idx = self._tab_index(tabbar)
+        if tabbar_idx != tabbar.currentIndex():
+            self.setWindowTitle("(!)Interactive Args")
+
+    def _clear_alert(self):
+        self.setWindowTitle("Interactive Args")
 
     def supply(self, rid, values):
         asyncio.ensure_future(self._supply_task(rid, values))
@@ -156,3 +174,38 @@ class InteractiveArgsDock(QtWidgets.QDockWidget):
         except Exception:
             logger.error("failed to cancel interactive args request for experiment: %d",
                          rid, exc_info=True)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        QtCore.QTimer.singleShot(0, self._connect_to_tab_bar)
+
+    def _tab_index(self, tabbar):
+        # Return the index of this dock widget's tab in the given QTabBar.
+        for i in range(tabbar.count()):
+            if tabbar.tabText(i) == self.windowTitle():
+                return i
+        return None
+
+    def _on_tab_changed(self, index):
+        tabbar = self._find_tab_bar()
+        if tabbar is None:
+            return
+        my_index = self._tab_index(tabbar)
+        if my_index is not None and my_index == index:
+            self._clear_alert()
+
+    def _connect_to_tab_bar(self):
+        # Locate the QTabBar in the main window and connect its currentChanged
+        # signal so that when this tab is selected the alert is cleared.
+        tabbar = self._find_tab_bar()
+        if tabbar is not None:
+            tabbar.currentChanged.connect(self._on_tab_changed)
+
+    def _find_tab_bar(self):
+        # Search for a QTabBar among main_window’s children.
+        tabbars = self.main_window.findChildren(QtWidgets.QTabBar)
+        for tabbar in tabbars:
+            for i in range(tabbar.count()):
+                if tabbar.tabText(i) == self.windowTitle():
+                    return tabbar
+        return None
