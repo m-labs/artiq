@@ -23,7 +23,7 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
             set_resize_mode = self.header().setSectionResizeMode
         else:
             set_resize_mode = self.header().setResizeMode
-        set_resize_mode(0, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        set_resize_mode(0, QtWidgets.QHeaderView.ResizeMode.Stretch)
         set_resize_mode(1, QtWidgets.QHeaderView.ResizeMode.Stretch)
         set_resize_mode(2, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
         self.header().setVisible(False)
