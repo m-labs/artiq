@@ -195,3 +195,14 @@ def get_windows_drives():
 def get_user_config_dir():
     major = artiq_version.split(".")[0]
     return user_config_dir("artiq", "m-labs", major, ensure_exists=True)
+
+def compare_keys(d1, d2):
+    if set(d1.keys()) != set(d2.keys()):
+        return False
+    for key in d1:
+        if isinstance(d1[key], dict) and isinstance(d2[key], dict):
+            if not compare_keys(d1[key], d2[key]):
+                return False
+        elif isinstance(d1[key], dict) or isinstance(d2[key], dict):
+            return False
+    return True
