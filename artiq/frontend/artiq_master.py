@@ -115,7 +115,7 @@ def main():
     # Python doesn't allow writing attributes to bound methods.
     def get_interactive_arguments(*args, **kwargs):
         return interactive_arg_db.get(*args, **kwargs)
-    get_interactive_arguments._worker_pass_rid = True
+    get_interactive_arguments._worker_pass_request_key = True
     worker_handlers.update({
         "get_device_db": device_db.get_device_db,
         "get_device": device_db.get,

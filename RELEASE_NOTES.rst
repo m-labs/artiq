@@ -27,6 +27,7 @@ ARTIQ-9 (Unreleased)
    - Schedule display columns can now be reordered and shown/hidden using the table
      header context menu.
    - State files are now automatically backed up upon successful loading.
+   - Interactive argument widgets now remember previous GUI state.
 * ``afws_client`` now uses the "happy eyeballs" algorithm (RFC 6555) for a faster and more
   reliable connection to the server.
 * Compiler can now give automatic suggestions for ``kernel_invariants``. 
