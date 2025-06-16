@@ -120,6 +120,7 @@ class AD9910Exp(EnvExperiment):
         self.dev.set_frequency(f)
         self.dev.set_phase(p)
         self.dev.set_amplitude(a)
+        self.dev.io_update.pulse_mu(8)
 
         self.core.break_realtime()
         ftw = self.dev.get_ftw()
