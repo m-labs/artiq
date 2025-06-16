@@ -609,4 +609,4 @@ class AD9910Test(ExperimentCase):
         turns = self.dataset_mgr.get("turns")
         for i in range(len(ram)):
             self.assertEqual((ram[i] >> 16) & 0xFFFF, exp.dev.turns_to_pow(turns[i]))
-            self.assertEqual(ram[i] & 0xFFFF, exp.dev.amplitude_to_asf(amplitude[i]))
+            self.assertEqual((ram[i] >> 2) & 0x3FFF, exp.dev.amplitude_to_asf(amplitude[i]))
