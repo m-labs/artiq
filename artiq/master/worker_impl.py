@@ -13,7 +13,6 @@ import inspect
 import logging
 import traceback
 from collections import OrderedDict
-import importlib.util
 import linecache
 import threading
 
@@ -31,9 +30,7 @@ from artiq.master.worker_db import DeviceManager, DatasetManager, DummyDevice
 from artiq.language.environment import (
     is_public_experiment, TraceArgumentManager, ProcessArgumentManager
 )
-from artiq.language.core import (
-    register_content_module, set_watchdog_factory, TerminationRequested
-)
+from artiq.language.core import set_watchdog_factory, TerminationRequested
 from artiq.language import import_cache
 from artiq import __version__ as artiq_version
 
@@ -183,13 +180,7 @@ class StringLoader:
 
 def get_experiment_from_content(content, class_name):
     fake_filename = "expcontent"
-    spec = importlib.util.spec_from_loader(
-        "expmodule",
-        StringLoader(fake_filename, content)
-    )
-    module = importlib.util.module_from_spec(spec)
-    register_content_module(module)
-    spec.loader.exec_module(module)
+    module = tools.load_with_loader("expmodule", StringLoader(fake_filename, content))
     linecache.lazycache(fake_filename, module.__dict__)
     return tools.get_experiment(module, class_name)
 
