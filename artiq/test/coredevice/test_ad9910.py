@@ -285,7 +285,7 @@ class AD9910Exp(EnvExperiment):
             self.dev.set_mu(ftw=i, profile=i)
         ftw = [0] * 8
         for i in range(8):
-            self.cpld.set_profile(0, i)
+            self.cpld.set_profile(self.dev.chip_select - 4, i)
             # If PROFILE is not alligned to SYNC_CLK a multi-bit change
             # doesn't transfer cleanly. Use IO_UPDATE to load the profile
             # again.
@@ -316,7 +316,7 @@ class AD9910Exp(EnvExperiment):
         self.dev.set_profile_ram(
             start=0, end=0 + n - 1, step=1,
             profile=0, mode=RAM_MODE_RAMPUP)
-        self.cpld.set_profile(0, 0)
+        self.cpld.set_profile(self.dev.chip_select - 4, 0)
         self.dev.io_update.pulse_mu(8)
         delay(1*ms)
         self.dev.write_ram(write)
@@ -353,12 +353,12 @@ class AD9910Exp(EnvExperiment):
             start=offset, end=offset + len(read) - 1, step=1,
             profile=1, mode=RAM_MODE_RAMPUP)
 
-        self.cpld.set_profile(0, 0)
+        self.cpld.set_profile(self.dev.chip_select - 4, 0)
         self.dev.io_update.pulse_mu(8)
         delay(1*ms)
         self.dev.write_ram(write)
         delay(1*ms)
-        self.cpld.set_profile(0, 1)
+        self.cpld.set_profile(self.dev.chip_select - 4, 1)
         self.dev.io_update.pulse_mu(8)
         self.dev.read_ram(read)
 
@@ -394,23 +394,23 @@ class AD9910Exp(EnvExperiment):
             start=200, end=200 + len(ftw1) - 1, step=1,
             profile=4, mode=RAM_MODE_RAMPUP)
 
-        self.cpld.set_profile(0, 3)
+        self.cpld.set_profile(self.dev.chip_select - 4, 3)
         self.dev.io_update.pulse_mu(8)
         self.dev.write_ram(ftw0)
 
-        self.cpld.set_profile(0, 4)
+        self.cpld.set_profile(self.dev.chip_select - 4, 4)
         self.dev.io_update.pulse_mu(8)
         self.dev.write_ram(ftw1)
 
         self.dev.set_cfr1(ram_enable=1, ram_destination=RAM_DEST_FTW)
         self.dev.io_update.pulse_mu(8)
 
-        self.cpld.set_profile(0, 3)
+        self.cpld.set_profile(self.dev.chip_select - 4, 3)
         self.dev.io_update.pulse_mu(8)
         ftw0r = self.dev.read32(_AD9910_REG_FTW)
         delay(100*us)
 
-        self.cpld.set_profile(0, 4)
+        self.cpld.set_profile(self.dev.chip_select - 4, 4)
         self.dev.io_update.pulse_mu(8)
         ftw1r = self.dev.read32(_AD9910_REG_FTW)
 
@@ -438,7 +438,7 @@ class AD9910Exp(EnvExperiment):
         self.dev.set_profile_ram(
             start=100, end=100 + len(ram) - 1, step=1,
             profile=6, mode=RAM_MODE_RAMPUP)
-        self.cpld.set_profile(0, 6)
+        self.cpld.set_profile(self.dev.chip_select - 4, 6)
         self.dev.io_update.pulse_mu(8)
         self.dev.write_ram(ram)
         self.dev.set_cfr1(ram_enable=1, ram_destination=RAM_DEST_FTW)
