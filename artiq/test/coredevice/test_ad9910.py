@@ -3,6 +3,7 @@ from numpy import int64
 from artiq.coredevice.ad9910 import (
     _AD9910_REG_FTW,
     _AD9910_REG_PROFILE0,
+    DEFAULT_PROFILE,
     RAM_DEST_FTW,
     RAM_MODE_RAMPUP,
 )
@@ -149,9 +150,9 @@ class AD9910Exp(EnvExperiment):
         self.dev.init()
         lo = 0x12345678
         hi = 0x09abcdef
-        self.dev.write64(_AD9910_REG_PROFILE0, hi, lo)
+        self.dev.write64(_AD9910_REG_PROFILE0 + DEFAULT_PROFILE, hi, lo)
         self.dev.io_update.pulse_mu(8)
-        read = self.dev.read64(_AD9910_REG_PROFILE0)
+        read = self.dev.read64(_AD9910_REG_PROFILE0 + DEFAULT_PROFILE)
         self.set_dataset("write", (int64(hi) << 32) | lo)
         self.set_dataset("read", read)
         if not self.io_update_device:
