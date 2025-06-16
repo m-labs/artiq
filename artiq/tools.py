@@ -121,6 +121,15 @@ def short_format(v, metadata={}):
         return r
 
 
+def load_with_loader(name, loader):
+    spec = importlib.util.spec_from_loader(name, loader)
+    module = importlib.util.module_from_spec(spec)
+    # Add to sys.modules, which is where inspect looks for modules.
+    # This must take place before module execution because NAC3 decorators call inspect.
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
 def file_import(filename, prefix="file_import_"):
     filename = pathlib.Path(filename)
     modname = prefix + filename.stem
@@ -129,19 +138,12 @@ def file_import(filename, prefix="file_import_"):
     sys.path.insert(0, path)
 
     try:
-        spec = importlib.util.spec_from_loader(
+        return load_with_loader(
             modname,
             importlib.machinery.SourceFileLoader(modname, str(filename)),
         )
-        module = importlib.util.module_from_spec(spec)
-        # Add to sys.modules, otherwise inspect thinks it is a built-in module and often breaks.
-        # This must take place before module execution because NAC3 decorators call inspect.
-        sys.modules[modname] = module
-        spec.loader.exec_module(module)
     finally:
         sys.path.remove(path)
-
-    return module
 
 
 def get_experiment(module, class_name=None):

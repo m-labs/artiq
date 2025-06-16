@@ -151,7 +151,6 @@ class Core:
                 core_language._registered_functions,
                 core_language._registered_classes,
                 core_language._special_ids,
-                core_language._registered_modules
             )
             self.analyzed = True
 
