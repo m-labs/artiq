@@ -38,8 +38,6 @@ class ProxyServer(AsyncioServer):
         except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
             # receivers disconnecting are a normal occurence
             pass
-        finally:
-            writer.close()
 
     def distribute(self, dump):
         for recipient in self._recipients:
