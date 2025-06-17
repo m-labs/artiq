@@ -568,7 +568,7 @@ class ProtoRev9(CPLDVersion):
     def cfg_att_en_all(self, cpld, state: TInt32):
         """Configure all four ATT_EN bits in the configuration register.
 
-        :param state: OSK state as a 4-bit integer.
+        :param state: ATT_EN state as a 4-bit integer.
         """
         cpld._configure_all_bits(ProtoRev9.CFG_ATT_EN, state)
 
