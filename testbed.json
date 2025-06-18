@@ -3,7 +3,7 @@
     "min_artiq_version": "8.0",
     "variant": "testbed",
     "hw_rev": "v2.0",
-    "rtio_role": "standalone",
+    "drtio_role": "standalone",
     "core_addr": "192.168.1.75",
     "peripherals": [
         {
