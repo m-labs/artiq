@@ -1,0 +1,2 @@
+cargo:rustc-cfg=riscv
+cargo:rustc-cfg=riscv32

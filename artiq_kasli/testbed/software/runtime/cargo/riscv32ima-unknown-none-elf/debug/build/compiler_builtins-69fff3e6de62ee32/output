@@ -1,0 +1,4 @@
+cargo:rerun-if-changed=build.rs
+cargo:compiler-rt=/home/artiq-alkaline/.cargo/registry/src/github.com-1ecc6299db9ec823/compiler_builtins-0.1.49/compiler-rt
+cargo:rustc-cfg=feature="unstable"
+cargo:rustc-cfg=feature="mem"
