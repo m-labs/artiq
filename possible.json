@@ -1,0 +1,61 @@
+{
+    "_description": "possible_uob",
+    "target": "kasli",
+    "min_artiq_version": "8.0",
+    "variant": "possible",
+    "hw_rev": "v2.0",
+    "drtio_role": "standalone",
+    "core_addr": "192.168.1.70",
+    "sed_lanes": 16,
+    "peripherals": [
+        {
+            "type": "grabber",
+            "ports": [0, 1],
+            "roi_engine_count": 32
+        },
+        {
+            "type": "dio",
+            "board": "DIO_SMA",
+            "ports": [2],
+            "bank_direction_low": "output",
+            "bank_direction_high": "output"
+        },
+        {
+            "type": "dio",
+            "board": "DIO_SMA",
+            "ports": [3],
+            "bank_direction_low": "output",
+            "bank_direction_high": "output"
+        },
+        {
+            "type": "sampler",
+            "ports": [4, 5]
+        },
+        {
+            "type": "urukul",
+            "dds": "ad9910",
+            "hw_rev": "v1.5",
+            "ports": [6, 7],
+            "clk_sel": 2,
+            "proto_rev": 9
+        },
+        {
+            "type": "urukul",
+            "dds": "ad9910",
+            "hw_rev": "v1.5",
+            "ports": [8, 9],
+            "clk_sel": 2,
+            "proto_rev": 9
+        },
+        {
+            "type": "fastino",
+            "ports": [10]
+        },
+        {
+            "type": "mirny",
+            "ports": [11],
+            "clk_sel": "mmcx",
+            "refclk": 125e6
+        }
+    ]
+}
