@@ -1,4 +1,4 @@
-# __pycache__/
+__pycache__/
 # *.o
 # *.d
 # *.a
@@ -11,7 +11,7 @@
 # .ipynb_checkpoints
 # /doc/manual/_build
 # /build
-# /result
+/result
 # /dist
 # /*.egg-info
 # /.coverage
@@ -29,7 +29,7 @@
 
 # # when testing ad-hoc experiments at the root:
 # /repository/
-# /results
+/results
 # /last_rid.pyon
 # /dataset_db.mdb
 # /dataset_db.mdb-lock
