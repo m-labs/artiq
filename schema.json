@@ -1,0 +1,44 @@
+{
+    "target": "testbed_uob",
+    "min_artiq_version": "8.0",
+    "variant": "testbed",
+    "hw_rev": "v2.0",
+    "rtio_role": "standalone",
+    "core_addr": "192.168.1.75",
+    "peripherals": [
+        {
+            "type": "dio",
+            "board": "DIO_MCX",
+            "ports": [0],
+            "bank_direction_low": "input",
+            "bank_direction_high": "output"
+        },
+        {
+            "type": "dio",
+            "board": "DIO_MCX",
+            "ports": [1],
+            "bank_direction_low": "output",
+            "bank_direction_high": "output"
+        },
+        {
+            "type": "urukul",
+            "dds": "ad9910",
+            "ports": [2, 3],
+            "clk_sel": 2
+        },
+        {
+            "type": "urukul",
+            "dds": "ad9912",
+            "ports": [4, 5],
+            "clk_sel": 2
+        },
+        {
+            "type": "sampler",
+            "ports": [6, 7]
+        },
+        {
+            "type": "zotino",
+            "ports": [8]
+        }
+    ]
+}
