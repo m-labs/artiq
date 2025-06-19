@@ -9,7 +9,7 @@ import re
 from sipyco.pc_rpc import Server
 from sipyco import common_args
 from sipyco.logs import log_with_name
-from sipyco.tools import SignalHandler
+from sipyco.tools import SignalHandler, SimpleSSLConfig
 from sipyco.keepalive import async_open_connection
 
 from artiq.coredevice.comm_mgmt import Request, Reply
@@ -20,7 +20,7 @@ def get_argparser():
     parser = argparse.ArgumentParser(
         description="ARTIQ controller for core device logs")
     common_args.verbosity_args(parser)
-    common_args.simple_network_args(parser, 1068)
+    common_args.simple_network_args(parser, 1068, ssl=True)
     parser.add_argument("--simulation", action="store_true",
                         help="Simulation - does not connect to device")
     parser.add_argument("core_addr", metavar="CORE_ADDR",
@@ -93,6 +93,10 @@ def main():
     args = get_argparser().parse_args()
     common_args.init_logger_from_args(args)
 
+    ssl_config = None
+    if args.ssl:
+        ssl_config = SimpleSSLConfig(*args.ssl)
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
@@ -104,7 +108,7 @@ def main():
                 loop=loop)
             try:
                 server = Server({"corelog": PingTarget()}, None, True)
-                loop.run_until_complete(server.start(common_args.bind_address_from_args(args), args.port))
+                loop.run_until_complete(server.start(common_args.bind_address_from_args(args), args.port, ssl_config))
                 try:
                     _, pending = loop.run_until_complete(asyncio.wait(
                         [loop.create_task(signal_handler.wait_terminate()),

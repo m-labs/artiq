@@ -50,6 +50,7 @@ ARTIQ-9 (Unreleased)
       * DRCTRL
       * DRHOLD
       * ATT_EN
+* Optional SSL support with mutual certificate authentication was added between components running on computers.
 
 ARTIQ-8
 -------

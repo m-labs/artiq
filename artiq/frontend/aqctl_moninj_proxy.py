@@ -7,7 +7,7 @@ import struct
 from enum import Enum
 import atexit
 
-from sipyco.tools import AsyncioServer, SignalHandler, atexit_register_coroutine
+from sipyco.tools import AsyncioServer, SignalHandler, SimpleSSLConfig, atexit_register_coroutine
 from sipyco.pc_rpc import Server
 from sipyco import common_args
 
@@ -182,8 +182,8 @@ def get_argparser():
     common_args.verbosity_args(parser)
     common_args.simple_network_args(parser, [
         ("proxy", "proxying", 1383),
-        ("control", "control", 1384)
-    ])
+        ("control", "control", 1384)],
+        ssl=True)
     parser.add_argument("core_addr", metavar="CORE_ADDR",
                         help="hostname or IP address of the core device")
     return parser
@@ -200,6 +200,10 @@ def main():
 
     bind_address = common_args.bind_address_from_args(args)
 
+    ssl_config = None
+    if args.ssl:
+        ssl_config = SimpleSSLConfig(*args.ssl)
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     atexit.register(loop.close)
@@ -209,7 +213,7 @@ def main():
     atexit.register(signal_handler.teardown)
 
     server = Server({"moninj_proxy": PingTarget()}, None, True)
-    loop.run_until_complete(server.start(bind_address, args.port_control))
+    loop.run_until_complete(server.start(bind_address, args.port_control, ssl_config))
     atexit_register_coroutine(server.stop, loop=loop)
 
     monitor_mux = MonitorMux()
@@ -223,7 +227,7 @@ def main():
     async def run_moninj_proxy():
         await comm_moninj.connect(args.core_addr)
         atexit_register_coroutine(comm_moninj.close, loop=loop)
-        await proxy_server.start(bind_address, args.port_proxy)
+        await proxy_server.start(bind_address, args.port_proxy, ssl_config)
         atexit_register_coroutine(proxy_server.stop, loop=loop)
         await comm_moninj.wait_terminate()
 

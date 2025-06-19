@@ -432,9 +432,10 @@ def setup_from_ddb(ddb):
 
 
 class _DeviceManager:
-    def __init__(self, schedule_ctl):
+    def __init__(self, schedule_ctl, ssl_config=None):
         self.mi_addr = None
         self.mi_port = None
+        self.mi_ssl_config = ssl_config
         self.reconnect_mi = asyncio.Event()
         self.mi_connection = None
         self.mi_connector_task = asyncio.ensure_future(self.mi_connector())
@@ -717,7 +718,7 @@ class _DeviceManager:
             new_mi_connection = CommMonInj(self.monitor_cb, self.injection_status_cb,
                                            self.disconnect_cb)
             try:
-                await new_mi_connection.connect(self.mi_addr, self.mi_port)
+                await new_mi_connection.connect(self.mi_addr, self.mi_port, self.mi_ssl_config)
             except Exception:
                 logger.error("failed to connect to moninj. Is aqctl_moninj_proxy running?",
                              exc_info=True)
@@ -910,10 +911,10 @@ class _MonInjDock(QDockWidgetCloseDetect):
 
 
 class MonInj:
-    def __init__(self, schedule_ctl, main_window):
+    def __init__(self, schedule_ctl, main_window, ssl_config=None):
         self.docks = dict()
         self.main_window = main_window
-        self.dm = _DeviceManager(schedule_ctl)
+        self.dm = _DeviceManager(schedule_ctl, ssl_config)
         self.dm.channels_cb = self.add_channels
         self.channel_model = Model({})
 

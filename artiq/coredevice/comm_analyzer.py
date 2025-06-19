@@ -152,9 +152,12 @@ class AnalyzerProxyReceiver:
         self.receive_cb = receive_cb
         self.disconnect_cb = disconnect_cb
 
-    async def connect(self, host, port):
+    async def connect(self, host, port, ssl_config=None):
+        ssl_context = None
+        if ssl_config is not None:
+            ssl_context = ssl_config.create_client_context()
         self.reader, self.writer = \
-            await keepalive.async_open_connection(host, port)
+            await keepalive.async_open_connection(host, port, ssl=ssl_context)
         try:
             line = await self.reader.readline()
             assert line == ANALYZER_MAGIC

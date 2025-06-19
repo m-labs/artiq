@@ -16,7 +16,7 @@ from sipyco.pc_rpc import Client
 from sipyco.sync_struct import Subscriber
 from sipyco.broadcast import Receiver
 from sipyco import common_args, pyon
-from sipyco.tools import SignalHandler
+from sipyco.tools import SignalHandler, SimpleSSLConfig
 
 from artiq.tools import (scale_from_metadata, short_format, parse_arguments,
                          parse_devarg_override)
@@ -42,6 +42,12 @@ def get_argparser():
                         version="ARTIQ v{}".format(artiq_version),
                         help="print the ARTIQ version number")
 
+    parser.add_argument("--ssl", nargs=3, metavar=('CERT', 'KEY', 'PEER'), default=None,
+                        help="Enable SSL authentication: "
+                             "CERT: client certificate file, "
+                             "KEY: client private key, "
+                             "PEER: server certificate to trust "
+                             "(default: %(default)s)")
     subparsers = parser.add_subparsers(dest="action")
     subparsers.required = True
 
@@ -391,7 +397,11 @@ def main():
             "ls": "experiment_db",
             "terminate": "master_management",
         }[action]
-        remote = Client(args.server, port, target_name)
+
+        ssl_config = None
+        if args.ssl:
+            ssl_config = SimpleSSLConfig(*args.ssl)
+        remote = Client(args.server, port, target_name, ssl_config=ssl_config)
         try:
             globals()["_action_" + action](remote, args)
         finally:

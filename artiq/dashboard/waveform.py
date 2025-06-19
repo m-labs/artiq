@@ -28,7 +28,7 @@ WAVEFORM_MAX_HEIGHT = 200
 
 
 class ProxyClient():
-    def __init__(self, receive_cb, timeout=5, timer=5, timer_backoff=1.1):
+    def __init__(self, receive_cb, timeout=5, timer=5, timer_backoff=1.1, ssl_config=None):
         self.receive_cb = receive_cb
         self.receiver = None
         self.addr = None
@@ -39,6 +39,7 @@ class ProxyClient():
         self.timer = timer
         self.timer_cur = timer
         self.timer_backoff = timer_backoff
+        self.ssl_config = ssl_config
         self._reconnect_task = asyncio.ensure_future(self._reconnect())
 
     def update_address(self, addr, port, port_proxy):
@@ -54,7 +55,7 @@ class ProxyClient():
                 if self.addr is None:
                     logger.error("missing core_analyzer host in device db")
                     return
-                await remote.connect_rpc(self.addr, self.port, "coreanalyzer_proxy_control")
+                await remote.connect_rpc(self.addr, self.port, "coreanalyzer_proxy_control", self.ssl_config)
             except:
                 logger.error("error connecting to analyzer proxy control", exc_info=True)
                 return
@@ -75,7 +76,7 @@ class ProxyClient():
                 self.receive_cb, self.disconnect_cb)
             try:
                 if self.addr is not None:
-                    await asyncio.wait_for(new_receiver.connect(self.addr, self.port_proxy),
+                    await asyncio.wait_for(new_receiver.connect(self.addr, self.port_proxy, self.ssl_config),
                                            self.timeout)
                     logger.info("ARTIQ dashboard connected to analyzer proxy (%s)", self.addr)
                     self.timer_cur = self.timer
@@ -704,7 +705,7 @@ class _AddChannelDialog(QtWidgets.QDialog):
 
 
 class WaveformDock(QtWidgets.QDockWidget):
-    def __init__(self, timeout, timer, timer_backoff):
+    def __init__(self, timeout, timer, timer_backoff, ssl_config=None):
         QtWidgets.QDockWidget.__init__(self, "Waveform")
         self.setObjectName("Waveform")
         self.setFeatures(
@@ -728,7 +729,8 @@ class WaveformDock(QtWidgets.QDockWidget):
         self.proxy_client = ProxyClient(self.on_dump_receive,
                                         timeout,
                                         timer,
-                                        timer_backoff)
+                                        timer_backoff,
+                                        ssl_config)
 
         grid = LayoutWidget()
         self.setWidget(grid)

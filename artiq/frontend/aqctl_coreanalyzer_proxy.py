@@ -5,7 +5,7 @@ import asyncio
 import atexit
 import logging
 
-from sipyco.tools import AsyncioServer, SignalHandler, atexit_register_coroutine
+from sipyco.tools import AsyncioServer, SignalHandler, atexit_register_coroutine, SimpleSSLConfig
 from sipyco.pc_rpc import Server
 from sipyco import common_args
 
@@ -70,8 +70,8 @@ def get_argparser():
     common_args.verbosity_args(parser)
     common_args.simple_network_args(parser, [
         ("proxy", "proxying", 1385),
-        ("control", "control", 1386)
-    ])
+        ("control", "control", 1386)],
+        ssl=True)
     parser.add_argument("core_addr", metavar="CORE_ADDR",
                         help="hostname or IP address of the core device")
     return parser
@@ -91,13 +91,17 @@ def main():
 
     bind_address = common_args.bind_address_from_args(args)
 
+    ssl_config = None
+    if args.ssl:
+        ssl_config = SimpleSSLConfig(*args.ssl)
+
     proxy_server = ProxyServer()
-    loop.run_until_complete(proxy_server.start(bind_address, args.port_proxy))
+    loop.run_until_complete(proxy_server.start(bind_address, args.port_proxy, ssl_config))
     atexit_register_coroutine(proxy_server.stop, loop=loop)
 
     controller = ProxyControl(proxy_server.distribute, args.core_addr)
     server = Server({"coreanalyzer_proxy_control": controller}, None, True)
-    loop.run_until_complete(server.start(bind_address, args.port_control))
+    loop.run_until_complete(server.start(bind_address, args.port_control, ssl_config))
     atexit_register_coroutine(server.stop, loop=loop)
 
     _, pending = loop.run_until_complete(asyncio.wait(
