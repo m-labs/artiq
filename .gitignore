@@ -35,3 +35,4 @@ __pycache__/
 # /dataset_db.mdb-lock
 # /device_db*.py
 # /test*
+/artiq_kasli
