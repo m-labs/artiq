@@ -1,1 +1,0 @@
-/home/artiq-alkaline/ARTIQ-alkaline-fork/artiq/firmware/bootloader/Makefile
