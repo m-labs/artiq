@@ -484,6 +484,11 @@ class ProtoRev9(CPLDVersion):
         cfg = cpld.cfg_reg
         # Don't pulse MASTER_RESET (m-labs/artiq#940)
         cpld.cfg_reg = cfg | (int64(0) << ProtoRev9.CFG_RST) | (int64(1) << ProtoRev9.CFG_IO_RST)
+        # Preemptively enable the SPI. Voltages of both common mode and
+        # differential are too small for iCE40 initially
+        # The config is the coming SPI config
+        cpld.bus.set_config_mu(SPI_CONFIG, 24, SPIT_CFG_WR, CS_CFG)
+        delay(1 * us)
         if blind:
             cpld.cfg_write(cpld.cfg_reg)
         elif urukul_sta_proto_rev(self.sta_read(cpld))!= STA_PROTO_REV_9:
