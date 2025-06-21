@@ -31,8 +31,8 @@ class Gates(Module):
                     self.sync += getattr(output.payload, field).eq(getattr(input.payload, field))
             self.sync += output.seqn.eq(input.seqn)
             self.comb += [
-                output.replace_occured.eq(0),
-                output.nondata_replace_occured.eq(0)
+                output.replace_occurred.eq(0),
+                output.nondata_replace_occurred.eq(0)
             ]
 
             self.comb += input.re.eq(input.payload.timestamp[glbl_fine_ts_width:] == self.coarse_timestamp)

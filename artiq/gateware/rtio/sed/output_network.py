@@ -82,8 +82,8 @@ class OutputNetwork(Module):
                             step_output[node1].eq(step_input[node1]),
                             step_output[node2].eq(step_input[node2])
                         ),
-                        step_output[node1].replace_occured.eq(1),
-                        step_output[node1].nondata_replace_occured.eq(nondata_difference),
+                        step_output[node1].replace_occurred.eq(1),
+                        step_output[node1].nondata_replace_occurred.eq(nondata_difference),
                         step_output[node2].valid.eq(0),
                     ).Elif(k1 < k2,
                         step_output[node1].eq(step_input[node1]),

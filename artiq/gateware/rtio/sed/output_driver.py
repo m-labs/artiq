@@ -34,13 +34,13 @@ class OutputDriver(Module):
         for lane_data, on_output in zip(lane_datas, output_network.output):
             lane_data.valid.reset_less = False
             lane_data.collision.reset_less = False
-            replace_occured_r = Signal()
-            nondata_replace_occured_r = Signal()
+            replace_occurred_r = Signal()
+            nondata_replace_occurred_r = Signal()
             self.sync += [
                 lane_data.valid.eq(on_output.valid),
                 lane_data.payload.eq(on_output.payload),
-                replace_occured_r.eq(on_output.replace_occured),
-                nondata_replace_occured_r.eq(on_output.nondata_replace_occured)
+                replace_occurred_r.eq(on_output.replace_occurred),
+                nondata_replace_occurred_r.eq(on_output.nondata_replace_occurred)
             ]
 
             en_replaces_rom = Memory(1, len(en_replaces), init=en_replaces)
@@ -48,7 +48,7 @@ class OutputDriver(Module):
             self.specials += en_replaces_rom, en_replaces_rom_port
             self.comb += [
                 en_replaces_rom_port.adr.eq(on_output.payload.channel),
-                lane_data.collision.eq(replace_occured_r & (~en_replaces_rom_port.dat_r | nondata_replace_occured_r))
+                lane_data.collision.eq(replace_occurred_r & (~en_replaces_rom_port.dat_r | nondata_replace_occurred_r))
             ]
 
         self.sync += [
