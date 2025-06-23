@@ -31,7 +31,7 @@ def simulate(input_events):
             for x in range(LANE_COUNT):
                 if (yield dut.output[x].valid):
                     d = {
-                        "replace_occured": (yield dut.output[x].replace_occured),
+                        "replace_occurred": (yield dut.output[x].replace_occurred),
                         "channel": (yield dut.output[x].payload.channel),
                         "fine_ts": (yield dut.output[x].payload.fine_ts),
                         "address": (yield dut.output[x].payload.address),
@@ -48,7 +48,7 @@ class TestOutputNetwork(unittest.TestCase):
             with self.subTest(n_events=n_events):
                 input = [{"channel": 1, "address": i} for i in range(n_events)]
                 output = simulate(input)
-                expect = [{'replace_occured': 1, 'channel': 1, 'fine_ts': 0, 'address': n_events-1, 'data': 0}]
+                expect = [{'replace_occurred': 1, 'channel': 1, 'fine_ts': 0, 'address': n_events-1, 'data': 0}]
                 self.assertEqual(output, expect)
 
     def test_no_replace(self):
@@ -56,6 +56,6 @@ class TestOutputNetwork(unittest.TestCase):
             with self.subTest(n_events=n_events):
                 input = [{"channel": i, "address": i} for i in range(n_events)]
                 output = simulate(input)
-                expect = [{'replace_occured': 0, 'channel': i, 'fine_ts': 0, 'address': i, 'data': 0}
+                expect = [{'replace_occurred': 0, 'channel': i, 'fine_ts': 0, 'address': i, 'data': 0}
                           for i in range(n_events)]
                 self.assertEqual(output, expect)

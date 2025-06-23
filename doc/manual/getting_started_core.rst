@@ -111,7 +111,7 @@ Try reducing the period of the generated waveform until the CPU cannot keep up w
 
 
     def print_underflow():
-        print("RTIO underflow occured")
+        print("RTIO underflow occurred")
 
     class Tutorial(EnvExperiment):
         def build(self):

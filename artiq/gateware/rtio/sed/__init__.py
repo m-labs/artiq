@@ -36,7 +36,7 @@ also switch to the next FIFO after the current FIFO has been full.
 At the output of the FIFOs, the events are distributed to the channels and simultaneous events on
 the same channel are handled using a structure similar to a odd-even merge-sort network that sorts
 by channel. When there are simultaneous events on the same channel, the event with the highest
-sequence number is kept and a flag is raised to indicate that a replacement occured on that
+sequence number is kept and a flag is raised to indicate that a replacement occurred on that
 channel. If a replacement was made on a channel that has replacements disabled, the final
 event is dropped and a collision error is reported asynchronously.
 
