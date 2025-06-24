@@ -10,6 +10,7 @@ import logging
 
 from sipyco.sync_struct import Notifier
 from sipyco.pc_rpc import AutoTarget, Client, BestEffortClient
+from sipyco.tools import SimpleSSLConfig
 
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,11 @@ def _create_device(desc, device_mgr, argument_overrides):
         target_name = desc.get("target_name", None)
         if target_name is None:
             target_name = AutoTarget
-        return cls(desc["host"], desc["port"], target_name)
+        ssl_args = desc.get("ssl_args")
+        ssl_config = None
+        if ssl_args:
+            ssl_config = SimpleSSLConfig(ssl_args["client_cert"], ssl_args["client_key"], ssl_args["server_cert"])
+        return cls(desc["host"], desc["port"], target_name, ssl_config=ssl_config)
     elif ty == "controller_aux_target":
         controller = device_mgr.get_desc(desc["controller"])
         if desc.get("best_effort", controller.get("best_effort", False)):
