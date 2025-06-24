@@ -7,9 +7,11 @@ standalone command line tools).
 from operator import setitem
 import importlib
 import logging
+import os
 
 from sipyco.sync_struct import Notifier
 from sipyco.pc_rpc import AutoTarget, Client, BestEffortClient
+from sipyco.tools import SimpleSSLConfig
 
 
 logger = logging.getLogger(__name__)
@@ -36,7 +38,17 @@ def _create_device(desc, device_mgr, argument_overrides):
         target_name = desc.get("target_name", None)
         if target_name is None:
             target_name = AutoTarget
-        return cls(desc["host"], desc["port"], target_name)
+        simple_ssl_config = desc.get("simple_ssl_config")
+        ssl_config = None
+        if simple_ssl_config:
+            ssl_dir = os.environ.get("ARTIQ_SSL_DIR")
+            for key, filename in simple_ssl_config.items():
+                if "{ARTIQ_SSL_DIR}" in filename:
+                    if not ssl_dir:
+                        raise ValueError("ARTIQ_SSL_DIR environment variable must be set when using {ARTIQ_SSL_DIR} in SSL certificate paths")
+                    simple_ssl_config[key] = filename.format(ARTIQ_SSL_DIR=ssl_dir)
+            ssl_config = SimpleSSLConfig(simple_ssl_config["client_cert"], simple_ssl_config["client_key"], simple_ssl_config["server_cert"])
+        return cls(desc["host"], desc["port"], target_name, ssl_config=ssl_config)
     elif ty == "controller_aux_target":
         controller = device_mgr.get_desc(desc["controller"])
         if desc.get("best_effort", controller.get("best_effort", False)):
