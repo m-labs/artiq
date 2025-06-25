@@ -198,6 +198,26 @@ class AppletsCCBDock(applets.AppletsDock):
         if ccbp == "enable":
             applet.setCheckState(0, QtCore.Qt.CheckState.Checked)
 
+    def ccb_restart_applet(self, name, group=None):
+        """Restarts an applet.
+
+        The applet is identified by its name, after following any specified
+        groups. If the applet is not currently running, this command has no effect.
+
+        This function is called when a CCB ``restart_applet`` is issued.
+        """
+        if group is None:
+            group = []
+        elif isinstance(group, str):
+            group = [group]
+
+        ccbp = self.get_ccpb(group)
+        if ccbp != "enable":
+            return
+        parent, applet = self.locate_applet(name, group, False)
+        if applet is not None and applet.applet_dock is not None:
+            asyncio.ensure_future(applet.applet_dock.restart())
+
     def ccb_disable_applet(self, name, group=None):
         """Disables an applet.
 
@@ -255,6 +275,8 @@ class AppletsCCBDock(applets.AppletsDock):
             kwargs = message["kwargs"]
             if service == "create_applet":
                 self.ccb_create_applet(*args, **kwargs)
+            elif service == "restart_applet":
+                self.ccb_restart_applet(*args, **kwargs)
             elif service == "disable_applet":
                 self.ccb_disable_applet(*args, **kwargs)
             elif service == "disable_applet_group":
