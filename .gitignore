@@ -11,7 +11,7 @@ __pycache__/
 # .ipynb_checkpoints
 # /doc/manual/_build
 # /build
-/result
+# /result
 # /dist
 # /*.egg-info
 # /.coverage
@@ -30,9 +30,9 @@ __pycache__/
 # # when testing ad-hoc experiments at the root:
 # /repository/
 /results
-# /last_rid.pyon
-# /dataset_db.mdb
-# /dataset_db.mdb-lock
+/last_rid.pyon
+/dataset_db.mdb
+/dataset_db.mdb-lock
 # /device_db*.py
 # /test*
 /artiq_kasli
