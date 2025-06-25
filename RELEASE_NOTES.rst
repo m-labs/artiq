@@ -7,13 +7,17 @@ ARTIQ-9 (Unreleased)
 --------------------
 
 * Hardware support:
-   - CoaXPress grabber support on ZC706 with Hello-FPGA CXP 4R FMC card.
-   - CoaXPress grabber support on Kasli-SoC with CoaXPress-SFP adapter.
+   - 12Gbps CoaXPress grabber support on Kasli-SoC with CoaXPress-SFP adapter
+     (and ZC706 with Hello-FPGA CXP 4R FMC card).
    - Improved SDRAM memory controller and DMA cores puts Kasli DMA performance on par with
      other platforms.
-   - DRTIO repeater support across GT/EEM. This enables Shuttler support on DRTIO satellites.
    - Core device reflashing over the network through the new ``flash`` tool in ``artiq_coremgmt``.
      It also supports configuring and reflashing DRTIO satellites over the DRTIO link.
+   - Updated Rust support for Zynq-7000 firmware. RPC throughput show 46% speedup when sending
+     bytes and integer arrays, and slight improvements in other cases.
+   - Urukul 1.6 support and new Urukul capabilities: Digital Ramp Generation (DRG) and individual
+     per-channel control for PROFILE, IO_UPDATE, OSK, DRCTRL, DRHOLD, and ATT_EN.
+   - DRTIO repeater support across GT/EEM. This enables Shuttler support on DRTIO satellites.
    - Fastino monitoring with Moninj.
    - Zotino monitoring now displays the values in volts.
    - artiq_flash can now flash Phaser through a Digilent HS2 Programming cable.
@@ -21,6 +25,8 @@ ARTIQ-9 (Unreleased)
      for the AD9834 DDS, tested with the ZonRi Technology Co., Ltd. AD9834-Module.
    - Configurable number of Grabber ROI engines through the ``roi_engine_count``
      property in the system description JSON file.
+   - Idle kernels now restart when written with ``artiq_coremgmt`` and stop when erased/removed
+     from config.
 * Dashboard:
    - Experiment windows can have different colors, selected by the user.
    - The Log pane now adapts to dark system color themes.
@@ -30,26 +36,10 @@ ARTIQ-9 (Unreleased)
 * ``afws_client`` now uses the "happy eyeballs" algorithm (RFC 6555) for a faster and more
   reliable connection to the server.
 * Compiler can now give automatic suggestions for ``kernel_invariants``. 
-* Idle kernels now restart when written with ``artiq_coremgmt`` and stop when erased/removed from config.
-* Updated Rust support for Zynq-7000 firmware:
-   - RPC throughput: 46% increase when sending bytes and integer arrays, and slight
-     improvements in other cases.
 * Qt6 support.
-* Python 3.12 support.
+* Python 3.12 and 3.13 support.
 * The Zadig driver installer was added to the MSYS2 offline installer.
 * ``artiq.coredevice.fmcdio_vhdci_eem`` has been removed.
-* ``artiq.coredevice.urukul``, ``artiq.coredevice.ad9910``, and ``artiq.coredevice.ad9912``
-  have been updated for new Urukul capabilities:
-
-   - Digital Ramp Generation (DRG)
-   - Individual DDS Channel control:
-
-      * PROFILE
-      * IO_UPDATE
-      * OSK
-      * DRCTRL
-      * DRHOLD
-      * ATT_EN
 
 ARTIQ-8
 -------
