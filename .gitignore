@@ -1,37 +1,38 @@
 __pycache__/
-*.o
-*.d
-*.a
-*.so
-*.bin
-*.elf
-*.fbi
-*.pcap
-*.prof
-.ipynb_checkpoints
-/doc/manual/_build
-/build
-/result
-/dist
-/*.egg-info
-/.coverage
-/artiq/test/lit/*/Output/
-/artiq/binaries
-/artiq/firmware/target/
-/misoc_*/
-/artiq_*/
+# *.o
+# *.d
+# *.a
+# *.so
+# *.bin
+# *.elf
+# *.fbi
+# *.pcap
+# *.prof
+# .ipynb_checkpoints
+# /doc/manual/_build
+# /build
+# /result
+# /dist
+# /*.egg-info
+# /.coverage
+# /artiq/test/lit/*/Output/
+# /artiq/binaries
+# /artiq/firmware/target/
+# /misoc_*/
+# /artiq_*/
 
-/artiq/test/results
-/artiq/examples/*/results
-/artiq/examples/*/last_rid.pyon
-/artiq/examples/*/dataset_db.mdb
-/artiq/examples/*/dataset_db.mdb-lock
+# /artiq/test/results
+# /artiq/examples/*/results
+# /artiq/examples/*/last_rid.pyon
+# /artiq/examples/*/dataset_db.mdb
+# /artiq/examples/*/dataset_db.mdb-lock
 
-# when testing ad-hoc experiments at the root:
-/repository/
+# # when testing ad-hoc experiments at the root:
+# /repository/
 /results
 /last_rid.pyon
 /dataset_db.mdb
 /dataset_db.mdb-lock
-/device_db*.py
-/test*
+# /device_db*.py
+# /test*
+/artiq_kasli
