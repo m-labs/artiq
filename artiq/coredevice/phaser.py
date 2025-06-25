@@ -173,7 +173,7 @@ class Phaser:
     coefficients as well as an output offset. The coefficients and offset can be
     set for each profile individually and the profiles each have their own ``y0``,
     ``y1`` output registers (the ``x0``, ``x1`` inputs are shared). To avoid
-    transient effects, care should be taken to not update the coefficents in the
+    transient effects, care should be taken to not update the coefficients in the
     currently selected profile.
 
     The servo can be en- or disabled for each channel. When disabled, the servo
@@ -824,7 +824,7 @@ class Phaser:
             delay(.1*ms)  # slack
             if (alarms >> 11) & 0x7 == 0:  # any fifo alarm
                 good |= 1 << o
-        # if there are good offsets accross the wrap around
+        # if there are good offsets across the wrap around
         # offset for computations
         if good & 0x81 == 0x81:
             good = ((good << 4) & 0xf0) | (good >> 4)
@@ -894,7 +894,7 @@ class PhaserChannel:
     def get_dac_data(self) -> TInt32:
         """Get a sample of the current DAC data.
 
-        The data is split accross multiple registers and thus the data
+        The data is split across multiple registers and thus the data
         is only valid if constant.
 
         :return: DAC data as 32-bit IQ. I/DACA/DACC in the 16 LSB,
@@ -1164,7 +1164,7 @@ class PhaserChannel:
 
     @kernel
     def set_iir_mu(self, profile, b0, b1, a1, offset):
-        """Load a servo profile consiting of the three filter coefficients and an output offset.
+        """Load a servo profile consisting of the three filter coefficients and an output offset.
 
         Avoid setting the IIR parameters of the currently active profile.
 

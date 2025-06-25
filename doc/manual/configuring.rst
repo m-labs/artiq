@@ -69,7 +69,7 @@ For Kasli or KC705:
         $ artiq_mkfs flash_storage.img [-s mac xx:xx:xx:xx:xx:xx] [-s ip xx.xx.xx.xx/xx] [-s ipv4_default_route xx.xx.xx.xx] [-s ip6 xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx/xx] [-s ipv6_default_route xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx]
         $ artiq_flash -t [board] -V [variant] -f flash_storage.img storage start
 
-On Kasli or Kasli-SoC devices, specifying the MAC address is unnecessary, as they can obtain it from their EEPROM. If you only want to access the core device from the same subnet, default gateway and IPv4 prefix length may also be ommitted. On any board, once a device can be reached by :mod:`~artiq.frontend.artiq_coremgmt`, these values can be set and edited at any time, following the procedure for IP above.
+On Kasli or Kasli-SoC devices, specifying the MAC address is unnecessary, as they can obtain it from their EEPROM. If you only want to access the core device from the same subnet, default gateway and IPv4 prefix length may also be omitted. On any board, once a device can be reached by :mod:`~artiq.frontend.artiq_coremgmt`, these values can be set and edited at any time, following the procedure for IP above.
 
 Regarding IPv6, note that the device also has a link-local address that corresponds to its EUI-64, which can be used simultaneously to the (potentially unrelated) IPv6 address defined by using the ``ip6`` configuration key.
 

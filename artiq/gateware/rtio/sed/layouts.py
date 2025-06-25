@@ -72,7 +72,7 @@ def output_network_node(seqn_width, layout_payload):
     return [
         ("valid", 1),
         ("seqn", seqn_width),
-        ("replace_occured", 1),
-        ("nondata_replace_occured", 1),
+        ("replace_occurred", 1),
+        ("nondata_replace_occurred", 1),
         ("payload", layout_payload)
     ]
