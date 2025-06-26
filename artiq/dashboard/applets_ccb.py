@@ -211,7 +211,7 @@ class AppletsCCBDock(applets.AppletsDock):
         elif isinstance(group, str):
             group = [group]
 
-        ccbp = self.get_ccpb(group)
+        ccbp = self.get_ccbp(group)
         if ccbp != "enable":
             return
         parent, applet = self.locate_applet(name, group, False)
