@@ -92,7 +92,7 @@ class AppletsCCBDock(applets.AppletsDock):
             item = item.parent()
         item.setText(1, ccbp)
 
-    def get_ccpb_global(self):
+    def get_ccbp_global(self):
         if self.ccbp_global_ignore.isChecked():
             return "ignore"
         if self.ccbp_global_create.isChecked():
@@ -100,8 +100,8 @@ class AppletsCCBDock(applets.AppletsDock):
         if self.ccbp_global_enable.isChecked():
             return "enable"
 
-    def get_ccpb(self, group):
-        ccbp = self.get_ccpb_global()
+    def get_ccbp(self, group):
+        ccbp = self.get_ccbp_global()
         parent = self.table.invisibleRootItem()
         for g in group:
             new_parent = None
@@ -175,7 +175,7 @@ class AppletsCCBDock(applets.AppletsDock):
         elif isinstance(group, str):
             group = [group]
 
-        ccbp = self.get_ccpb(group)
+        ccbp = self.get_ccbp(group)
         if ccbp == "ignore":
             return
         parent, applet = self.locate_applet(name, group, True)
@@ -211,7 +211,7 @@ class AppletsCCBDock(applets.AppletsDock):
         elif isinstance(group, str):
             group = [group]
 
-        ccbp = self.get_ccpb(group)
+        ccbp = self.get_ccbp(group)
         if ccbp != "enable":
             return
         parent, applet = self.locate_applet(name, group, False)
@@ -229,7 +229,7 @@ class AppletsCCBDock(applets.AppletsDock):
         if isinstance(group, str):
             group = [group]
 
-        ccbp = self.get_ccpb(group)
+        ccbp = self.get_ccbp(group)
         if ccbp != "enable":
             return
         if not group:
@@ -265,7 +265,7 @@ class AppletsCCBDock(applets.AppletsDock):
     def save_state(self):
         return {
             "applets": applets.AppletsDock.save_state(self),
-            "ccbp_global": self.get_ccpb_global()
+            "ccbp_global": self.get_ccbp_global()
         }
 
     def restore_state(self, state):
