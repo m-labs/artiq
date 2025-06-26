@@ -1002,6 +1002,20 @@ class AD9910:
         self.cpld.cfg_att_en(self.chip_select - 4, state)
 
     @kernel
+    def set_profile(self, profile: TInt32):
+        """Set the PROFILE pins.
+
+        .. warning::
+            With CPLD proto_rev 8, this will silently set the profile pins of
+            all other AD9910 DDS channels on the same board!
+
+            Use proto_rev 9 for channel-specific profile setting.
+
+        :param profile: PROFILE pins in numeric representation (0-7).
+        """
+        self.cpld.set_profile(self.chip_select - 4, profile)
+
+    @kernel
     def set_sync(self, 
                  in_delay: TInt32, 
                  window: TInt32, 
