@@ -169,11 +169,15 @@ class ProxyServer(AsyncioServer):
         self.monitor_mux = monitor_mux
 
     async def _handle_connection_cr(self, reader, writer):
-        line = await reader.readline()
-        if line != b"ARTIQ moninj\n":
-            logger.error("incorrect magic")
-            return
-        await ProxyConnection(self.monitor_mux, reader, writer).handle()
+        try:
+            line = await reader.readline()
+            if line != b"ARTIQ moninj\n":
+                logger.error("incorrect magic")
+                return
+            await ProxyConnection(self.monitor_mux, reader, writer).handle()
+        finally:
+            writer.close()
+            await writer.wait_closed()
 
 
 def get_argparser():
