@@ -250,7 +250,13 @@ class ExplorerDock(QtWidgets.QDockWidget):
                                                    self.el)
 
         def scan_repository():
-            asyncio.ensure_future(experiment_db_ctl.scan_repository_async())
+            future = asyncio.ensure_future(
+                    experiment_db_ctl.scan_repository_async())
+
+            def on_complete(future):
+                self.exp_manager.update_open_experiments_defaults()
+            future.add_done_callback(on_complete)
+
         scan_repository_action.triggered.connect(scan_repository)
         self.el.addAction(scan_repository_action)
 
