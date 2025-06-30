@@ -37,7 +37,7 @@ Introduction to the ARTIQ internal stack
     \draw[primary, -Stealth] (gateware) to (firmware);
     \draw[primary, -Stealth] (hardware) to (gateware);
 
-Like any other modern piece of software, kernel code running on an ARTIQ core device rests upon a layered infrastructure, starting with the hardware: the physical carrier board and its peripherals. Generally, though not exclusively, this is the `Sinara device family <https://m-labs.hk/experiment-control/sinara-core/>`_, which is designed to work with ARTIQ. Other carrier boards, such as the :ref:`Hardcoded variant devices <devices-table>`, are also supported.
+Like any other modern piece of software, kernel code running on an ARTIQ core device rests upon a layered infrastructure, starting with the hardware: the physical carrier board and its peripherals. Generally, though not exclusively, this is the `Sinara device family <https://m-labs.hk/artiq/sinara-core/>`_, which is designed to work with ARTIQ. Other carrier boards, such as the :ref:`Hardcoded variant devices <devices-table>`, are also supported.
 
 All of the ARTIQ core device carrier boards necessarily center around a physical field-programmable gate array, or FPGA. If you have never worked with FPGAs before, it is easiest to understand them as 'rearrangeable' circuits. Ideally, they are capable of approaching the tremendous speed and timing precision advantages of custom-designed, application-specific hardware, while still being reprogrammable, allowing development and revision to continue after manufacturing.
 
