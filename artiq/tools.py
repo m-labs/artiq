@@ -2,10 +2,12 @@ import asyncio
 import importlib.util
 import importlib.machinery
 import inspect
+import json
 import logging
 import pathlib
 import string
 import sys
+import warnings
 
 import numpy as np
 
@@ -29,11 +31,36 @@ __all__ = ["parse_arguments",
 logger = logging.getLogger(__name__)
 
 
+def pyon_decode_robust(s):
+    try:
+        return pyon.decode(s)
+    except json.JSONDecodeError as e:
+        try:
+            o = pyon.decode_v1(s)
+            warnings.warn("Decoded as PYON v1", DeprecationWarning)
+            return o
+        except:
+            raise e
+
+
+def pyon_load_file_robust(filename):
+    try:
+        return pyon.load_file(filename)
+    except json.JSONDecodeError as e:
+        try:
+            with open(filename, "r", encoding="utf-8") as f:
+                o = pyon.decode_v1(f.read())
+                warnings.warn("Decoded as PYON v1", DeprecationWarning)
+                return o
+        except:
+            raise e
+
+
 def parse_arguments(arguments):
     d = {}
     for argument in arguments:
         name, eq, value = argument.partition("=")
-        d[name] = pyon.decode(value)
+        d[name] = pyon_decode_robust(value)
     return d
 
 

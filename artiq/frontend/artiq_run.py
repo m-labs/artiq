@@ -13,7 +13,7 @@ import h5py
 
 from llvmlite import binding as llvm
 
-from sipyco import common_args, pyon
+from sipyco import common_args
 
 from artiq import __version__ as artiq_version
 from artiq.language.environment import EnvExperiment, ProcessArgumentManager
@@ -176,7 +176,7 @@ class ArgumentManager(ProcessArgumentManager):
                 user_input = input("{}:{} (group={}, tooltip={}): ".format(
                     key, type(processor).__name__, group, tooltip))
                 try:
-                    user_input_deser = pyon.decode(user_input)
+                    user_input_deser = pyon_decode_robust(user_input)
                     value = processor.process(user_input_deser)
                 except:
                     logger.error("failed to process user input, retrying",

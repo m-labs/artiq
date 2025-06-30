@@ -66,7 +66,8 @@ class PYONValue(_SimpleArgProcessor):
             self.default_value = default
 
     def process(self, x):
-        return pyon.decode(x)
+        from artiq.tools import pyon_decode_robust
+        return pyon_decode_robust(x)
 
     def describe(self):
         d = {"ty": self.__class__.__name__}
