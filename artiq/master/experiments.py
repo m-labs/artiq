@@ -59,14 +59,23 @@ class _RepoScanner:
                 continue
             if de.is_file() and de.name.endswith(".py"):
                 filename = os.path.join(subdir, de.name)
-                try:
-                    await self.process_file(entry_dict, root, filename)
-                except Exception as exc:
-                    logger.warning("Skipping file '%s'", filename,
-                        exc_info=not isinstance(exc, WorkerInternalException))
-                    # restart worker
-                    await self.worker.close()
-                    self.worker = Worker(self.worker_handlers)
+
+                # ensure skipped experiments have a chance to be re-processed
+                max_attempts = 2
+                while max_attempts > 0:
+                    try:
+                        await self.process_file(entry_dict, root, filename)
+                    except Exception as exc:
+                        max_attempts -= 1
+                        if max_attempts == 0:
+                            logger.warning("Skipping file '%s'", filename,
+                                           exc_info=not isinstance(exc, WorkerInternalException))
+                        # restart worker
+                        await self.worker.close()
+                        self.worker = Worker(self.worker_handlers)
+                    else:
+                        break
+
             if de.is_dir():
                 subentries = await self._scan(
                     root, os.path.join(subdir, de.name))
