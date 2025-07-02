@@ -46,7 +46,7 @@ class _Model(QtCore.QAbstractItemModel):
     def __init__(self, palette):
         QtCore.QAbstractTableModel.__init__(self)
 
-        self.headers = ["Source", "Message"]
+        self.headers = ["Source", "Message", "Timestamp"]
         self.children_by_row = []
 
         self.entries = []
@@ -181,13 +181,17 @@ class _Model(QtCore.QAbstractItemModel):
             if item.parent is self:
                 if column == 0:
                     return v[1]
-                else:
+                elif column == 1:
                     return v[3][0]
+                else:
+                    return time.strftime("%m/%d %H:%M:%S", time.localtime(v[2]))
             else:
                 if column == 0:
                     return ""
-                else:
+                elif column == 1:
                     return v[3][item.row+1]
+                else:
+                    return time.strftime("%m/%d %H:%M:%S", time.localtime(v[2]))
         elif role == QtCore.Qt.ItemDataRole.ToolTipRole:
             v = self.entries[msgnum]
             if item.parent is self:
