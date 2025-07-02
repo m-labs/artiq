@@ -72,9 +72,9 @@ def extern(arg=None, flags={}):
     """Decorates a function declaration defined by the core device runtime."""
     if arg is None:
         def inner_decorator(function):
-            _register_function(function)
             return extern(function, flags)
         return inner_decorator
+    _register_function(arg)
     return arg 
 
 
