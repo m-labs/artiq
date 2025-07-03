@@ -5,8 +5,7 @@ use board_misoc::{csr, cache::flush_l2_cache};
 use proto_artiq::drtioaux_proto::PayloadStatus;
 use routing::{Router, Sliceable};
 use kernel::Manager as KernelManager;
-use ::{cricon_select, cricon_read, RtioMaster};
-use proto_artiq::drtioaux_proto::MASTER_PAYLOAD_MAX_SIZE;
+use ::{cricon_select, cricon_read, RtioMaster, MASTER_PAYLOAD_MAX_SIZE};
 
 const ALIGNMENT: usize = 64;
 
@@ -18,9 +17,9 @@ enum ManagerState {
 
 pub struct RtioStatus {
     pub source: u8,
-    pub id: u32,
+    pub id: u32, 
     pub error: u8,
-    pub channel: u32,
+    pub channel: u32, 
     pub timestamp: u64
 }
 
@@ -135,7 +134,7 @@ impl RemoteTraces {
                 }
             }
         }
-
+        
     }
 
     // on subkernel request
@@ -167,7 +166,7 @@ impl RemoteTraces {
 
     pub fn erase(&mut self, id: u32, router: &mut Router, rank: u8, self_destination: u8, routing_table: &RoutingTable) {
         for (dest, _) in self.remote_traces.iter() {
-            router.route(drtioaux::Packet::DmaRemoveTraceRequest {
+            router.route(drtioaux::Packet::DmaRemoveTraceRequest { 
                 source: self_destination, destination: *dest, id: id
             }, routing_table, rank, self_destination);
             // response will be ignored as this object will stop existing too
@@ -193,7 +192,7 @@ impl Manager {
         // in case Manager is created during a DMA in progress
         // wait for it to end
         unsafe {
-            while csr::rtio_dma::enable_read() != 0 {}
+            while csr::rtio_dma::enable_read() != 0 {} 
         }
         Manager {
             entries: BTreeMap::new(),
@@ -324,7 +323,7 @@ impl Manager {
     }
 
     // API for subkernel
-    pub fn playback_remote(&mut self, id: u32, timestamp: u64,
+    pub fn playback_remote(&mut self, id: u32, timestamp: u64, 
         router: &mut Router, rank: u8, self_destination: u8, routing_table: &RoutingTable
     ) -> Result<(), Error> {
         if let Some(traces) = self.remote_entries.get_mut(&id) {
@@ -355,14 +354,14 @@ impl Manager {
         }
     }
 
-    pub fn remote_finished(&mut self, kernel_manager: &mut KernelManager,
+    pub fn remote_finished(&mut self, kernel_manager: &mut KernelManager, 
         id: u32, error: u8, channel: u32, timestamp: u64) {
         if let Some(entry) = self.remote_entries.get_mut(&id) {
             entry.remote_finished(kernel_manager, error, channel, timestamp);
         }
     }
 
-    pub fn ack_upload(&mut self, kernel_manager: &mut KernelManager, source: u8, id: u32, succeeded: bool,
+    pub fn ack_upload(&mut self, kernel_manager: &mut KernelManager, source: u8, id: u32, succeeded: bool, 
         router: &mut Router, rank: u8, self_destination: u8, routing_table: &RoutingTable) {
             if let Some(entry) = self.remote_entries.get_mut(&id) {
                 entry.ack_upload(kernel_manager, source, id, succeeded, router, rank, self_destination, routing_table);
@@ -405,7 +404,7 @@ impl Manager {
         unsafe {
             csr::rtio_dma::base_address_write(ptr as u64);
             csr::rtio_dma::time_offset_write(timestamp as u64);
-
+    
             cricon_select(RtioMaster::Dma);
             csr::rtio_dma::enable_write(1);
             // playback has begun here, for status call check_state
@@ -423,7 +422,7 @@ impl Manager {
             return None;
         } else {
             self.state = ManagerState::Idle;
-            unsafe {
+            unsafe { 
                 cricon_select(self.previous_cri_master);
                 let error = csr::rtio_dma::error_read();
                 let channel = csr::rtio_dma::error_channel_read();
@@ -435,7 +434,7 @@ impl Manager {
                     source: self.current_source,
                     id: self.current_id,
                     error: error,
-                    channel: channel,
+                    channel: channel, 
                     timestamp: timestamp });
             }
         }
