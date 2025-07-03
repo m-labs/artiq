@@ -46,7 +46,7 @@ class _Model(QtCore.QAbstractItemModel):
     def __init__(self, palette):
         QtCore.QAbstractTableModel.__init__(self)
 
-        self.headers = ["Source", "Message"]
+        self.headers = ["Source", "Message", "Timestamp"]
         self.children_by_row = []
 
         self.entries = []
