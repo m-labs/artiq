@@ -114,6 +114,7 @@ def rpc(arg=None, flags={}):
         def inner_decorator(function):
             return rpc(function, flags)
         return inner_decorator
+    _register_function(arg)
     return arg
 
 
