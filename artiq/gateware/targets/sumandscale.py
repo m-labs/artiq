@@ -4,7 +4,7 @@ from migen.fhdl import verilog
 class SumAndScale(Module):
     def __init__(self):
         self.inputs = [Signal((16, True)) for _ in range(4)]
-        self.amplitudes = [Signal((16, False)) for _ in range(4)]
+        self.amplitudes = [Signal((16, True)) for _ in range(4)]
         self.output = Signal((16, True))
 
         ###
@@ -20,12 +20,12 @@ class SumAndScale(Module):
 
         # Finally, shift and saturate
         self.sync += [
-            If(sum_all >> 16 > 32767,
+            If(sum_all >> 15 > 32767,
                 self.output.eq(32767)
-            ).Elif(sum_all >> 16 < -32768,
+            ).Elif(sum_all >> 15 < -32768,
                 self.output.eq(-32768)
             ).Else(
-                self.output.eq(sum_all >> 16)
+                self.output.eq(sum_all >> 15)
             )
         ]
 

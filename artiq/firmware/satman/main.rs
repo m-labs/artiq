@@ -18,7 +18,6 @@ extern crate eh;
 
 use core::convert::TryFrom;
 use board_misoc::{csr, ident, clock, config, i2c, pmp};
-use proto_artiq::drtioaux_proto::{SAT_PAYLOAD_MAX_SIZE, MASTER_PAYLOAD_MAX_SIZE};
 #[cfg(has_si5324)]
 use board_artiq::si5324;
 #[cfg(has_si549)]
