@@ -99,12 +99,10 @@ class _RegIOUpdate:
 
         The time cursor is advanced by the specified duration."""
         cfg = self.cpld.cfg_reg
-        if self.cpld.proto_rev == STA_PROTO_REV_8:
-            self.cpld.cfg_write(cfg | (1 << ProtoRev8.CFG_IO_UPDATE))
+        if self.chip_select == 3:
+            self.cpld.cfg_io_update_all(0xF)
         else:
-            self.cpld.cfg_write(
-                cfg | (int64(1) << (ProtoRev9.CFG_IO_UPDATE + (self.chip_select - 4)))
-            )
+            self.cpld.cfg_io_update(self.chip_select & 0x3, True)
         delay_mu(duration)
         self.cpld.cfg_write(cfg)
 
@@ -115,12 +113,10 @@ class _RegIOUpdate:
 
         The time cursor is advanced by the specified duration."""
         cfg = self.cpld.cfg_reg
-        if self.cpld.proto_rev == STA_PROTO_REV_8:
-            self.cpld.cfg_write(cfg | (1 << ProtoRev8.CFG_IO_UPDATE))
+        if self.chip_select == 3:
+            self.cpld.cfg_io_update_all(0xF)
         else:
-            self.cpld.cfg_write(
-                cfg | (int64(1) << (ProtoRev9.CFG_IO_UPDATE + (self.chip_select - 4)))
-            )
+            self.cpld.cfg_io_update(self.chip_select & 0x3, True)
         delay(duration)
         self.cpld.cfg_write(cfg)
 
