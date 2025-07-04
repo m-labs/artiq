@@ -46,7 +46,7 @@ class _Model(QtCore.QAbstractItemModel):
     def __init__(self, palette):
         QtCore.QAbstractTableModel.__init__(self)
 
-        self.headers = ["Source", "Message", "Timestamp"]
+        self.headers = ["Timestamp", "Source", "Message"]
         self.children_by_row = []
 
         self.entries = []
@@ -159,7 +159,7 @@ class _Model(QtCore.QAbstractItemModel):
         else:
             msgnum = item.parent.row
 
-        if role == QtCore.Qt.ItemDataRole.FontRole and index.column() == 1:
+        if role == QtCore.Qt.ItemDataRole.FontRole and index.column() == 2:
             return self.fixed_font
         elif role == QtCore.Qt.ItemDataRole.BackgroundRole:
             level = self.entries[msgnum][0]
@@ -180,18 +180,18 @@ class _Model(QtCore.QAbstractItemModel):
             column = index.column()
             if item.parent is self:
                 if column == 0:
-                    return v[1]
-                elif column == 1:
-                    return v[3][0]
-                else:
                     return time.strftime("%m/%d %H:%M:%S", time.localtime(v[2]))
+                elif column == 1:
+                    return v[1]
+                else:
+                    return v[3][0]
             else:
                 if column == 0:
-                    return ""
-                elif column == 1:
-                    return v[3][item.row+1]
-                else:
                     return time.strftime("%m/%d %H:%M:%S", time.localtime(v[2]))
+                elif column == 1:
+                    return ""
+                else:
+                    return v[3][item.row+1]
         elif role == QtCore.Qt.ItemDataRole.ToolTipRole:
             v = self.entries[msgnum]
             if item.parent is self:
