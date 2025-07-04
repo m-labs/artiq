@@ -68,10 +68,14 @@ def _register_class(cls):
     _registered_classes[cls] = module
 
 
-def extern(function):
+def extern(arg=None, flags={}):
     """Decorates a function declaration defined by the core device runtime."""
-    _register_function(function)
-    return function
+    if arg is None:
+        def inner_decorator(function):
+            return extern(function, flags)
+        return inner_decorator
+    _register_function(arg)
+    return arg 
 
 
 def kernel(function_or_method):
