@@ -245,7 +245,8 @@ def main():
 
     d_interactive_args = interactive_args.InteractiveArgsDock(
         sub_clients["interactive_args"],
-        rpc_clients["interactive_arg_db"]
+        rpc_clients["interactive_arg_db"],
+        main_window
     )
 
     d_schedule = schedule.ScheduleDock(
