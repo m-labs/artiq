@@ -7,7 +7,7 @@ from sipyco import pyon
 
 from artiq.language import units
 from artiq.language.core import rpc
-from artiq.tools import pyon_decode_compat
+from artiq.compat import pyon_decode_compat
 
 
 __all__ = ["NoDefault", "DefaultMissing",

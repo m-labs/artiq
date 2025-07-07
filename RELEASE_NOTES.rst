@@ -57,7 +57,7 @@ Breaking changes:
       + HDF5 results ``expid``. Note that existing files are never altered.
       + artiq_client set-dataset
       + command line experiment arguments (artiq_run/artiq_client submit/artiq_compile)
-      + PYONArgument data
+      + PYONValue data
       + Interactive arguments (artiq_run, artiq_client)
       + Waveform channel list file
       + devarg overrides
