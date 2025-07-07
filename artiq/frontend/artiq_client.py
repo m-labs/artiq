@@ -19,7 +19,8 @@ from sipyco import common_args, pyon
 from sipyco.tools import SignalHandler
 
 from artiq.tools import (scale_from_metadata, short_format, parse_arguments,
-                         parse_devarg_override, pyon_decode_robust)
+                         parse_devarg_override)
+from artiq.compat import pyon_decode_compat
 from artiq import __version__ as artiq_version
 
 
@@ -202,7 +203,7 @@ def _action_set_dataset(remote, args):
     if args.precision is not None:
         metadata["precision"] = args.precision
     scale = scale_from_metadata(metadata)
-    value = pyon_decode_robust(args.value)
+    value = pyon_decode_compat(args.value)
     t = type(value)
     if np.issubdtype(t, np.number) or t is np.ndarray:
         value = value * scale

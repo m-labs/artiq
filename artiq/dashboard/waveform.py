@@ -13,7 +13,8 @@ import numpy as np
 from sipyco.pc_rpc import AsyncioClient
 from sipyco import pyon
 
-from artiq.tools import exc_to_warning, short_format, pyon_load_file_robust
+from artiq.compat import pyon_load_file_compat
+from artiq.tools import exc_to_warning, short_format
 from artiq.coredevice import comm_analyzer
 from artiq.coredevice.comm_analyzer import WaveformType
 from artiq.gui.tools import LayoutWidget, get_open_file_name, get_save_file_name
@@ -878,7 +879,7 @@ class WaveformDock(QtWidgets.QDockWidget):
             return
         self._current_dir = os.path.dirname(filename)
         try:
-            channel_list = pyon_load_file_robust(filename)
+            channel_list = pyon_load_file_compat(filename)
             self._waveform_model.import_list(channel_list)
             self._waveform_model.update_all(self._waveform_data['data'])
         except:

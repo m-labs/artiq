@@ -4,6 +4,7 @@ from contextlib import contextmanager
 from types import SimpleNamespace
 
 from sipyco import pyon
+from artiq.tools import pyon_decode_compat
 
 from artiq.language import units
 from artiq.language.core import rpc
@@ -66,8 +67,7 @@ class PYONValue(_SimpleArgProcessor):
             self.default_value = default
 
     def process(self, x):
-        from artiq.tools import pyon_decode_robust
-        return pyon_decode_robust(x)
+        return pyon_decode_compat(x)
 
     def describe(self):
         d = {"ty": self.__class__.__name__}

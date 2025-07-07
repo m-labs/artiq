@@ -13,7 +13,7 @@ from artiq import __artiq_dir__ as artiq_dir
 from artiq.gui.tools import (LayoutWidget, log_level_to_name, get_open_file_name)
 from artiq.gui.entries import procdesc_to_entry, EntryTreeWidget
 from artiq.master.worker import Worker, log_worker_exception
-from artiq.tools import pyon_decode_robust
+from artiq.compat import pyon_decode_compat
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +193,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         try:
             with h5py.File(filename, "r") as f:
                 expid = f["expid"][()]
-            expid = pyon_decode_robust(expid)
+            expid = pyon_decode_compat(expid)
             arguments = expid["arguments"]
         except:
             logger.error("Could not retrieve expid from HDF5 file",
