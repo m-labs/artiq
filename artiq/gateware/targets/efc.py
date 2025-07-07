@@ -214,7 +214,7 @@ class Satellite(BaseSoC, AMPSoC):
         self.config["DRTIO_ROLE"] = "satellite"
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
 
-        if(variant == "shuttler"):
+        if variant == "shuttler":
             if afe_hw_rev in ("v1.0", "v1.1", "v1.2"):
                 afe_adc_io = ('afe_adc_spi', 0,
                             Subsignal('clk', Pins('fmc0:LA29_P')),
@@ -249,7 +249,7 @@ class Satellite(BaseSoC, AMPSoC):
             self.submodules += phy
             self.rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        if(variant == "shuttler"):
+        if variant == "shuttler":
             self.submodules.shuttler = Shuttler([platform.request("dac_din", i) for i in range(8)])
             self.csr_devices.append("shuttler")
             self.rtio_channels.extend(rtio.Channel.from_phy(phy) for phy in self.shuttler.phys)
@@ -273,7 +273,7 @@ class Satellite(BaseSoC, AMPSoC):
             print("SHUTTLER ADC at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
             self.rtio_channels.append(rtio.Channel.from_phy(adc_spi))
 
-        if(variant == "ltc"):
+        if variant == "ltc":
             platform.add_extension(ltc2000_spi)
             ltc2000_spi_phy = rtio_spi.SPIMaster(self.platform.request("ltc2000_spi", 0))
             self.submodules += ltc2000_spi_phy
@@ -361,7 +361,7 @@ def main():
         description="ARTIQ device binary builder for EEM FMC Carrier systems")
     builder_args(parser)
     parser.set_defaults(output_dir="artiq_efc")
-    parser.add_argument("-V", "--variant", default="shuttler")
+    parser.add_argument("-V", "--variant", choices=["shuttler", "ltc"], default="shuttler")
     parser.add_argument("--efc-hw-rev", choices=["v1.0", "v1.1"], default="v1.1",
                         help="EFC hardware revision")
     parser.add_argument("--afe-hw-rev", choices=["v1.0", "v1.1", "v1.2", "v1.3"],
