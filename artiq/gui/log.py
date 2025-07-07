@@ -180,19 +180,18 @@ class _Model(QtCore.QAbstractItemModel):
             column = index.column()
             if item.parent is self:
                 if column == 0:
-                    # TODO:
                     # use time delta instead of actual time when delta is small
+                    if msgnum > 0:
+                        delta = v[2] - self.entries[msgnum-1][2]
+                        if delta <= 30:
+                            return "+{:.9f}".format(delta)
                     return time.strftime("%m/%d %H:%M:%S", time.localtime(v[2]))
                 elif column == 1:
                     return v[1]
                 else:
                     return v[3][0]
             else:
-                if column == 0:
-                    # TODO:
-                    # use time delta instead of actual time when delta is small
-                    return time.strftime("%m/%d %H:%M:%S", time.localtime(v[2]))
-                elif column == 1:
+                if column == 0 or column == 1:
                     return ""
                 else:
                     return v[3][item.row+1]
