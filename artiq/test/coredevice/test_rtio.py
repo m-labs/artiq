@@ -330,6 +330,23 @@ class Underflow(EnvExperiment):
             self.ttl_out.pulse(25*ns)
 
 
+class Overflow(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.setattr_device("loop_clock_out")
+        self.setattr_device("loop_clock_in")
+
+    @kernel
+    def run(self):
+        self.core.reset()
+        self.loop_clock_out.set(1*MHz)
+        t_end = self.loop_clock_in.gate_both(1*ms)
+
+        while True:
+            if self.loop_clock_in.timestamp_mu(t_end) < 0:
+                break
+
+
 class SequenceError(EnvExperiment):
     def build(self):
         self.setattr_device("core")
@@ -498,6 +515,10 @@ class CoredeviceTest(ExperimentCase):
     def test_underflow(self):
         with self.assertRaises(RTIOUnderflow):
             self.execute(Underflow)
+
+    def test_overflow(self):
+        with self.assertRaises(RTIOOverflow):
+            self.execute(Overflow)
 
     def execute_and_test_in_log(self, experiment, string):
         core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]
