@@ -7,7 +7,8 @@ from sipyco.sync_struct import (Notifier, process_mod, ModAction,
 from sipyco import pyon
 from sipyco.tools import TaskObject
 
-from artiq.tools import file_import, pyon_decode_compat
+from artiq.compat import pyon_decode_compat
+from artiq.tools import file_import
 
 
 def device_db_from_file(filename):
