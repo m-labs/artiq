@@ -21,7 +21,7 @@
     };
 
     sipyco = {
-      url = "github:m-labs/sipyco?ref=json";
+      url = "github:m-labs/sipyco";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
