@@ -4,10 +4,10 @@ from contextlib import contextmanager
 from types import SimpleNamespace
 
 from sipyco import pyon
-from artiq.tools import pyon_decode_compat
 
 from artiq.language import units
 from artiq.language.core import rpc
+from artiq.tools import pyon_decode_compat
 
 
 __all__ = ["NoDefault", "DefaultMissing",

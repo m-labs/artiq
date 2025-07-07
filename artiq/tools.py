@@ -49,7 +49,7 @@ def parse_devarg_override(devarg_override):
         argument, _, value = override.partition("=")
         if not value:
             raise ValueError
-        devarg_override_dict[device][argument] = pyon.decode(value)
+        devarg_override_dict[device][argument] = pyon_decode_compat(value)
     return devarg_override_dict
 
 
