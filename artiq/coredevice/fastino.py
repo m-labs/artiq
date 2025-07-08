@@ -27,7 +27,7 @@ class Fastino:
     The setting here and in the RTIO PHY (gateware) must match.
 
     Other ``log2_width`` (up to ``log2_width=5``) settings pack multiple
-    (in powers of two, i.e. up to 32) DAC channels into one group and into
+    (in powers of two, up to 32) DAC channels into one group and into
     one RTIO write. The RTIO data width increases accordingly. The ``log2_width``
     LSBs of the RTIO address for a DAC channel write must be zero and the
     address space is sparse. For ``log2_width=5`` the RTIO data is 512-bit wide,
@@ -130,9 +130,9 @@ class Fastino:
         channel 16.
 
         Each entry in ``data`` packs two DAC data words (16-bit unsigned)
-        to be written. If total number of data words is less than group size,
-        the remaining DAC channels within the group are cleared to 0 (machine
-        units). Data in excess of group size is ignored.
+        to be written. If the total number of data words is less than the group
+        size, the remaining DAC channels within the group are cleared to 0 (machine
+        units). Data in excess of the group size is ignored.
 
         :param dac: First channel in DAC channel group. LSBs up to
             ``log2_width`` must be zero.
@@ -185,9 +185,9 @@ class Fastino:
         with ``log2_width = 4``, reference the first group by channel 0,
         second by channel 16.
 
-        If voltage list length is less than group size, the remaining DAC
+        If voltage list length is less than the group size, the remaining DAC
         channels within the group are cleared to 0 (machine units). List
-        entries in excess of group size are ignored.
+        entries in excess of the group size are ignored.
 
         :param dac: First channel in DAC channel group. LSBs up to
             ``log2_width`` must be zero.
