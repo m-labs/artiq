@@ -22,8 +22,6 @@ from sipyco import pipe_ipc, pyon
 from sipyco.packed_exceptions import raise_packed_exc
 from sipyco.logs import multiline_log_config
 
-from nac3artiq import CompileError
-
 import artiq
 from artiq import tools
 from artiq.master.worker_db import DeviceManager, DatasetManager, DummyDevice
@@ -253,21 +251,18 @@ def put_completed():
 
 def put_exception_report():
     _, exc, _ = sys.exc_info()
-    # When we get CompileError, a more suitable diagnostic has already
-    # been printed.
-    if not isinstance(exc, CompileError):
-        short_exc_info = type(exc).__name__
-        exc_str = str(exc)
-        if exc_str:
-            short_exc_info += ": " + exc_str.splitlines()[0]
-        lines = ["Terminating with exception ("+short_exc_info+")\n"]
-        if hasattr(exc, "artiq_core_exception"):
-            lines.append(str(exc.artiq_core_exception))
-        if hasattr(exc, "parent_traceback"):
-            lines += exc.parent_traceback
-            lines += traceback.format_exception_only(type(exc), exc)
-        logging.error("".join(lines).rstrip(),
-                      exc_info=not hasattr(exc, "parent_traceback"))
+    short_exc_info = type(exc).__name__
+    exc_str = str(exc)
+    if exc_str:
+        short_exc_info += ": " + exc_str.splitlines()[0]
+    lines = ["Terminating with exception ("+short_exc_info+")\n"]
+    if hasattr(exc, "artiq_core_exception"):
+        lines.append(str(exc.artiq_core_exception))
+    if hasattr(exc, "parent_traceback"):
+        lines += exc.parent_traceback
+        lines += traceback.format_exception_only(type(exc), exc)
+    logging.error("".join(lines).rstrip(),
+                    exc_info=not hasattr(exc, "parent_traceback"))
     put_object({"action": "exception"})
 
 
