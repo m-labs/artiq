@@ -22,8 +22,6 @@ from sipyco import pipe_ipc, pyon
 from sipyco.packed_exceptions import raise_packed_exc
 from sipyco.logs import multiline_log_config
 
-from nac3artiq import CompileError
-
 import artiq
 from artiq import tools
 from artiq.master.worker_db import DeviceManager, DatasetManager, DummyDevice
