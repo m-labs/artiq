@@ -333,18 +333,15 @@ class Underflow(EnvExperiment):
 class Overflow(EnvExperiment):
     def build(self):
         self.setattr_device("core")
-        self.setattr_device("loop_clock_out")
-        self.setattr_device("loop_clock_in")
+        self.setattr_device("loop_in")
 
     @kernel
     def run(self):
         self.core.reset()
-        self.loop_clock_out.set(1*MHz)
-        t_end = self.loop_clock_in.gate_both(1*ms)
-
-        while True:
-            if self.loop_clock_in.timestamp_mu(t_end) < 0:
-                break
+        for _ in range(100000):  # arbitrary large number to overflow input FIFO
+            self.loop_in.sample_input()
+            delay(1*us)  # long enough to avoid underflow from sample_input()
+        self.loop_in.sample_get()
 
 
 class SequenceError(EnvExperiment):
