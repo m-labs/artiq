@@ -23,7 +23,7 @@ from artiq.master.worker_db import DeviceManager, DatasetManager
 from artiq.coredevice.core import CompileError, host_only
 from artiq.compiler.embedding import EmbeddingMap
 from artiq.compiler import import_cache
-from artiq.compat import pyon_decode_compat
+from artiq import compat
 from artiq.tools import *
 
 
@@ -177,7 +177,7 @@ class ArgumentManager(ProcessArgumentManager):
                 user_input = input("{}:{} (group={}, tooltip={}): ".format(
                     key, type(processor).__name__, group, tooltip))
                 try:
-                    user_input_deser = pyon_decode_compat(user_input)
+                    user_input_deser = compat.pyon_decode(user_input)
                     value = processor.process(user_input_deser)
                 except:
                     logger.error("failed to process user input, retrying",

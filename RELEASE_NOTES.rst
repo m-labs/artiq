@@ -44,15 +44,15 @@ ARTIQ-9 (Unreleased)
 
 Breaking changes:
 
-* Migration of existing data to the new PYON v2 format:
-   - Data is always stored as PYON v2. Ensure backups of existing PYON v1 data are
-     successful before starting ARTIQ-9. Keep a backup of the PYON v1 dataset DB.
-   - Remote controllers and custom applets: ensure sipyco v2 is used by all controllers,
-     controller managers, applets.
-   - The support for encoding/saving data as PYON v1 has been removed. The support
-     for PYON v1 decoding will be removed in a future ARTIQ release.
-   - When PYON v2 decoding fails in the following contexts, an attempt is made to decode
-     data as PYON v1:
+* Migration to PYON v2:
+   - Serialized data is always stored as PYON v2. Ensure backups of existing PYON v1 data
+     exist before starting ARTIQ-9. Keep a backup of the PYON v1 dataset DB.
+   - Both PYON v1 and PYON v2 sipyco pc_rpc controllers are supported simultaneously.
+     PYON v2 support will be required in a future sipyco/ARTIQ release.
+   - Custom applets, sync_struct/broadcast consumers (dataset db, scheduler, log, experiment db)
+     require PYON v2: ensure sipyco v2 is used.
+   - When PYON v2 decoding fails in the following contexts, decoding as PYON v1 is attempted.
+     The support for PYON v1 decoding will be removed in a future ARTIQ release.
       + Dataset DB file
       + HDF5 results ``expid``. Note that existing files are never altered.
       + artiq_client set-dataset

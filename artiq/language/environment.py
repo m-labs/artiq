@@ -7,7 +7,7 @@ from sipyco import pyon
 
 from artiq.language import units
 from artiq.language.core import rpc
-from artiq.compat import pyon_decode_compat
+from artiq import compat
 
 
 __all__ = ["NoDefault", "DefaultMissing",
@@ -67,7 +67,7 @@ class PYONValue(_SimpleArgProcessor):
             self.default_value = default
 
     def process(self, x):
-        return pyon_decode_compat(x)
+        return compat.pyon_decode(x)
 
     def describe(self):
         d = {"ty": self.__class__.__name__}

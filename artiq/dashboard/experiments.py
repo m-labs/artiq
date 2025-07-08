@@ -11,7 +11,7 @@ from artiq.gui.entries import procdesc_to_entry, EntryTreeWidget
 from artiq.gui.fuzzy_select import FuzzySelectWidget
 from artiq.gui.tools import (LayoutWidget, log_level_to_name, get_open_file_name)
 from artiq.tools import parse_devarg_override, unparse_devarg_override
-from artiq.compat import pyon_decode_compat
+from artiq import compat
 
 
 logger = logging.getLogger(__name__)
@@ -416,7 +416,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         try:
             with h5py.File(filename, "r") as f:
                 expid = f["expid"][()]
-            expid = pyon_decode_compat(expid)
+            expid = compat.pyon_decode(expid)
             arguments = expid["arguments"]
         except:
             logger.error("Could not retrieve expid from HDF5 file",

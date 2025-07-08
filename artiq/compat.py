@@ -1,29 +1,24 @@
 import json
 import warnings
 
-from sipyco import pyon
+from sipyco import pyon, pyon_v1
 
 
-def pyon_decode_compat(s):
+def pyon_decode(s):
     try:
         return pyon.decode(s)
-    except json.JSONDecodeError as e:
+    except json.JSONDecodeError:
         try:
-            o = pyon.decode_v1(s)
-            warnings.warn("Decoded as PYON v1")
-            return o
+            return pyon_v1.decode(s)
         except:
-            raise e
+            raise
 
 
-def pyon_load_file_compat(filename):
+def pyon_load_file(filename):
     try:
         return pyon.load_file(filename)
-    except json.JSONDecodeError as e:
+    except json.JSONDecodeError:
         try:
-            with open(filename, "r", encoding="utf-8") as f:
-                o = pyon.decode_v1(f.read())
-                warnings.warn(f"Loaded `{filename}` as PYON v1")
-                return o
+            return pyon_v1.load_file(filename)
         except:
-            raise e
+            raise
