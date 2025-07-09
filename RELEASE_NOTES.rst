@@ -34,6 +34,7 @@ ARTIQ-9 (Unreleased)
      header context menu.
    - State files are now automatically backed up upon successful loading.
    - Experiments can now use ``restart_applet`` CCB command to restart applets.
+   - Interactive argument widgets now remember their layout between runs.
 * ``afws_client`` now uses the "happy eyeballs" algorithm (RFC 6555) for a faster and more
   reliable connection to the server.
 * Compiler can now give automatic suggestions for ``kernel_invariants``. 
