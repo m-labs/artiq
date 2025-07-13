@@ -245,6 +245,8 @@ Verify the log in the GUI. If you are happy with the result, commit the new vers
 
 Notice that commands other than ``git commit`` and ``git push`` are no longer necessary. The Git hook should cause a repository rescan automatically, and submitting the experiment in the dashboard should run the new version, with enthusiasm included.
 
+.. _mgmt-ssl:
+
 Setting up secure communications
 --------------------------------
 
@@ -290,6 +292,10 @@ Conversely, clients (:mod:`~artiq.frontend.artiq_client` or :mod:`~artiq.fronten
     $ artiq_ctlmgr --ssl <client.pem> <client.key> <master.pem>
 
 Note that the client key and certificate *must* match the client certificate given to the master, or they will not be recognized as legitimate. Multiple parallel clients may simply share the same key and certificate.
+
+.. note::
+
+    To operate additional controllers and NDSPs over SSL, see :ref:`ctlrs-ssl`.
 
 .. note::
 
