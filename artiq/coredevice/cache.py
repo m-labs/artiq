@@ -4,7 +4,7 @@ from artiq.language.core import compile, extern, kernel, KernelInvariant
 from artiq.coredevice.core import Core
 
 
-@extern(flags={"allow-external-alloc"})
+@extern
 def cache_get(key: str) -> list[int32]:
     raise NotImplementedError("syscall not simulated")
 
