@@ -67,7 +67,7 @@ For Kasli or KC705:
     If a static IP address is preferred, it can be flashed directly (OpenOCD must be installed and configured, as in :doc:`flashing`), along with, as necessary, default gateway, IPv6, and/or MAC address: ::
 
         $ artiq_mkfs flash_storage.img [-s mac xx:xx:xx:xx:xx:xx] [-s ip xx.xx.xx.xx/xx] [-s ipv4_default_route xx.xx.xx.xx] [-s ip6 xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx/xx] [-s ipv6_default_route xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx]
-        $ artiq_flash -t [board] -V [variant] -f flash_storage.img storage start
+        $ artiq_flash write=storage start -t [board] -V [variant] -f flash_storage.img
 
 On Kasli or Kasli-SoC devices, specifying the MAC address is unnecessary, as they can obtain it from their EEPROM. If you only want to access the core device from the same subnet, default gateway and IPv4 prefix length may also be omitted. On any board, once a device can be reached by :mod:`~artiq.frontend.artiq_coremgmt`, these values can be set and edited at any time, following the procedure for IP above.
 
