@@ -48,11 +48,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1752204032,
-        "narHash": "sha256-WUtfjT9Ihm3D6OAvHJogHggj9TkqCnGMHKwk0xGxuso=",
+        "lastModified": 1752482362,
+        "narHash": "sha256-FnbT8GzQ0qcqHCb7hY2cZCsgxhM63tCGxouTiA+sq7g=",
         "ref": "refs/heads/master",
-        "rev": "8f2396ef4b5c75d974e072f3a22f8d21e869da81",
-        "revCount": 1700,
+        "rev": "d1928330eedc5d44617b5c8e5f976c7e9001a65b",
+        "revCount": 1701,
         "type": "git",
         "url": "https://git.m-labs.hk/m-labs/nac3.git"
       },
@@ -69,11 +69,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1751923969,
-        "narHash": "sha256-QNo234SxSB2lLavaT2d+g+Z2WB7o7w29vYkM6zfRLi4=",
+        "lastModified": 1752249768,
+        "narHash": "sha256-wKqMvhTqMgTKM/CdTH/ihq9eLZM95qpU0FG7cvTBFJg=",
         "owner": "nix-community",
         "repo": "naersk",
-        "rev": "0473954e399eec0081ee816f3430c17d1f7e5a42",
+        "rev": "35aa63738857c40f98ecb04db52887d664836e74",
         "type": "github"
       },
       "original": {
