@@ -2,6 +2,7 @@
            panic_info_message, nll, c_unwind)]
 #![no_std]
 
+extern crate byteorder;
 extern crate libc;
 extern crate unwind;
 extern crate cslice;
@@ -111,6 +112,7 @@ mod eh_artiq;
 mod api;
 mod rtio;
 mod nrt_bus;
+mod cxp;
 
 static mut LIBRARY: Option<Library<'static>> = None;
 

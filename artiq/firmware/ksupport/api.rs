@@ -174,6 +174,12 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(spi_write = ::nrt_bus::spi::write),
     api!(spi_read = ::nrt_bus::spi::read),
 
+    api!(cxp_download_xml_file = ::cxp::download_xml_file),
+    api!(cxp_read32 = ::cxp::read32),
+    api!(cxp_write32 = ::cxp::write32),
+    api!(cxp_start_roi_viewer = ::cxp::start_roi_viewer),
+    api!(cxp_download_roi_viewer_frame = ::cxp::download_roi_viewer_frame),
+
     /*
      * syscall for unit tests
      * Used in `artiq.tests.coredevice.test_exceptions.ExceptionTest.test_raise_exceptions_kernel`
