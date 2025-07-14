@@ -1,5 +1,6 @@
 use core::fmt;
 use cslice::CSlice;
+use drtioaux_proto::{CXP_PAYLOAD_MAX_SIZE, CXP_PAYLOAD_MAX_SIZE_U64};
 use dyld;
 
 pub const KERNELCPU_EXEC_ADDRESS:    usize = 0x45000000;
@@ -112,6 +113,42 @@ pub enum Message<'a> {
     SubkernelMsgRecvReply { count: u8 },
     SubkernelError(SubkernelStatus<'a>),
 
+    CXPError(&'a str),
+    CXPReadRequest {
+        destination: u8,
+        address: u32,
+        length: u16,
+    },
+    CXPReadReply {
+        length: u16,
+        data: [u8; CXP_PAYLOAD_MAX_SIZE],
+    },
+    CXPWrite32Request {
+        destination: u8,
+        address: u32,
+        value: u32,
+    },
+    CXPWrite32Reply,
+    CXPROIViewerSetupRequest {
+        destination: u8,
+        x0: u16,
+        y0: u16,
+        x1: u16,
+        y1: u16,
+    },
+    CXPROIViewerSetupReply,
+    CXPROIViewerDataRequest {
+        destination: u8,
+    },
+    CXPROIVIewerPixelDataReply {
+        length: u16,
+        data: [u64; CXP_PAYLOAD_MAX_SIZE_U64],
+    },
+    CXPROIVIewerFrameDataReply {
+        width: u16,
+        height: u16,
+        pixel_code: u16,
+    },
     UpdateNow(u64),
 
     Log(fmt::Arguments<'a>),
