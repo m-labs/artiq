@@ -269,11 +269,6 @@ def main():
     main_window.addDockWidget(QtCore.Qt.DockWidgetArea.BottomDockWidgetArea, d_schedule)
 
     # load/initialize state
-    if os.name == "nt":
-        # HACK: show the main window before creating applets.
-        # Otherwise, the windows of those applets that are in detached
-        # QDockWidgets fail to be embedded.
-        main_window.show()
     smgr.load()
 
     def init_cbs(ddb):
