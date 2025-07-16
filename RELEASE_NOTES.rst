@@ -53,6 +53,7 @@ Breaking changes:
      require PYON v2: ensure sipyco v2 is used.
    - When PYON v2 decoding fails in the following contexts, decoding as PYON v1 is attempted.
      The support for PYON v1 decoding will be removed in a future ARTIQ release.
+
       + Dataset DB file
       + HDF5 results ``expid``. Note that existing files are never altered.
       + artiq_client set-dataset
@@ -61,6 +62,8 @@ Breaking changes:
       + Interactive arguments (artiq_run, artiq_client)
       + Waveform channel list file
       + devarg overrides
+* ``artiq_coremgmt config`` can now read multiple times in the same command and read binary files
+  from the core device config to host. Instead of ``read KEY``, use ``read -s KEY``.
 
 ARTIQ-8
 -------
