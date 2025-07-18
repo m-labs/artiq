@@ -28,7 +28,7 @@ use board_misoc::{boot, spiflash};
 use board_artiq::{spi, drtioaux, drtio_routing};
 #[cfg(soc_platform = "efc")]
 use board_artiq::ad9117;
-use proto_artiq::drtioaux_proto::{SAT_PAYLOAD_MAX_SIZE, MASTER_PAYLOAD_MAX_SIZE};
+use proto_artiq::drtioaux_proto::{SAT_PAYLOAD_MAX_SIZE, MASTER_PAYLOAD_MAX_SIZE, CXP_PAYLOAD_MAX_SIZE};
 #[cfg(has_drtio_eem)]
 use board_artiq::drtio_eem;
 use riscv::register::{mcause, mepc, mtval};
@@ -662,6 +662,33 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             coremgr.flash_image();
             warn!("restarting");
             unsafe { spiflash::reload(); }
+        }
+        drtioaux::Packet::CXPReadRequest { destination: _destination, .. }
+        | drtioaux::Packet::CXPWrite32Request { destination: _destination, .. }
+        | drtioaux::Packet::CXPROIViewerSetupRequest { destination: _destination, .. }
+        | drtioaux::Packet::CXPROIViewerDataRequest { destination: _destination } => {
+            forward!(
+                router,
+                _routing_table,
+                _destination,
+                *rank,
+                *self_destination,
+                _repeaters,
+                &packet
+            );
+
+            let err_msg = "Kasli doesn't support CoaXPress-SFP";
+            error!("{}", err_msg);
+            let length = err_msg.as_bytes().len();
+            let mut message: [u8; CXP_PAYLOAD_MAX_SIZE] = [0; CXP_PAYLOAD_MAX_SIZE];
+            message[..length].copy_from_slice(&err_msg.as_bytes());
+            drtioaux::send(
+                0,
+                &drtioaux::Packet::CXPError {
+                    length: length as u16,
+                    message,
+                },
+            )
         }
 
         _ => {
