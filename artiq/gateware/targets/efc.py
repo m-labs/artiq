@@ -18,13 +18,13 @@ from artiq.gateware.drtio.transceiver import eem_serdes
 from artiq.gateware.drtio.rx_synchronizer import NoRXSynchronizer
 from artiq.gateware.drtio import *
 from artiq.gateware.shuttler import Shuttler
-from artiq.gateware.targets.ltc2000 import LTC2000
+from artiq.gateware.ltc2000 import LTC2000
 from artiq.build_soc import *
 
 ltc2000_pads = [
     ("ltc2000", 0,
-        Subsignal("clk_p", Pins("fmc0:LA07_P"), IOStandard("LVDS_25")),
-        Subsignal("clk_n", Pins("fmc0:LA07_N"), IOStandard("LVDS_25")),
+        Subsignal("dcki_p", Pins("fmc0:LA07_P"), IOStandard("LVDS_25")),
+        Subsignal("dcki_n", Pins("fmc0:LA07_N"), IOStandard("LVDS_25")),
         Subsignal("dcko_p", Pins("fmc0:LA01_CC_P"), IOStandard("LVDS_25")),
         Subsignal("dcko_n", Pins("fmc0:LA01_CC_N"), IOStandard("LVDS_25")),
         Subsignal("data_p", Pins(
