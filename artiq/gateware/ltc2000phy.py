@@ -10,7 +10,9 @@ class Ltc2000phy(Module, AutoCSR):
 
         ###
 
-        data_in = Signal(16*2*6) # 16 bits per channel, 2 channels, 6 samples per clock cycle, data coming in at sys2x rate => for 100 MHz sysclk we get 200 MHz * 2 * 6 = 2.4 Gbps
+        # 16 bits per channel, 2 channels, 6 samples per clock cycle, data coming in at sys2x rate
+        # for 100 MHz sysclk we get 200 MHz * 2 * 6 = 2.4 Gbps
+        data_in = Signal(16*2*6) 
         counter = Signal()
 
         data_reg = Signal(16*2*6)
@@ -49,8 +51,8 @@ class Ltc2000phy(Module, AutoCSR):
             ),
             Instance("OBUFDS",
                 i_I=dac_clk_se,
-                o_O=pads.clk_p,
-                o_OB=pads.clk_n
+                o_O=pads.dcki_p,
+                o_OB=pads.dcki_n
             )
         ]
 
