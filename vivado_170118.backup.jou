@@ -1,0 +1,36 @@
+#-----------------------------------------------------------
+# Vivado v2024.2 (64-bit)
+# SW Build 5239630 on Fri Nov 08 22:34:34 MST 2024
+# IP Build 5239520 on Sun Nov 10 16:12:51 MST 2024
+# SharedData Build 5239561 on Fri Nov 08 14:39:27 MST 2024
+# Start of session at: Wed Jul 23 16:32:47 2025
+# Process ID         : 170118
+# Current directory  : /home/spaqin/m-labs/artiq
+# Command line       : vivado
+# Log file           : /home/spaqin/m-labs/artiq/vivado.log
+# Journal file       : /home/spaqin/m-labs/artiq/vivado.jou
+# Running On         : hera
+# Platform           : unknown
+# Operating System   : unknown
+# Processor Detail   : Intel(R) Core(TM) i9-9900K CPU @ 3.60GHz
+# CPU Frequency      : 4761.303 MHz
+# CPU Physical cores : 8
+# CPU Logical cores  : 16
+# Host memory        : 33545 MB
+# Swap memory        : 0 MB
+# Total Virtual      : 33545 MB
+# Available Virtual  : 23338 MB
+#-----------------------------------------------------------
+start_gui
+open_project /home/spaqin/m-labs/artiq/artiq_efc/ltc/gateware/top.xpr
+update_compile_order -fileset sources_1
+launch_runs impl_1 -to_step write_bitstream -jobs 8
+wait_on_run impl_1
+open_run synth_1 -name synth_1
+report_timing_summary -delay_type min_max -report_unconstrained -check_timing_verbose -max_paths 10 -input_pins -routable_nets -name timing_1
+show_objects -name mcm00 [get_cells -hierarchical -filter { PRIMITIVE_TYPE =~ BMEM.*.* } ]
+startgroup
+report_route_status -of_objects [get_nets { main_ltc2000_dds_ltc2000ddsmodule0_phasedaccu0_mcm000_n_20 }]
+endgroup
+show_objects -name phasedaccu [get_nets -hierarchical -top_net_of_hierarchical_group "*" ]
+show_objects -name main_ltc2000_dds_ltc2000ddsmodule0_phasedaccu0_mcm0_i [get_nets -hierarchical -top_net_of_hierarchical_group "*" ]
