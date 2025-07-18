@@ -1,6 +1,6 @@
 from artiq.coredevice.rtio import rtio_output
 from artiq.experiment import *
-from artiq.coredevice import spi2
+from artiq.coredevice.spi2 import SPI_END, SPI_INPUT
 from artiq.language.core import kernel, delay
 from artiq.language.units import us
 
@@ -31,10 +31,72 @@ class DDS:
     """
     kernel_invariants = {"core", "channel", "target_o"}
 
-    def __init__(self, dmgr, channel, core_device="core"):
+    def __init__(self, dmgr, channel, spi_device, reset_device, clear_device, core_device="core"):
         self.core = dmgr.get(core_device)
         self.channel = channel
         self.target_o = channel << 8
+        self.bus = dmgr.get(spi_device)
+        self.reset = dmgr.get(reset_device)
+        self.clear = dmgr.get(clear_device)
+        self.spi_config = SPI_END
+
+    @kernel
+    def init(self, blind=False):
+        # reset
+        self.clear.clear(0b1111)
+        self.reset.reset(1)
+        self.software_reset()
+
+        self.configure(blind)
+        # deassert reset
+        self.reset.reset(0)
+        delay(20*ms)
+        self.clear.clear(0)
+
+    @kernel
+    def software_reset(self):
+        self.spi_write(0x01, 0x01)  # Write 1 to the reset bit
+        delay(10*ms)  # Wait for reset to complete
+        self.spi_write(0x01, 0x00)  # Clear the reset bit
+        delay(20*ms)
+
+    @kernel
+    def configure(self, blind):
+        self.spi_write(0x01, 0x00)  # Reset, power down controls
+        self.spi_write(0x02, 0x00)  # Clock and DCKO controls
+        self.spi_write(0x03, 0x01)  # DCKI controls
+        self.spi_write(0x04, 0x0B)  # Data input controls
+        self.spi_write(0x05, 0x00)  # Synchronizer controls
+        self.spi_write(0x07, 0x00)  # Linearization controls
+        self.spi_write(0x08, 0x08)  # Linearization voltage controls
+        self.spi_write(0x18, 0x00)  # LVDS test MUX controls
+        self.spi_write(0x19, 0x00)  # Temperature measurement controls
+        self.spi_write(0x1E, 0x00)  # Pattern generator enable
+        self.spi_write(0x1F, 0x00)  # Pattern generator data
+
+        if not blind:
+            read_value = self.spi_read(0x01)
+            if read_value != 0x00:
+                raise ValueError("LTC2000 reset not deasserted")
+    @kernel
+    def spi_write(self, addr, data):
+        self.bus.set_config_mu(self.spi_config, 32, 256, 0b0001)
+        delay(20*us)
+        self.bus.write((addr << 24) | (data << 16))
+        delay(2*us)
+        self.bus.set_config_mu(self.spi_config, 32, 256, 0b0000)
+
+    @kernel
+    def spi_read(self, addr):
+        self.bus.set_config_mu(self.spi_config | SPI_INPUT, 32, 256, 0b0001)
+        delay(2*us)
+        self.bus.write((1 << 31) | (addr << 24))
+        delay(2*us)
+        result = self.bus.read()
+        delay(2*us)
+        self.bus.set_config_mu(self.spi_config, 32, 256, 0b0000)
+        value = (result >> 16) & 0xFF
+        return value
 
     @kernel
     def set_waveform(self, b0: TInt32, b1: TInt32, b2: TInt64, b3: TInt64,
