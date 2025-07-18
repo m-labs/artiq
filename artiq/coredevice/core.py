@@ -40,6 +40,8 @@ nac3_builtins = {
     "tuple": tuple,
     "Exception": Exception,
 
+    "staticmethod": staticmethod,
+
     "types": {
         "GenericAlias": GenericAlias,
         "ModuleType": ModuleType,

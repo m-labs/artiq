@@ -76,6 +76,8 @@ def extern(function):
 
 def kernel(function_or_method):
     """Decorates a function or method to be executed on the core device."""
+    if isinstance(function_or_method, staticmethod):
+        function_or_method = function_or_method.__func__
     _register_function(function_or_method)
     argspec = getfullargspec(function_or_method)
     if argspec.args and argspec.args[0] == "self":
