@@ -712,24 +712,35 @@ class _StaticMethods(EnvExperiment):
     def build(self):
         self.setattr_device("core")
 
-    @rpc
     @staticmethod
+    @rpc
     def static_rpc_add(a: int32, b: int32) -> int32:
         return a + b
+
+    @rpc
+    @staticmethod
+    def static_rpc_sub(a: int32, b: int32) -> int32:
+        return a - b
 
     @staticmethod
     @kernel
     def static_kernel_add(a: int32, b: int32) -> int32:
         return a + b
 
+    @kernel
+    @staticmethod
+    def static_kernel_sub(a: int32, b: int32) -> int32:
+        return a - b
 
     @kernel
     def static_rpc_fn(self) -> int32:
-        return _StaticMethods.static_rpc_add(1, 2)
+        two = _StaticMethods.static_rpc_sub(3, 1)
+        return _StaticMethods.static_rpc_add(1, two)
 
     @kernel
     def static_kernel_fn(self) -> int32:
-        return _StaticMethods.static_kernel_add(1, 2)
+        two = _StaticMethods.static_kernel_sub(3, 1)
+        return _StaticMethods.static_kernel_add(1, two)
 
     @kernel
     def static_call_on_instance(self) -> int32:
