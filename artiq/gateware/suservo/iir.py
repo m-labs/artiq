@@ -554,10 +554,10 @@ class IIR(Module):
         word, addr, mask = self._coeff(channel, profile, coeff)
         val = yield self.m_coeff[addr]
         if word:
-            return val >> w.coeff
+            val >>= w.coeff
         else:
-            return val & mask
-        if val in "offset a1 b0 b1".split():
+            val &= mask
+        if coeff in "offset a1 b0 b1".split():
             val = signed(val, w.coeff)
         return val
 
