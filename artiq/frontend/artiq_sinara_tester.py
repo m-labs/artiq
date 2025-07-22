@@ -272,9 +272,11 @@ class SinaraTester(EnvExperiment):
             print("Not enough LVDS TTL output channels available to use as stimulus.")
             print("TTL input device group to switch to output mode (default: 0):")
             ttl_in_chunk_list = []
-            for x, ttl_chunk in enumerate(chunker(self.lvds_ttl_ins, 4 - len(self.lvds_ttl_outs))):
-                ttl_in_chunk_list.append(ttl_chunk)
-                print("\t{}: ({})".format(x, ", ".join(name for name, _ in ttl_chunk)))
+            ttl_num = 4 - len(self.lvds_ttl_outs)
+            for x, ttl_chunk in enumerate(chunker(self.lvds_ttl_ins, ttl_num)):
+                if len(ttl_chunk) == ttl_num:
+                    ttl_in_chunk_list.append(ttl_chunk)
+                    print("\t{}: ({})".format(x, ", ".join(name for name, _ in ttl_chunk)))
             new_ttl_out = ttl_in_chunk_list[int(input("") or "0")]
             self.cfg_lvds_io_out(new_ttl_out)
             lvds_ttl_out_chunk = self.lvds_ttl_outs + new_ttl_out
