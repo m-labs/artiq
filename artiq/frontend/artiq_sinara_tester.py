@@ -77,14 +77,14 @@ class SinaraTester(EnvExperiment):
                     dev = self.get_device(name)
                     if "led" in name:  # guess
                         self.leds[name] = dev
-                    elif "board" in desc and desc["board"] == "dio_lvds":
+                    elif "board" in desc and desc["board"] == "DIO_LVDS":
                         self.lvds_ttl_outs[name] = dev
                         self.lvds_ttls[name] = dev
                     else:
                         self.ttl_outs[name] = dev
                 elif (module, cls) == ("artiq.coredevice.ttl", "TTLInOut"):
                     dev = self.get_device(name)
-                    if "board" in desc and desc["board"] == "dio_lvds":
+                    if "board" in desc and desc["board"] == "DIO_LVDS":
                         self.lvds_ttl_ins[name] = dev
                         self.lvds_ttls[name] = dev
                     else:
@@ -278,7 +278,7 @@ class SinaraTester(EnvExperiment):
                     ttl_in_chunk_list.append(ttl_chunk)
                     print("\t{}: ({})".format(x, ", ".join(name for name, _ in ttl_chunk)))
             new_ttl_out = ttl_in_chunk_list[int(input("") or "0")]
-            self.cfg_lvds_io_out(new_ttl_out)
+            self.cfg_output_ttl(new_ttl_out)
             lvds_ttl_out_chunk = self.lvds_ttl_outs + new_ttl_out
         else:
             print("LVDS TTL device group to use as stimulus (default: 0):")
@@ -293,7 +293,7 @@ class SinaraTester(EnvExperiment):
             self.test_lvds_ttl_ins(lvds_ttl_out_chunk)
         
         if new_ttl_out:
-            self.cfg_lvds_io_in(new_ttl_out)
+            self.cfg_input_ttl(new_ttl_out)
         
         print("")
         print("*** Testing LVDS TTL outputs.")
@@ -356,13 +356,13 @@ class SinaraTester(EnvExperiment):
                     print("FAILED")
     
     @kernel
-    def cfg_lvds_io_out(self, lvds_ttl_in_chunk):
+    def cfg_output_ttl(self, lvds_ttl_in_chunk):
         self.core.break_realtime()
         for (lvds_ttl_in, lvds_ttl_in_dev) in lvds_ttl_in_chunk:
             lvds_ttl_in_dev.output()
     
     @kernel
-    def cfg_lvds_io_in(self, lvds_ttl_in_chunk):
+    def cfg_input_ttl(self, lvds_ttl_in_chunk):
         self.core.break_realtime()
         for (lvds_ttl_in, lvds_ttl_in_dev) in lvds_ttl_in_chunk:
             lvds_ttl_in_dev.input()
