@@ -111,6 +111,8 @@
       pname = "pythonparser";
       version = "1.4";
       src = src-pythonparser;
+      pyproject = true;
+      build-system = [pkgs.python3Packages.setuptools];
       doCheck = false;
       propagatedBuildInputs = with pkgs.python3Packages; [regex];
     };
@@ -118,13 +120,14 @@
     qasync = pkgs.python3Packages.buildPythonPackage rec {
       pname = "qasync";
       version = "0.27.1";
-      format = "pyproject";
       src = pkgs.fetchFromGitHub {
         owner = "CabbageDevelopment";
         repo = "qasync";
         rev = "refs/tags/v${version}";
         sha256 = "sha256-oXzwilhJ1PhodQpOZjnV9gFuoDy/zXWva9LhhK3T00g=";
       };
+      pyproject = true;
+      build-system = [pkgs.python3Packages.setuptools];
       postPatch = ''
         rm qasync/_windows.py # Ignoring it is not taking effect and it will not be used on Linux
       '';
@@ -162,6 +165,8 @@
         rev = "v${version}";
         sha256 = "sha256-ZIA/JfK9ZP00Zn6SZuPus30Xw10hn3DArHCkzBZAUV0=";
       };
+      pyproject = true;
+      build-system = [pkgs.python3Packages.setuptools];
       nativeBuildInputs = [pkgs.llvm_15];
       # Disable static linking
       # https://github.com/numba/llvmlite/issues/93
@@ -179,6 +184,8 @@
       pname = "artiq";
       version = artiqVersion;
       src = self;
+      pyproject = true;
+      build-system = [pkgs.python3Packages.setuptools];
 
       preBuild = ''
         export VERSIONEER_OVERRIDE=${version}
@@ -232,8 +239,8 @@
     migen = pkgs.python3Packages.buildPythonPackage rec {
       name = "migen";
       src = src-migen;
-      format = "pyproject";
-      nativeBuildInputs = [pkgs.python3Packages.setuptools];
+      pyproject = true;
+      build-system = [pkgs.python3Packages.setuptools];
       propagatedBuildInputs = [pkgs.python3Packages.colorama];
     };
 
@@ -246,12 +253,16 @@
         rev = version;
         sha256 = "sha256-ZHzgJnbsDVxVcp09LXq9JZp46+dorgdP8bAiTB59K28=";
       };
+      pyproject = true;
+      build-system = [pkgs.python3Packages.setuptools];
       propagatedBuildInputs = [pkgs.python3Packages.pyserial];
     };
 
     misoc = pkgs.python3Packages.buildPythonPackage {
       name = "misoc";
       src = src-misoc;
+      pyproject = true;
+      build-system = [pkgs.python3Packages.setuptools];
       propagatedBuildInputs = with pkgs.python3Packages; [jinja2 numpy migen pyserial asyncserial];
     };
 
@@ -264,6 +275,8 @@
         rev = "c21afe7a53258f05bde57e5ebf2e2761f3d495e4";
         sha256 = "sha256-jzyiLRuEf7p8LdhmZvOQj/dyQx8eUE8p6uRlwoiT8vg=";
       };
+      pyproject = true;
+      build-system = [pkgs.python3Packages.setuptools];
       propagatedBuildInputs = with pkgs.python3Packages; [pyserial prettytable msgpack migen];
     };
 
