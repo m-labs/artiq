@@ -31,7 +31,7 @@ def fetch_bin(binary_dir, components, srcbuild=False):
             except FileNotFoundError:
                 pass
 
-        if bins is None:
+        if len(bins) == 0:
             raise FileNotFoundError("multiple components not found: {}".format(
                                         " ".join(components)))
         
