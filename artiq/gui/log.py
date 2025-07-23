@@ -277,7 +277,6 @@ class LogDock(QDockWidgetCloseDetect):
 
         self.model.rowsAboutToBeInserted.connect(self.rows_inserted_before)
         self.model.rowsInserted.connect(self.rows_inserted_after)
-        self.model.rowsRemoved.connect(self.rows_removed)
 
         self.filter_freetext.returnPressed.connect(self.apply_text_filter)
         self.filter_level.currentIndexChanged.connect(self.apply_level_filter)
@@ -299,20 +298,6 @@ class LogDock(QDockWidgetCloseDetect):
     def rows_inserted_after(self):
         if self.scroll_at_bottom:
             self.log.scrollToBottom()
-
-    # HACK:
-    # Qt intermittently likes to scroll back to the top when rows are removed.
-    # Work around this by restoring the scrollbar to the previously memorized
-    # position, after the removal.
-    # Note that this works because _LogModel always does the insertion right
-    # before the removal.
-    # TODO: check if this is still required after moving to QTreeView
-    def rows_removed(self):
-        if self.scroll_at_bottom:
-            self.log.scrollToBottom()
-        else:
-            scrollbar = self.log.verticalScrollBar()
-            scrollbar.setValue(self.scroll_value)
 
     def copy_to_clipboard(self):
         idx = self.log.selectedIndexes()

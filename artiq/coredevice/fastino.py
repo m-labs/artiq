@@ -13,10 +13,10 @@ from artiq.language.types import TInt32, TList
 class Fastino:
     """Fastino 32-channel, 16-bit, 2.5 MS/s per channel streaming DAC
 
-    The RTIO PHY supports staging DAC data before transmitting them by writing
-    to the DAC RTIO addresses, if a channel is not "held" by setting its bit
+    The RTIO PHY supports staging DAC data before transmission by writing
+    to the DAC RTIO addresses. If a channel is not "held" by setting its bit
     using :meth:`set_hold`, the next frame will contain the update. For the
-    DACs held, the update is triggered explicitly by setting the corresponding
+    held DACs, updates are triggered explicitly by setting the corresponding
     bit using :meth:`update`. Update is self-clearing. This enables atomic
     DAC updates synchronized to a frame edge.
 
@@ -27,10 +27,11 @@ class Fastino:
     The setting here and in the RTIO PHY (gateware) must match.
 
     Other ``log2_width`` (up to ``log2_width=5``) settings pack multiple
-    (in powers of two) DAC channels into one group and into one RTIO write.
-    The RTIO data width increases accordingly. The ``log2_width``
+    (in powers of two, up to 32) DAC channels into one group and into
+    one RTIO write. The RTIO data width increases accordingly. The ``log2_width``
     LSBs of the RTIO address for a DAC channel write must be zero and the
-    address space is sparse. For ``log2_width=5`` the RTIO data is 512-bit wide.
+    address space is sparse. For ``log2_width=5`` the RTIO data is 512-bit wide,
+    32 channels x 16 bits.
 
     If ``log2_width`` is zero, the :meth:`set_dac`/:meth:`set_dac_mu` interface
     must be used. If non-zero, the :meth:`set_group`/:meth:`set_group_mu`
@@ -123,14 +124,20 @@ class Fastino:
 
     @kernel
     def set_group_mu(self, dac: TInt32, data: TList(TInt32)):
-        """Write a group of DAC channels in machine units.
+        """Write a group of DAC channels in machine units. To specify the
+        group, use the index of the first channel in group; e.g., with
+        ``log2_width = 4``, reference the first group by channel 0, second by
+        channel 16.
 
-        :param dac: First channel in DAC channel group (0-31). The ``log2_width``
-            LSBs must be zero.
+        Each entry in ``data`` packs two DAC data words (16-bit unsigned)
+        to be written. If the total number of data words is less than the group
+        size, the remaining DAC channels within the group are cleared to 0 (machine
+        units). Data in excess of the group size is ignored.
+
+        :param dac: First channel in DAC channel group. LSBs up to
+            ``log2_width`` must be zero.
         :param data: List of DAC data pairs (2x16-bit unsigned) to write,
-            in machine units. Data exceeding group size is ignored.
-            If the list length is less than group size, the remaining
-            DAC channels within the group are cleared to 0 (machine units).
+            in machine units.
         """
         if dac & (self.width - 1):
             raise ValueError("Group index LSBs must be zero")
@@ -173,10 +180,18 @@ class Fastino:
 
     @kernel
     def set_group(self, dac, voltage):
-        """Set DAC group data to given voltage.
+        """Set DAC group data to given voltage. To specify the
+        group, use the index of the first channel in group; e.g.,
+        with ``log2_width = 4``, reference the first group by channel 0,
+        second by channel 16.
 
-        :param dac: DAC channel (0-31).
-        :param voltage: Desired output voltage.
+        If voltage list length is less than the group size, the remaining DAC
+        channels within the group are cleared to 0 (machine units). List
+        entries in excess of the group size are ignored.
+
+        :param dac: First channel in DAC channel group. LSBs up to
+            ``log2_width`` must be zero.
+        :param voltage: List of desired output voltages.
         """
         data = [int32(0)] * (len(voltage) // 2)
         self.voltage_group_to_mu(voltage, data)
@@ -253,7 +268,7 @@ class Fastino:
         compensated. Other rates lead to overall less than unity gain (but more
         than 0.5 gain).
 
-        The overall gain including gain compensation is ``actual_rate ** order / 
+        The overall gain including gain compensation is ``actual_rate ** order /
         2 ** ceil(log2(actual_rate ** order))``
         where ``order = 3``.
 

@@ -99,12 +99,10 @@ class _RegIOUpdate:
 
         The time cursor is advanced by the specified duration."""
         cfg = self.cpld.cfg_reg
-        if self.cpld.proto_rev == STA_PROTO_REV_8:
-            self.cpld.cfg_write(cfg | (1 << ProtoRev8.CFG_IO_UPDATE))
+        if self.chip_select == 3:
+            self.cpld.cfg_io_update_all(0xF)
         else:
-            self.cpld.cfg_write(
-                cfg | (int64(1) << (ProtoRev9.CFG_IO_UPDATE + (self.chip_select - 4)))
-            )
+            self.cpld.cfg_io_update(self.chip_select & 0x3, True)
         delay_mu(duration)
         self.cpld.cfg_write(cfg)
 
@@ -115,12 +113,10 @@ class _RegIOUpdate:
 
         The time cursor is advanced by the specified duration."""
         cfg = self.cpld.cfg_reg
-        if self.cpld.proto_rev == STA_PROTO_REV_8:
-            self.cpld.cfg_write(cfg | (1 << ProtoRev8.CFG_IO_UPDATE))
+        if self.chip_select == 3:
+            self.cpld.cfg_io_update_all(0xF)
         else:
-            self.cpld.cfg_write(
-                cfg | (int64(1) << (ProtoRev9.CFG_IO_UPDATE + (self.chip_select - 4)))
-            )
+            self.cpld.cfg_io_update(self.chip_select & 0x3, True)
         delay(duration)
         self.cpld.cfg_write(cfg)
 
@@ -218,6 +214,14 @@ class CPLDVersion:
     def cfg_drhold_all(self, cpld, state: TInt32):
         self._not_implemented()
 
+    @kernel
+    def cfg_io_update(self, cpld, channel: TInt32, on: TBool):
+        self._not_implemented()
+
+    @kernel
+    def cfg_io_update_all(self, cpld, state: TInt32):
+        self._not_implemented()
+
 
 class ProtoRev8(CPLDVersion):
     """
@@ -306,6 +310,11 @@ class ProtoRev8(CPLDVersion):
         cfg = cpld.cfg_reg
         # Don't pulse MASTER_RESET (m-labs/artiq#940)
         cpld.cfg_reg = cfg | (0 << ProtoRev8.CFG_RST) | (1 << ProtoRev8.CFG_IO_RST)
+        # Preemptively enable the SPI. Voltages of both common mode and
+        # differential are too small initially.
+        # This dummy config value is similar to the coming SPI config
+        cpld.bus.set_config_mu(SPI_CONFIG, 24, SPIT_CFG_WR, CS_CFG)
+        delay(1 * us)
         if blind:
             cpld.cfg_write(cpld.cfg_reg)
         elif urukul_sta_proto_rev(self.sta_read(cpld))!= STA_PROTO_REV_8:
@@ -378,6 +387,24 @@ class ProtoRev8(CPLDVersion):
         :param state: MASK_NU state as a 4-bit integer.
         """
         cpld._configure_all_bits(ProtoRev8.CFG_MASK_NU, state)
+
+    @kernel
+    def cfg_io_update(self, cpld, channel: TInt32, on: TBool):
+        """Configure the IO_UPDATE bit in the configuration register.
+
+        :param channel: Channel index (0-3). Unused (here for backwards compatability).
+        :param on: IO_UPDATE state
+        """
+        cpld._configure_bit(ProtoRev8.CFG_IO_UPDATE, 0, on)
+
+    @kernel
+    def cfg_io_update_all(self, cpld, state: TInt32):
+        """Configure the IO_UPDATE bit in the configuration register.
+
+        :param state: IO_UPDATE state as a 4-bit integer.
+            IO_UPDATE is asserted if any bit(s) is/are asserted, deasserted otherwise.
+        """
+        self.cfg_io_update(cpld, 0, (state & 0xF) != 0)
 
 
 class ProtoRev9(CPLDVersion):
@@ -484,6 +511,11 @@ class ProtoRev9(CPLDVersion):
         cfg = cpld.cfg_reg
         # Don't pulse MASTER_RESET (m-labs/artiq#940)
         cpld.cfg_reg = cfg | (int64(0) << ProtoRev9.CFG_RST) | (int64(1) << ProtoRev9.CFG_IO_RST)
+        # Preemptively enable the SPI. Voltages of both common mode and
+        # differential are too small initially.
+        # This dummy config value is the coming SPI config
+        cpld.bus.set_config_mu(SPI_CONFIG, 24, SPIT_CFG_WR, CS_CFG)
+        delay(1 * us)
         if blind:
             cpld.cfg_write(cpld.cfg_reg)
         elif urukul_sta_proto_rev(self.sta_read(cpld))!= STA_PROTO_REV_9:
@@ -622,6 +654,23 @@ class ProtoRev9(CPLDVersion):
         :param state: DRHOLD state as a 4-bit integer.
         """
         cpld._configure_all_bits(ProtoRev9.CFG_DRHOLD, state)
+
+    @kernel
+    def cfg_io_update(self, cpld, channel: TInt32, on: TBool):
+        """Configure the IO_UPDATE bit for the given channel in the configuration register.
+
+        :param channel: Channel index (0-3)
+        :param on: IO_UPDATE state
+        """
+        cpld._configure_bit(ProtoRev9.CFG_IO_UPDATE, channel, on)
+
+    @kernel
+    def cfg_io_update_all(self, cpld, state: TInt32):
+        """Configure all four IO_UPDATE bits in the configuration register.
+
+        :param state: IO_UPDATE state as a 4-bit integer.
+        """
+        cpld._configure_all_bits(ProtoRev9.CFG_IO_UPDATE, state)
 
 
 class CPLD:
@@ -804,6 +853,14 @@ class CPLD:
     @kernel
     def cfg_drhold_all(self, state: TInt32):
         self.version.cfg_drhold_all(self, state)
+    
+    @kernel
+    def cfg_io_update(self, channel: TInt32, on: TBool):
+        self.version.cfg_io_update(self, channel, on)
+
+    @kernel
+    def cfg_io_update_all(self, state: TInt32):
+        self.version.cfg_io_update_all(self, state)
 
     @kernel
     def cfg_sw(self, channel: TInt32, on: TBool):

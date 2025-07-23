@@ -13,6 +13,7 @@ crate-type = ["staticlib"]
 build_misoc = { path = "../libbuild_misoc" }
 
 [dependencies]
+byteorder = { version = "1.0", default-features = false }
 cslice = { version = "0.3" }
 eh = { path = "../libeh" }
 io = { path = "../libio", features = ["byteorder"] }

@@ -7,6 +7,7 @@ from sipyco.sync_struct import (Notifier, process_mod, ModAction,
 from sipyco import pyon
 from sipyco.tools import TaskObject
 
+from artiq import compat
 from artiq.tools import file_import
 
 
@@ -50,7 +51,7 @@ class DatasetDB(TaskObject):
         data = dict()
         with self.lmdb.begin() as txn:
             for key, value_and_metadata in txn.cursor():
-                value, metadata = pyon.decode(value_and_metadata.decode())
+                value, metadata = compat.pyon_decode(value_and_metadata.decode())
                 data[key.decode()] = (True, value, metadata)
         self.data = Notifier(data)
         self.pending_keys = set()

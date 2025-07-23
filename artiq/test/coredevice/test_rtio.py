@@ -330,6 +330,20 @@ class Underflow(EnvExperiment):
             self.ttl_out.pulse(25*ns)
 
 
+class Overflow(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.setattr_device("loop_in")
+
+    @kernel
+    def run(self):
+        self.core.reset()
+        for _ in range(100000):  # arbitrary large number to overflow input FIFO
+            self.loop_in.sample_input()
+            delay(1*us)  # long enough to avoid underflow from sample_input()
+        self.loop_in.sample_get()
+
+
 class SequenceError(EnvExperiment):
     def build(self):
         self.setattr_device("core")
@@ -498,6 +512,10 @@ class CoredeviceTest(ExperimentCase):
     def test_underflow(self):
         with self.assertRaises(RTIOUnderflow):
             self.execute(Underflow)
+
+    def test_overflow(self):
+        with self.assertRaises(RTIOOverflow):
+            self.execute(Overflow)
 
     def execute_and_test_in_log(self, experiment, string):
         core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]

@@ -443,6 +443,10 @@
                         },
                         "pll_vco": {
                             "type": "integer"
+                        },
+                        "proto_rev": {
+                            "type": "integer",
+                            "default": 9
                         }
                     },
                     "required": ["sampler_ports", "urukul0_ports"]

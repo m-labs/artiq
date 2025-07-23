@@ -7,13 +7,17 @@ ARTIQ-9 (Unreleased)
 --------------------
 
 * Hardware support:
-   - CoaXPress grabber support on ZC706 with Hello-FPGA CXP 4R FMC card.
-   - CoaXPress grabber support on Kasli-SoC with CoaXPress-SFP adapter.
+   - 12Gbps CoaXPress grabber support on Kasli-SoC with CoaXPress-SFP adapter
+     (and ZC706 with Hello-FPGA CXP 4R FMC card).
    - Improved SDRAM memory controller and DMA cores puts Kasli DMA performance on par with
      other platforms.
-   - DRTIO repeater support across GT/EEM. This enables Shuttler support on DRTIO satellites.
    - Core device reflashing over the network through the new ``flash`` tool in ``artiq_coremgmt``.
      It also supports configuring and reflashing DRTIO satellites over the DRTIO link.
+   - Updated Rust support for Zynq-7000 firmware. RPC throughput show 46% speedup when sending
+     bytes and integer arrays, and slight improvements in other cases.
+   - Urukul 1.6 support and new Urukul capabilities: Digital Ramp Generation (DRG) and individual
+     per-channel control for PROFILE, IO_UPDATE, OSK, DRCTRL, DRHOLD, and ATT_EN.
+   - DRTIO repeater support across GT/EEM. This enables Shuttler support on DRTIO satellites.
    - Fastino monitoring with Moninj.
    - Zotino monitoring now displays the values in volts.
    - artiq_flash can now flash Phaser through a Digilent HS2 Programming cable.
@@ -21,35 +25,42 @@ ARTIQ-9 (Unreleased)
      for the AD9834 DDS, tested with the ZonRi Technology Co., Ltd. AD9834-Module.
    - Configurable number of Grabber ROI engines through the ``roi_engine_count``
      property in the system description JSON file.
+   - Idle kernels now restart when written with ``artiq_coremgmt`` and stop when erased/removed
+     from config.
 * Dashboard:
    - Experiment windows can have different colors, selected by the user.
    - The Log pane now adapts to dark system color themes.
    - Schedule display columns can now be reordered and shown/hidden using the table
      header context menu.
    - State files are now automatically backed up upon successful loading.
+   - Experiments can now use ``restart_applet`` CCB command to restart applets.
 * ``afws_client`` now uses the "happy eyeballs" algorithm (RFC 6555) for a faster and more
   reliable connection to the server.
 * Compiler can now give automatic suggestions for ``kernel_invariants``. 
-* Idle kernels now restart when written with ``artiq_coremgmt`` and stop when erased/removed from config.
-* Updated Rust support for Zynq-7000 firmware:
-   - RPC throughput: 46% increase when sending bytes and integer arrays, and slight
-     improvements in other cases.
 * Qt6 support.
-* Python 3.12 support.
+* Python 3.12 and 3.13 support.
 * The Zadig driver installer was added to the MSYS2 offline installer.
 * ``artiq.coredevice.fmcdio_vhdci_eem`` has been removed.
-* ``artiq.coredevice.urukul``, ``artiq.coredevice.ad9910``, and ``artiq.coredevice.ad9912``
-  have been updated for new Urukul capabilities:
 
-   - Digital Ramp Generation (DRG)
-   - Individual DDS Channel control:
+Breaking changes:
 
-      * PROFILE
-      * IO_UPDATE
-      * OSK
-      * DRCTRL
-      * DRHOLD
-      * ATT_EN
+* Migration to PYON v2:
+   - Serialized data is always stored as PYON v2. Ensure backups of existing PYON v1 data
+     exist before starting ARTIQ-9. Keep a backup of the PYON v1 dataset DB.
+   - Both PYON v1 and PYON v2 sipyco pc_rpc controllers are supported simultaneously.
+     PYON v2 support will be required in a future sipyco/ARTIQ release.
+   - Custom applets, sync_struct/broadcast consumers (dataset db, scheduler, log, experiment db)
+     require PYON v2: ensure sipyco v2 is used.
+   - When PYON v2 decoding fails in the following contexts, decoding as PYON v1 is attempted.
+     The support for PYON v1 decoding will be removed in a future ARTIQ release.
+      + Dataset DB file
+      + HDF5 results ``expid``. Note that existing files are never altered.
+      + artiq_client set-dataset
+      + command line experiment arguments (artiq_run/artiq_client submit/artiq_compile)
+      + PYONValue data
+      + Interactive arguments (artiq_run, artiq_client)
+      + Waveform channel list file
+      + devarg overrides
 
 ARTIQ-8
 -------

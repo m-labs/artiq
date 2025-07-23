@@ -114,7 +114,7 @@ The official examples are stored in the ``examples`` folder of the ARTIQ package
 
 Copy the ``examples`` folder from that path into your home or user directory, and start experimenting! (Note that some examples have dependencies not included with a standard ARTIQ install, like matplotlib and numba. To run those examples properly, make sure those modules are accessible.)
 
-If you have progressed past this level and would like to see more in-depth code or real-life examples of how other groups have handled running experiments with ARTIQ, see the "Community code" directory on the M-labs `resources page <https://m-labs.hk/experiment-control/resources/>`_.
+If you have progressed past this level and would like to see more in-depth code or real-life examples of how other groups have handled running experiments with ARTIQ, see the "Community code" directory on the M-labs `resources page <https://m-labs.hk/artiq/resources/>`_.
 
 fix ``failed to connect to moninj`` in the dashboard?
 -----------------------------------------------------
@@ -323,7 +323,7 @@ Other related documentation
 - the `Migen manual <https://m-labs.hk/migen/manual/>`_
 - in a pinch, the `M-labs internal docs <https://git.m-labs.hk/sinara-hw/assembly>`_
 
-For more advanced questions, sometimes the `list of publications <https://m-labs.hk/experiment-control/publications/>`_ about experiments performed using ARTIQ may be interesting. See also the official M-Labs `resources <https://m-labs.hk/experiment-control/resources/>`_ page, especially the section on community code.
+For more advanced questions, sometimes the `list of publications <https://m-labs.hk/artiq/publications/>`_ about experiments performed using ARTIQ may be interesting. See also the official M-Labs `resources <https://m-labs.hk/artiq/resources/>`_ page, especially the section on community code.
 
 "Help, I've done my best and I can't get any further!"
 ------------------------------------------------------

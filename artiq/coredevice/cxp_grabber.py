@@ -20,27 +20,30 @@ class CXPGrabberTimeoutException(Exception):
 
 
 @syscall(flags={"nounwind"})
-def cxp_download_xml_file(buffer: TList(TInt32)) -> TInt32:
+def cxp_download_xml_file(dest: TInt32, buffer: TList(TInt32)) -> TInt32:
     raise NotImplementedError("syscall not simulated")
 
 
 @syscall(flags={"nounwind"})
-def cxp_read32(addr: TInt32) -> TInt32:
+def cxp_read32(dest: TInt32, addr: TInt32) -> TInt32:
     raise NotImplementedError("syscall not simulated")
 
 
 @syscall(flags={"nounwind"})
-def cxp_write32(addr: TInt32, val: TInt32) -> TNone:
+def cxp_write32(dest: TInt32, addr: TInt32, val: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 
 @syscall(flags={"nounwind"})
-def cxp_start_roi_viewer(x0: TInt32, y0: TInt32, x1: TInt32, y1: TInt32) -> TNone:
+def cxp_start_roi_viewer(
+    dest: TInt32, x0: TInt32, y0: TInt32, x1: TInt32, y1: TInt32
+) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 
 @syscall(flags={"nounwind"})
 def cxp_download_roi_viewer_frame(
+    dest: TInt32,
     buffer: TList(TInt64),
 ) -> TTuple([TInt32, TInt32, TInt32]):
     raise NotImplementedError("syscall not simulated")
@@ -274,7 +277,7 @@ class CXPGrabber:
         :param address: 32-bit register address to read from
         :returns: 32-bit value from register
         """
-        return cxp_read32(address)
+        return cxp_read32(self.channel >> 16, address)
 
     @kernel
     def write32(self, address: TInt32, value: TInt32):
@@ -286,7 +289,7 @@ class CXPGrabber:
         :param address: 32-bit register address to write to
         :param value: 32-bit value to be written
         """
-        cxp_write32(address, value)
+        cxp_write32(self.channel >> 16, address, value)
 
     @kernel
     def read_local_xml(self, buffer):
@@ -300,7 +303,7 @@ class CXPGrabber:
         :param buffer: list to be filled
         :returns: number of 32-bit words read
         """
-        return cxp_download_xml_file(buffer)
+        return cxp_download_xml_file(self.channel >> 16, buffer)
 
     @kernel
     def start_roi_viewer(self, x0, y0, x1, y1):
@@ -311,7 +314,7 @@ class CXPGrabber:
 
         .. warning:: This is NOT a real-time operation.
         """
-        cxp_start_roi_viewer(x0, y0, x1, y1)
+        cxp_start_roi_viewer(self.channel >> 16, x0, y0, x1, y1)
 
     @kernel
     def read_roi_viewer_frame(self, frame):
@@ -326,7 +329,9 @@ class CXPGrabber:
         :returns: the frame bit depth
         """
         buffer = [0] * 1024
-        width, height, pixel_width = cxp_download_roi_viewer_frame(buffer)
+        width, height, pixel_width = cxp_download_roi_viewer_frame(
+            self.channel >> 16, buffer
+        )
         if height != len(frame) or width != len(frame[0]):
             raise ValueError(
                 "The frame matrix size is not the same as ROI viewer frame size"
