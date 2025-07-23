@@ -10,9 +10,10 @@ from artiq import __version__ as artiq_version
 from artiq.coredevice import jsondesc
 from artiq.coredevice.phaser import PHASER_GW_MIQRO, PHASER_GW_BASE
 
+DRTIO_EEM_PERIPHERALS = ["shuttler", "songbird", "phaser_drtio"]
 
 def get_cpu_target(description):
-    if description.get("type", None) in ["shuttler", "songbird"]:
+    if description.get("type", None) in DRTIO_EEM_PERIPHERALS:
         return "rv32g"
     if description["target"] == "kasli":
         if description["hw_rev"] in ("v1.0", "v1.1"):
@@ -669,6 +670,143 @@ class PeripheralManager:
             channel=rtio_offset)
         return n_channels
 
+    def process_phaser_drtio(self, peripheral):
+        phaser_name = self.get_name("phaser_drtio_" + peripheral["gateware_variant"])
+        rtio_offset = peripheral["drtio_destination"] << 16
+        rtio_offset += self.add_board_leds(
+            rtio_offset, board_name=phaser_name, num_leds=5
+        )
+
+        has_upconverter = peripheral["hardware_variant"] == "upconverter" 
+        channel = count(0)
+        device_class_names = [
+            "dac",
+            "iquc0",
+            "iquc1",
+            "att0",
+            "att1",
+        ]
+        for ch, device_name in enumerate(device_class_names):
+            spi_name = "{name}_spi{ch}".format(name=phaser_name, ch=ch)
+            self.gen(
+                """
+                device_db["{spi}"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.spi2",
+                    "class": "SPIMaster",
+                    "arguments": {{"channel": 0x{channel:06x}}},
+                }}""",
+                spi=spi_name,
+                channel=rtio_offset + next(channel),
+            )
+            if "dac" in device_name:
+                self.gen(
+                    """
+                    device_db["{name}_{device}"] = {{
+                        "type": "local",
+                        "module": "artiq.coredevice.dac34h84",
+                        "class": "DAC34H84",
+                        "arguments": {{
+                            "spi_device": "{spi}",
+                            "input_sample_rate": {input_sample_rate},
+                        }},
+                    }}""",
+                    name=phaser_name,
+                    device=device_name.lower(),
+                    spi=spi_name,
+                    input_sample_rate=peripheral["dds_bandwidth"],
+                )
+            elif "iquc" in device_name and has_upconverter:
+                self.gen(
+                    """
+                    device_db["{name}_{device}"] = {{
+                        "type": "local",
+                        "module": "artiq.coredevice.trf372017",
+                        "class": "TRF372017",
+                        "arguments": {{
+                            "spi_device": "{spi}",
+                            "refclk": {refclk},
+                            "use_external_lo": False,
+                        }},
+                    }}""",
+                    name=phaser_name,
+                    device=device_name.lower(),
+                    spi=spi_name,
+                    refclk=self.primary_description["rtio_frequency"],
+                )
+            elif "att" in device_name:
+                self.gen(
+                    """
+                    device_db["{name}_{device}"] = {{
+                        "type": "local",
+                        "module": "artiq.coredevice.hmc542b",
+                        "class": "HMC542B",
+                        "arguments": {{"spi_device": "{spi}"}},
+                    }}""",
+                    name=phaser_name,
+                    device=device_name.lower(),
+                    spi=spi_name,
+                )
+
+        if peripheral["gateware_variant"] == "mtdds":
+            tones = peripheral["tones"]
+            self.gen(
+                """
+                device_db["{name}_fpga"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.phaser_drtio",
+                    "class": "PhaserMTDDS",
+                    "arguments": {{
+                        "channel": 0x{channel:06x},
+                        "sysclk": {sysclk},
+                        "dac_device": "{name}_dac",
+                    }}
+                }}""",
+                name=phaser_name,
+                channel=rtio_offset + next(channel),
+                sysclk=self.primary_description["rtio_frequency"],
+            )
+            for ch in range(2):
+                self.gen(
+                    """
+                    device_db["{name}_channel{ch}"] = {{
+                        "type": "local",
+                        "module": "artiq.coredevice.phaser_drtio",
+                        "class": "PhaserMTDDSChannel",
+                        "arguments": {{
+                            "channel_index": {ch},
+                            "tones": {tones},
+                            "fpga_device": "{name}_fpga",
+                            "dac_device": "{name}_dac",
+                            "att_device": "{name}_att{ch}",
+                            "dds_device_prefix": "{name}_channel{ch}_dds"{iquc_device}
+                        }}
+                    }}""",
+                    name=phaser_name,
+                    ch=ch,
+                    tones=tones,
+                    iquc_device= ",\n        \"iquc_device\": \"{}_iquc{}\"".format(phaser_name, ch) if has_upconverter else "",
+                )
+                for n in range(tones):
+                    self.gen(
+                        """
+                        device_db["{name}_channel{ch}_dds{n}"] = {{
+                            "type": "local",
+                            "module": "artiq.coredevice.phaser_drtio",
+                            "class": "PhaserDDS",
+                            "arguments": {{
+                                "channel": 0x{channel:06x},
+                                "bandwidth": {bandwidth},
+                            }}
+                        }}""",
+                        name=phaser_name,
+                        ch=ch,
+                        n=n,
+                        channel=rtio_offset + next(channel),
+                        bandwidth=peripheral["dds_bandwidth"],
+                    )
+        return 0
+
     def process_hvamp(self, rtio_offset, peripheral):
         hvamp_name = self.get_name("hvamp")
         for i in range(8):
@@ -839,8 +977,7 @@ class PeripheralManager:
 
 
 def split_drtio_eem(peripherals):
-    # Shuttler is the only peripheral that uses DRTIO-over-EEM at this moment
-    drtio_eem_filter = lambda peripheral: peripheral["type"] in ["shuttler", "songbird"]
+    drtio_eem_filter = lambda peripheral: peripheral["type"] in DRTIO_EEM_PERIPHERALS
     return filterfalse(drtio_eem_filter, peripherals), \
         list(filter(drtio_eem_filter, peripherals))
 
