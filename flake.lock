@@ -12,11 +12,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1752484554,
-        "narHash": "sha256-djDtZBtKrG1l8mEoQYKvbft3q3Pb1BH8IAkwzz6k6DU=",
+        "lastModified": 1753274984,
+        "narHash": "sha256-VZhmNafIj++z2cYLwCxWvnhOctqnIOAvA1/r+WEy+LI=",
         "owner": "m-labs",
         "repo": "artiq-comtools",
-        "rev": "5a58c1095caab77f56e890a7faa0687fe7e8175a",
+        "rev": "25f1f2aae1b7e38f1315e40e448211430c3924df",
         "type": "github"
       },
       "original": {
@@ -179,11 +179,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1752168638,
-        "narHash": "sha256-wH+RiSaALa9Y4DVW2kDOTXUAjCmREIjq3oN9GuA6L70=",
+        "lastModified": 1753275053,
+        "narHash": "sha256-ukZqfmWV0zyMTZL3UK4gBZlIsEW/HdE0Kc6DO+Opoes=",
         "owner": "m-labs",
         "repo": "sipyco",
-        "rev": "01f2e37ea13cb7f297321104319428b1ddf546fc",
+        "rev": "7a0d0d7a95695cf18f1b60b8320b10a26df53f36",
         "type": "github"
       },
       "original": {
