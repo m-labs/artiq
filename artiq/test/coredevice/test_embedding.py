@@ -703,3 +703,66 @@ class BoolListTypeTest(ExperimentCase):
 
     def test_np_bool_list(self):
         self.create(_BoolListType).run_numpy_bool()
+
+
+@compile
+class _StaticMethods(EnvExperiment):
+    core: KernelInvariant[Core]
+
+    def build(self):
+        self.setattr_device("core")
+
+    @staticmethod
+    @rpc
+    def static_rpc_add(a: int32, b: int32) -> int32:
+        return a + b
+
+    @rpc
+    @staticmethod
+    def static_rpc_sub(a: int32, b: int32) -> int32:
+        return a - b
+
+    @staticmethod
+    @kernel
+    def static_kernel_add(a: int32, b: int32) -> int32:
+        return a + b
+
+    @kernel
+    @staticmethod
+    def static_kernel_sub(a: int32, b: int32) -> int32:
+        return a - b
+
+    @kernel
+    def static_rpc_fn(self) -> int32:
+        two = _StaticMethods.static_rpc_sub(3, 1)
+        return _StaticMethods.static_rpc_add(1, two)
+
+    @kernel
+    def static_kernel_fn(self) -> int32:
+        two = _StaticMethods.static_kernel_sub(3, 1)
+        return _StaticMethods.static_kernel_add(1, two)
+
+    @kernel
+    def static_call_on_instance(self) -> int32:
+        return self.static_kernel_add(1, 2)
+
+    @staticmethod
+    def static_host(a, b):
+        return a + b
+
+
+class StaticMethodsTest(ExperimentCase):
+    def test_rpc_staticmethod(self):
+        exp = self.create(_StaticMethods)
+        self.assertEqual(exp.static_rpc_fn(), 3)
+
+    def test_kernel_staticmethod(self):
+        exp = self.create(_StaticMethods)
+        self.assertEqual(exp.static_kernel_fn(), 3)
+
+    def test_host_staticmethod(self):
+        self.assertEqual(_StaticMethods.static_host(1, 2), 3)
+
+    def test_static_call_on_instance(self):
+        exp = self.create(_StaticMethods)
+        self.assertEqual(exp.static_call_on_instance(), 3)
