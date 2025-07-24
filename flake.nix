@@ -456,7 +456,7 @@
             python3Packages.sphinxcontrib-wavedrom
             python3Packages.sphinx_rtd_theme
 
-            (packages.x86_64-linux.python3-mimalloc.withPackages (ps: [migen misoc microscope ps.packaging] ++ artiq.propagatedBuildInputs))
+            (packages.x86_64-linux.python3-mimalloc.withPackages (ps: [migen misoc microscope ps.packaging ps.paramiko] ++ artiq.propagatedBuildInputs))
           ]
           ++ [
             latex-artiq-manual
@@ -487,7 +487,7 @@
           packages.x86_64-linux.vivado
           packages.x86_64-linux.openocd-bscanspi
 
-          (pkgs.python3.withPackages (ps: [migen misoc artiq ps.packaging]))
+          (pkgs.python3.withPackages (ps: [migen misoc artiq ps.packaging ps.paramiko]))
         ];
       };
     };
