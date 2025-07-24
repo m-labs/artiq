@@ -571,6 +571,7 @@
             sleep 30
 
             python -m unittest discover -v artiq.test.coredevice
+            NAC3_OPT_LEVEL=0 python -m unittest discover -v artiq.test.coredevice
           )
 
           touch $out
