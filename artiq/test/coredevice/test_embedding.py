@@ -464,7 +464,6 @@ class _EmptyList(EnvExperiment):
 
 
 class ListTupleTest(ExperimentCase):
-    @unittest.skip("NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/529")
     def test_list_tuple(self):
         self.create(_ListTuple).run()
 
