@@ -280,7 +280,7 @@ class Satellite(BaseSoC, AMPSoC):
             print("LTC2000 DAC SPI at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
             self.rtio_channels.append(rtio.Channel.from_phy(ltc2000_spi_phy))
 
-            self.submodules.ltc2000_dds = LTC2000(self.platform, ltc2000_pads)
+            self.submodules.ltc2000_dds = LTC2000(self.platform, ltc2000_pads, rtio_clk_freq)
 
             for phy in self.ltc2000_dds.phys:
                 print("LTC2000 {} at RTIO channel 0x{:06x}".format(phy.name, len(self.rtio_channels)))
