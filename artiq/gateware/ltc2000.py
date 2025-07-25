@@ -1,10 +1,11 @@
 from artiq.gateware import rtio
 from migen import *
+from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from misoc.interconnect.csr import AutoCSR, CSRStorage
 from misoc.interconnect.stream import Endpoint
 from artiq.gateware.ltc2000phy import Ltc2000phy
 from artiq.gateware.rtio import rtlink
-from misoc.cores.duc import PhasedAccu, CosSinGen, saturate
+from misoc.cores.duc import PhasedAccuPipelined, CosSinGen, saturate
 from collections import namedtuple
 
 class SumAndScale(Module):
@@ -26,10 +27,10 @@ class SumAndScale(Module):
 
         # Finally, shift and saturate
         self.sync += [
-            If(sum_all >> 15 > 32767,
-                self.output.eq(32767)
-            ).Elif(sum_all >> 15 < -32768,
-                self.output.eq(-32768)
+            If(sum_all >> 15 > 0x7FFF,
+                self.output.eq(0x7FFF)
+            ).Elif(sum_all >> 15 < -0x8000,
+                self.output.eq(-0x8000)
             ).Else(
                 self.output.eq(sum_all >> 15)
             )
@@ -47,7 +48,7 @@ class PolyphaseDDS(Module):
 
         ###
 
-        paccu = PhasedAccu(n, fwidth, pwidth)
+        paccu = PhasedAccuPipelined(n, fwidth, pwidth)
         self.comb += paccu.clr.eq(self.clr)
         self.comb += paccu.f.eq(self.ftw)
         self.comb += paccu.p.eq(self.ptw)
@@ -69,11 +70,15 @@ class DoubleDataRateDDS(Module):
 
         ###
 
-        paccu = ClockDomainsRenamer("sys2x")(PhasedAccu(n, fwidth, pwidth)) # Running this at 2x clock speed
+        paccu = ClockDomainsRenamer("sys2x")(PhasedAccuPipelined(n, fwidth, pwidth)) # Running this at 2x clock speed
+        self.submodules.clear = PulseSynchronizer("sys", "sys2x")
         self.comb += [
-            paccu.clr.eq(self.clr),
-            paccu.f.eq(self.ftw),
-            paccu.p.eq(self.ptw),
+            self.clear.i.eq(self.clr),
+            paccu.clr.eq(self.clear.o)
+        ]
+        self.specials += [
+            MultiReg(self.ftw, paccu.f, "sys2x", n=3),
+            MultiReg(self.ptw, paccu.p, "sys2x", n=3),
         ]
         self.submodules.paccu = paccu
         self.ddss = [ClockDomainsRenamer("sys2x")(CosSinGen()) for _ in range(n)]
@@ -91,12 +96,7 @@ class DoubleDataRateDDS(Module):
                 ),
                 counter.eq(~counter)
             ]
-        self.sync += [
-            If(~counter,
-                # Output the full dout array in sys domain
-                self.dout.eq(dout2x)
-            )
-        ]
+        self.specials += MultiReg(dout2x, self.dout)
 
 
 class LTC2000DDSModule(Module, AutoCSR):
@@ -195,12 +195,21 @@ class LTC2000DDSModule(Module, AutoCSR):
 
             self.amplitude.eq(x[0][32:])
         ]
-
-        self.submodules.dds = DoubleDataRateDDS(NPHASES, 32, 18) # 12 phases at 200 MHz => 2400 MSPS, output updated at 100 MHz
+        
+        # 12 phases at 250/200 MHz => 2400 MSPS, output updated at 125/100 MHz
+        self.submodules.dds = DoubleDataRateDDS(NPHASES, 32, 18)
+        ftw_r = Signal.like(self.ftw)
+        ptw_r = Signal.like(self.ptw)
+        clear_r = Signal.like(self.clear)
+        self.sync += [
+            ftw_r.eq(self.ftw),
+            ptw_r.eq(self.ptw),
+            clear_r.eq(self.clear),
+        ]
         self.comb += [
-            self.dds.ftw.eq(self.ftw),
-            self.dds.ptw.eq(self.ptw),
-            self.dds.clr.eq(self.clear)
+            self.dds.ftw.eq(ftw_r),
+            self.dds.ptw.eq(ptw_r),
+            self.dds.clr.eq(clear_r)
         ]
 
 
@@ -226,7 +235,7 @@ class LTC2000DataSynth(Module, AutoCSR):
 Phy = namedtuple("Phy", "rtlink probes overrides name")
 
 class LTC2000(Module, AutoCSR):
-    def __init__(self, platform, ltc2000_pads):
+    def __init__(self, platform, ltc2000_pads, clk_freq=125e6):
         NUM_OF_DDS = 4
         NPHASES = 24
 
@@ -240,12 +249,13 @@ class LTC2000(Module, AutoCSR):
 
         platform.add_extension(ltc2000_pads)
         self.dac_pads = platform.request("ltc2000")
-        self.submodules.ltc2000 = Ltc2000phy(self.dac_pads)
+        self.submodules.ltc2000 = Ltc2000phy(self.dac_pads, clk_freq)
 
         clear = Signal(NUM_OF_DDS)
-        reset = Signal()
+        self.submodules.reset = PulseSynchronizer("rio", "sys2x")
         trigger = Signal(NUM_OF_DDS)
-        self.comb += self.ltc2000.reset.eq(reset)
+
+        self.comb += self.ltc2000.reset.eq(self.reset.o)
 
         gain_iface = rtlink.Interface(rtlink.OInterface(
             data_width=16,
@@ -287,7 +297,7 @@ class LTC2000(Module, AutoCSR):
 
         self.sync.rio += [
             If(reset_iface.o.stb,
-                reset.eq(reset_iface.o.data)
+                self.reset.i.eq(reset_iface.o.data)
             )
         ]
 
@@ -315,8 +325,10 @@ class LTC2000(Module, AutoCSR):
                 self.comb += self.ltc2000datasynth.data_in[j][i].eq(self.tones[j].dds.dout[i*16:(i+1)*16])
                 self.comb += self.ltc2000datasynth.amplitudes[j][i].eq(self.tones[j].amplitude)
 
-        for i in range(NPHASES):
-            self.sync += self.ltc2000.data[i*16:(i+1)*16].eq(self.ltc2000datasynth.summers[i].output)
+        self.specials += [
+            MultiReg(self.ltc2000datasynth.summers[i].output, self.ltc2000.data[i*16:(i+1)*16], "sys2x")
+            for i in range (NPHASES)
+        ]
 
         self.phys.append(Phy(trigger_iface, [], [], 'trigger_iface'))
         self.phys.append(Phy(clear_iface, [], [], 'clear_iface'))
