@@ -29,6 +29,14 @@ def chunker(seq, size):
         yield res
 
 
+def select_chunk(seq, size, default = 0, fmt = lambda x: x):
+    selected_chunk = []
+    for chunk_n, chunk in enumerate(chunker(seq, size)):
+        selected_chunk.append(chunk)
+        print("{}: ({})".format(chunk_n, fmt(chunk)))
+    return selected_chunk[int(input() or default)]
+
+
 def is_enter_pressed() -> TBool:
     if os.name == "nt":
         if msvcrt.kbhit() and msvcrt.getch() == b"\r":
@@ -52,7 +60,6 @@ class SinaraTester(EnvExperiment):
         self.ttl_ins = dict()
         self.lvds_ttl_outs = dict()
         self.lvds_ttl_ins = dict()
-        self.lvds_ttls = dict()     # used to check if there are any lvds ttl channels requiring testing
         self.urukul_cplds = dict()
         self.urukuls = dict()
         self.samplers = dict()
@@ -79,14 +86,12 @@ class SinaraTester(EnvExperiment):
                         self.leds[name] = dev
                     elif "board" in desc and desc["board"] == "DIO_LVDS":
                         self.lvds_ttl_outs[name] = dev
-                        self.lvds_ttls[name] = dev
                     else:
                         self.ttl_outs[name] = dev
                 elif (module, cls) == ("artiq.coredevice.ttl", "TTLInOut"):
                     dev = self.get_device(name)
                     if "board" in desc and desc["board"] == "DIO_LVDS":
                         self.lvds_ttl_ins[name] = dev
-                        self.lvds_ttls[name] = dev
                     else:
                         self.ttl_ins[name] = dev
                 elif (module, cls) == ("artiq.coredevice.urukul", "CPLD"):
@@ -171,7 +176,6 @@ class SinaraTester(EnvExperiment):
         self.ttl_ins = sorted(self.ttl_ins.items(), key=lambda x: x[1].channel)
         self.lvds_ttl_outs = sorted(self.lvds_ttl_outs.items(), key=lambda x: x[1].channel)
         self.lvds_ttl_ins = sorted(self.lvds_ttl_ins.items(), key=lambda x: x[1].channel)
-        self.lvds_ttls = sorted(self.lvds_ttls.items(), key=lambda x: x[1].channel)
         self.urukuls = sorted(self.urukuls.items(), key=lambda x: (x[1].cpld.bus.channel, x[1].chip_select))
         self.samplers = sorted(self.samplers.items(), key=lambda x: x[1].cnv.channel)
         self.zotinos = sorted(self.zotinos.items(), key=lambda x: x[1].bus.channel)
@@ -262,110 +266,57 @@ class SinaraTester(EnvExperiment):
             else:
                 print("FAILED")
 
-    def test_lvds_ttls(self):
+    def test_lvds_ttl_in_chunk(self, lvds_ttl_out_chunk, lvds_ttl_in_chunk):
+        input("Connect ({}) group to ({}) group. Press ENTER when done."
+               .format(", ".join([name for name, dev in lvds_ttl_out_chunk]),
+                        ", ".join([name for name, dev in lvds_ttl_in_chunk])))
+        for (lvds_ttl_out_name, lvds_ttl_out_dev), (lvds_ttl_in_name, lvds_ttl_in_dev) in zip(lvds_ttl_out_chunk, lvds_ttl_in_chunk):
+            print("Testing {} with {}"
+                  .format(lvds_ttl_in_name, lvds_ttl_out_name))
+            if self.test_ttl_in(lvds_ttl_out_dev, lvds_ttl_in_dev):
+                print("PASSED")
+            else:
+                print("FAILED")
+
+    def test_lvds_ttl_ins(self):
+        # The LVDS-TTL card has dip switches for controlling the
+        # IO direction of each channel individually, but the gateware
+        # currently assumes a bank has all the same channels 
+
         print("*** Testing LVDS TTL inputs.")
-        lvds_ttl_out_chunk = []
-        new_ttl_out = []
-        if not self.lvds_ttl_ins:
-            print("No LVDS TTL input available for testing")
-        elif len(self.lvds_ttl_outs) < 4:
-            print("Not enough LVDS TTL output channels available to use as stimulus.")
-            print("TTL input device group to switch to output mode (default: 0):")
-            ttl_in_chunk_list = []
-            ttl_num = 4 - len(self.lvds_ttl_outs)
-            for x, ttl_chunk in enumerate(chunker(self.lvds_ttl_ins, ttl_num)):
-                if len(ttl_chunk) == ttl_num:
-                    ttl_in_chunk_list.append(ttl_chunk)
-                    print("\t{}: ({})".format(x, ", ".join(name for name, _ in ttl_chunk)))
-            new_ttl_out = ttl_in_chunk_list[int(input("") or "0")]
-            self.cfg_output_ttl(new_ttl_out)
-            lvds_ttl_out_chunk = self.lvds_ttl_outs + new_ttl_out
-        else:
-            print("LVDS TTL device group to use as stimulus (default: 0):")
-            ttl_out_chunk_list = []
-            for x, ttl_chunk in enumerate(chunker(self.lvds_ttl_outs, 4)):
-                if len(ttl_chunk) == 4:
-                    ttl_out_chunk_list.append(ttl_chunk)
-                    print("\t{}: ({})".format(x, ", ".join(name for name, _ in ttl_chunk)))
-            lvds_ttl_out_chunk = ttl_out_chunk_list[int(input("") or "0")]
-
-        if self.lvds_ttl_ins:
-            self.test_lvds_ttl_ins(lvds_ttl_out_chunk)
-        
-        if new_ttl_out:
-            self.cfg_input_ttl(new_ttl_out)
-        
-        print("")
-        print("*** Testing LVDS TTL outputs.")
-
         if not self.lvds_ttl_outs:
-            print("No LVDS TTL output channels to be tested.")
+            print("No LVDS TTL output channel available to use as stimulus.")
             return
-        if len(self.lvds_ttl_ins) < 4:
-            print("Not enough LVDS TTL input channels available for testing outputs.")
-            print("Using default method to test outputs...")
-            print("")
+
+        print("TTL device group to use as stimulus (default: 0):")
+        lvds_ttl_out_chunk = select_chunk(self.lvds_ttl_outs, 4, 
+                                            fmt=lambda x: ", ".join([name for name, dev in x]))
+        for lvds_ttl_in_chunk in chunker([ttl_ins for ttl_ins in self.lvds_ttl_ins if ttl_ins not in lvds_ttl_out_chunk], 4):
+            self.test_lvds_ttl_in_chunk(lvds_ttl_out_chunk, lvds_ttl_in_chunk)
+
+    def test_lvds_ttl_outs(self):
+        # The LVDS-TTL card has dip switches for controlling the
+        # IO direction of each channel individually, but the gateware
+        # currently assumes a bank has all the same channels
+
+        print("*** Testing LVDS TTL outputs.")
+        if not self.lvds_ttl_ins:
+            print("No LVDS TTL input channel available to test output.")
+            print("Test TTL outputs with oscilloscope.")
             print("Outputs are tested in groups of 4. Touch each TTL connector")
             print("with the oscilloscope probe tip, and check that the number of")
             print("pulses corresponds to its number in the group.")
             print("Press ENTER when done.")
-            for ttl_chunk in chunker(self.lvds_ttl_outs, 4):
-                print("Testing LVDS TTL outputs: {}.".format(", ".join(name for name, dev in ttl_chunk)))
-                self.test_ttl_out_chunk([dev for name, dev in ttl_chunk])
+            for lvds_ttl_chunk in chunker(self.lvds_ttl_outs, 4):
+                print("Testing LVDS TTL outputs: {}.".format(", ".join(name for name, dev in lvds_ttl_chunk)))
+                self.test_ttl_out_chunk([dev for name, dev in lvds_ttl_chunk])
             return
-        
-        print("TTL input device group for testing outputs (default: 0):")
-        ttl_in_chunk = []
-        for x, ttl_chunk in enumerate(chunker(self.lvds_ttl_ins, 4)):
-            if len(ttl_chunk) == 4:
-                ttl_in_chunk.append(ttl_chunk)
-                print("\t{}: ({})".format(x, ", ".join(name for name, _ in ttl_chunk)))
-        lvds_ttl_in_chunk = ttl_in_chunk[int(input("") or "0")]
 
-        self.test_lvds_ttl_outs(lvds_ttl_in_chunk)
-
-    def test_lvds_ttl_ins(self, lvds_ttl_out_chunk):
-        for lvds_ttl_in_chunk in chunker([(name, dev) for name, dev in self.lvds_ttl_ins if (name, dev) not in lvds_ttl_out_chunk], 4):
-            lvds_ttl_in_str = ", ".join(name for name, dev in lvds_ttl_in_chunk)
-            lvds_ttl_out_str = ", ".join(name for name, dev in lvds_ttl_out_chunk[:len(lvds_ttl_in_chunk)])
-            input("Connect ({}) group to ({}) group. Press ENTER when done.".format(lvds_ttl_out_str, lvds_ttl_in_str))
-            for x, _ in enumerate(lvds_ttl_in_chunk):
-                lvds_ttl_in, lvds_ttl_in_dev = lvds_ttl_in_chunk[x]
-                lvds_ttl_out, lvds_ttl_out_dev = lvds_ttl_out_chunk[x]
-                print(f"Testing {lvds_ttl_in} with {lvds_ttl_out}... ", end="")
-
-                if self.test_ttl_in(lvds_ttl_out_dev, lvds_ttl_in_dev):
-                    print("PASSED")
-                else:
-                    print("FAILED")
-
-    
-    def test_lvds_ttl_outs(self, lvds_ttl_in_chunk):
-        for lvds_ttl_out_chunk in chunker(self.lvds_ttl_outs, 4):
-            lvds_ttl_in_str = ", ".join(name for name, dev in lvds_ttl_in_chunk[:len(lvds_ttl_out_chunk)])
-            lvds_ttl_out_str = ", ".join(name for name, dev in lvds_ttl_out_chunk)
-            input("Connect ({}) group to ({}) group. Press ENTER when done.".format(lvds_ttl_out_str, lvds_ttl_in_str))
-            for x, _ in enumerate(lvds_ttl_out_chunk):
-                lvds_ttl_in, lvds_ttl_in_dev = lvds_ttl_in_chunk[x]
-                lvds_ttl_out, lvds_ttl_out_dev = lvds_ttl_out_chunk[x]
-                print(f"Testing {lvds_ttl_out} with {lvds_ttl_in}... ", end="")
-
-                if self.test_ttl_in(lvds_ttl_out_dev, lvds_ttl_in_dev):
-                    print("PASSED")
-                else:
-                    print("FAILED")
-    
-    @kernel
-    def cfg_output_ttl(self, lvds_ttl_in_chunk):
-        self.core.break_realtime()
-        for (lvds_ttl_in, lvds_ttl_in_dev) in lvds_ttl_in_chunk:
-            lvds_ttl_in_dev.output()
-    
-    @kernel
-    def cfg_input_ttl(self, lvds_ttl_in_chunk):
-        self.core.break_realtime()
-        for (lvds_ttl_in, lvds_ttl_in_dev) in lvds_ttl_in_chunk:
-            lvds_ttl_in_dev.input()
+        print("TTL device group to use as input (default: 0):")
+        lvds_ttl_in_chunk = select_chunk(self.lvds_ttl_ins, 4, 
+                                            fmt=lambda x: ", ".join([name for name, dev in x]))
+        for lvds_ttl_out_chunk in chunker([ttl_outs for ttl_outs in self.lvds_ttl_outs if ttl_outs not in lvds_ttl_in_chunk], 4):
+            self.test_lvds_ttl_in_chunk(lvds_ttl_out_chunk, lvds_ttl_in_chunk)
 
     @kernel
     def init_urukul(self, cpld):
