@@ -113,6 +113,7 @@ mod api;
 mod rtio;
 mod nrt_bus;
 mod cxp;
+mod mem;
 
 static mut LIBRARY: Option<Library<'static>> = None;
 
