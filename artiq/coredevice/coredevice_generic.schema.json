@@ -146,7 +146,7 @@
             "properties": {
                 "type": {
                     "type": "string",
-                    "enum": ["dio", "dio_spi", "urukul", "novogorny", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser", "hvamp", "shuttler", "coaxpress_sfp"]
+                    "enum": ["dio", "dio_spi", "urukul", "novogorny", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser", "hvamp", "shuttler", "ltc2000", "coaxpress_sfp"]
                 },
                 "board": {
                     "type": "string"
@@ -672,7 +672,36 @@
                     },
                     "required": ["ports"]
                 }
-            }, {
+            },{
+                "title": "ltc2000",
+                "if": {
+                    "properties": {
+                        "type": {
+                            "const": "ltc2000"
+                        }
+                    }
+                },
+                "then": {
+                    "properties": {
+                        "ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 1,
+                            "maxItems": 2
+                        },
+                        "drtio_destination": {
+                            "type": "integer"
+                        },
+                        "hw_rev": {
+                            "type": "string",
+                            "enum": ["v1.0", "v1.1"]
+                        }
+                    },
+                    "required": ["ports"]
+                }
+            },{
                 "title": "CoaXPress_SFP",
                 "if": {
                     "properties": {
