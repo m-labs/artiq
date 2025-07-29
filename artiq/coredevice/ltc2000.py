@@ -5,14 +5,13 @@ from artiq.language.core import kernel, delay
 from artiq.language.units import us
 
 class DDS:
-    """Shuttler Core DDS spline.
+    """LTC2000 Core DDS spline.
 
-    A Shuttler channel can generate a waveform `w(t)` that is the sum of a
-    cubic spline `a(t)` and a sinusoid modulated in amplitude by a cubic
-    spline `b(t)` and in phase/frequency by a quadratic spline `c(t)`, where
+    A LTC2000 channel generates a composite waveform `w(t)` according to:
 
-    .. math::
-        w(t) = a(t) + b(t) * cos(c(t))
+    ```
+    w(t) = b(t) × cos(c(t))
+    ```
 
     and `t` corresponds to time in seconds.
     This class controls the cubic spline `b(t)` and quadratic spline `c(t)`,
@@ -194,11 +193,11 @@ class Trigger:
 
     @kernel
     def trigger(self, trig_out):
-        """Triggers coefficient update of (a) Shuttler Core channel(s).
+        """Triggers coefficient update of (an) LTC2000 Core channel(s).
 
-        Each bit corresponds to a Shuttler waveform generator core. Setting
+        Each bit corresponds to an LTC2000 waveform generator core. Setting
         ``trig_out`` bits commits the pending coefficient update (from
-        ``set_waveform`` in :class:`DCBias` and :class:`DDS`) to the Shuttler Core
+        ``set_waveform`` in :class:`DCBias` and :class:`DDS`) to the LTC2000 Core
         synchronously.
 
         :param trig_out: Coefficient update trigger bits. The MSB corresponds
