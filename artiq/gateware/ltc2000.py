@@ -59,6 +59,7 @@ class PolyphaseDDS(Module):
             self.comb += dds.z.eq(paccu.z[idx])
             self.comb += self.dout[idx*16:(idx+1)*16].eq(dds.y)
 
+
 class DoubleDataRateDDS(Module):
     """Composite DDS running at twice the system clock rate.
     """
@@ -70,25 +71,25 @@ class DoubleDataRateDDS(Module):
 
         ###
 
-        paccu = ClockDomainsRenamer("sys2x")(PhasedAccuPipelined(n, fwidth, pwidth)) # Running this at 2x clock speed
-        self.submodules.clear = PulseSynchronizer("sys", "sys2x")
+        paccu = ClockDomainsRenamer("dds200")(PhasedAccuPipelined(n, fwidth, pwidth)) # Running this at 2x clock speed
+        self.submodules.clear = PulseSynchronizer("sys", "dds200")
         self.comb += [
             self.clear.i.eq(self.clr),
             paccu.clr.eq(self.clear.o)
         ]
         self.specials += [
-            MultiReg(self.ftw, paccu.f, "sys2x", n=3),
-            MultiReg(self.ptw, paccu.p, "sys2x", n=3),
+            MultiReg(self.ftw, paccu.f, "dds200"),
+            MultiReg(self.ptw, paccu.p, "dds200"),
         ]
         self.submodules.paccu = paccu
-        self.ddss = [ClockDomainsRenamer("sys2x")(CosSinGen()) for _ in range(n)]
+        self.ddss = [ClockDomainsRenamer("dds200")(CosSinGen()) for _ in range(n)]
         counter = Signal()
         dout2x = Signal((x+1)*n*2)  # output data modified in 2x domain
         for idx, dds in enumerate(self.ddss):
             setattr(self.submodules, f"dds{idx}", dds)
             self.comb += dds.z.eq(paccu.z[idx])
 
-            self.sync.sys2x += [
+            self.sync.dds200 += [
                 If(counter,
                     dout2x[idx*16:(idx+1)*16].eq(dds.x)
                 ).Else(
@@ -198,18 +199,10 @@ class LTC2000DDSModule(Module, AutoCSR):
         
         # 12 phases at 250/200 MHz => 2400 MSPS, output updated at 125/100 MHz
         self.submodules.dds = DoubleDataRateDDS(NPHASES, 32, 18)
-        ftw_r = Signal.like(self.ftw)
-        ptw_r = Signal.like(self.ptw)
-        clear_r = Signal.like(self.clear)
         self.sync += [
-            ftw_r.eq(self.ftw),
-            ptw_r.eq(self.ptw),
-            clear_r.eq(self.clear),
-        ]
-        self.comb += [
-            self.dds.ftw.eq(ftw_r),
-            self.dds.ptw.eq(ptw_r),
-            self.dds.clr.eq(clear_r)
+            self.dds.ftw.eq(self.ftw),
+            self.dds.ptw.eq(self.ptw),
+            self.dds.clr.eq(self.clear)
         ]
 
 
@@ -252,7 +245,7 @@ class LTC2000(Module, AutoCSR):
         self.submodules.ltc2000 = Ltc2000phy(self.dac_pads, clk_freq)
 
         clear = Signal(NUM_OF_DDS)
-        self.submodules.reset = PulseSynchronizer("rio", "sys2x")
+        self.submodules.reset = PulseSynchronizer("rio", "dds200")
         trigger = Signal(NUM_OF_DDS)
 
         self.comb += self.ltc2000.reset.eq(self.reset.o)
@@ -322,11 +315,13 @@ class LTC2000(Module, AutoCSR):
 
         for i in range(NPHASES):
             for j in range(NUM_OF_DDS):
-                self.comb += self.ltc2000datasynth.data_in[j][i].eq(self.tones[j].dds.dout[i*16:(i+1)*16])
-                self.comb += self.ltc2000datasynth.amplitudes[j][i].eq(self.tones[j].amplitude)
+                self.comb += [
+                    self.ltc2000datasynth.data_in[j][i].eq(self.tones[j].dds.dout[i*16:(i+1)*16]),
+                    self.ltc2000datasynth.amplitudes[j][i].eq(self.tones[j].amplitude)
+                ]
 
         self.specials += [
-            MultiReg(self.ltc2000datasynth.summers[i].output, self.ltc2000.data[i*16:(i+1)*16], "sys2x")
+            MultiReg(self.ltc2000datasynth.summers[i].output, self.ltc2000.data[i*16:(i+1)*16], "dds200")
             for i in range (NPHASES)
         ]
 
