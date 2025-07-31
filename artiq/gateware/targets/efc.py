@@ -286,18 +286,18 @@ class Satellite(BaseSoC, AMPSoC):
                 print("LTC2000 {} at RTIO channel 0x{:06x}".format(phy.name, len(self.rtio_channels)))
                 self.rtio_channels.append(rtio.Channel.from_phy(phy))
 
-            self.clock_domains.cd_sys2x = ClockDomain(reset_less=True)
-            self.clock_domains.cd_dds_out = ClockDomain(reset_less=True)
+            self.clock_domains.cd_dds200 = ClockDomain(reset_less=True)
+            self.clock_domains.cd_dds600 = ClockDomain(reset_less=True)
 
             mmcm_fb_in = Signal()
             mmcm_fb_out = Signal()
-            mmcm_sys2x = Signal()
-            mmcm_dds_out = Signal()
-            clk_period = 1e9/rtio_clk_freq
-            dds_div = 2 if rtio_clk_freq == 100e6 else 2.5
+            mmcm_dds200 = Signal()
+            mmcm_dds600 = Signal()
+
+            clk_mult = 12 if rtio_clk_freq == 100e6 else 10
             self.specials += [
                 Instance("MMCME2_BASE",
-                    p_CLKIN1_PERIOD=clk_period,
+                    p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
                     i_CLKIN1=ClockSignal(),
 
                     i_RST=ResetSignal(),
@@ -306,20 +306,21 @@ class Satellite(BaseSoC, AMPSoC):
                     o_CLKFBOUT=mmcm_fb_out,
                     #o_LOCKED=,
 
-                    # VCO @ 1.2/1.5GHz with MULT=12 (OK for -3 grade)
-                    p_CLKFBOUT_MULT_F=12, p_DIVCLK_DIVIDE=1,
+                    # VCO @ 1.2/1.25 with MULT=12/10
+                    p_CLKFBOUT_MULT_F=clk_mult, p_DIVCLK_DIVIDE=1,
 
-                    # 600MHz
-                    p_CLKOUT0_DIVIDE_F=dds_div, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=mmcm_dds_out,
+                    # 600/625MHz
+                    p_CLKOUT0_DIVIDE_F=2, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=mmcm_dds600,
 
-                    # 200/250MHz
-                    p_CLKOUT1_DIVIDE=6, p_CLKOUT1_PHASE=0.0, o_CLKOUT1=mmcm_sys2x,
+                    # 200/208.33MHz
+                    p_CLKOUT1_DIVIDE=6, p_CLKOUT1_PHASE=0.0, o_CLKOUT1=mmcm_dds200,
 
                 ),
-                Instance("BUFG", i_I=mmcm_sys2x, o_O=self.cd_sys2x.clk),
-                Instance("BUFG", i_I=mmcm_dds_out, o_O=self.cd_dds_out.clk),
+                Instance("BUFG", i_I=mmcm_dds200, o_O=self.cd_dds200.clk),
+                Instance("BUFG", i_I=mmcm_dds600, o_O=self.cd_dds600.clk),
                 Instance("BUFG", i_I=mmcm_fb_out, o_O=mmcm_fb_in)
             ]
+            platform.add_false_path_constraints(self.crg.cd_sys.clk, self.cd_dds200.clk)
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
