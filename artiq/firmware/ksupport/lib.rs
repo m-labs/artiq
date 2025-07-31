@@ -607,10 +607,19 @@ unsafe fn attribute_writeback(typeinfo: *const ()) {
     }
 }
 
+#[global_allocator]
+static mut ALLOC: alloc_list::ListAlloc = alloc_list::EMPTY;
 static mut STACK_GUARD_BASE: usize = 0x0;
+
+extern {
+    static mut _fheap_1: u8;
+    static mut _eheap_1: u8;
+}
 
 #[no_mangle]
 pub unsafe fn main() {
+    ALLOC.add_range(&mut _fheap_1, &mut _eheap_1);
+
     eh_artiq::reset_exception_buffer(KERNELCPU_PAYLOAD_ADDRESS);
     let image = slice::from_raw_parts_mut(kernel_proto::KERNELCPU_PAYLOAD_ADDRESS as *mut u8,
                                           kernel_proto::KERNELCPU_LAST_ADDRESS -
