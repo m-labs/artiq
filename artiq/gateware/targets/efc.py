@@ -23,8 +23,8 @@ from artiq.build_soc import *
 
 ltc2000_pads = [
     ("ltc2000", 0,
-        Subsignal("dcki_p", Pins("fmc0:LA07_P"), IOStandard("LVDS_25")),
-        Subsignal("dcki_n", Pins("fmc0:LA07_N"), IOStandard("LVDS_25")),
+        Subsignal("clk_p", Pins("fmc0:LA07_P"), IOStandard("LVDS_25")),
+        Subsignal("clk_n", Pins("fmc0:LA07_N"), IOStandard("LVDS_25")),
         Subsignal("dcko_p", Pins("fmc0:LA01_CC_P"), IOStandard("LVDS_25")),
         Subsignal("dcko_n", Pins("fmc0:LA01_CC_N"), IOStandard("LVDS_25")),
         Subsignal("data_p", Pins(
@@ -287,15 +287,17 @@ class Satellite(BaseSoC, AMPSoC):
                 self.rtio_channels.append(rtio.Channel.from_phy(phy))
 
             self.clock_domains.cd_sys2x = ClockDomain(reset_less=True)
-            self.clock_domains.cd_sys6x = ClockDomain(reset_less=True)
+            self.clock_domains.cd_dds_out = ClockDomain(reset_less=True)
 
             mmcm_fb_in = Signal()
             mmcm_fb_out = Signal()
             mmcm_sys2x = Signal()
-            mmcm_sys6x = Signal()
+            mmcm_dds_out = Signal()
+            clk_period = 1e9/rtio_clk_freq
+            dds_div = 2 if rtio_clk_freq == 100e6 else 2.5
             self.specials += [
                 Instance("MMCME2_BASE",
-                    p_CLKIN1_PERIOD=10.0,
+                    p_CLKIN1_PERIOD=clk_period,
                     i_CLKIN1=ClockSignal(),
 
                     i_RST=ResetSignal(),
@@ -304,17 +306,18 @@ class Satellite(BaseSoC, AMPSoC):
                     o_CLKFBOUT=mmcm_fb_out,
                     #o_LOCKED=,
 
-                    # VCO @ 1.2GHz with MULT=12
+                    # VCO @ 1.2/1.5GHz with MULT=12 (OK for -3 grade)
                     p_CLKFBOUT_MULT_F=12, p_DIVCLK_DIVIDE=1,
 
-                    # 200MHz
-                    p_CLKOUT0_DIVIDE_F=6, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=mmcm_sys2x,
-
                     # 600MHz
-                    p_CLKOUT1_DIVIDE=2, p_CLKOUT1_PHASE=0.0, o_CLKOUT1=mmcm_sys6x,
+                    p_CLKOUT0_DIVIDE_F=dds_div, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=mmcm_dds_out,
+
+                    # 200/250MHz
+                    p_CLKOUT1_DIVIDE=6, p_CLKOUT1_PHASE=0.0, o_CLKOUT1=mmcm_sys2x,
+
                 ),
                 Instance("BUFG", i_I=mmcm_sys2x, o_O=self.cd_sys2x.clk),
-                Instance("BUFG", i_I=mmcm_sys6x, o_O=self.cd_sys6x.clk),
+                Instance("BUFG", i_I=mmcm_dds_out, o_O=self.cd_dds_out.clk),
                 Instance("BUFG", i_I=mmcm_fb_out, o_O=mmcm_fb_in)
             ]
 
