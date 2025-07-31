@@ -26,6 +26,9 @@ class DDS:
     contributes to a constant gain of :math:`g=1.64676`.
 
     :param channel: RTIO channel number of this DC-bias spline interface.
+    :param spi_device: SPI bus device name.
+    :param reset_device: Reset device name.
+    :param clear_device: Clear device name.
     :param core_device: Core device name.
     """
     kernel_invariants = {"core", "channel", "target_o"}
@@ -61,22 +64,41 @@ class DDS:
 
     @kernel
     def configure(self, blind):
-        self.spi_write(0x01, 0x00)  # Reset, power down controls
-        self.spi_write(0x02, 0x00)  # Clock and DCKO controls
-        self.spi_write(0x03, 0x01)  # DCKI controls
-        self.spi_write(0x04, 0x0B)  # Data input controls
-        self.spi_write(0x05, 0x00)  # Synchronizer controls
-        self.spi_write(0x07, 0x00)  # Linearization controls
-        self.spi_write(0x08, 0x08)  # Linearization voltage controls
-        self.spi_write(0x18, 0x00)  # LVDS test MUX controls
-        self.spi_write(0x19, 0x00)  # Temperature measurement controls
-        self.spi_write(0x1E, 0x00)  # Pattern generator enable
-        self.spi_write(0x1F, 0x00)  # Pattern generator data
+        """Configures the LTC2000 DAC with sensible defaults.
+
+        For more information see the LTC2000 datasheet.
+        """
+        # Reset, power down controls
+        self.spi_write(0x01, 0x00)  # deassert reset
+        # Clock and DCKO controls
+        self.spi_write(0x02, 0x00)
+        # DCKI controls
+        self.spi_write(0x03, 0x01)  # enable DCKI
+        # Data input controls
+        self.spi_write(0x04, 0x0B)  # enable Port A and B, DAC Data Enable
+        # Synchronizer controls
+        self.spi_write(0x05, 0x00)
+        # Linearization controls 
+        self.spi_write(0x07, 0x00)  # enable linearization with 75%
+        # Linearization voltage controls
+        self.spi_write(0x08, 0x08)
+        # LVDS test MUX controls  
+        self.spi_write(0x18, 0x00)  # no test
+        # Temperature measurement controls
+        self.spi_write(0x19, 0x00)  # disable temperature measurement
+        # Pattern generator enable
+        self.spi_write(0x1E, 0x00)  # disable pattern generation
+        # Pattern generator data
+        self.spi_write(0x1F, 0x00)
 
         if not blind:
-            read_value = self.spi_read(0x01)
-            if read_value != 0x00:
+            # verify the configuration
+            if self.spi_read(0x01) != 0x00:
                 raise ValueError("LTC2000 reset not deasserted")
+            if self.spi_read(0x02) & 0x02 == 0:
+                raise ValueError("LTC2000 clock not present")
+            if self.spi_read(0x03) & 0x02 == 0:
+                raise ValueError("LTC2000 data clock not present")
     @kernel
     def spi_write(self, addr, data):
         self.bus.set_config_mu(self.spi_config, 32, 256, 0b0001)
@@ -137,6 +159,22 @@ class DDS:
         Note: The waveform is not updated to the Shuttler Core until
         triggered. See :class:`Trigger` for the update triggering mechanism.
 
+        **Examples:**
+        Constant Amplitude Sine Wave: b(t) = 1.0V, c(t) = f₀t
+
+            dds.set_waveform(b0=shuttler_volt_to_mu(1.0), b1=0, b2=0, b3=0,
+                            c0=0, c1=frequency_to_mu(1e6), c2=0, shift=0)
+
+        Linear Frequency Sweep: chirped sine, constant amplitude
+
+            dds.set_waveform(b0=shuttler_volt_to_mu(0.5), b1=0, b2=0, b3=0,
+                            c0=0, c1=start_freq_mu, c2=chirp_rate_mu, shift=3)
+
+        Amplitude Modulated Signal: b(t) = A₀ + A₁t (linear amplitude ramp)
+
+            dds.set_waveform(b0=base_amplitude_mu, b1=ramp_rate_mu, b2=0, b3=0,
+                            c0=0, c1=carrier_freq_mu, c2=0, shift=1)
+
         :param b0: The :math:`b_0` coefficient in machine units.
         :param b1: The :math:`b_1` coefficient in machine units.
         :param b2: The :math:`b_2` coefficient in machine units.
@@ -147,7 +185,7 @@ class DDS:
         :param shift: Clock division factor (0-15). Defaults to 0 (no division).
         """
 
-        if shift < 0 or shift > 15:
+        if not 0 <= shift <= 15:
             raise ValueError("Shift must be between 0 and 15")
 
         phase_msb = (c0 >> 2) & 0xFFFF   # Upper 16 bits of 18-bit phase value
@@ -195,10 +233,22 @@ class Trigger:
     def trigger(self, trig_out):
         """Triggers coefficient update of (an) LTC2000 Core channel(s).
 
+        The waveform configuration done with DDS is not applied to 
+        the LTC2000 Core until explicitly triggered using the `Trigger` class.
+        This allows atomic updates across multiple channels.
+
         Each bit corresponds to an LTC2000 waveform generator core. Setting
         ``trig_out`` bits commits the pending coefficient update (from
-        ``set_waveform`` in :class:`DCBias` and :class:`DDS`) to the LTC2000 Core
-        synchronously.
+        ``set_waveform`` in :class:`DCBias` and :class:`DDS`) to
+        the LTC2000 Core synchronously.
+
+        **Example:**
+            # Configure waveform
+            dds.set_waveform(b0=1000, b1=500, b2=100, b3=0,
+                            c0=0, c1=1000000, c2=0, shift=2)
+
+            # Apply the configuration
+            trigger.trigger(0x0001)  # Trigger channel 0
 
         :param trig_out: Coefficient update trigger bits. The MSB corresponds
             to Channel 15, LSB corresponds to Channel 0.
