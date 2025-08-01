@@ -180,6 +180,7 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(cxp_start_roi_viewer = ::cxp::start_roi_viewer),
     api!(cxp_download_roi_viewer_frame = ::cxp::download_roi_viewer_frame),
 
+    api!(nac3_free = ::mem::nac3_free),
     api!(nac3_malloc = ::mem::nac3_malloc),
 
     /*
