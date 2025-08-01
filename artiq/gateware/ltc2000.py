@@ -27,12 +27,12 @@ class SumAndScale(Module):
 
         # Finally, shift and saturate
         self.sync += [
-            If(sum_all >> 15 > 0x7FFF,
+            If(sum_all[15:] > 0x7FFF,
                 self.output.eq(0x7FFF)
-            ).Elif(sum_all >> 15 < -0x8000,
+            ).Elif(sum_all[15:] < -0x8000,
                 self.output.eq(-0x8000)
             ).Else(
-                self.output.eq(sum_all >> 15)
+                self.output.eq(sum_all[15:])
             )
         ]
 
