@@ -2,6 +2,7 @@ from functools import reduce
 from operator import or_
 
 from migen import *
+from migen.genlib.cdc import MultiReg
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from misoc.cores.code_8b10b import Encoder, Decoder
@@ -44,6 +45,8 @@ class GTPSingle(Module):
             qpll_channel.reset.eq(tx_init.pllreset),
             tx_init.plllock.eq(qpll_channel.lock)
         ]
+
+        self.specials += MultiReg(tx_init.done, rx_init.tx_init_done)
 
         txdata = Signal(20)
         rxdata = Signal(20)

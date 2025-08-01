@@ -180,6 +180,7 @@ class GTPRXInit(Module):
     def __init__(self, sys_clk_freq):
         self.done = Signal()
         self.restart = Signal()
+        self.tx_init_done = Signal()
 
         # GTP signals
         self.gtrxreset = Signal()
@@ -252,7 +253,11 @@ class GTPRXInit(Module):
         self.submodules += ready_timer
         self.comb += [
             ready_timer.wait.eq(~self.done & ~startup_fsm.reset),
-            startup_fsm.reset.eq(self.restart | ready_timer.done)
+            startup_fsm.reset.eq(
+                self.restart
+                | ready_timer.done
+                | ~self.tx_init_done    # No RX init before finalizing cd_sys
+            )
         ]
 
         cdr_stable_timer = WaitTimer(1024)
