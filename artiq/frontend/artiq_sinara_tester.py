@@ -300,22 +300,13 @@ class SinaraTester(EnvExperiment):
         # currently assumes a bank has all the same channels
 
         print("*** Testing LVDS TTL outputs.")
-        if not self.lvds_ttl_ins:
-            print("No LVDS TTL input channel available to test output.")
-            print("Outputs are tested in groups of 4. Touch each TTL connector")
-            print("with the oscilloscope probe tip, and check that the number of")
-            print("pulses corresponds to its number in the group.")
-            print("Press ENTER when done.")
-            for lvds_ttl_chunk in chunker(self.lvds_ttl_outs, 4):
-                print("Testing LVDS TTL outputs: {}.".format(", ".join(name for name, dev in lvds_ttl_chunk)))
-                self.test_ttl_out_chunk([dev for name, dev in lvds_ttl_chunk])
-            return
-
-        print("TTL device group to use as input (default: 0):")
-        lvds_ttl_in_chunk = select_chunk(self.lvds_ttl_ins, 4, 
-                                            fmt=lambda x: ", ".join([name for name, dev in x]))
-        for lvds_ttl_out_chunk in chunker([ttl_outs for ttl_outs in self.lvds_ttl_outs if ttl_outs not in lvds_ttl_in_chunk], 4):
-            self.test_lvds_ttl_in_chunk(lvds_ttl_out_chunk, lvds_ttl_in_chunk)
+        print("Outputs are tested in groups of 4. Touch each TTL connector")
+        print("with the oscilloscope probe tip, and check that the number of")
+        print("pulses corresponds to its number in the group.")
+        print("Press ENTER when done.")
+        for lvds_ttl_chunk in chunker(self.lvds_ttl_outs, 4):
+            print("Testing LVDS TTL outputs: {}.".format(", ".join(name for name, dev in lvds_ttl_chunk)))
+            self.test_ttl_out_chunk([dev for name, dev in lvds_ttl_chunk])
 
     @kernel
     def init_urukul(self, cpld):
