@@ -302,7 +302,6 @@ class SinaraTester(EnvExperiment):
         print("*** Testing LVDS TTL outputs.")
         if not self.lvds_ttl_ins:
             print("No LVDS TTL input channel available to test output.")
-            print("Test TTL outputs with oscilloscope.")
             print("Outputs are tested in groups of 4. Touch each TTL connector")
             print("with the oscilloscope probe tip, and check that the number of")
             print("pulses corresponds to its number in the group.")
