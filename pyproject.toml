@@ -1,0 +1,113 @@
+[build-system]
+requires = ["setuptools>=64", "setuptools-scm>=8", "versioneer[toml]==0.29"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "artiq"
+dynamic = ["version"]
+description = "Advanced Real-Time Infrastructure for Quantum physics"
+readme = "README.rst"
+license = {text = "LGPL-3.0-or-later"}
+authors = [
+    {name = "M-Labs"},
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: System :: Hardware",
+]
+requires-python = ">=3.13"
+dependencies = [
+    "numpy",
+    "scipy",
+    "python-dateutil",
+    "prettytable",
+    "pyserial",
+    "python-Levenshtein",
+    "h5py",
+    "pyqtgraph",
+    "pygit2",
+    "tqdm",
+    "lmdb",
+    "jsonschema",
+    "platformdirs",
+    "pandas>=2.3.1",
+    "rich>=14.1.0",
+    "matplotlib>=3.10.3",
+    # ARTIQ-specific packages
+    "migen",
+    "colorama",
+    "jinja2",
+    "msgpack",
+    "regex",
+    "requests>=2.32.4",
+    "scikit-learn>=1.7.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "paramiko",
+    "pytest",
+    "pytest-asyncio",
+]
+
+[project.scripts]
+artiq_browser = "artiq.frontend.artiq_browser:main"
+artiq_client = "artiq.frontend.artiq_client:main"
+artiq_compile = "artiq.frontend.artiq_compile:main"
+artiq_coremgmt = "artiq.frontend.artiq_coremgmt:main"
+artiq_ctlmgr = "artiq.frontend.artiq_ctlmgr:main"
+artiq_dashboard = "artiq.frontend.artiq_dashboard:main"
+artiq_ddb_template = "artiq.frontend.artiq_ddb_template:main"
+artiq_flash = "artiq.frontend.artiq_flash:main"
+artiq_influxdb = "artiq.frontend.artiq_influxdb:main"
+artiq_influxdb_schedule = "artiq.frontend.artiq_influxdb_schedule:main"
+artiq_master = "artiq.frontend.artiq_master:main"
+artiq_mkfs = "artiq.frontend.artiq_mkfs:main"
+artiq_netboot = "artiq.frontend.artiq_netboot:main"
+artiq_route = "artiq.frontend.artiq_route:main"
+artiq_rtiomon = "artiq.frontend.artiq_rtiomon:main"
+artiq_rtiomap = "artiq.frontend.artiq_rtiomap:main"
+artiq_run = "artiq.frontend.artiq_run:main"
+artiq_session = "artiq.frontend.artiq_session:main"
+aqctl_corelog = "artiq.frontend.aqctl_corelog:main"
+aqctl_coreanalyzer = "artiq.frontend.aqctl_coreanalyzer:main"
+aqctl_moninj_proxy = "artiq.frontend.aqctl_moninj_proxy:main"
+
+[project.gui-scripts]
+artiq_browser = "artiq.frontend.artiq_browser:main"
+artiq_dashboard = "artiq.frontend.artiq_dashboard:main"
+artiq_session = "artiq.frontend.artiq_session:main"
+
+[project.urls]
+Homepage = "https://m-labs.hk/artiq"
+Documentation = "https://m-labs.hk/artiq/manual"
+Repository = "https://github.com/m-labs/artiq"
+Issues = "https://github.com/m-labs/artiq/issues"
+
+[tool.setuptools]
+zip-safe = false
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["artiq*"]
+
+[tool.setuptools.package-data]
+artiq = [
+    "gui/logo*.svg",
+    "compiler/module.ld",
+    "afws.pem",
+]
+
+[tool.versioneer]
+VCS = "git"
+style = "pep440"
+versionfile_source = "artiq/_version.py"
+versionfile_build = "artiq/_version.py"
+tag_prefix = ""
+parentdir_prefix = "artiq-"
