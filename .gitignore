@@ -36,3 +36,4 @@ __pycache__/
 # /device_db*.py
 # /test*
 /artiq_kasli
+*.egg-info
