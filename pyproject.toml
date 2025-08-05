@@ -46,7 +46,6 @@ dependencies = [
     "msgpack",
     "regex",
     "requests>=2.32.4",
-    "scikit-learn>=1.7.1",
 ]
 
 [project.optional-dependencies]
