@@ -14,6 +14,25 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Add uv2nix inputs
+    pyproject-nix = {
+      url = "github:pyproject-nix/pyproject.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    uv2nix = {
+      url = "github:pyproject-nix/uv2nix";
+      inputs.pyproject-nix.follows = "pyproject-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    pyproject-build-systems = {
+      url = "github:pyproject-nix/build-system-pkgs";
+      inputs.pyproject-nix.follows = "pyproject-nix";
+      inputs.uv2nix.follows = "uv2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     artiq-comtools = {
       url = "github:m-labs/artiq-comtools";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -53,6 +72,9 @@
     artiq-comtools,
     src-migen,
     src-misoc,
+    pyproject-nix,
+    uv2nix,
+    pyproject-build-systems,
   }: let
     pkgs = import nixpkgs {
       system = "x86_64-linux";
@@ -107,10 +129,28 @@
         fontconfig
       ];
 
+    # Python version to use
+    python = pkgs.python313;
+
+    # Load uv workspace if uv.lock exists
+    workspace = if builtins.pathExists ./uv.lock 
+      then uv2nix.lib.workspace.loadWorkspace { workspaceRoot = ./.; }
+      else null;
+
+    # Create overlay from workspace if it exists
+    uv2nixOverlay = if workspace != null 
+      then workspace.mkPyprojectOverlay {
+        sourcePreference = "wheel";
+      }
+      else (_: _: {});
+
+    # Traditional package definitions for packages not in uv.lock
     pythonparser = pkgs.python3Packages.buildPythonPackage {
       pname = "pythonparser";
       version = "1.4";
       src = src-pythonparser;
+      pyproject = true;
+      build-system = [pkgs.python3Packages.setuptools];
       doCheck = false;
       propagatedBuildInputs = with pkgs.python3Packages; [regex];
     };
@@ -118,13 +158,14 @@
     qasync = pkgs.python3Packages.buildPythonPackage rec {
       pname = "qasync";
       version = "0.27.1";
-      format = "pyproject";
       src = pkgs.fetchFromGitHub {
         owner = "CabbageDevelopment";
         repo = "qasync";
         rev = "refs/tags/v${version}";
         sha256 = "sha256-oXzwilhJ1PhodQpOZjnV9gFuoDy/zXWva9LhhK3T00g=";
       };
+      pyproject = true;
+      build-system = [pkgs.python3Packages.setuptools];
       postPatch = ''
         rm qasync/_windows.py # Ignoring it is not taking effect and it will not be used on Linux
       '';
@@ -162,6 +203,8 @@
         rev = "v${version}";
         sha256 = "sha256-ZIA/JfK9ZP00Zn6SZuPus30Xw10hn3DArHCkzBZAUV0=";
       };
+      pyproject = true;
+      build-system = [pkgs.python3Packages.setuptools];
       nativeBuildInputs = [pkgs.llvm_15];
       # Disable static linking
       # https://github.com/numba/llvmlite/issues/93
@@ -175,10 +218,39 @@
       '';
     };
 
-    artiq-upstream = pkgs.python3Packages.buildPythonPackage rec {
+    # Construct Python set with uv2nix if available, fallback to traditional approach
+    pythonSet = if workspace != null then
+      # uv2nix approach
+      (pkgs.callPackage pyproject-nix.build.packages {
+        inherit python;
+      }).overrideScope (
+        pkgs.lib.composeManyExtensions [
+          pyproject-build-systems.overlays.default
+          uv2nixOverlay
+          # Add custom packages not in uv.lock and fix PyPI packages
+          (final: prev: {
+            inherit pythonparser qasync llvmlite-new;
+            # ARTIQ-specific packages that aren't on PyPI or need custom builds
+            sipyco = sipyco.packages.x86_64-linux.sipyco;
+            artiq-comtools = artiq-comtools.packages.x86_64-linux.artiq-comtools;
+            # Custom ARTIQ packages built from source
+            inherit migen misoc asyncserial microscope;
+            # Use Nixpkgs PyQt6 instead of PyPI version to avoid build issues
+            pyqt6 = prev.pyqt6 or pkgs.python3Packages.pyqt6;
+            pyqt6-sip = prev.pyqt6-sip or pkgs.python3Packages.pyqt6-sip;
+          })
+        ]
+      )
+    else
+      # Traditional approach (fallback)
+      python.pkgs;
+
+    artiq-upstream = python.pkgs.buildPythonPackage rec {
       pname = "artiq";
       version = artiqVersion;
       src = self;
+      pyproject = true;
+      build-system = [python.pkgs.setuptools python.pkgs.versioneer];
 
       preBuild = ''
         export VERSIONEER_OVERRIDE=${version}
@@ -188,8 +260,22 @@
       nativeBuildInputs = [pkgs.qt6.wrapQtAppsHook];
       # keep llvm_x and lld_x in sync with llvmlite
       propagatedBuildInputs =
-        [pkgs.llvm_15 pkgs.lld_15 sipyco.packages.x86_64-linux.sipyco pythonparser llvmlite-new pkgs.qt6.qtsvg artiq-comtools.packages.x86_64-linux.artiq-comtools]
-        ++ (with pkgs.python3Packages; [pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial levenshtein h5py pyqt6 qasync tqdm lmdb jsonschema platformdirs]);
+        [pkgs.llvm_15 pkgs.lld_15 pkgs.qt6.qtsvg]
+        ++ (with python.pkgs; [
+          # Core ARTIQ packages (use traditional python.pkgs for consistency)
+          pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial levenshtein h5py tqdm lmdb jsonschema platformdirs
+          # Additional packages from pyproject.toml  
+          colorama jinja2 msgpack regex pandas
+        ])
+        # Add custom packages separately to avoid type conflicts
+        ++ [
+          sipyco.packages.x86_64-linux.sipyco
+          artiq-comtools.packages.x86_64-linux.artiq-comtools
+          pythonparser
+          qasync
+          llvmlite-new
+          migen
+        ];
 
       dontWrapQtApps = true;
       postFixup = ''
@@ -229,15 +315,15 @@
         withExperimentalFeatures = features: artiq-upstream.overrideAttrs (oa: {patches = map (f: ./experimental-features/${f}.diff) features;});
       };
 
-    migen = pkgs.python3Packages.buildPythonPackage rec {
+    migen = python.pkgs.buildPythonPackage rec {
       name = "migen";
       src = src-migen;
-      format = "pyproject";
-      nativeBuildInputs = [pkgs.python3Packages.setuptools];
-      propagatedBuildInputs = [pkgs.python3Packages.colorama];
+      pyproject = true;
+      build-system = [python.pkgs.setuptools];
+      propagatedBuildInputs = [python.pkgs.colorama];
     };
 
-    asyncserial = pkgs.python3Packages.buildPythonPackage rec {
+    asyncserial = python.pkgs.buildPythonPackage rec {
       pname = "asyncserial";
       version = "1.0";
       src = pkgs.fetchFromGitHub {
@@ -246,16 +332,20 @@
         rev = version;
         sha256 = "sha256-ZHzgJnbsDVxVcp09LXq9JZp46+dorgdP8bAiTB59K28=";
       };
-      propagatedBuildInputs = [pkgs.python3Packages.pyserial];
+      pyproject = true;
+      build-system = [python.pkgs.setuptools];
+      propagatedBuildInputs = [python.pkgs.pyserial];
     };
 
-    misoc = pkgs.python3Packages.buildPythonPackage {
+    misoc = python.pkgs.buildPythonPackage {
       name = "misoc";
       src = src-misoc;
-      propagatedBuildInputs = with pkgs.python3Packages; [jinja2 numpy migen pyserial asyncserial];
+      pyproject = true;
+      build-system = [python.pkgs.setuptools];
+      propagatedBuildInputs = with python.pkgs; [jinja2 numpy migen pyserial asyncserial];
     };
 
-    microscope = pkgs.python3Packages.buildPythonPackage rec {
+    microscope = python.pkgs.buildPythonPackage rec {
       pname = "microscope";
       version = "unstable-2020-12-28";
       src = pkgs.fetchFromGitHub {
@@ -264,7 +354,9 @@
         rev = "c21afe7a53258f05bde57e5ebf2e2761f3d495e4";
         sha256 = "sha256-jzyiLRuEf7p8LdhmZvOQj/dyQx8eUE8p6uRlwoiT8vg=";
       };
-      propagatedBuildInputs = with pkgs.python3Packages; [pyserial prettytable msgpack migen];
+      pyproject = true;
+      build-system = [python.pkgs.setuptools];
+      propagatedBuildInputs = with python.pkgs; [pyserial prettytable msgpack migen];
     };
 
     vivadoEnv = pkgs.buildFHSEnv {
@@ -291,7 +383,7 @@
         additionalCargoLock = "${rust}/lib/rustlib/src/rust/Cargo.lock";
         singleStep = true;
         nativeBuildInputs = [
-          (pkgs.python3.withPackages (ps: [migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ps.packaging]))
+          (python.withPackages (ps: [migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ps.packaging]))
           rust
           pkgs.llvmPackages_15.clang-unwrapped
           pkgs.llvm_15
@@ -391,6 +483,13 @@
           fi
         done
       '';
+
+    # Helper to create virtual environments with uv2nix
+    mkVirtualEnv = name: deps: 
+      if workspace != null 
+      then pythonSet.mkVirtualEnv name deps
+      else python.withPackages (_: [artiq migen misoc asyncserial microscope]);
+
   in rec {
     packages.x86_64-linux = {
       inherit pythonparser qasync artiq;
@@ -409,7 +508,7 @@
         name = "artiq-manual-html-${version}";
         version = artiqVersion;
         src = self;
-        buildInputs = with pkgs.python3Packages;
+        buildInputs = with pythonSet;
           [
             sphinx
             sphinx_rtd_theme
@@ -438,7 +537,7 @@
         name = "artiq-manual-pdf-${version}";
         version = artiqVersion;
         src = self;
-        buildInputs = with pkgs.python3Packages;
+        buildInputs = with pythonSet;
           [
             sphinx
             sphinx_rtd_theme
@@ -468,7 +567,10 @@
 
     inherit qtPaths makeArtiqBoardPackage openocd-bscanspi-f;
 
-    packages.x86_64-linux.default = pkgs.python3.withPackages (_: [packages.x86_64-linux.artiq]);
+    packages.x86_64-linux.default = 
+      if workspace != null 
+      then mkVirtualEnv "artiq-env" workspace.deps.default
+      else python.withPackages (_: [packages.x86_64-linux.artiq]);
 
     formatter.x86_64-linux = pkgs.alejandra;
 
@@ -488,6 +590,7 @@
             llvmPackages_15.clang-unwrapped
             outputcheck
             pdf2svg
+            uv  # Add uv for development
 
             python3Packages.sphinx
             python3Packages.sphinx-argparse
@@ -495,7 +598,7 @@
             python3Packages.sphinxcontrib-wavedrom
             python3Packages.sphinx_rtd_theme
 
-            (python3.withPackages (ps: [migen misoc microscope ps.packaging ps.paramiko] ++ artiq.propagatedBuildInputs))
+            (python.withPackages (ps: [migen misoc microscope ps.packaging ps.paramiko] ++ artiq.propagatedBuildInputs))
           ]
           ++ [
             latex-artiq-manual
@@ -515,8 +618,115 @@
           export QT_PLUGIN_PATH=${qtPaths.QT_PLUGIN_PATH}
           export QML2_IMPORT_PATH=${qtPaths.QML2_IMPORT_PATH}
           export PYTHONPATH=`git rev-parse --show-toplevel`:$PYTHONPATH
+          
+          # uv2nix specific env vars
+          export UV_PYTHON_DOWNLOADS=never
+          export UV_PYTHON=${python.interpreter}
         '';
       };
+
+      # uv2nix development shell using virtual environments
+      uv2nix = if workspace != null then
+        let
+          # Create editable overlay if workspace exists
+          editableOverlay = workspace.mkEditablePyprojectOverlay {
+            root = "$REPO_ROOT";
+            members = [ "artiq" ];  # Assuming artiq is the main package
+          };
+
+          # Override with editable support
+          editablePythonSet = pythonSet.overrideScope (
+            pkgs.lib.composeManyExtensions [
+              editableOverlay
+              (final: prev: {
+                artiq = prev.artiq.overrideAttrs (old: {
+                  src = pkgs.lib.fileset.toSource {
+                    root = old.src;
+                    fileset = pkgs.lib.fileset.unions ([
+                      (pkgs.lib.fileset.maybeMissing (old.src + "/pyproject.toml"))
+                      (pkgs.lib.fileset.maybeMissing (old.src + "/setup.py"))
+                      (pkgs.lib.fileset.maybeMissing (old.src + "/setup.cfg"))
+                      (pkgs.lib.fileset.maybeMissing (old.src + "/versioneer.py"))
+                      (pkgs.lib.fileset.maybeMissing (old.src + "/MANIFEST.in"))
+                      (pkgs.lib.fileset.maybeMissing (old.src + "/README.rst"))
+                      (pkgs.lib.fileset.maybeMissing (old.src + "/Licence"))
+                      (old.src + "/artiq")
+                    ]);
+                  };
+                  nativeBuildInputs = old.nativeBuildInputs ++ final.resolveBuildSystem { editables = []; };
+                });
+              })
+            ]
+          );
+
+          virtualenv = editablePythonSet.mkVirtualEnv "artiq-dev-env" workspace.deps.all;
+
+        in pkgs.mkShell {
+          name = "artiq-uv2nix-shell";
+          packages = [
+            virtualenv
+            pkgs.uv
+            rust
+            pkgs.llvmPackages_15.clang-unwrapped
+            pkgs.llvm_15
+            pkgs.lld_15
+            packages.x86_64-linux.vivado
+            packages.x86_64-linux.openocd-bscanspi
+            libartiq-support
+            artiq-frontend-dev-wrappers
+          ];
+
+          env = {
+            # CRITICAL: This tells uv to use the existing virtual environment
+            VIRTUAL_ENV = "${virtualenv}";
+            UV_NO_SYNC = "1";
+            UV_PYTHON = "${virtualenv}/bin/python";
+            UV_PYTHON_DOWNLOADS = "never";
+            LIBARTIQ_SUPPORT = "${libartiq-support}/lib/libartiq_support.so";
+            QT_PLUGIN_PATH = qtPaths.QT_PLUGIN_PATH;
+            QML2_IMPORT_PATH = qtPaths.QML2_IMPORT_PATH;
+          };
+
+          shellHook = ''
+            unset PYTHONPATH
+            export REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD")
+            
+            # Activate the virtual environment
+            export PATH="${virtualenv}/bin:$PATH"
+            
+            # Add ALL custom ARTIQ packages to Python path
+            # External packages (not in PyPI)
+            export PYTHONPATH="${editablePythonSet.sipyco}/${python.sitePackages}:$PYTHONPATH"
+            export PYTHONPATH="${editablePythonSet.artiq-comtools}/${python.sitePackages}:$PYTHONPATH"
+            # Custom builds from flake
+            export PYTHONPATH="${editablePythonSet.pythonparser}/${python.sitePackages}:$PYTHONPATH"
+            export PYTHONPATH="${editablePythonSet.qasync}/${python.sitePackages}:$PYTHONPATH"
+            export PYTHONPATH="${editablePythonSet.llvmlite-new}/${python.sitePackages}:$PYTHONPATH"
+            export PYTHONPATH="${editablePythonSet.migen}/${python.sitePackages}:$PYTHONPATH"
+            export PYTHONPATH="${editablePythonSet.misoc}/${python.sitePackages}:$PYTHONPATH"
+            export PYTHONPATH="${editablePythonSet.asyncserial}/${python.sitePackages}:$PYTHONPATH"
+            export PYTHONPATH="${editablePythonSet.microscope}/${python.sitePackages}:$PYTHONPATH"
+            # Add PyQt6 from Nixpkgs
+            export PYTHONPATH="${editablePythonSet.pyqt6}/${python.sitePackages}:$PYTHONPATH"
+            export PYTHONPATH="${editablePythonSet.pyqt6-sip}/${python.sitePackages}:$PYTHONPATH"
+            
+            echo "Using uv2nix virtual environment at: ${virtualenv}"
+            echo "Python: $(which python)"
+            echo "uv will add packages to this environment."
+            echo "Custom ARTIQ packages added to PYTHONPATH"
+          '';
+        }
+      else
+        # When no uv.lock exists, fallback to the default shell
+        devShells.x86_64-linux.default.overrideAttrs (old: {
+          name = "artiq-uv2nix-fallback-shell";
+          shellHook = old.shellHook + ''
+            
+            echo "No uv.lock file detected, falling back to default ARTIQ development shell."
+            echo "To enable uv2nix features, run 'uv lock' and then 'nix develop .#uv2nix'."
+          '';
+        });
+
       # Lighter development shell optimized for building firmware and flashing boards.
       boards = pkgs.mkShell {
         name = "artiq-boards-shell";
@@ -530,7 +740,7 @@
           packages.x86_64-linux.vivado
           packages.x86_64-linux.openocd-bscanspi
 
-          (pkgs.python3.withPackages (ps: [migen misoc artiq ps.packaging ps.paramiko]))
+          (python.withPackages (ps: [migen misoc artiq ps.packaging ps.paramiko]))
         ];
       };
     };
@@ -544,7 +754,7 @@
       gateware-sim = pkgs.stdenvNoCC.mkDerivation {
         name = "gateware-sim";
         buildInputs = [
-          (pkgs.python3.withPackages (ps: with packages.x86_64-linux; [migen misoc artiq]))
+          (python.withPackages (ps: with packages.x86_64-linux; [migen misoc artiq]))
         ];
         phases = ["buildPhase"];
         buildPhase = ''
@@ -560,7 +770,7 @@
         #__impure = true;     # Nix 2.8+
 
         buildInputs = [
-          (pkgs.python3.withPackages (
+          (python.withPackages (
             ps:
               with packages.x86_64-linux;
                 [
