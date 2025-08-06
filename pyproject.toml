@@ -46,10 +46,8 @@ dependencies = [
     "msgpack",
     "regex",
     "requests>=2.32.4",
-]
-
-[project.optional-dependencies]
-dev = [
+    "scikit-learn>=1.7.1",
+    "boto3>=1.40.2",
     "paramiko",
     "pytest",
     "pytest-asyncio",
