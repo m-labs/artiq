@@ -554,7 +554,7 @@ class AD9910:
             self.tune_sync_delay(self.sync_data.sync_delay_seed)
         self.core.delay(1. * ms)
         # FIXME: Re-write the configuration (needed for proper
-        # initialization when using _RegIOUpdate).
+        # initialization when using RegIOUpdate).
         # NAC3TODO
         # self.cpld.cfg_write(self.cpld.cfg_reg)
 
