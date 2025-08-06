@@ -169,7 +169,7 @@ mod local_coremgmt {
             ];
 
             for (name, origin) in bin_origins {
-                info!("Flashing {} binary...", name);
+                info!("flashing {} binary...", name);
                 let size = NativeEndian::read_u32(&image[..4]) as usize;
                 image = &image[4..];
 

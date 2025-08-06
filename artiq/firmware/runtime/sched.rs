@@ -589,11 +589,11 @@ impl<'a> Drop for TcpStream<'a> {
         );
         if is_open {
             warn!(
-                "Dropping open TcpStream in state {}, with {} unsent bytes",
+                "dropping open TcpStream in state {}, with {} unsent bytes",
                 self.with_lower(|s| s.state()), unsent_bytes
             )
         } else if unsent_bytes != 0 {
-            debug!("Dropping socket with {} bytes unsent", unsent_bytes)
+            debug!("dropping socket with {} bytes unsent", unsent_bytes)
         }
 
         self.io.network.borrow_mut().remove_socket(self.handle);
