@@ -425,7 +425,7 @@ class ProtoRev8(CPLDVersion):
 @compile
 class ProtoRev9(CPLDVersion):
     """
-    Implementation of the CPLD for Urkul ProtoRev9.
+    Implementation of the CPLD for Urukul ProtoRev9.
     """
 
     cpld: KernelInvariant[CPLD]
