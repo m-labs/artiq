@@ -3,6 +3,104 @@ from artiq.experiment import *
 from artiq.coredevice.spi2 import SPI_END, SPI_INPUT
 from artiq.language.core import kernel, delay
 from artiq.language.units import us
+from artiq.coredevice.shuttler import shuttler_volt_to_mu as ltc2000_volt_to_mu
+
+
+LTC2K_REG_RESET = 0x01  # Reset, power down controls
+LTC2K_REG_CLK   = 0x02  # Clock and DCKO controls
+LTC2K_REG_DCKI  = 0x03  # DCKI controls
+LTC2K_REG_PORT  = 0x04  # Data input controls
+LTC2K_REG_SYNC  = 0x05  # Synchronizer controls
+LTC2K_REG_PHASE = 0x06  # Synchronizer phase comparator output
+LTC2K_REG_DYN_LIN = 0x07  # Linearization controls
+LTC2K_REG_DYN_LIN_V = 0x08  # Linearization voltage controls
+LTC2K_REG_GAIN  = 0x09  # DAC gain adjustment controls
+LTC2K_REG_TEST  = 0x18  # LVDS test MUX controls  
+LTC2K_REG_TEMP  = 0x19  # Temperature measurement controls
+LTC2K_REG_PATTERN = 0x1E  # Pattern generator enable
+LTC2K_REG_PATTERN_DATA = 0x1F  # Pattern generator data
+
+
+class Config:
+    """LTC2000 configuration interface.
+
+    Available as a DC2303A-A FMC connected to the EFC.
+
+    :param spi_device: SPI bus device name.
+    :param reset_device: Reset device name.
+    :param clear_device: Clear device name.
+    """
+    def __init__(self, dmgr, spi_device, reset_device, clear_device):
+        self.bus = dmgr.get(spi_device)
+        self.reset = dmgr.get(reset_device)
+        self.clear = dmgr.get(clear_device)
+        self.spi_config = SPI_END
+
+    @kernel
+    def init(self, blind=False):
+        # reset
+        self.clear.clear(0b1111)
+        self.reset.reset(1)
+        self.software_reset()
+
+        self.configure(blind)
+        # deassert reset
+        self.reset.reset(0)
+        delay(20*ms)
+        self.clear.clear(0)
+
+    @kernel
+    def software_reset(self):
+        self.write_reg(LTC2K_REG_RESET, 0x01)  # Write 1 to the reset bit
+        delay(10*ms)  # Wait for reset to complete
+        self.write_reg(LTC2K_REG_RESET, 0x00)  # Clear the reset bit
+        delay(20*ms)
+
+    @kernel
+    def configure(self, blind):
+        """Configures the LTC2000 DAC with sensible defaults.
+
+        For more information see the LTC2000 datasheet.
+        """
+        self.write_reg(LTC2K_REG_RESET, 0x00)  # deassert reset
+        self.write_reg(LTC2K_REG_CLK, 0x00)
+        self.write_reg(LTC2K_REG_DCKI, 0x01)  # enable DCKI
+        self.write_reg(LTC2K_REG_PORT, 0x0B)  # enable Port A and B, DAC Data Enable
+        self.write_reg(LTC2K_REG_SYNC, 0x00)
+        self.write_reg(LTC2K_REG_DYN_LIN, 0x00)  # enable linearization with 75%
+        self.write_reg(LTC2K_REG_DYN_LIN_V, 0x08)
+        self.write_reg(LTC2K_REG_TEST, 0x00)  # no test
+        self.write_reg(LTC2K_REG_TEMP, 0x00)  # disable temperature measurement
+        self.write_reg(LTC2K_REG_PATTERN, 0x00)  # disable pattern generation
+        self.write_reg(LTC2K_REG_PATTERN, 0x00)
+
+        if not blind:
+            # verify the configuration
+            if self.read_reg(LTC2K_REG_RESET) != 0x00:
+                raise ValueError("LTC2000 reset not deasserted")
+            if self.read_reg(LTC2K_REG_CLK) & 0x02 == 0:
+                raise ValueError("LTC2000 clock not present")
+
+    @kernel
+    def write_reg(self, addr, data):
+        self.bus.set_config_mu(self.spi_config, 32, 256, 0b0001)
+        delay(20*us)
+        self.bus.write((addr << 24) | (data << 16))
+        delay(2*us)
+        self.bus.set_config_mu(self.spi_config, 32, 256, 0b0000)
+
+    @kernel
+    def read_reg(self, addr) -> TInt32:
+        self.bus.set_config_mu(self.spi_config | SPI_INPUT, 32, 256, 0b0001)
+        delay(2*us)
+        self.bus.write((1 << 31) | (addr << 24))
+        delay(2*us)
+        result = self.bus.read()
+        delay(2*us)
+        self.bus.set_config_mu(self.spi_config, 32, 256, 0b0000)
+        value = (result >> 16) & 0xFF
+        return value
+
 
 class DDS:
     """LTC2000 Core DDS spline.
@@ -26,98 +124,14 @@ class DDS:
     contributes to a constant gain of :math:`g=1.64676`.
 
     :param channel: RTIO channel number of this DC-bias spline interface.
-    :param spi_device: SPI bus device name.
-    :param reset_device: Reset device name.
-    :param clear_device: Clear device name.
     :param core_device: Core device name.
     """
     kernel_invariants = {"core", "channel", "target_o"}
 
-    def __init__(self, dmgr, channel, spi_device, reset_device, clear_device, core_device="core"):
+    def __init__(self, dmgr, channel, core_device="core"):
         self.core = dmgr.get(core_device)
         self.channel = channel
         self.target_o = channel << 8
-        self.bus = dmgr.get(spi_device)
-        self.reset = dmgr.get(reset_device)
-        self.clear = dmgr.get(clear_device)
-        self.spi_config = SPI_END
-
-    @kernel
-    def init(self, blind=False):
-        # reset
-        self.clear.clear(0b1111)
-        self.reset.reset(1)
-        self.software_reset()
-
-        self.configure(blind)
-        # deassert reset
-        self.reset.reset(0)
-        delay(20*ms)
-        self.clear.clear(0)
-
-    @kernel
-    def software_reset(self):
-        self.spi_write(0x01, 0x01)  # Write 1 to the reset bit
-        delay(10*ms)  # Wait for reset to complete
-        self.spi_write(0x01, 0x00)  # Clear the reset bit
-        delay(20*ms)
-
-    @kernel
-    def configure(self, blind):
-        """Configures the LTC2000 DAC with sensible defaults.
-
-        For more information see the LTC2000 datasheet.
-        """
-        # Reset, power down controls
-        self.spi_write(0x01, 0x00)  # deassert reset
-        # Clock and DCKO controls
-        self.spi_write(0x02, 0x00)
-        # DCKI controls
-        self.spi_write(0x03, 0x01)  # enable DCKI
-        # Data input controls
-        self.spi_write(0x04, 0x0B)  # enable Port A and B, DAC Data Enable
-        # Synchronizer controls
-        self.spi_write(0x05, 0x00)
-        # Linearization controls 
-        self.spi_write(0x07, 0x00)  # enable linearization with 75%
-        # Linearization voltage controls
-        self.spi_write(0x08, 0x08)
-        # LVDS test MUX controls  
-        self.spi_write(0x18, 0x00)  # no test
-        # Temperature measurement controls
-        self.spi_write(0x19, 0x00)  # disable temperature measurement
-        # Pattern generator enable
-        self.spi_write(0x1E, 0x00)  # disable pattern generation
-        # Pattern generator data
-        self.spi_write(0x1F, 0x00)
-
-        if not blind:
-            # verify the configuration
-            if self.spi_read(0x01) != 0x00:
-                raise ValueError("LTC2000 reset not deasserted")
-            if self.spi_read(0x02) & 0x02 == 0:
-                raise ValueError("LTC2000 clock not present")
-            if self.spi_read(0x03) & 0x02 == 0:
-                raise ValueError("LTC2000 data clock not present")
-    @kernel
-    def spi_write(self, addr, data):
-        self.bus.set_config_mu(self.spi_config, 32, 256, 0b0001)
-        delay(20*us)
-        self.bus.write((addr << 24) | (data << 16))
-        delay(2*us)
-        self.bus.set_config_mu(self.spi_config, 32, 256, 0b0000)
-
-    @kernel
-    def spi_read(self, addr):
-        self.bus.set_config_mu(self.spi_config | SPI_INPUT, 32, 256, 0b0001)
-        delay(2*us)
-        self.bus.write((1 << 31) | (addr << 24))
-        delay(2*us)
-        result = self.bus.read()
-        delay(2*us)
-        self.bus.set_config_mu(self.spi_config, 32, 256, 0b0000)
-        value = (result >> 16) & 0xFF
-        return value
 
     @kernel
     def set_waveform(self, b0: TInt32, b1: TInt32, b2: TInt64, b3: TInt64,
