@@ -3,7 +3,6 @@ from migen import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from misoc.interconnect.csr import AutoCSR, CSRStorage
 from misoc.interconnect.stream import Endpoint
-from artiq.gateware.ltc2000phy import Ltc2000phy
 from artiq.gateware.rtio import rtlink
 from misoc.cores.duc import PhasedAccuPipelined, CosSinGen, saturate
 from collections import namedtuple
@@ -197,7 +196,8 @@ class LTC2000DDSModule(Module, AutoCSR):
             self.amplitude.eq(x[0][32:])
         ]
         
-        # 12 phases at 250/200 MHz => 2400 MSPS, output updated at 125/100 MHz
+        # 12 phases at 200/208.33 MHz => 2400/2500 MSPS
+        # output updated at 100/125 MHz
         self.submodules.dds = DoubleDataRateDDS(NPHASES, 32, 18)
         self.sync += [
             self.dds.ftw.eq(self.ftw),
@@ -329,3 +329,92 @@ class LTC2000(Module, AutoCSR):
         self.phys.append(Phy(clear_iface, [], [], 'clear_iface'))
         self.phys.append(Phy(reset_iface, [], [], 'reset_iface'))
         self.phys.append(Phy(gain_iface, [], [], 'gain_iface'))
+
+
+
+class Ltc2000phy(Module, AutoCSR):
+    def __init__(self, pads, clk_freq=125e6):
+        self.data = Signal(16*24) # 16 bits per channel, 24 phases input at sys clock rate
+        self.reset = Signal()
+
+        ###
+
+        # 16 bits per channel, 2 channels, 6 samples per clock cycle, data coming in at dds200 rate
+        # for 100 MHz sysclk we get 200 MHz * 2 * 6 = 2.4 Gbps
+        # for 125 MHz sysclk it's 208.33MHz * 2 * 6 = 2.5 Gbps
+        data_in = Signal(16*2*6) 
+        counter = Signal()
+
+        # Load data into register, swapping halves
+        self.sync.dds200 += [
+            If(~counter,
+                data_in.eq(self.data[16*2*6:])  # Load second half first
+            ).Else(
+                data_in.eq(self.data[:16*2*6])  # Load first half second
+            ),
+            counter.eq(~counter)
+        ]
+
+        dac_clk_se = Signal()
+        dac_data_se = Signal(16)
+        dac_datb_se = Signal(16)
+
+        self.specials += [
+            Instance("OSERDESE2",
+                p_DATA_WIDTH=6, p_TRISTATE_WIDTH=1,
+                p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="BUF",
+                p_SERDES_MODE="MASTER",
+
+                o_OQ=dac_clk_se,
+                i_OCE=1,
+                i_RST=self.reset,
+                i_CLK=ClockSignal("dds600"), i_CLKDIV=ClockSignal("dds200"),
+                i_D1=1, i_D2=0, i_D3=1, i_D4=0,
+                i_D5=1, i_D6=0,
+            ),
+            Instance("OBUFDS",
+                i_I=dac_clk_se,
+                o_O=pads.clk_p,
+                o_OB=pads.clk_n
+            )
+        ]
+
+        for i in range(16):
+            self.specials += [
+                Instance("OSERDESE2",
+                    p_DATA_WIDTH=6, p_TRISTATE_WIDTH=1,
+                    p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="BUF",
+                    p_SERDES_MODE="MASTER",
+
+                    o_OQ=dac_data_se[i],
+                    i_OCE=1,
+                    i_RST=self.reset,
+                    i_CLK=ClockSignal("dds600"), i_CLKDIV=ClockSignal("dds200"),
+                    i_D1=data_in[0*16 + i], i_D2=data_in[2*16 + i],
+                    i_D3=data_in[4*16 + i], i_D4=data_in[6*16 + i],
+                    i_D5=data_in[8*16 + i], i_D6=data_in[10*16 + i]
+                ),
+                Instance("OBUFDS",
+                    i_I=dac_data_se[i],
+                    o_O=pads.data_p[i],
+                    o_OB=pads.data_n[i]
+                ),
+                Instance("OSERDESE2",
+                    p_DATA_WIDTH=6, p_TRISTATE_WIDTH=1,
+                    p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="BUF",
+                    p_SERDES_MODE="MASTER",
+
+                    o_OQ=dac_datb_se[i],
+                    i_OCE=1,
+                    i_RST=self.reset,
+                    i_CLK=ClockSignal("dds600"), i_CLKDIV=ClockSignal("dds200"),
+                    i_D1=data_in[1*16 + i], i_D2=data_in[3*16 + i],
+                    i_D3=data_in[5*16 + i], i_D4=data_in[7*16 + i],
+                    i_D5=data_in[9*16 + i], i_D6=data_in[11*16 + i]
+                ),
+                Instance("OBUFDS",
+                    i_I=dac_datb_se[i],
+                    o_O=pads.datb_p[i],
+                    o_OB=pads.datb_n[i]
+                )
+        ]
