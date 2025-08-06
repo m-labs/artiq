@@ -30,6 +30,7 @@ from artiq.coredevice.shuttler import (
     Relay as ShuttlerRelay,
     ADC as ShuttlerADC,
     shuttler_volt_to_mu)
+from artiq.coredevice.cxp_grabber import CXPGrabber
 from artiq.master.databases import DeviceDB
 from artiq.master.worker_db import DeviceManager
 
@@ -959,7 +960,7 @@ class SinaraTester(EnvExperiment):
                 print(f"ADC Readings:", " ".join(["{:.2f}".format(x) for x in adc_readings]))
 
     @kernel
-    def boA2448_250cm_setup(self, dev):
+    def boA2448_250cm_setup(self, dev: CXPGrabber) -> int32:
         self.core.break_realtime()
 
         # from the camera XML file
@@ -986,7 +987,7 @@ class SinaraTester(EnvExperiment):
         return bit_depth
 
     @kernel
-    def test_coaxpress_sfp_rois(self, dev, rois, bit_depth):
+    def test_coaxpress_sfp_rois(self, dev: CXPGrabber, rois: list[list[int32]], bit_depth: int32):
         self.core.break_realtime()
         counts = [0] * len(rois)
         expected_counts = [0] * len(rois)
@@ -1006,14 +1007,15 @@ class SinaraTester(EnvExperiment):
         dev.gate_roi(mask)
         dev.send_cxp_linktrigger(0)
         dev.input_mu(counts)
-        delay(100 * ms)
+        self.core.delay(100. * ms)
         dev.gate_roi(0)
 
         if counts == expected_counts:
-            print("PASSED")
+            print_rpc("PASSED")
         else:
-            print("FAILED")
-            print("ROI counts:", counts)
+            print_rpc("FAILED")
+            print_rpc("ROI counts:")
+            print_rpc(counts)
 
     def test_coaxpress_sfps(self):
         print("*** Testing CoaXPress-SFPs.")
