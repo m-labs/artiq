@@ -1,8 +1,8 @@
 {
-    "target": "kasli",
-    "min_artiq_version": "9.0",
-    "variant": "nac3devices",
-    "hw_rev": "v2.0",
+    "target": "kasli_soc",
+    "min_artiq_version": "10.0",
+    "variant": "nac3devices_master",
+    "hw_rev": "v1.1",
     "drtio_role": "master",
     "core_addr": "192.168.1.70",
     "peripherals": [

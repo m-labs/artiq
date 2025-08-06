@@ -128,7 +128,7 @@ class SUServo:
 
             cpld.init(blind=True)
             prev_cpld_cfg = cpld.cfg_reg
-            cpld.cfg_write(prev_cpld_cfg | (0xf << CFG_MASK_NU))
+            cpld.cfg_write(prev_cpld_cfg | int64(0xf << CFG_MASK_NU))
             dds.init(blind=True)
             cpld.cfg_write(prev_cpld_cfg)
 

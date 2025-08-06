@@ -1,0 +1,16 @@
+{
+    "target": "kasli_soc",
+    "min_artiq_version": "10.0",
+    "variant": "nac3devices_satellite",
+    "hw_rev": "v1.1",
+    "drtio_role": "satellite",
+    "peripherals": [
+        {
+            "type": "suservo",
+            "sampler_ports": [0, 1],
+            "urukul0_ports": [2, 3],
+            "urukul1_ports": [4, 6],
+            "clk_sel": 2
+        }
+    ]
+}

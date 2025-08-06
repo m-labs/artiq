@@ -10,6 +10,7 @@ from artiq.coredevice.urukul import CPLD as UrukulCPLD
 from artiq.coredevice.ad9912 import AD9912
 from artiq.coredevice.ad9910 import AD9910
 from artiq.coredevice.sampler import Sampler
+from artiq.coredevice.suservo import SUServo, Channel as SUServoChannel
 from artiq.coredevice.edge_counter import EdgeCounter
 from artiq.coredevice.grabber import Grabber
 from artiq.coredevice.fastino import Fastino
@@ -31,6 +32,9 @@ class NAC3Devices(EnvExperiment):
     urukul1_cpld: KernelInvariant[UrukulCPLD]
     urukul1_ch0: KernelInvariant[AD9910]
     sampler0: KernelInvariant[Sampler]
+    # NAC3TODO
+    #suservo0: KernelInvariant[SUServo]
+    #suservo0_ch0: KernelInvariant[SUServoChannel]
     ttl0_counter: KernelInvariant[EdgeCounter]
     grabber0: KernelInvariant[Grabber]
     fastino0: KernelInvariant[Fastino]
@@ -51,6 +55,9 @@ class NAC3Devices(EnvExperiment):
         self.setattr_device("urukul1_cpld")
         self.setattr_device("urukul1_ch0")
         self.setattr_device("sampler0")
+        # NAC3TODO
+        #self.setattr_device("suservo0")
+        #self.setattr_device("suservo0_ch0")
         self.setattr_device("ttl0_counter")
         self.setattr_device("grabber0")
         self.setattr_device("fastino0")
