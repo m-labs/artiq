@@ -11,6 +11,12 @@
             "urukul0_ports": [2, 3],
             "urukul1_ports": [4, 6],
             "clk_sel": 2
+        },
+        {
+            "type": "dio",
+            "ports": [7],
+            "bank_direction_low": "output",
+            "bank_direction_high": "input"
         }
     ]
 }
