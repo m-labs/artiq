@@ -841,7 +841,7 @@ fn sysclk_setup() {
         csr::crg::switch_done_read()
     };
     if switched == 1 {
-        info!("Clocking has already been set up.");
+        info!("clocking has already been set up");
         return;
     }
     else {
@@ -850,7 +850,7 @@ fn sysclk_setup() {
         #[cfg(has_si549)]
         si549::main_setup(&SI549_SETTINGS).expect("cannot initialize main Si549");
 
-        info!("Switching sys clock, rebooting...");
+        info!("switching sys clock, rebooting...");
         // delay for clean UART log, wait until UART FIFO is empty
         clock::spin_us(3000);
         unsafe {

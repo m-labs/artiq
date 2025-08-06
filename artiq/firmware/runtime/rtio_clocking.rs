@@ -76,7 +76,7 @@ pub mod crg {
     }
 
     pub fn init() -> bool {
-        info!("Using internal RTIO clock");
+        info!("using internal RTIO clock");
         unsafe {
             csr::rtio_crg::pll_reset_write(0);
         }
@@ -223,7 +223,7 @@ fn sysclk_setup(clock_cfg: RtioClock) {
         csr::crg::switch_done_read()
     };
     if switched == 1 {
-        info!("Clocking has already been set up.");
+        info!("clocking has already been set up");
         return;
     }
 
@@ -242,7 +242,7 @@ fn sysclk_setup(clock_cfg: RtioClock) {
     // switch sysclk source
     #[cfg(not(has_drtio))]
     {
-        info!("Switching sys clock, rebooting...");
+        info!("switching sys clock, rebooting...");
         // delay for clean UART log, wait until UART FIFO is empty
         clock::spin_us(1300); 
         unsafe {
@@ -407,7 +407,7 @@ pub fn init() {
             csr::crg::switch_done_read()
         };
         if switched == 0 {
-            info!("Switching sys clock, rebooting...");
+            info!("switching sys clock, rebooting...");
             clock::spin_us(3000); // delay for clean UART log
             unsafe {
                 // clock switch and reboot will begin after TX is initialized
