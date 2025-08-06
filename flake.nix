@@ -250,7 +250,7 @@
       version = artiqVersion;
       src = self;
       pyproject = true;
-      build-system = [python.pkgs.setuptools python.pkgs.versioneer];
+      build-system = [python.pkgs.setuptools python.pkgs.setuptools-scm python.pkgs.versioneer];
 
       preBuild = ''
         export VERSIONEER_OVERRIDE=${version}
@@ -262,9 +262,9 @@
       propagatedBuildInputs =
         [pkgs.llvm_15 pkgs.lld_15 pkgs.qt6.qtsvg]
         ++ (with python.pkgs; [
-          # Core ARTIQ packages (use traditional python.pkgs for consistency)
+          # Core ARTIQ packages (use original working dependencies)
           pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial levenshtein h5py tqdm lmdb jsonschema platformdirs
-          # Additional packages from pyproject.toml  
+          # Additional packages from original pyproject.toml  
           colorama jinja2 msgpack regex pandas
         ])
         # Add custom packages separately to avoid type conflicts
@@ -278,6 +278,8 @@
         ];
 
       dontWrapQtApps = true;
+      # Skip runtime dependency checking since nixpkgs versions may not match pyproject.toml exactly
+      pythonRuntimeDepsCheck = false;
       postFixup = ''
         wrapQtApp "$out/bin/artiq_dashboard"
         wrapQtApp "$out/bin/artiq_browser"
@@ -575,58 +577,9 @@
     formatter.x86_64-linux = pkgs.alejandra;
 
     devShells.x86_64-linux = {
-      # Main development shell with everything you need to develop ARTIQ on Linux.
-      # The current copy of the ARTIQ sources is added to PYTHONPATH so changes can be tested instantly.
-      # Additionally, executable wrappers that import the current ARTIQ sources for the ARTIQ frontends
-      # are added to PATH.
-      default = pkgs.mkShell {
-        name = "artiq-dev-shell";
-        packages = with pkgs;
-          [
-            git
-            lit
-            lld_15
-            llvm_15
-            llvmPackages_15.clang-unwrapped
-            outputcheck
-            pdf2svg
-            uv  # Add uv for development
 
-            python3Packages.sphinx
-            python3Packages.sphinx-argparse
-            python3Packages.sphinxcontrib-tikz
-            python3Packages.sphinxcontrib-wavedrom
-            python3Packages.sphinx_rtd_theme
-
-            (python.withPackages (ps: [migen misoc microscope ps.packaging ps.paramiko] ++ artiq.propagatedBuildInputs))
-          ]
-          ++ [
-            latex-artiq-manual
-            rust
-            artiq-frontend-dev-wrappers
-
-            # To manually run compiler tests:
-            libartiq-support
-
-            # use the vivado-env command to enter a FHS shell that lets you run the Vivado installer
-            packages.x86_64-linux.vivadoEnv
-            packages.x86_64-linux.vivado
-            packages.x86_64-linux.openocd-bscanspi
-          ];
-        shellHook = ''
-          export LIBARTIQ_SUPPORT=`libartiq-support`
-          export QT_PLUGIN_PATH=${qtPaths.QT_PLUGIN_PATH}
-          export QML2_IMPORT_PATH=${qtPaths.QML2_IMPORT_PATH}
-          export PYTHONPATH=`git rev-parse --show-toplevel`:$PYTHONPATH
-          
-          # uv2nix specific env vars
-          export UV_PYTHON_DOWNLOADS=never
-          export UV_PYTHON=${python.interpreter}
-        '';
-      };
-
-      # uv2nix development shell using virtual environments
-      uv2nix = if workspace != null then
+      # Main development shell with automatic uv.lock detection
+      default = if workspace != null then
         let
           # Create editable overlay if workspace exists
           editableOverlay = workspace.mkEditablePyprojectOverlay {
@@ -710,6 +663,7 @@
             export PYTHONPATH="${editablePythonSet.pyqt6}/${python.sitePackages}:$PYTHONPATH"
             export PYTHONPATH="${editablePythonSet.pyqt6-sip}/${python.sitePackages}:$PYTHONPATH"
             
+            echo "ARTIQ development environment with uv2nix (uv.lock detected)"
             echo "Using uv2nix virtual environment at: ${virtualenv}"
             echo "Python: $(which python)"
             echo "uv will add packages to this environment."
@@ -717,32 +671,55 @@
           '';
         }
       else
-        # When no uv.lock exists, fallback to the default shell
-        devShells.x86_64-linux.default.overrideAttrs (old: {
-          name = "artiq-uv2nix-fallback-shell";
-          shellHook = old.shellHook + ''
+        # When no uv.lock exists, provide traditional ARTIQ development shell
+        pkgs.mkShell {
+          name = "artiq-dev-shell";
+          packages = with pkgs;
+            [
+              git
+              lit
+              lld_15
+              llvm_15
+              llvmPackages_15.clang-unwrapped
+              outputcheck
+              pdf2svg
+              uv
+
+              python3Packages.sphinx
+              python3Packages.sphinx-argparse
+              python3Packages.sphinxcontrib-tikz
+              python3Packages.sphinxcontrib-wavedrom
+              python3Packages.sphinx_rtd_theme
+
+              (python.withPackages (ps: [migen misoc microscope ps.packaging ps.paramiko] ++ artiq.propagatedBuildInputs))
+            ]
+            ++ [
+              latex-artiq-manual
+              rust
+              artiq-frontend-dev-wrappers
+              libartiq-support
+              packages.x86_64-linux.vivadoEnv
+              packages.x86_64-linux.vivado
+              packages.x86_64-linux.openocd-bscanspi
+            ];
+          shellHook = ''
+            export LIBARTIQ_SUPPORT=`libartiq-support`
+            export QT_PLUGIN_PATH=${qtPaths.QT_PLUGIN_PATH}
+            export QML2_IMPORT_PATH=${qtPaths.QML2_IMPORT_PATH}
+            export PYTHONPATH=`git rev-parse --show-toplevel`:$PYTHONPATH
             
-            echo "No uv.lock file detected, falling back to default ARTIQ development shell."
-            echo "To enable uv2nix features, run 'uv lock' and then 'nix develop .#uv2nix'."
+            export UV_PYTHON_DOWNLOADS=never
+            export UV_PYTHON=${python.interpreter}
+            
+            echo "ARTIQ development environment (no uv.lock detected)"
+            echo "Full ARTIQ development tools available"
+            echo ""
+            echo "To enable uv2nix features:"
+            echo "  1. Run 'uv lock' to generate uv.lock from pyproject.toml"
+            echo "  2. Run 'nix develop' again for enhanced uv integration"
           '';
-        });
+        };
 
-      # Lighter development shell optimized for building firmware and flashing boards.
-      boards = pkgs.mkShell {
-        name = "artiq-boards-shell";
-        packages = [
-          rust
-
-          pkgs.llvmPackages_15.clang-unwrapped
-          pkgs.llvm_15
-          pkgs.lld_15
-
-          packages.x86_64-linux.vivado
-          packages.x86_64-linux.openocd-bscanspi
-
-          (python.withPackages (ps: [migen misoc artiq ps.packaging ps.paramiko]))
-        ];
-      };
     };
 
     packages.aarch64-linux = {
