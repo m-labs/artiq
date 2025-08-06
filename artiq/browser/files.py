@@ -5,7 +5,7 @@ from datetime import datetime
 import h5py
 from PyQt6 import QtCore, QtWidgets, QtGui
 
-from sipyco import pyon
+from artiq import compat
 
 
 logger = logging.getLogger(__name__)
@@ -102,7 +102,7 @@ class Hdf5FileSystemModel(QtGui.QFileSystemModel):
             h5 = open_h5(info)
             if h5 is not None:
                 try:
-                    expid = pyon.decode(h5["expid"][()]) if "expid" in h5 else dict()
+                    expid = compat.pyon_decode(h5["expid"][()]) if "expid" in h5 else dict()
                     start_time = datetime.fromtimestamp(h5["start_time"][()]) if "start_time" in h5 else "<none>"
                     v = ("artiq_version: {}\nrepo_rev: {}\nfile: {}\n"
                          "class_name: {}\nrid: {}\nstart_time: {}").format(
@@ -175,7 +175,7 @@ class FilesDock(QtWidgets.QDockWidget):
         logger.debug("loading datasets from %s", info.filePath())
         with f:
             try:
-                expid = pyon.decode(f["expid"][()]) if "expid" in f else dict()
+                expid = compat.pyon_decode(f["expid"][()]) if "expid" in f else dict()
                 start_time = datetime.fromtimestamp(f["start_time"][()]) if "start_time" in f else "<none>"
                 v = {
                     "artiq_version": f["artiq_version"].asstr()[()] if "artiq_version" in f else "<none>",

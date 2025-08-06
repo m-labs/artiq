@@ -185,6 +185,7 @@ dependencies = [
  "board_artiq",
  "board_misoc",
  "build_misoc",
+ "byteorder",
  "cslice",
  "dyld",
  "eh",

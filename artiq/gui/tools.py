@@ -151,8 +151,8 @@ async def get_open_file_name(parent, caption, dir, filter):
 async def get_save_file_name(parent, caption, dir, filter, suffix=None):
     """like QtWidgets.QFileDialog.getSaveFileName(), but a coroutine"""
     dialog = QtWidgets.QFileDialog(parent, caption, dir, filter)
-    dialog.setFileMode(dialog.AnyFile)
-    dialog.setAcceptMode(dialog.AcceptSave)
+    dialog.setFileMode(dialog.FileMode.AnyFile)
+    dialog.setAcceptMode(dialog.AcceptMode.AcceptSave)
     if suffix is not None:
         dialog.setDefaultSuffix(suffix)
     fut = asyncio.Future()

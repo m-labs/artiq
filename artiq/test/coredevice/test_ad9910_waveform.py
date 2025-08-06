@@ -78,7 +78,7 @@ def io_update_device(cpld, *required_values, proto_rev=None):
                         if actual_proto_rev != proto_rev:
                             self.skipTest(
                                 f"This test requires proto_rev={proto_rev}, "
-                                "but the current proto_rev is {actual_proto_rev}."
+                                f"but the current proto_rev is {actual_proto_rev}."
                             )
 
                     print(

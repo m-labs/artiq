@@ -15,6 +15,7 @@ from platformdirs import user_config_dir
 from artiq import __version__ as artiq_version
 from artiq.language.environment import is_public_experiment
 from artiq.language import units
+from artiq import compat
 
 
 __all__ = ["parse_arguments",
@@ -33,7 +34,7 @@ def parse_arguments(arguments):
     d = {}
     for argument in arguments:
         name, eq, value = argument.partition("=")
-        d[name] = pyon.decode(value)
+        d[name] = compat.pyon_decode(value)
     return d
 
 
@@ -48,7 +49,7 @@ def parse_devarg_override(devarg_override):
         argument, _, value = override.partition("=")
         if not value:
             raise ValueError
-        devarg_override_dict[device][argument] = pyon.decode(value)
+        devarg_override_dict[device][argument] = compat.pyon_decode(value)
     return devarg_override_dict
 
 

@@ -16,6 +16,8 @@ use sched::{ThreadHandle, Io, Mutex, TcpListener, TcpStream, Error as SchedError
 use rtio_clocking;
 use rtio_dma::Manager as DmaManager;
 #[cfg(has_drtio)]
+use drtioaux::Packet;
+#[cfg(has_drtio)]
 use rtio_dma::remote_dma;
 #[cfg(has_drtio)]
 use kernel::{subkernel, subkernel::Error as SubkernelError};
@@ -777,7 +779,143 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 }
                 Ok(())
             },
+            #[cfg(has_drtio)]
+            kern::CXPReadRequest {
+                destination,
+                address,
+                length,
+            } => {
+                let linkno = routing_table.0[*destination as usize][0] - 1;
+                loop {
+                    let drtioaux_packet = drtio::aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno,
+                        &Packet::CXPReadRequest {
+                            destination: *destination,
+                            address: *address,
+                            length: *length,
+                        },
+                    );
 
+                    match drtioaux_packet {
+                        Ok(Packet::CXPWaitReply) => {}
+                        Ok(Packet::CXPReadReply { length, data }) => {
+                            break kern_send(io, &kern::CXPReadReply { length, data });
+                        }
+                        Ok(Packet::CXPError { length, message }) => {
+                            break kern_send(io,&kern::CXPError(str::from_utf8(&message[..length as usize]).unwrap()));
+                        }
+                        Ok(packet) => {
+                            error!("received unexpected aux packet {:?}", packet);
+                            break kern_send(io, &kern::CXPError("recevied unexpected drtio aux reply"));
+                        }
+                        Err(e) => {
+                            error!("aux packet error ({})", e);
+                            break kern_send(io, &kern::CXPError("drtio aux error"));
+                        }
+                    };
+                }
+            }
+            #[cfg(has_drtio)]
+            kern::CXPWrite32Request {
+                destination,
+                address,
+                value,
+            } => {
+                let linkno = routing_table.0[*destination as usize][0] - 1;
+                loop {
+                    let drtioaux_packet = drtio::aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno,
+                        &Packet::CXPWrite32Request {
+                            destination: *destination,
+                            address: *address,
+                            value: *value,
+                        },
+                    );
+                    
+
+                    match drtioaux_packet {
+                        Ok(Packet::CXPWaitReply) => {}
+                        Ok(Packet::CXPWrite32Reply) => break kern_send(io, &kern::CXPWrite32Reply),
+                        Ok(Packet::CXPError { length, message }) => {
+                            break kern_send(io,&kern::CXPError(str::from_utf8(&message[..length as usize]).unwrap()));
+                        }
+                        Ok(packet) => {
+                            error!("received unexpected aux packet {:?}", packet);
+                            break kern_send(io, &kern::CXPError("recevied unexpected drtio aux reply"));
+                        }
+                        Err(e) => {
+                            error!("aux packet error ({})", e);
+                            break kern_send(io, &kern::CXPError("drtio aux error"));
+                        }
+                    };
+                }
+            }
+            #[cfg(has_drtio)]
+            kern::CXPROIViewerSetupRequest {
+                destination,
+                x0,
+                y0,
+                x1,
+                y1,
+            } => {
+                let linkno = routing_table.0[*destination as usize][0] - 1;
+                let drtioaux_packet = drtio::aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno,
+                    &Packet::CXPROIViewerSetupRequest {
+                        destination: *destination,
+                        x0: *x0,
+                        y0: *y0,
+                        x1: *x1,
+                        y1: *y1,
+                    },
+                );
+
+                let reply = match drtioaux_packet {
+                    Ok(Packet::CXPROIViewerSetupReply) => kern::CXPROIViewerSetupReply,
+                    Ok(packet) => {
+                        error!("received unexpected aux packet {:?}", packet);
+                        kern::CXPError("recevied unexpected drtio aux reply")
+                    }
+                    Err(e) => {
+                        error!("aux packet error ({})", e);
+                        kern::CXPError("drtio aux error")
+                    }
+                };
+                kern_send(io,&reply)
+            }
+            #[cfg(has_drtio)]
+            kern::CXPROIViewerDataRequest { destination } => {
+                let linkno = routing_table.0[*destination as usize][0] - 1;
+                let reply = loop {
+                    let drtioaux_packet = drtio::aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno,
+                        &Packet::CXPROIViewerDataRequest { destination: *destination },
+                    );
+
+                    match drtioaux_packet {
+                        Ok(Packet::CXPWaitReply) => {}
+                        Ok(Packet::CXPROIViewerPixelDataReply { length, data }) => {
+                            break kern::CXPROIVIewerPixelDataReply { length, data };
+                        }
+                        Ok(Packet::CXPROIViewerFrameDataReply {
+                            width,
+                            height,
+                            pixel_code,
+                        }) => {
+                            break kern::CXPROIVIewerFrameDataReply {
+                                width,
+                                height,
+                                pixel_code,
+                            };
+                        }
+                        Ok(packet) => {
+                            error!("received unexpected aux packet {:?}", packet);
+                            break kern::CXPError("recevied unexpected drtio aux reply");
+                        }
+                        Err(e) => {
+                            error!("aux packet error ({})", e);
+                            break kern::CXPError("drtio aux error");
+                        }
+                    };
+                };
+                kern_send(io,&reply)
+                }
             request => unexpected!("unexpected request {:?} from kernel CPU", request)
         }.and(Ok(false))
     })

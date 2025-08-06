@@ -7,12 +7,11 @@ from collections import OrderedDict
 from PyQt6 import QtCore, QtGui, QtWidgets
 import h5py
 
-from sipyco import pyon
-
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.gui.tools import (LayoutWidget, log_level_to_name, get_open_file_name)
 from artiq.gui.entries import procdesc_to_entry, EntryTreeWidget
 from artiq.master.worker import Worker, log_worker_exception
+from artiq import compat
 
 logger = logging.getLogger(__name__)
 
@@ -192,7 +191,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         try:
             with h5py.File(filename, "r") as f:
                 expid = f["expid"][()]
-            expid = pyon.decode(expid)
+            expid = compat.pyon_decode(expid)
             arguments = expid["arguments"]
         except:
             logger.error("Could not retrieve expid from HDF5 file",

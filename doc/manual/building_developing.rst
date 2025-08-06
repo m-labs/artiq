@@ -56,7 +56,7 @@ System descriptions do not need to be very complex. At its most basic, a system 
         ]
     }
 
-Only these five fields are required, and the ``peripherals`` list can in principle be empty. Instructions on how to enter individual Sinara cards (both core devices and peripherals) into an ARTIQ system description can be found in their respective datasheets, available on the M-Labs `Sinara core page <https://m-labs.hk/experiment-control/sinara-core/>`_. A limited number of full examples can currently be found in `the ARTIQ-Zynq repository <https://git.m-labs.hk/M-Labs/artiq-zynq/src/branch/master>`_, as well as in the main repository under ``artiq/examples/kasli_shuttler``.
+Only these five fields are required, and the ``peripherals`` list can in principle be empty. Instructions on how to enter individual Sinara cards (both core devices and peripherals) into an ARTIQ system description can be found in their respective datasheets, available on the M-Labs `Sinara core page <https://m-labs.hk/artiq/sinara-core/>`_. A limited number of full examples can currently be found in `the ARTIQ-Zynq repository <https://git.m-labs.hk/M-Labs/artiq-zynq/src/branch/master>`_, as well as in the main repository under ``artiq/examples/kasli_shuttler``.
 
 Once your system description file is complete, you can use ``artiq_ddb_template`` (see also :ref:`Utilities <ddb-template-tool>`) to test it and to generate a template for the corresponding :ref:`device database <device-db>`.
 

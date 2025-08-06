@@ -183,7 +183,6 @@
       src = src-migen;
       pyproject = true;
       build-system = [pkgs.python3Packages.setuptools];
-      nativeBuildInputs = [pkgs.python3Packages.setuptools];
       propagatedBuildInputs = [pkgs.python3Packages.colorama];
     };
 

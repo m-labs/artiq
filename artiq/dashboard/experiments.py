@@ -7,12 +7,11 @@ from collections import OrderedDict
 from PyQt6 import QtCore, QtGui, QtWidgets
 import h5py
 
-from sipyco import pyon
-
 from artiq.gui.entries import procdesc_to_entry, EntryTreeWidget
 from artiq.gui.fuzzy_select import FuzzySelectWidget
 from artiq.gui.tools import (LayoutWidget, log_level_to_name, get_open_file_name)
 from artiq.tools import parse_devarg_override, unparse_devarg_override
+from artiq import compat
 
 
 logger = logging.getLogger(__name__)
@@ -206,8 +205,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         devarg_override.setEditable(True)
         devarg_override.lineEdit().setPlaceholderText("Override device arguments")
         devarg_override.lineEdit().setClearButtonEnabled(True)
-        devarg_override.insertItem(0, "core:analyze_at_run_end=True")
-        devarg_override.insertItem(1, "core:report_invariants=True")
+        devarg_override.insertItem(0, "core:analyze_at_run_end=true")
+        devarg_override.insertItem(1, "core:report_invariants=true")
         self.layout.addWidget(devarg_override, 2, 3)
 
         devarg_override.setCurrentText(options["devarg_override"])
@@ -417,7 +416,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         try:
             with h5py.File(filename, "r") as f:
                 expid = f["expid"][()]
-            expid = pyon.decode(expid)
+            expid = compat.pyon_decode(expid)
             arguments = expid["arguments"]
         except:
             logger.error("Could not retrieve expid from HDF5 file",
