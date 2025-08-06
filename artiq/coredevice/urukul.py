@@ -488,7 +488,7 @@ class ProtoRev9(CPLDVersion):
             :attr:`cfg_reg`.
         """
         self.cpld.bus.set_config_mu(SPI_CONFIG, 24, SPIT_CFG_WR, CS_CFG)
-        self.cpld.bus.write(((int32(cfg) >> 28) & 0xFFFFFF) << 8)
+        self.cpld.bus.write((int32(cfg >> 28) & 0xFFFFFF) << 8)
         self.cpld.bus.set_config_mu(SPI_CONFIG | SPI_END, 28, SPIT_CFG_WR, CS_CFG)
         self.cpld.bus.write((int32(cfg) & 0xFFFFFFF) << 4)
         self.cpld.cfg_reg = cfg
