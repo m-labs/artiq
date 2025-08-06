@@ -2,7 +2,7 @@ from numpy import int32, int64
 
 from artiq.coredevice import spi2 as spi
 from artiq.coredevice import urukul
-from artiq.coredevice.urukul import DEFAULT_PROFILE, _RegIOUpdate
+from artiq.coredevice.urukul import DEFAULT_PROFILE, RegIOUpdate
 from artiq.language.core import at_mu, delay, delay_mu, kernel, now_mu, portable
 from artiq.language.types import TBool, TFloat, TInt32, TInt64, TList, TTuple
 from artiq.language.units import ms, us
@@ -173,7 +173,7 @@ class AD9910:
         self.sysclk = sysclk
 
         if not self.cpld.io_update:
-            self.io_update = _RegIOUpdate(self.cpld, self.chip_select)
+            self.io_update = RegIOUpdate(self.cpld, self.chip_select)
         else:
             self.io_update = self.cpld.io_update
 
@@ -523,7 +523,7 @@ class AD9910:
             self.tune_sync_delay(self.sync_data.sync_delay_seed)
         delay(1 * ms)
         # FIXME: Re-write the configuration (needed for proper
-        # initialization when using _RegIOUpdate).
+        # initialization when using RegIOUpdate).
         self.cpld.cfg_write(self.cpld.cfg_reg)
 
     @kernel
