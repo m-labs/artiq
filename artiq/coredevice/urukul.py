@@ -49,6 +49,7 @@ STA_SMP_ERR = 4
 STA_PLL_LOCK = 8
 STA_IFC_MODE = 12
 STA_PROTO_REV = 16
+STA_DROVER = 23
 
 # supported hardware and CPLD code version
 STA_PROTO_REV_8 = 0x08  # See NAC3TODO below for more details
@@ -159,7 +160,7 @@ class CPLDVersion:
     Defines interface methods that must be customized for different CPLD versions.
     """
     @kernel
-    def cfg_write(self, cpld: CPLD, cfg: int32):
+    def cfg_write(self, cpld: CPLD, cfg: int64):
         pass
 
     @kernel
@@ -329,7 +330,7 @@ class ProtoRev8(CPLDVersion):
         # differential are too small initially.
         # This dummy config value is similar to the coming SPI config
         cpld.bus.set_config_mu(SPI_CONFIG, 24, SPIT_CFG_WR, CS_CFG)
-        self.core.delay(1.0 * us)
+        cpld.core.delay(1.0 * us)
         if blind:
             cpld.cfg_write(cpld.cfg_reg)
         elif urukul_sta_proto_rev(self.sta_read(cpld)) != STA_PROTO_REV_8:
@@ -522,10 +523,10 @@ class ProtoRev9:
         # differential are too small initially.
         # This dummy config value is the coming SPI config
         cpld.bus.set_config_mu(SPI_CONFIG, 24, SPIT_CFG_WR, CS_CFG)
-        delay(1.0 * us)
+        cpld.core.delay(1.0 * us)
         if blind:
             cpld.cfg_write(cpld.cfg_reg)
-        elif urukul_sta_proto_rev(self.sta_read(cpld))!= STA_PROTO_REV_9:
+        elif urukul_sta_proto_rev(self.sta_read(cpld)) != STA_PROTO_REV_9:
             raise ValueError("Urukul proto_rev mismatch")
         cpld.core.delay(100. * us)  # reset, slack
         cpld.cfg_write(cfg)
@@ -652,7 +653,7 @@ class ProtoRev9:
         cpld._configure_all_bits(ProtoRev9.CFG_DRHOLD, state)
 
     @kernel
-    def cfg_io_update(self, cpld, channel: TInt32, on: TBool):
+    def cfg_io_update(self, cpld: CPLD, channel: int32, on: bool):
         """Configure the IO_UPDATE bit for the given channel in the configuration register.
 
         :param channel: Channel index (0-3)
@@ -661,7 +662,7 @@ class ProtoRev9:
         cpld._configure_bit(ProtoRev9.CFG_IO_UPDATE, channel, on)
 
     @kernel
-    def cfg_io_update_all(self, cpld, state: TInt32):
+    def cfg_io_update_all(self, cpld: CPLD, state: int32):
         """Configure all four IO_UPDATE bits in the configuration register.
 
         :param state: IO_UPDATE state as a 4-bit integer.
@@ -893,11 +894,11 @@ class CPLD:
         self.version.cfg_drhold_all(self, state)
     
     @kernel
-    def cfg_io_update(self, channel: TInt32, on: TBool):
+    def cfg_io_update(self, channel: int32, on: bool):
         self.version.cfg_io_update(self, channel, on)
 
     @kernel
-    def cfg_io_update_all(self, state: TInt32):
+    def cfg_io_update_all(self, state: int32):
         self.version.cfg_io_update_all(self, state)
 
     @kernel
@@ -1050,49 +1051,3 @@ class CPLD:
         assert ftw * div == ftw_max
         if self.sync.is_some():
             self.sync.unwrap().set_mu(ftw)
-
-
-@compile
-class _RegIOUpdate:
-    core: KernelInvariant[Core]
-    cpld: KernelInvariant[CPLD]
-    chip_select: KernelInvariant[int32]
-
-    def __init__(self, core, cpld, chip_select):
-        self.core = core
-        self.cpld = cpld
-        self.chip_select = chip_select
-
-    @kernel
-    def pulse_mu(self, t: int64):
-        """Pulse the output high for the specified duration
-        (in machine units).
-        The time cursor is advanced by the specified duration."""
-        cfg = self.cpld.cfg_reg
-        # NAC3TODO
-        # if self.cpld.proto_rev == STA_PROTO_REV_8:
-        #     self.cpld.cfg_write(cfg | int64(1 << ProtoRev8.CFG_IO_UPDATE))
-        # else:
-        self.cpld.cfg_write(
-            int64(cfg)
-            | (int64(1) << (ProtoRev9.CFG_IO_UPDATE + (self.chip_select - 4)))
-        )
-        delay_mu(t)
-        self.cpld.cfg_write(cfg)
-
-    @kernel
-    def pulse(self, t: float):
-        """Pulse the output high for the specified duration
-        (in seconds).
-        The time cursor is advanced by the specified duration."""
-        cfg = self.cpld.cfg_reg
-        # NAC3TODO
-        # if self.cpld.proto_rev == STA_PROTO_REV_8:
-        #     self.cpld.cfg_write(cfg | int64(1 << ProtoRev8.CFG_IO_UPDATE))
-        # else:
-        self.cpld.cfg_write(
-            int64(cfg)
-            | (int64(1) << (ProtoRev9.CFG_IO_UPDATE + (self.chip_select - 4)))
-        )
-        self.cpld.core.delay(t)
-        self.cpld.cfg_write(cfg)

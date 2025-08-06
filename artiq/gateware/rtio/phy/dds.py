@@ -8,9 +8,9 @@ from artiq.coredevice.urukul import (
     CS_CFG,
     CS_DDS_CH0,
     CS_DDS_MULTI,
-    # STA_PROTO_REV_8, NAC3TODO
+    STA_PROTO_REV_8,
     STA_PROTO_REV_9,
-    # ProtoRev8, NAC3TODO
+    ProtoRev8,
     ProtoRev9,
 )
 
@@ -114,11 +114,10 @@ class UrukulMonitor(Module):
             ]
 
     def is_io_update(self, proto_rev, flags):
-        # NAC3TODO
-        # if proto_rev == STA_PROTO_REV_8:
-        #     # shifted 8 bits left for 32-bit bus
-        #     reg_io_upd = (self.cs == CS_CFG) & self.current_data[8 + ProtoRev8.CFG_IO_UPDATE]
-        if proto_rev == STA_PROTO_REV_9:
+        if proto_rev == STA_PROTO_REV_8:
+            # shifted 8 bits left for 32-bit bus
+            reg_io_upd = (self.cs == CS_CFG) & self.current_data[8 + ProtoRev8.CFG_IO_UPDATE]
+        elif proto_rev == STA_PROTO_REV_9:
             # cfg_write for proto_rev 9 takes two transfers, CFG_IO_UPDATES are in the last one
             reg_io_upd = (self.cs == CS_CFG) & (flags & SPI_END) & (
                 self.current_data[4 + (ProtoRev9.CFG_IO_UPDATE - 32)] |

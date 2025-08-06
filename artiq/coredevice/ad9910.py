@@ -1021,7 +1021,7 @@ class AD9910:
         self.cpld.cfg_att_en(self.chip_select - 4, state)
 
     @kernel
-    def set_profile(self, profile: TInt32):
+    def set_profile(self, profile: int32):
         """Set the PROFILE pins.
 
         .. warning::
