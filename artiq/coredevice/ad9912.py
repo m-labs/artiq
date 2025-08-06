@@ -55,7 +55,7 @@ class AD9912:
         self.ftw_per_hz = 1 / sysclk * (int64(1) << 48)
 
         if not self.cpld.io_update:
-            self.io_update = urukul._RegIOUpdate(self.cpld, self.chip_select)
+            self.io_update = urukul.RegIOUpdate(self.cpld, self.chip_select)
         else:
             self.io_update = self.cpld.io_update
 
