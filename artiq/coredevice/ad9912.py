@@ -39,6 +39,7 @@ class AD9912:
     pll_en: KernelInvariant[bool]
     ftw_per_hz: KernelInvariant[float]
     sw: KernelInvariant[Option[TTLOut]]
+    io_update: KernelInvariant[TTLOut]
 
     def __init__(self, dmgr, chip_select, cpld_device, sw_device=None,
                  pll_n=10, pll_en=True):
@@ -63,6 +64,11 @@ class AD9912:
             sysclk = self.cpld.refclk
         assert sysclk <= 1e9
         self.ftw_per_hz = 1 / sysclk * (1 << 48)
+
+        if not self.cpld.io_update:
+            self.io_update = urukul.RegIOUpdate(self.cpld, self.chip_select)
+        else:
+            self.io_update = self.cpld.io_update
 
     @kernel
     def write(self, addr: int32, data: int32, length: int32):
@@ -115,7 +121,7 @@ class AD9912:
         """
         # SPI mode
         self.write(AD9912_SER_CONF, 0x99, 1)
-        self.cpld.io_update.pulse(2. * us)
+        self.io_update.pulse(2. * us)
         # Verify chip ID and presence
         prodid = self.read(AD9912_PRODIDH, 2)
         if (prodid != 0x1982) and (prodid != 0x1902):
@@ -124,17 +130,17 @@ class AD9912:
         # HSTL power down, CMOS power down
         pwrcntrl1 = 0x80 | (int32(not self.pll_en) << 4)
         self.write(AD9912_PWRCNTRL1, pwrcntrl1, 1)
-        self.cpld.io_update.pulse(2. * us)
+        self.io_update.pulse(2. * us)
         if self.pll_en:
             self.write(AD9912_N_DIV, self.pll_n // 2 - 2, 1)
-            self.cpld.io_update.pulse(2. * us)
+            self.io_update.pulse(2. * us)
             # I_cp = 375 µA, VCO high range
             if self.cpld.refclk < 11e6:
                 # enable SYSCLK PLL Doubler
                 self.write(AD9912_PLLCFG, 0b00001101, 1)
             else:
                 self.write(AD9912_PLLCFG, 0b00000101, 1)
-            self.cpld.io_update.pulse(2. * us)
+            self.io_update.pulse(2. * us)
         self.core.delay(1. * ms)
 
     @kernel
@@ -201,7 +207,7 @@ class AD9912:
         self.bus.set_config_mu(SPI_CONFIG | SPI_END, 32,
                                SPIT_DDS_WR, self.chip_select)
         self.bus.write(int32(ftw))
-        self.cpld.io_update.pulse(10. * ns)
+        self.io_update.pulse(10. * ns)
 
     @kernel
     def get_mu(self) -> tuple[int64, int32]:
@@ -288,3 +294,19 @@ class AD9912:
         :param state: CPLD CFG RF switch bit
         """
         self.cpld.cfg_sw(self.chip_select - 4, state)
+
+    @kernel
+    def cfg_mask_nu(self, state: bool):
+        """Set CPLD CFG MASK_NU state.
+
+        :param state: CPLD CFG MASK_NU bit
+        """
+        self.cpld.cfg_mask_nu(self.chip_select - 4, state)
+
+    @kernel
+    def cfg_att_en(self, state: bool):
+        """Set CPLD CFG ATT_EN state.
+
+        :param state: CPLD CFG ATT_EN bit
+        """
+        self.cpld.cfg_att_en(self.chip_select - 4, state)
