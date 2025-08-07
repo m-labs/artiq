@@ -1,4 +1,12 @@
-from artiq.coredevice.urukul import STA_PROTO_REV_8, STA_PROTO_REV_9
+from numpy import int32, int64
+
+from artiq.coredevice.ad9912 import AD9912
+from artiq.coredevice.core import Core
+from artiq.coredevice.urukul import (
+    CPLD as UrukulCPLD,
+    STA_PROTO_REV_8,
+    STA_PROTO_REV_9,
+)
 from artiq.experiment import *
 from artiq.test.coredevice.test_ad9910_waveform import io_update_device
 from artiq.test.hardware_testbench import ExperimentCase
@@ -8,7 +16,13 @@ CPLD = "urukul_cpld"
 DDS = "urukul_ch1"
 
 
+@compile
 class AD9912Exp(EnvExperiment):
+    core: KernelInvariant[Core]
+    cpld: KernelInvariant[UrukulCPLD]
+    dev: KernelInvariant[AD9912]
+    io_update_device: Kernel[bool]
+
     def build(self, runner, io_update_device=True):
         self.setattr_device("core")
         self.cpld = self.get_device(CPLD)
@@ -18,6 +32,18 @@ class AD9912Exp(EnvExperiment):
 
     def run(self):
         getattr(self, self.runner)()
+
+    @rpc
+    def report_int32(self, name: str, data: int32):
+        self.set_dataset(name, data)
+
+    @rpc
+    def report_list_int32(self, name: str, data: list[int32]):
+        self.set_dataset(name, data)
+
+    @rpc
+    def report_float(self, name: str, data: float):
+        self.set_dataset(name, data)
 
     @kernel
     def instantiate(self):
@@ -46,13 +72,13 @@ class AD9912Exp(EnvExperiment):
         f = 81.2345 * MHz
         p = 0.33
         a = 0.89
-        att = 20 * dB
+        att = 20. * dB
         self.dev.set_att(att)
         self.dev.set(frequency=f, phase=p)
         self.core.break_realtime()
         att_mu = self.dev.get_att_mu()
-        self.set_dataset("att_set", self.cpld.att_to_mu(att))
-        self.set_dataset("att_get", att_mu)
+        self.report_int32("att_set", self.cpld.att_to_mu(att))
+        self.report_int32("att_get", att_mu)
         if not self.io_update_device:
             # Unset MASK_NU to un-trigger CFG.IO_UPDATE
             self.dev.cfg_mask_nu(False)
@@ -70,8 +96,8 @@ class AD9912Exp(EnvExperiment):
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
             self.dev.set(frequency=f, phase=0.33)
-        self.set_dataset(
-            "dt", self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / n
+        self.report_float(
+            "dt", self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / float(n)
         )
         if not self.io_update_device:
             # Unset MASK_NU to un-trigger CFG.IO_UPDATE
@@ -88,9 +114,9 @@ class AD9912Exp(EnvExperiment):
         n = 10
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
-            self.dev.set_mu(0x12345678, 0x1234)
-        self.set_dataset(
-            "dt", self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / n
+            self.dev.set_mu(int64(0x12345678), 0x1234)
+        self.report_float(
+            "dt", self.core.mu_to_seconds(self.core.get_rtio_counter_mu() - t0) / float(n)
         )
         if not self.io_update_device:
             # Unset MASK_NU to un-trigger CFG.IO_UPDATE
@@ -98,23 +124,24 @@ class AD9912Exp(EnvExperiment):
 
     @kernel
     def sw_readback(self):
-        self.core.break_realtime()
-        self.cpld.init()
-        if not self.io_update_device:
-            # Set MASK_NU to trigger CFG.IO_UPDATE
-            self.dev.cfg_mask_nu(True)
-        self.dev.init()
-        self.dev.cfg_sw(False)
-        self.dev.sw.on()
-        sw_on = (self.cpld.sta_read() >> (self.dev.chip_select - 4)) & 1
-        delay(10 * us)
-        self.dev.sw.off()
-        sw_off = (self.cpld.sta_read() >> (self.dev.chip_select - 4)) & 1
-        self.set_dataset("sw", (sw_on, sw_off))
-        if not self.io_update_device:
+        if self.dev.sw.is_some():
             self.core.break_realtime()
-            # Unset MASK_NU to un-trigger CFG.IO_UPDATE
-            self.dev.cfg_mask_nu(False)
+            self.cpld.init()
+            if not self.io_update_device:
+                # Set MASK_NU to trigger CFG.IO_UPDATE
+                self.dev.cfg_mask_nu(True)
+            self.dev.init()
+            self.dev.cfg_sw(False)
+            self.dev.sw.unwrap().on()
+            sw_on = (self.cpld.sta_read() >> (self.dev.chip_select - 4)) & 1
+            self.core.delay(10. * us)
+            self.dev.sw.unwrap().off()
+            sw_off = (self.cpld.sta_read() >> (self.dev.chip_select - 4)) & 1
+            self.report_list_int32("sw", [sw_on, sw_off])
+            if not self.io_update_device:
+                self.core.break_realtime()
+                # Unset MASK_NU to un-trigger CFG.IO_UPDATE
+                self.dev.cfg_mask_nu(False)
 
     @kernel
     def cfg_sw_readback(self):
@@ -126,10 +153,10 @@ class AD9912Exp(EnvExperiment):
         self.dev.init()
         self.dev.cfg_sw(True)
         cfg_sw_on = (self.cpld.sta_read() >> (self.dev.chip_select - 4)) & 1
-        delay(10 * us)
+        self.core.delay(10. * us)
         self.dev.cfg_sw(False)
         cfg_sw_off = (self.cpld.sta_read() >> (self.dev.chip_select - 4)) & 1
-        self.set_dataset("cfg_sw", (cfg_sw_on, cfg_sw_off))
+        self.report_list_int32("cfg_sw", [cfg_sw_on, cfg_sw_off])
         if not self.io_update_device:
             self.core.break_realtime()
             # Unset MASK_NU to un-trigger CFG.IO_UPDATE
@@ -148,13 +175,13 @@ class AD9912Exp(EnvExperiment):
             self.dev.cfg_mask_nu(True)
         self.dev.init()
 
-        delay(10 * ms)
+        self.core.delay(10. * ms)
 
-        self.dev.set(100 * MHz)
+        self.dev.set(100. * MHz)
         self.dev.cfg_sw(True)
         self.dev.set_att(1.0)
 
-        delay(5 * s)
+        self.core.delay(5. * s)
 
         self.dev.cfg_sw(False)
 
@@ -181,18 +208,18 @@ class AD9912Exp(EnvExperiment):
 
         self.dev.init()
 
-        delay(10 * ms)
+        self.core.delay(10. * ms)
 
-        self.dev.set(150 * MHz)
+        self.dev.set(150. * MHz)
 
         self.dev.set_att(1.0)
-        self.dev.sw.on()
-        delay(2 * s)
-        self.dev.sw.off()
-        delay(2 * s)
-        self.dev.sw.on()
-        delay(2 * s)
-        self.dev.sw.off()
+        self.dev.sw.unwrap().on()
+        self.core.delay(2. * s)
+        self.dev.sw.unwrap().off()
+        self.core.delay(2. * s)
+        self.dev.sw.unwrap().on()
+        self.core.delay(2. * s)
+        self.dev.sw.unwrap().off()
 
         # Unset ATT_EN
         if self.cpld.proto_rev == STA_PROTO_REV_9:
@@ -237,12 +264,12 @@ class AD9912Test(ExperimentCase):
     def test_sw_readback(self, io_update_device):
         if "sw_device" in self.device_mgr.get_desc(DDS).get("arguments", []):
             self.execute(AD9912Exp, "sw_readback", io_update_device=io_update_device)
-            self.assertEqual(self.dataset_mgr.get("sw"), (1, 0))
+            self.assertEqual(self.dataset_mgr.get("sw"), [1, 0])
 
     @io_update_device(CPLD, True, False)
     def test_cfg_sw_readback(self, io_update_device):
         self.execute(AD9912Exp, "cfg_sw_readback", io_update_device=io_update_device)
-        self.assertEqual(self.dataset_mgr.get("cfg_sw"), (1, 0))
+        self.assertEqual(self.dataset_mgr.get("cfg_sw"), [1, 0])
 
     @io_update_device(CPLD, True, False)
     def test_single_tone(self, io_update_device):
