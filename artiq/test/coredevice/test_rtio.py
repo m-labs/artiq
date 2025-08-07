@@ -662,6 +662,7 @@ class CoredeviceTest(ExperimentCase):
         with self.assertRaises(RTIOUnderflow):
             self.execute(Underflow)
 
+    @ignore_no_opt_underflow
     def test_overflow(self):
         with self.assertRaises(RTIOOverflow):
             self.execute(Overflow)
@@ -935,6 +936,7 @@ class DMATest(ExperimentCase):
         with self.assertRaises(RTIOUnderflow):
             exp.playback_many(20000)
 
+    @ignore_no_opt_underflow
     def test_handle_invalidation(self):
         exp = self.create(_DMA)
         for mode in [0, 1]:
