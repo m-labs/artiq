@@ -769,7 +769,7 @@ class CPLD:
         if io_update_device is not None:
             self.io_update = dmgr.get(io_update_device)
         else:
-            self.io_update = RegIOUpdate(self.core, self)
+            self.io_update = io_update_device
         if dds_reset_device is not None:
             self.dds_reset = Some(dmgr.get(dds_reset_device))
         else:

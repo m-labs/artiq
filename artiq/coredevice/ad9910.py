@@ -159,6 +159,7 @@ class AD9910:
     sysclk: KernelInvariant[float]
     sw: KernelInvariant[Option[TTLOut]]
     sync_data: KernelInvariant[SyncDataUser]
+    io_update: KernelInvariant[TTLOut]
     phase_mode: Kernel[int32]
 
     def __init__(self, dmgr, chip_select, cpld_device, sw_device=None,
@@ -197,6 +198,13 @@ class AD9910:
         self.ftw_per_hz = (1 << 32) / sysclk
         self.sysclk_per_mu = int(round(sysclk * self.core.ref_period))
         self.sysclk = sysclk
+
+        if not self.cpld.io_update:
+            self.io_update = RegIOUpdate(self.cpld, self.chip_select)
+            # NAC3TODO
+            raise NotImplementedError
+        else:
+            self.io_update = self.cpld.io_update
 
         # NAC3TODO
         if isinstance(sync_delay_seed, str) or isinstance(io_update_delay,
@@ -507,7 +515,7 @@ class AD9910:
 
         # Set SPI mode
         self.set_cfr1()
-        self.cpld.io_update.pulse(1. * us)
+        self.io_update.pulse(1. * us)
         self.core.delay(1. * ms)
         if not blind:
             # Use the AUX DAC setting to identify and confirm presence
@@ -520,15 +528,15 @@ class AD9910:
         # read effective FTW
         # sync timing validation disable (enabled later)
         self.set_cfr2(sync_validation_disable=1)
-        self.cpld.io_update.pulse(1. * us)
+        self.io_update.pulse(1. * us)
         cfr3 = (0x0807c000 | (self.pll_vco << 24) |
                 (self.pll_cp << 19) | (int32(self.pll_en) << 8) |
                 (int32(self.pll_n) << 1))
         self.write32(_AD9910_REG_CFR3, cfr3 | 0x400)  # PFD reset
-        self.cpld.io_update.pulse(1. * us)
+        self.io_update.pulse(1. * us)
         if self.pll_en:
             self.write32(_AD9910_REG_CFR3, cfr3)
-            self.cpld.io_update.pulse(1. * us)
+            self.io_update.pulse(1. * us)
             if blind:
                 self.core.delay(100. * ms)
             else:
@@ -557,7 +565,7 @@ class AD9910:
         :param bits: Power-down bits, see datasheet
         """
         self.set_cfr1(power_down=bits)
-        self.cpld.io_update.pulse(1. * us)
+        self.io_update.pulse(1. * us)
 
     @kernel
     def set_mu(self, ftw: int32 = 0, pow_: int32 = 0, asf: int32 = 0x3fff,
@@ -633,7 +641,7 @@ class AD9910:
                 if not ram_destination == RAM_DEST_POW:
                     self.set_pow(pow_)
         delay_mu(int64(self.sync_data.io_update_delay))
-        self.cpld.io_update.pulse_mu(int64(8))  # assumes 8 mu > t_SYN_CCLK
+        self.io_update.pulse_mu(int64(8))  # assumes 8 mu > t_SYN_CCLK
         at_mu(now_mu() & ~int64(7))  # clear fine TSC again
         if phase_mode != PHASE_MODE_CONTINUOUS:
             self.set_cfr1()
@@ -1071,10 +1079,10 @@ class AD9910:
         Also modifies CFR2.
         """
         self.set_cfr2(sync_validation_disable=1)  # clear SMP_ERR
-        self.cpld.io_update.pulse(1. * us)
+        self.io_update.pulse(1. * us)
         self.core.delay(10. * us)  # slack
         self.set_cfr2(sync_validation_disable=0)  # enable SMP_ERR
-        self.cpld.io_update.pulse(1. * us)
+        self.io_update.pulse(1. * us)
 
     @kernel
     def tune_sync_delay(self,
@@ -1162,18 +1170,18 @@ class AD9910:
         t = now_mu() + int64(8) & ~int64(7)
         at_mu(t + delay_start)
         # assumes a maximum t_SYNC_CLK period
-        self.cpld.io_update.pulse_mu(int64(16) - delay_start)  # realign
+        self.io_update.pulse_mu(int64(16) - delay_start)  # realign
         # disable DRG autoclear and LRR on io_update
         self.set_cfr1()
         # stop DRG
         self.write64(_AD9910_REG_RAMP_STEP, 0, 0)
         at_mu(t + int64(0x1000) + delay_stop)
-        self.cpld.io_update.pulse_mu(int64(16) - delay_stop)  # realign
+        self.io_update.pulse_mu(int64(16) - delay_stop)  # realign
         ftw = self.read32(_AD9910_REG_FTW)  # read out effective FTW
         self.core.delay(100. * us)  # slack
         # disable DRG
         self.set_cfr2(drg_enable=0)
-        self.cpld.io_update.pulse_mu(int64(8))
+        self.io_update.pulse_mu(int64(8))
         return ftw & 1
 
     @kernel
