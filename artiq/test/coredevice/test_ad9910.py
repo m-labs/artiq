@@ -150,7 +150,7 @@ class AD9910Exp(EnvExperiment):
         self.dev.set_frequency(f)
         self.dev.set_phase(p)
         self.dev.set_amplitude(a)
-        self.dev.io_update.pulse_mu(8)
+        self.dev.io_update.pulse_mu(int64(8))
 
         self.core.break_realtime()
         ftw = self.dev.get_ftw()
@@ -184,8 +184,8 @@ class AD9910Exp(EnvExperiment):
         self.dev.write64(_AD9910_REG_PROFILE0 + DEFAULT_PROFILE, hi, lo)
         self.dev.io_update.pulse_mu(int64(8))
         read = self.dev.read64(_AD9910_REG_PROFILE0 + DEFAULT_PROFILE)
-        self.set_dataset("write", (int64(hi) << 32) | int64(lo))
-        self.set_dataset("read", read)
+        self.report_int64("write", (int64(hi) << 32) | int64(lo))
+        self.report_int64("read", read)
         if not self.io_update_device:
             self.core.break_realtime()
             # Unset MASK_NU to un-trigger CFG.IO_UPDATE
