@@ -37,3 +37,4 @@ __pycache__/
 # /test*
 /artiq_kasli
 *.egg-info
+/flash
