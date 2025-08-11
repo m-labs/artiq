@@ -1,7 +1,7 @@
 # Copyright (C) 2014, 2015 M-Labs Limited
 # Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
 
-import os, unittest, contextlib
+import os, unittest
 from numpy import int32, int64
 
 from math import sqrt
@@ -18,17 +18,9 @@ from artiq.coredevice.comm_analyzer import (StoppedMessage, OutputMessage, Input
                                             decode_dump, get_analyzer_dump)
 
 
-class Suppress(contextlib.suppress, contextlib.ContextDecorator):
-    pass
-
 artiq_low_latency = os.getenv("ARTIQ_LOW_LATENCY")
-no_opt = os.getenv("NAC3_OPT_LEVEL") == "0"
-
-if no_opt:
-    ignore_no_opt_underflow = Suppress(RTIOUnderflow)
-    skip_if_no_opt = unittest.skip("timings are expected to be slow when program is unoptimized")
-else:
-    ignore_no_opt_underflow = skip_if_no_opt = lambda func: func
+skip_if_no_opt = unittest.skipIf(os.getenv("NAC3_OPT_LEVEL") == "0",
+                                 "timings are expected to be slow when program is unoptimized")
 
 
 @compile
@@ -407,7 +399,7 @@ class Watch(EnvExperiment):
         self.core.delay(10.*us)
         if not self.loop_in.watch_stay_off():
             raise IncorrectLevel
-        self.core.delay(3.*us)
+        self.core.delay(10.*us)
         self.loop_out.on()
         self.core.delay(10.*us)
         if self.loop_in.watch_done():
@@ -445,7 +437,7 @@ class Overflow(EnvExperiment):
         self.core.reset()
         for _ in range(100000):  # arbitrary large number to overflow input FIFO
             self.loop_in.sample_input()
-            self.core.delay(1.*us)  # long enough to avoid underflow from sample_input()
+            self.core.delay(10.*us)  # long enough to avoid underflow from sample_input()
         self.loop_in.sample_get()
 
 
@@ -461,7 +453,7 @@ class SequenceError(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
-        self.core.delay(55.*256.*us)
+        self.core.delay(65.*256.*us)
         for _ in range(256):
             self.ttl_out.pulse(25.*us)
             self.core.delay(-75.*us)
@@ -650,11 +642,9 @@ class CoredeviceTest(ExperimentCase):
     def test_loopback_gate_timing(self):
         self.execute(LoopbackGateTiming)
 
-    @ignore_no_opt_underflow
     def test_level(self):
         self.execute(Level)
 
-    @ignore_no_opt_underflow
     def test_watch(self):
         self.execute(Watch)
 
@@ -662,7 +652,6 @@ class CoredeviceTest(ExperimentCase):
         with self.assertRaises(RTIOUnderflow):
             self.execute(Underflow)
 
-    @ignore_no_opt_underflow
     def test_overflow(self):
         with self.assertRaises(RTIOOverflow):
             self.execute(Overflow)
@@ -678,7 +667,6 @@ class CoredeviceTest(ExperimentCase):
         finally:
             mgmt.close()
 
-    @ignore_no_opt_underflow
     def test_sequence_error(self):
         self.execute_and_test_in_log(SequenceError, "RTIO sequence error")
 
@@ -936,7 +924,6 @@ class DMATest(ExperimentCase):
         with self.assertRaises(RTIOUnderflow):
             exp.playback_many(20000)
 
-    @ignore_no_opt_underflow
     def test_handle_invalidation(self):
         exp = self.create(_DMA)
         for mode in [0, 1]:
