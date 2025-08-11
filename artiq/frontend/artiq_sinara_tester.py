@@ -29,14 +29,6 @@ def chunker(seq, size):
         yield res
 
 
-def select_chunk(seq, size, default = 0, fmt = lambda x: x):
-    selected_chunk = []
-    for chunk_n, chunk in enumerate(chunker(seq, size)):
-        selected_chunk.append(chunk)
-        print("{}: ({})".format(chunk_n, fmt(chunk)))
-    return selected_chunk[int(input() or default)]
-
-
 def is_enter_pressed() -> TBool:
     if os.name == "nt":
         if msvcrt.kbhit() and msvcrt.getch() == b"\r":
@@ -289,8 +281,12 @@ class SinaraTester(EnvExperiment):
             return
 
         print("TTL device group to use as stimulus (default: 0):")
-        lvds_ttl_out_chunk = select_chunk(self.lvds_ttl_outs, 4, 
-                                            fmt=lambda x: ", ".join([name for name, dev in x]))
+        lvds_ttl_out_chunk = []
+        for chunk_n, chunk in enumerate(chunker(self.lvds_ttl_outs, 4)):
+            lvds_ttl_out_chunk.append(chunk)
+            print("{}: ({})".format(chunk_n, ", ".join([name for name, dev in chunk])))
+        lvds_ttl_out_chunk = lvds_ttl_out_chunk[int(input() or 0)]
+
         for lvds_ttl_in_chunk in chunker([ttl_ins for ttl_ins in self.lvds_ttl_ins if ttl_ins not in lvds_ttl_out_chunk], 4):
             self.test_lvds_ttl_in_chunk(lvds_ttl_out_chunk, lvds_ttl_in_chunk)
 
