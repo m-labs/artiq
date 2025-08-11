@@ -258,6 +258,20 @@ class SinaraTester(EnvExperiment):
             else:
                 print("FAILED")
 
+    def test_lvds_ttl_outs(self):
+        # The LVDS-TTL card has dip switches for controlling the
+        # IO direction of each channel individually, but the gateware
+        # currently assumes a bank has all the same channels
+
+        print("*** Testing LVDS TTL outputs.")
+        print("Outputs are tested in groups of 4. Touch each TTL connector")
+        print("with the oscilloscope probe tip, and check that the number of")
+        print("pulses corresponds to its number in the group.")
+        print("Press ENTER when done.")
+        for lvds_ttl_chunk in chunker(self.lvds_ttl_outs, 4):
+            print("Testing LVDS TTL outputs: {}.".format(", ".join(name for name, dev in lvds_ttl_chunk)))
+            self.test_ttl_out_chunk([dev for name, dev in lvds_ttl_chunk])
+
     def test_lvds_ttl_in_chunk(self, lvds_ttl_out_chunk, lvds_ttl_in_chunk):
         input("Connect ({}) group to ({}) group. Press ENTER when done."
                .format(", ".join([name for name, dev in lvds_ttl_out_chunk]),
@@ -289,20 +303,6 @@ class SinaraTester(EnvExperiment):
 
         for lvds_ttl_in_chunk in chunker([ttl_ins for ttl_ins in self.lvds_ttl_ins if ttl_ins not in lvds_ttl_out_chunk], 4):
             self.test_lvds_ttl_in_chunk(lvds_ttl_out_chunk, lvds_ttl_in_chunk)
-
-    def test_lvds_ttl_outs(self):
-        # The LVDS-TTL card has dip switches for controlling the
-        # IO direction of each channel individually, but the gateware
-        # currently assumes a bank has all the same channels
-
-        print("*** Testing LVDS TTL outputs.")
-        print("Outputs are tested in groups of 4. Touch each TTL connector")
-        print("with the oscilloscope probe tip, and check that the number of")
-        print("pulses corresponds to its number in the group.")
-        print("Press ENTER when done.")
-        for lvds_ttl_chunk in chunker(self.lvds_ttl_outs, 4):
-            print("Testing LVDS TTL outputs: {}.".format(", ".join(name for name, dev in lvds_ttl_chunk)))
-            self.test_ttl_out_chunk([dev for name, dev in lvds_ttl_chunk])
 
     @kernel
     def init_urukul(self, cpld):
