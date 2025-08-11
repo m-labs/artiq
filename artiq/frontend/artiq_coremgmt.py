@@ -91,7 +91,7 @@ def get_argparser():
 
     # flashing
     t_flash = tools.add_parser("flash",
-                               help="flash the running system")
+                               help="flash the core device and reboot into the new system")
 
     p_directory = t_flash.add_argument("directory",
                                        metavar="DIRECTORY", type=str,

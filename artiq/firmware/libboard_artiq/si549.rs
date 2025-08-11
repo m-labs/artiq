@@ -276,7 +276,7 @@ pub fn helper_setup(settings: &FrequencySetting) -> Result<(), &'static str> {
         csr::wrpll::helper_reset_write(0);
         csr::wrpll::helper_dcxo_bitbang_enable_write(0);
     }
-    info!("Helper Si549 started");
+    info!("helper Si549 started");
     Ok(())
 }
 
@@ -823,7 +823,7 @@ pub mod wrpll_refclk {
         }
 
         if mmcm_bypass {
-            info!("Bypassing mmcm");
+            info!("bypassing mmcm");
             unsafe {
                 csr::wrpll_refclk::mmcm_bypass_write(1);
             }

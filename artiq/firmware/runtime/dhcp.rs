@@ -46,7 +46,7 @@ pub fn dhcp_thread(io: sched::Io) {
                             changed = true;
                         }
                         if config.router != last_config.router {
-                            info!("Default route changed {} -> {}",
+                            info!("default route changed {} -> {}",
                                 OptionalIpAddressDisplay(&last_config.router),
                                 OptionalIpAddressDisplay(&config.router),
                             );
@@ -54,7 +54,7 @@ pub fn dhcp_thread(io: sched::Io) {
                         }
                         changed
                     } else {
-                        info!("Acquired DHCP config IP address: None -> {} default route: None -> {}",
+                        info!("acquired DHCP config IP address: None -> {} default route: None -> {}",
                             config.address,
                             OptionalIpAddressDisplay(&config.router),
                         );
@@ -71,7 +71,7 @@ pub fn dhcp_thread(io: sched::Io) {
                 }
                 Dhcpv4Event::Deconfigured => {
                     if let Some(config) = last_config {
-                        info!("Lost DHCP config IP address {} -> None; default route {} -> None",
+                        info!("lost DHCP config IP address {} -> None; default route {} -> None",
                             config.address,
                             OptionalIpAddressDisplay(&config.router),
                         );

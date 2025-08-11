@@ -162,7 +162,7 @@ fn startup() {
     let net_addresses = net_settings::get_adresses();
     info!("network addresses: {}", net_addresses);
     let use_dhcp = if matches!(net_addresses.ipv4_addr, Ipv4AddrConfig::UseDhcp) {
-        info!("Will try to acquire an IPv4 address with DHCP");
+        info!("will try to acquire an IPv4 address with DHCP");
         true
     } else {
         false
