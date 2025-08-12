@@ -206,6 +206,7 @@ class CommMgmt:
 
         with io.BytesIO() as image_buf:
             for filename in bin_paths:
+                logger.debug("writing %s to byte buffer", filename)
                 with open(filename, "rb") as fi:
                     bin_ = fi.read()
                     if (len(bin_paths) > 1):
@@ -216,6 +217,7 @@ class CommMgmt:
             crc = binascii.crc32(image_buf.getvalue())
             image_buf.write(struct.pack(self.endian + "I", crc))
 
+            logger.debug("sending byte buffer to core device")
             self._write_bytes(image_buf.getvalue())
 
         self._read_expect(Reply.RebootImminent)

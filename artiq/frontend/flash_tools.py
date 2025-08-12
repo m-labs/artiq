@@ -1,7 +1,10 @@
 import atexit
+import logging
 import os
 import tempfile
 import struct
+
+logger = logging.getLogger(__name__)
 
 
 def artifact_path(this_binary_dir, *path_filename, srcbuild=False):
@@ -99,14 +102,14 @@ def bit2bin(bit, bin, flip=False):
                     "c": "Date",
                     "d": "Time"
                     }[key]
-            print("{}: {}".format(name, d))
+            logger.debug("{}: {}".format(name, d))
         elif key == "e":
             l, = struct.unpack(">I", bit.read(4))
-            print("Bitstream payload length: {:#x}".format(l))
+            logger.debug("Bitstream payload length: {:#x}".format(l))
             d = bit.read(l)
             if flip:
                 d = flip32(d)
             bin.write(d)
         else:
             d = bit.read(*struct.unpack(">H", bit.read(2)))
-            print("Unexpected key: {}: {}".format(key, d))
+            logger.error("Unexpected key: {}: {}".format(key, d))
