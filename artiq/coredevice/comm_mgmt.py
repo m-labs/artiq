@@ -79,7 +79,11 @@ class CommMgmt:
     # Protocol elements
 
     def _write(self, data):
-        self.socket.sendall(data)
+        total_sent = 0
+        while total_sent < len(data):
+            sent = self.socket.send(data[total_sent:])
+            total_sent += sent
+            logger.debug("sent %d bytes", sent)
 
     def _write_header(self, ty):
         self.open()
