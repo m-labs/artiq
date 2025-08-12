@@ -65,7 +65,9 @@ class Config:
         self.write_reg(LTC2K_REG_RESET, 0x00)  # deassert reset
         self.write_reg(LTC2K_REG_CLK, 0x00)
         self.write_reg(LTC2K_REG_DCKI, 0x01)  # enable DCKI
-        self.write_reg(LTC2K_REG_PORT, 0x0B)  # enable Port A and B, DAC Data Enable
+        self.write_reg(LTC2K_REG_PORT, 0x03)  # enable Port A and B
+        delay(1*ms)  # wait at least 1ms as per startup sequence
+        self.write_reg(LTC2K_REG_PORT, 0x0B)  # enable Port A and B + DAC Data Enable
         self.write_reg(LTC2K_REG_SYNC, 0x00)
         self.write_reg(LTC2K_REG_DYN_LIN, 0x00)  # enable linearization with 75%
         self.write_reg(LTC2K_REG_DYN_LIN_V, 0x08)
