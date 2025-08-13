@@ -146,7 +146,7 @@
             "properties": {
                 "type": {
                     "type": "string",
-                    "enum": ["dio", "dio_spi", "urukul", "novogorny", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser", "hvamp", "shuttler", "ltc2000", "coaxpress_sfp"]
+                    "enum": ["dio", "dio_spi", "urukul", "novogorny", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser", "hvamp", "shuttler", "songbird", "coaxpress_sfp"]
                 },
                 "board": {
                     "type": "string"
@@ -673,11 +673,11 @@
                     "required": ["ports"]
                 }
             },{
-                "title": "ltc2000",
+                "title": "songbird",
                 "if": {
                     "properties": {
                         "type": {
-                            "const": "ltc2000"
+                            "const": "songbird"
                         }
                     }
                 },
