@@ -691,9 +691,9 @@ pub extern fn main() -> i32 {
 
     #[cfg(has_i2c)]
     i2c::init().expect("I2C initialization failed");
-    #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
+    #[cfg(all(soc_platform = "kasli", any(hw_rev = "v2.0", hw_rev = "v2.1")))]
     let (mut io_expander0, mut io_expander1);
-    #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
+    #[cfg(all(soc_platform = "kasli", any(hw_rev = "v2.0", hw_rev = "v2.1")))]
     {
         io_expander0 = board_misoc::io_expander::IoExpander::new(0).unwrap();
         io_expander1 = board_misoc::io_expander::IoExpander::new(1).unwrap();
@@ -803,7 +803,7 @@ pub extern fn main() -> i32 {
             for rep in repeaters.iter_mut() {
                 rep.service(&routing_table, rank, destination, &mut router);
             }
-            #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
+            #[cfg(all(soc_platform = "kasli", any(hw_rev = "v2.0", hw_rev = "v2.1")))]
             {
                 io_expander0.service().expect("I2C I/O expander #0 service failed");
                 io_expander1.service().expect("I2C I/O expander #1 service failed");
@@ -843,7 +843,7 @@ pub extern fn main() -> i32 {
             for rep in repeaters.iter_mut() {
                 rep.service(&routing_table, rank, destination, &mut router);
             }
-            #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
+            #[cfg(all(soc_platform = "kasli", any(hw_rev = "v2.0", hw_rev = "v2.1")))]
             {
                 io_expander0.service().expect("I2C I/O expander #0 service failed");
                 io_expander1.service().expect("I2C I/O expander #1 service failed");
