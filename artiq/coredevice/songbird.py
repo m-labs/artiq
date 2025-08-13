@@ -22,7 +22,7 @@ LTC2K_REG_PATTERN_DATA = 0x1F  # Pattern generator data
 
 
 class Config:
-    """LTC2000 configuration interface.
+    """Songbird LTC2000 configuration interface.
 
     Available as a DC2303A-A FMC connected to the EFC.
 
