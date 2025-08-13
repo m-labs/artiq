@@ -40,7 +40,7 @@ pub mod ethmac;
 pub mod i2c;
 #[cfg(soc_platform = "kasli")]
 pub mod i2c_eeprom;
-#[cfg(any(all(soc_platform = "kasli", hw_rev = "v2.0"), soc_platform = "efc"))]
+#[cfg(any(all(soc_platform = "kasli", any(hw_rev = "v2.0", hw_rev = "v2.1")), soc_platform = "efc"))]
 pub mod io_expander;
 #[cfg(all(has_ethmac, feature = "smoltcp"))]
 pub mod net_settings;
