@@ -18,7 +18,7 @@ from artiq.gateware.drtio.transceiver import eem_serdes
 from artiq.gateware.drtio.rx_synchronizer import NoRXSynchronizer
 from artiq.gateware.drtio import *
 from artiq.gateware.shuttler import Shuttler
-from artiq.gateware.ltc2000 import LTC2000
+from artiq.gateware.songbird import LTC2000
 from artiq.build_soc import *
 
 ltc2000_pads = [
@@ -273,17 +273,17 @@ class Satellite(BaseSoC, AMPSoC):
             print("SHUTTLER ADC at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
             self.rtio_channels.append(rtio.Channel.from_phy(adc_spi))
 
-        if variant == "ltc":
+        if variant == "songbird":
             platform.add_extension(ltc2000_spi)
             ltc2000_spi_phy = rtio_spi.SPIMaster(self.platform.request("ltc2000_spi", 0))
             self.submodules += ltc2000_spi_phy
-            print("LTC2000 DAC SPI at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
+            print("Songbird LTC2000 DAC SPI at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
             self.rtio_channels.append(rtio.Channel.from_phy(ltc2000_spi_phy))
 
             self.submodules.ltc2000_dds = LTC2000(self.platform, ltc2000_pads, rtio_clk_freq)
 
             for phy in self.ltc2000_dds.phys:
-                print("LTC2000 {} at RTIO channel 0x{:06x}".format(phy.name, len(self.rtio_channels)))
+                print("Songbird LTC2000 {} at RTIO channel 0x{:06x}".format(phy.name, len(self.rtio_channels)))
                 self.rtio_channels.append(rtio.Channel.from_phy(phy))
 
             self.clock_domains.cd_dds200 = ClockDomain(reset_less=True)
@@ -365,7 +365,7 @@ def main():
         description="ARTIQ device binary builder for EEM FMC Carrier systems")
     builder_args(parser)
     parser.set_defaults(output_dir="artiq_efc")
-    parser.add_argument("-V", "--variant", choices=["shuttler", "ltc"], default="shuttler")
+    parser.add_argument("-V", "--variant", choices=["shuttler", "songbird"], default="shuttler")
     parser.add_argument("--efc-hw-rev", choices=["v1.0", "v1.1"], default="v1.1",
                         help="EFC hardware revision")
     parser.add_argument("--afe-hw-rev", choices=["v1.0", "v1.1", "v1.2", "v1.3"],

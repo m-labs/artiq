@@ -87,86 +87,86 @@ device_db["led2"] = {
 
 device_db["core"]["arguments"]["satellite_cpu_targets"][4] = "rv32g"
 
-device_db["ltc0_led0"] = {
+device_db["songbird0_led0"] = {
     "type": "local",
     "module": "artiq.coredevice.ttl",
     "class": "TTLOut",
     "arguments": {"channel": 0x040000}
 }
 
-device_db["ltc0_led1"] = {
+device_db["songbird0_led1"] = {
     "type": "local",
     "module": "artiq.coredevice.ttl",
     "class": "TTLOut",
     "arguments": {"channel": 0x040001}
 }
 
-device_db["ltc0_spi"] = {
+device_db["songbird0_spi"] = {
     "type": "local",
     "module": "artiq.coredevice.spi2",
     "class": "SPIMaster",
     "arguments": {"channel": 0x040002},
 }
 
-device_db["ltc0_config"] = {
+device_db["songbird0_config"] = {
     "type": "local",
-    "module": "artiq.coredevice.ltc2000",
+    "module": "artiq.coredevice.songbird",
     "class": "Config",
-    "arguments": {"spi_device": "ltc0_spi", "reset_device": "ltc0_reset", "clear_device": "ltc0_clear"},
+    "arguments": {"spi_device": "songbird0_spi", "reset_device": "songbird0_reset", "clear_device": "songbird0_clear"},
 }
 
-device_db["ltc0_dds0"] = {
+device_db["songbird0_dds0"] = {
     "type": "local",
-    "module": "artiq.coredevice.ltc2000",
+    "module": "artiq.coredevice.songbird",
     "class": "DDS",
     "arguments": {"channel": 0x040003},
 }
 
-device_db["ltc0_dds1"] = {
+device_db["songbird0_dds1"] = {
     "type": "local",
-    "module": "artiq.coredevice.ltc2000",
+    "module": "artiq.coredevice.songbird",
     "class": "DDS",
     "arguments": {"channel": 0x040004},
 }
 
-device_db["ltc0_dds2"] = {
+device_db["songbird0_dds2"] = {
     "type": "local",
-    "module": "artiq.coredevice.ltc2000",
+    "module": "artiq.coredevice.songbird",
     "class": "DDS",
     "arguments": {"channel": 0x040005},
 }
 
-device_db["ltc0_dds3"] = {
+device_db["songbird0_dds3"] = {
     "type": "local",
-    "module": "artiq.coredevice.ltc2000",
+    "module": "artiq.coredevice.songbird",
     "class": "DDS",
     "arguments": {"channel": 0x040006},
 }
 
-device_db["ltc0_trigger"] = {
+device_db["songbird0_trigger"] = {
     "type": "local",
-    "module": "artiq.coredevice.ltc2000",
+    "module": "artiq.coredevice.songbird",
     "class": "Trigger",
     "arguments": {"channel": 0x040007},
 }
 
-device_db["ltc0_clear"] = {
+device_db["songbird0_clear"] = {
     "type": "local",
-    "module": "artiq.coredevice.ltc2000",
+    "module": "artiq.coredevice.songbird",
     "class": "Clear",
     "arguments": {"channel": 0x040008},
 }
 
-device_db["ltc0_reset"] = {
+device_db["songbird0_reset"] = {
     "type": "local",
-    "module": "artiq.coredevice.ltc2000",
+    "module": "artiq.coredevice.songbird",
     "class": "Reset",
     "arguments": {"channel": 0x040009},
 }
 
-device_db["ltc0_gain"] = {
+device_db["songbird0_gain"] = {
     "type": "local",
-    "module": "artiq.coredevice.ltc2000",
+    "module": "artiq.coredevice.songbird",
     "class": "Gain",
     "arguments": {"channel": 0x04000a},
 }

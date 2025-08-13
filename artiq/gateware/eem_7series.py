@@ -169,7 +169,7 @@ peripheral_processors = {
     "phaser": peripheral_phaser,
     "hvamp": peripheral_hvamp,
     "shuttler": peripheral_shuttler,
-    "ltc2000": peripheral_shuttler,
+    "songbird": peripheral_shuttler,
 }
 
 
