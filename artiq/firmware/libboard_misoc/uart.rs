@@ -6,3 +6,7 @@ pub fn set_speed(rate: u32) {
         csr::uart_phy::tuning_word_write(tuning_word as u32);
     }
 }
+
+pub fn flush() {
+    unsafe { while csr::uart::txempty_read() == 0 {} }
+}

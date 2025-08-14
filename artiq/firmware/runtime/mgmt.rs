@@ -145,6 +145,7 @@ mod local_coremgmt {
         stream.flush()?;
 
         warn!("restarting");
+        board_misoc::uart::flush();
         unsafe { spiflash::reload(); }
     }
 
