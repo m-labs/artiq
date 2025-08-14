@@ -47,7 +47,7 @@ System descriptions do not need to be very complex. At its most basic, a system 
         "target": "kasli",
         "variant": "example",
         "hw_rev": "v2.0",
-        "base": "master",
+        "drtio_role": "master",
         "peripherals": [
             {
                 "type": "grabber",
