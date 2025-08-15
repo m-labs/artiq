@@ -39,7 +39,7 @@ class PolyphaseDDS(Module):
     """Composite DDS with sub-DDSs synthesizing
        individual phases to increase fmax.
     """
-    def __init__(self, n, fwidth, pwidth, z=18, x=15, zl=9, xd=4, backoff=None, share_lut=None):
+    def __init__(self, n, fwidth, pwidth, x=15):
         self.ftw  = Signal(fwidth)
         self.ptw  = Signal(pwidth)
         self.clr  = Signal()
@@ -62,7 +62,7 @@ class PolyphaseDDS(Module):
 class DoubleDataRateDDS(Module):
     """Composite DDS running at twice the system clock rate.
     """
-    def __init__(self, n, fwidth, pwidth, z=18, x=15, zl=9, xd=4, backoff=None, share_lut=None):
+    def __init__(self, n, fwidth, pwidth, x=15):
         self.ftw  = Signal(fwidth)
         self.ptw  = Signal(pwidth)
         self.clr  = Signal()
