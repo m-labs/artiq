@@ -3,7 +3,6 @@ from artiq.experiment import *
 from artiq.coredevice.spi2 import SPI_END, SPI_INPUT
 from artiq.language.core import kernel, delay
 from artiq.language.units import us
-from artiq.coredevice.shuttler import shuttler_volt_to_mu as ltc2000_volt_to_mu
 
 
 LTC2K_REG_RESET = 0x01  # Reset, power down controls
@@ -19,6 +18,15 @@ LTC2K_REG_TEST  = 0x18  # LVDS test MUX controls
 LTC2K_REG_TEMP  = 0x19  # Temperature measurement controls
 LTC2K_REG_PATTERN = 0x1E  # Pattern generator enable
 LTC2K_REG_PATTERN_DATA = 0x1F  # Pattern generator data
+
+
+@portable
+def volt_to_mu(volt: TFloat, width=16) -> TInt32:
+    """Return the equivalent DAC machine unit value.
+    Adjust register width accordingly.
+    Valid input range is from -1 to 1 - LSB.
+    """
+    return round((1 << width) * (volt / 2.0)) & ((1 << width) - 1)
 
 
 class Config:
@@ -110,7 +118,7 @@ class DDS:
     A LTC2000 channel generates a composite waveform `w(t)` according to:
 
     ```
-    w(t) = b(t) × cos(c(t))
+    w(t) = b(t) * cos(c(t))
     ```
 
     and `t` corresponds to time in seconds.
@@ -118,12 +126,11 @@ class DDS:
     in which
 
     .. math::
-        b(t) &= g * (q_0 + q_1t + \\frac{q_2t^2}{2} + \\frac{q_3t^3}{6})
+        b(t) &= q_0 + q_1t + \\frac{q_2t^2}{2} + \\frac{q_3t^3}{6}
 
         c(t) &= r_0 + r_1t + \\frac{r_2t^2}{2}
 
-    `b(t)` is in volts, `c(t)` is in number of turns. Note that `b(t)`
-    contributes to a constant gain of :math:`g=1.64676`.
+    `b(t)` is in volts, `c(t)` is in number of turns.
 
     :param channel: RTIO channel number of this DC-bias spline interface.
     :param core_device: Core device name.
@@ -132,8 +139,20 @@ class DDS:
 
     def __init__(self, dmgr, channel, core_device="core"):
         self.core = dmgr.get(core_device)
+        if self.core.ref_period == 1.25e-9:
+            self.dds_freq = 200e6
+        elif self.core.ref_period == 1e-9:
+            self.dds_freq = 125e6 * 5/3  # 208.33 MHz
+        else:
+            raise ValueError("Core frequency not supported")
         self.channel = channel
         self.target_o = channel << 8
+
+    @portable
+    def frequency_to_mu(self, frequency: TFloat) -> TInt32:
+        """Convert frequency in Hz to a 32-bit frequency tuning word (FTW)
+        """
+        return int32(round(frequency * (1 << 32) / self.dds_freq))
 
     @kernel
     def set_waveform(self, b0: TInt32, b1: TInt32, b2: TInt64, b3: TInt64,
@@ -166,11 +185,21 @@ class DDS:
             c_1 &= r_1T + \\frac{r_2T^2}{2}
 
             c_2 &= r_2T^2
+        
+        The coefficients for the amplitude spline `b(t)` are provided in machine
+        units. Use :meth:`volt_to_mu` to convert from volts.
+
+        The coefficients for the phase/frequency spline `c(t)` are:
+        - `c0`: initial phase offset, 18-bit word.
+        - `c1`: initial frequency, as a 32-bit frequency tuning word (FTW).
+          Use :meth:`frequency_to_mu` to convert from Hz.
+        - `c2`: frequency chirp rate, as the change in FTW per spline update tick.
+          A spline update tick is `(8 ns) * (1 << shift)`.
 
         :math:`b_0`, :math:`b_1`, :math:`b_2` and :math:`b_3` are 16, 32, 48
-        and 48 bits in width respectively. See :meth:`shuttler_volt_to_mu` for
+        and 48 bits in width respectively. See :meth:`volt_to_mu` for
         machine unit conversion. :math:`c_0`, :math:`c_1` and :math:`c_2` are
-        16, 32 and 32 bits in width respectively.
+        18, 32 and 32 bits in width respectively.
 
         Note: The waveform is not updated to the Shuttler Core until
         triggered. See :class:`Trigger` for the update triggering mechanism.
@@ -178,26 +207,26 @@ class DDS:
         **Examples:**
         Constant Amplitude Sine Wave: b(t) = 1.0V, c(t) = f₀t
 
-            dds.set_waveform(b0=shuttler_volt_to_mu(1.0), b1=0, b2=0, b3=0,
-                            c0=0, c1=frequency_to_mu(1e6), c2=0, shift=0)
+            dds.set_waveform(b0=volt_to_mu(1.0), b1=0, b2=0, b3=0, c0=0,
+                             c1=dds.frequency_to_mu(1e6), c2=0, shift=0)
 
         Linear Frequency Sweep: chirped sine, constant amplitude
 
-            dds.set_waveform(b0=shuttler_volt_to_mu(0.5), b1=0, b2=0, b3=0,
-                            c0=0, c1=start_freq_mu, c2=chirp_rate_mu, shift=3)
+            dds.set_waveform(b0=volt_to_mu(0.5), b1=0, b2=0, b3=0,
+                             c0=0, c1=dds.frequency_to_mu(10e6), c2=chirp_rate_mu, shift=3)
 
         Amplitude Modulated Signal: b(t) = A₀ + A₁t (linear amplitude ramp)
 
             dds.set_waveform(b0=base_amplitude_mu, b1=ramp_rate_mu, b2=0, b3=0,
-                            c0=0, c1=carrier_freq_mu, c2=0, shift=1)
+                             c0=0, c1=carrier_freq_mu, c2=0, shift=1)
 
         :param b0: The :math:`b_0` coefficient in machine units.
         :param b1: The :math:`b_1` coefficient in machine units.
         :param b2: The :math:`b_2` coefficient in machine units.
         :param b3: The :math:`b_3` coefficient in machine units.
-        :param c0: The :math:`c_0` coefficient in machine units.
-        :param c1: The :math:`c_1` coefficient in machine units.
-        :param c2: The :math:`c_2` coefficient in machine units.
+        :param c0: The :math:`c_0` (phase offset) coefficient in machine units.
+        :param c1: The :math:`c_1` (frequency) coefficient in machine units.
+        :param c2: The :math:`c_2` (chirp) coefficient in machine units.
         :param shift: Clock division factor (0-15). Defaults to 0 (no division).
         """
 
