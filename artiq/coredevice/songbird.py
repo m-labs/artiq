@@ -38,6 +38,8 @@ class Config:
     :param reset_device: Reset device name.
     :param clear_device: Clear device name.
     """
+    kernel_invariants = {"bus", "reset", "clear", "spi_config"}
+    
     def __init__(self, dmgr, spi_device, reset_device, clear_device):
         self.bus = dmgr.get(spi_device)
         self.reset = dmgr.get(reset_device)
@@ -135,9 +137,9 @@ class DDS:
     :param channel: RTIO channel number of this DC-bias spline interface.
     :param core_device: Core device name.
     """
-    kernel_invariants = {"core", "channel", "target_o"}
+    kernel_invariants = {"core", "b_channel", "c_channel", "dds_freq", "b_target_o", "c_target_o"}
 
-    def __init__(self, dmgr, channel, core_device="core"):
+    def __init__(self, dmgr, b_channel, c_channel, core_device="core"):
         self.core = dmgr.get(core_device)
         if self.core.ref_period == 1.25e-9:
             self.dds_freq = 200e6
@@ -145,8 +147,10 @@ class DDS:
             self.dds_freq = 125e6 * 5/3  # 208.33 MHz
         else:
             raise ValueError("Core frequency not supported")
-        self.channel = channel
-        self.target_o = channel << 8
+        self.b_channel = b_channel
+        self.c_channel = c_channel + 1
+        self.b_target_o = self.b_channel << 8
+        self.c_target_o = self.c_channel << 8
 
     @portable
     def frequency_to_mu(self, frequency: TFloat) -> TInt32:
@@ -201,7 +205,7 @@ class DDS:
         machine unit conversion. :math:`c_0`, :math:`c_1` and :math:`c_2` are
         18, 32 and 32 bits in width respectively.
 
-        Note: The waveform is not updated to the Shuttler Core until
+        Note: The waveform is not updated to the LTC2000 Core until
         triggered. See :class:`Trigger` for the update triggering mechanism.
 
         **Examples:**
@@ -230,13 +234,24 @@ class DDS:
         :param shift: Clock division factor (0-15). Defaults to 0 (no division).
         """
 
-        if not 0 <= shift <= 15:
-            raise ValueError("Shift must be between 0 and 15")
+        self.set_ampl(b0, b1, b2, b3)
+        self.set_phase(c0, c1, c2, shift)
 
-        phase_msb = (c0 >> 2) & 0xFFFF   # Upper 16 bits of 18-bit phase value
-        phase_lsb = c0 & 0x3             # Bottom 2 bits of 18-bit phase value
+    @kernel
+    def set_ampl(self, b0: TInt32, b1: TInt32, b2: TInt64, b3: TInt64):
+        """Controls only the amplitude part of the waveform.
 
-        coef_words = [
+        As with set_waveform, the changes must be triggered
+        before they are applied in the LTC2000 core.
+        See :class:`Trigger` for the update triggering mechanism.
+
+        :param b0: The :math:`b_0` coefficient in machine units.
+        :param b1: The :math:`b_1` coefficient in machine units.
+        :param b2: The :math:`b_2` coefficient in machine units.
+        :param b3: The :math:`b_3` coefficient in machine units.
+        """
+
+        b_coef_words = [
             b0 & 0xFFFF,                          # Word 0: amplitude offset
             b1 & 0xFFFF,                          # Word 1: damp low
             (b1 >> 16) & 0xFFFF,                  # Word 2: damp high
@@ -246,7 +261,29 @@ class DDS:
             b3 & 0xFFFF,                          # Word 6: dddamp low
             (b3 >> 16) & 0xFFFF,                  # Word 7: dddamp mid
             (b3 >> 32) & 0xFFFF,                  # Word 8: dddamp high
+        ]
 
+        for i in range(len(b_coef_words)):
+            rtio_output(self.b_target_o | i, b_coef_words[i])
+            delay_mu(int64(self.core.ref_multiplier))
+
+    @kernel
+    def set_phase(self, c0: TInt32, c1: TInt32, c2: TInt32, shift: TInt32 = 0):
+        """Controls the phase, FTW chirp and shift of the waveform. 
+            See :meth:`set_waveform` for more details.
+
+        :param c0: The :math:`c_0` (phase offset) coefficient in machine units.
+        :param c1: The :math:`c_1` (frequency) coefficient in machine units.
+        :param c2: The :math:`c_2` (chirp) coefficient in machine units.
+        :param shift: Clock division factor (0-15). Defaults to 0 (no division).
+        """        
+        if not 0 <= shift <= 15:
+            raise ValueError("Shift must be between 0 and 15")
+
+        phase_msb = (c0 >> 2) & 0xFFFF   # Upper 16 bits of 18-bit phase value
+        phase_lsb = c0 & 0x3             # Bottom 2 bits of 18-bit phase value
+        
+        c_coef_words = [
             phase_msb,                            # Word 9: phase offset main (16 bits)
             c1 & 0xFFFF,                          # Word 10: ftw low
             (c1 >> 16) & 0xFFFF,                  # Word 11: ftw high
@@ -256,49 +293,88 @@ class DDS:
             shift | (phase_lsb << 4),             # Word 14: shift[3:0] + phase_lsb[5:4] + reserved[15:6]
         ]
 
-        for i in range(len(coef_words)):
-            rtio_output(self.target_o | i, coef_words[i])
+        for i in range(len(c_coef_words)):
+            rtio_output(self.c_target_o | i, c_coef_words[i])
             delay_mu(int64(self.core.ref_multiplier))
 
 
 class Trigger:
     """Shuttler Core spline coefficients update trigger.
 
-    :param channel: RTIO channel number of the trigger interface.
+    :param b_channel: RTIO channel number of the b coefficients trigger interface.
+    :param c_channel: RTIO channel number of the c coefficients trigger interface.
     :param core_device: Core device name.
     """
-    kernel_invariants = {"core", "channel", "target_o"}
+    kernel_invariants = {"core", "b_channel", "c_channel", "b_target_o", "c_target_o"}
 
-    def __init__(self, dmgr, channel, core_device="core"):
+    def __init__(self, dmgr, b_channel, c_channel, core_device="core"):
         self.core = dmgr.get(core_device)
-        self.channel = channel
-        self.target_o = channel << 8
+        self.b_channel = b_channel
+        self.c_channel = c_channel
+        self.b_target_o = b_channel << 8
+        self.c_target_o = c_channel << 8
 
     @kernel
-    def trigger(self, trig_out):
-        """Triggers coefficient update of (an) LTC2000 Core channel(s).
+    def trigger(self, channels_mask):
+        """Triggers coefficient update of LTC2000 Core channel(s).
 
-        The waveform configuration done with DDS is not applied to 
-        the LTC2000 Core until explicitly triggered using the `Trigger` class.
+        The waveform configuration is not applied to the LTC2000 Core until
+        explicitly triggered.
         This allows atomic updates across multiple channels.
 
+        This method updates both b and c coefficients. See :meth:`trigger_b`
+        and :meth:`trigger_c` for separate updates.
+
         Each bit corresponds to an LTC2000 waveform generator core. Setting
-        ``trig_out`` bits commits the pending coefficient update (from
-        ``set_waveform`` in :class:`DCBias` and :class:`DDS`) to
-        the LTC2000 Core synchronously.
+        bits in `channels_mask` commits the pending coefficient updates to
+        the corresponding DDS channels synchronously.
 
         **Example:**
-            # Configure waveform
-            dds.set_waveform(b0=1000, b1=500, b2=100, b3=0,
-                            c0=0, c1=1000000, c2=0, shift=2)
+            # Configure waveforms for dds0
+            self.songbird0_dds0.set_waveform(...)
 
             # Apply the configuration
-            trigger.trigger(0x0001)  # Trigger channel 0
+            self.songbird0_trigger.trigger(1 << 0)  # Trigger amplitude and phase spline for channel 0
 
-        :param trig_out: Coefficient update trigger bits. The MSB corresponds
+        :param channels_mask: Coefficient update trigger bits. The MSB corresponds
             to Channel 15, LSB corresponds to Channel 0.
         """
-        rtio_output(self.target_o, trig_out)
+        with parallel:
+            rtio_output(self.b_target_o, channels_mask)
+            rtio_output(self.c_target_o, channels_mask)
+
+    @kernel
+    def trigger_b(self, channels_mask):
+        """Triggers amplitude coefficient update of LTC2000 Core channel(s).
+
+        This method updates only b coefficients. See :meth:`trigger`
+        and :meth:`trigger_c` for other update options.
+
+        Each bit corresponds to an LTC2000 waveform generator core. Setting
+        bits in `channels_mask` commits the pending coefficient updates to
+        the corresponding DDS channels synchronously.
+
+        :param channels_mask: Coefficient update trigger bits. The MSB corresponds
+            to Channel 15, LSB corresponds to Channel 0.
+        """
+        rtio_output(self.b_target_o, channels_mask)
+
+    @kernel
+    def trigger_c(self, channels_mask):
+        """Triggers amplitude coefficient update of LTC2000 Core channel(s).
+
+        This method updates only c coefficients. See :meth:`trigger`
+        and :meth:`trigger_b` for other update options.
+
+        Each bit corresponds to an LTC2000 waveform generator core. Setting
+        bits in `channels_mask` commits the pending coefficient updates to
+        the corresponding DDS channels synchronously.
+
+        :param channels_mask: Coefficient update trigger bits. The MSB corresponds
+            to Channel 15, LSB corresponds to Channel 0.
+        """
+        rtio_output(self.c_target_o, channels_mask)
+
 
 class Clear:
     """Shuttler Core clear signal.
