@@ -773,6 +773,20 @@ class PeripheralManager:
             }}""",
             name=songbird_name,
             channel=rtio_offset + next(channel))
+
+        for class_name in ["Gain", "Clear", "Reset"]:
+            self.gen("""
+                device_db["{name}_{class_lower}"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.songbird",
+                    "class": "{class_name}",
+                    "arguments": {{"channel": 0x{channel:06x}}},
+                }}""",
+                name=songbird_name,
+                class_lower=class_name.lower(),
+                class_name=class_name,
+                channel=rtio_offset + next(channel))
+
         self.gen("""
             device_db["{name}_config"] = {{
                 "type": "local",
@@ -791,24 +805,24 @@ class PeripheralManager:
                     "type": "local",
                     "module": "artiq.coredevice.songbird",
                     "class": "DDS",
-                    "arguments": {{"channel": 0x{channel:06x}}},
+                    "arguments": {{"b_channel": 0x{b_channel:06x}, "c_channel": 0x{c_channel:06x}}},
                 }}""",
                 name=songbird_name,
                 ch=i,
-                channel=rtio_offset + next(channel))
-        device_class_names = ["Trigger", "Clear", "Reset", "Gain"]
-        for class_name in device_class_names:
-            self.gen("""
-                device_db["{name}_{class_lower}"] = {{
-                    "type": "local",
-                    "module": "artiq.coredevice.songbird",
-                    "class": "{class_name}",
-                    "arguments": {{"channel": 0x{channel:06x}}},
-                }}""",
-                name=songbird_name,
-                class_lower=class_name.lower(),
-                class_name=class_name,
-                channel=rtio_offset + next(channel))
+                b_channel=rtio_offset + next(channel),
+                c_channel=rtio_offset + next(channel))
+
+        self.gen("""
+            device_db["{name}_trigger"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.songbird",
+                "class": "Trigger",
+                "arguments": {{"b_channel": 0x{b_channel:06x}, "c_channel": 0x{c_channel:06x}}},
+            }}""",
+            name=songbird_name,
+            b_channel=rtio_offset + next(channel),
+            c_channel=rtio_offset + next(channel))
+
         return 0
 
 
