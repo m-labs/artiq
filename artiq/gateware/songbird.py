@@ -130,7 +130,8 @@ class LTC2000DDSModule(Module, AutoCSR):
 
         self.reserved = Signal(12) # for future use
 
-        self.i = Endpoint([("data", 240)])
+        self.bs_i = Endpoint([("data", 144)])
+        self.cs_i = Endpoint([("data", 96)])
 
         self.comb += [
             self.shift_stb.eq((self.shift == 0) |
@@ -162,20 +163,25 @@ class LTC2000DDSModule(Module, AutoCSR):
                 z[1].eq(z[1] + z[2]),
             ),
 
-            If(self.i.stb,
+            If(self.bs_i.stb,
                 x[0].eq(0),
                 x[1].eq(0),
-                Cat(x[0][32:],           # amp offset (16 bits) - Word 0
-                    x[1][16:],           # damp (32 bits) - Words 1-2
-                    x[2],                # ddamp (48 bits) - Words 3-5
-                    x[3],                # dddamp (48 bits) - Words 6-8
+                Cat(x[0][32:],           # b0: amp offset (16 bits)
+                    x[1][16:],           # b1: damp (32 bits)
+                    x[2],                # b2: ddamp (48 bits)
+                    x[3]                 # b3: dddamp (48 bits)
+                ).eq(self.bs_i.payload.raw_bits()),
+                self.shift_counter.eq(0),
+            ),
+            If(self.cs_i.stb,
+                Cat(
                     phase_msb_word,      # phase main (16 bits) - Word 9
                     z[1],                # ftw (32 bits) - Words 10-11
                     z[2],                # chirp (32 bits) - Words 12-13
                     control_word,        # control word (16 bits) - Word 14
-                ).eq(self.i.payload.raw_bits()),
+                ).eq(self.cs_i.payload.raw_bits()),
                 self.shift_counter.eq(0),
-            )
+            ),
         ]
 
         self.comb += [
@@ -246,7 +252,6 @@ class LTC2000(Module, AutoCSR):
 
         clear = Signal(NUM_OF_DDS)
         self.submodules.reset = PulseSynchronizer("rio", "dds200")
-        trigger = Signal(NUM_OF_DDS)
 
         self.comb += self.ltc2000.reset.eq(self.reset.o)
 
@@ -255,6 +260,7 @@ class LTC2000(Module, AutoCSR):
             address_width=4,
             enable_replace=False
         ))
+        self.phys.append(Phy(gain_iface, [], [], 'gain_iface'))
 
         tone_gains = Array([tone.gain for tone in self.tones])
         self.sync.rio += [
@@ -267,6 +273,7 @@ class LTC2000(Module, AutoCSR):
             data_width=NUM_OF_DDS,
             enable_replace=False
         ))
+        self.phys.append(Phy(clear_iface, [], [], 'clear_iface'))
 
         self.sync.rio += [
             If(clear_iface.o.stb,
@@ -274,15 +281,12 @@ class LTC2000(Module, AutoCSR):
             )
         ]
 
-        trigger_iface = rtlink.Interface(rtlink.OInterface(
+        bs_trigger_iface = rtlink.Interface(rtlink.OInterface(
             data_width=NUM_OF_DDS,
             enable_replace=False))
-
-        self.sync.rio += [
-            If(trigger_iface.o.stb,
-                trigger.eq(trigger_iface.o.data)
-            )
-        ]
+        cs_trigger_iface = rtlink.Interface(rtlink.OInterface(
+            data_width=NUM_OF_DDS,
+            enable_replace=False))
 
         reset_iface = rtlink.Interface(rtlink.OInterface(
             data_width=1,
@@ -293,25 +297,34 @@ class LTC2000(Module, AutoCSR):
                 self.reset.i.eq(reset_iface.o.data)
             )
         ]
+        self.phys.append(Phy(reset_iface, [], [], 'reset_iface'))
 
         for idx, tone in enumerate(self.tones):
             self.comb += [
                 tone.clear.eq(clear[idx]),
             ]
 
-            rtl_iface = rtlink.Interface(rtlink.OInterface(
+            bs_rtl_iface = rtlink.Interface(rtlink.OInterface(
                 data_width=16, address_width=4))
+            cs_rtl_iface = rtlink.Interface(rtlink.OInterface(
+                data_width=16, address_width=3))
 
-            array = Array(tone.i.data[wi: wi+16] for wi in range(0, len(tone.i.data), 16))
+            bs_array = Array(tone.bs_i.data[wi: wi+16] for wi in range(0, len(tone.bs_i.data), 16))
+            cs_array = Array(tone.cs_i.data[wi: wi+16] for wi in range(0, len(tone.cs_i.data), 16))
 
             self.sync.rio += [
-                tone.i.stb.eq(trigger_iface.o.data[idx] & trigger_iface.o.stb),
-                If(rtl_iface.o.stb,
-                    array[rtl_iface.o.address].eq(rtl_iface.o.data),
+                tone.bs_i.stb.eq(bs_trigger_iface.o.data[idx] & bs_trigger_iface.o.stb),
+                If(bs_rtl_iface.o.stb,
+                    bs_array[bs_rtl_iface.o.address].eq(bs_rtl_iface.o.data),
+                ),
+                tone.cs_i.stb.eq(cs_trigger_iface.o.data[idx] & cs_trigger_iface.o.stb),
+                If(cs_rtl_iface.o.stb,
+                    cs_array[cs_rtl_iface.o.address].eq(cs_rtl_iface.o.data),
                 ),
             ]
 
-            self.phys.append(Phy(rtl_iface, [], [], 'rtl_iface'))
+            self.phys.append(Phy(bs_rtl_iface, [], [], f'dds{idx}_bs_iface'))
+            self.phys.append(Phy(cs_rtl_iface, [], [], f'dds{idx}_cs_iface'))
 
         for i in range(NPHASES):
             for j in range(NUM_OF_DDS):
@@ -325,11 +338,8 @@ class LTC2000(Module, AutoCSR):
             for i in range (NPHASES)
         ]
 
-        self.phys.append(Phy(trigger_iface, [], [], 'trigger_iface'))
-        self.phys.append(Phy(clear_iface, [], [], 'clear_iface'))
-        self.phys.append(Phy(reset_iface, [], [], 'reset_iface'))
-        self.phys.append(Phy(gain_iface, [], [], 'gain_iface'))
-
+        self.phys.append(Phy(bs_trigger_iface, [], [], 'bs_trigger_iface'))
+        self.phys.append(Phy(cs_trigger_iface, [], [], 'cs_trigger_iface'))
 
 
 class Ltc2000phy(Module, AutoCSR):
