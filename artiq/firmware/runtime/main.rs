@@ -88,8 +88,9 @@ fn setup_log_levels() {
     match config::read_str("log_level", |r| r.map(|s| s.parse())) {
         Ok(Ok(log_level_filter)) => {
             info!("log level set to {} by `log_level` config key",
-                  log_level_filter);
-            log::set_max_level(log_level_filter);
+                log_level_filter);
+            logger_artiq::BufferLogger::with(|logger|
+                logger.set_buffer_log_level(log_level_filter));
         }
         _ => info!("log level set to INFO by default")
     }
