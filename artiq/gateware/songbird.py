@@ -52,7 +52,8 @@ class PolyphaseDDS(Module):
         self.comb += paccu.f.eq(self.ftw)
         self.comb += paccu.p.eq(self.ptw)
         self.submodules.paccu = paccu
-        ddss = [CosSinGen() for i in range(n)]
+        dds0 = CosSinGen()
+        ddss = [dds0] + [CosSinGen(share_lut=dds0.lut) for i in range(n-1)]
         for idx, dds in enumerate(ddss):
             self.submodules += dds
             self.comb += dds.z.eq(paccu.z[idx])
@@ -81,7 +82,8 @@ class DoubleDataRateDDS(Module):
             MultiReg(self.ptw, paccu.p, "dds200"),
         ]
         self.submodules.paccu = paccu
-        self.ddss = [ClockDomainsRenamer("dds200")(CosSinGen()) for _ in range(n)]
+        dds0 = ClockDomainsRenamer("dds200")(CosSinGen())
+        self.ddss = [dds0] + [ClockDomainsRenamer("dds200")(CosSinGen(share_lut=dds0.lut)) for _ in range(n-1)]
         counter = Signal()
         dout2x = Signal((x+1)*n*2)  # output data modified in 2x domain
         for idx, dds in enumerate(self.ddss):
