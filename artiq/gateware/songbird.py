@@ -213,17 +213,17 @@ class LTC2000DDSModule(Module, AutoCSR):
 
 
 class LTC2000DataSynth(Module, AutoCSR):
-    def __init__(self, NUM_OF_DDS, NPHASES):
-        self.amplitudes = Array([[Signal(16, name=f"amplitudes_{i}_{j}") for i in range(NPHASES)] for j in range(NUM_OF_DDS)])
-        self.data_in = Array([[Signal(16, name=f"data_in_{i}_{j}") for i in range(NPHASES)] for j in range(NUM_OF_DDS)])
+    def __init__(self, n_dds, n_phases):
+        self.amplitudes = Array([[Signal(16, name=f"amplitudes_{i}_{j}") for i in range(n_phases)] for j in range(n_dds)])
+        self.data_in = Array([[Signal(16, name=f"data_in_{i}_{j}") for i in range(n_phases)] for j in range(n_dds)])
         self.ios = []
 
-        self.summers = [SumAndScale() for _ in range(NPHASES)]
+        self.summers = [SumAndScale() for _ in range(n_phases)]
         for idx, summer in enumerate(self.summers):
             setattr(self.submodules, f"summer{idx}", summer)
 
-        for i in range(NPHASES):
-            for j in range(NUM_OF_DDS):
+        for i in range(n_phases):
+            for j in range(n_dds):
                 self.ios.append(self.amplitudes[j][i])
                 self.ios.append(self.data_in[j][i])
                 self.comb += [
@@ -235,12 +235,12 @@ Phy = namedtuple("Phy", "rtlink probes overrides name")
 
 class LTC2000(Module, AutoCSR):
     def __init__(self, platform, ltc2000_pads, clk_freq=125e6):
-        NUM_OF_DDS = 4
-        NPHASES = 24
+        n_dds = 4
+        n_phases = 24
 
-        self.submodules.ltc2000datasynth = LTC2000DataSynth(NUM_OF_DDS, NPHASES)
+        self.submodules.ltc2000datasynth = LTC2000DataSynth(n_dds, n_phases)
 
-        self.tones = [LTC2000DDSModule() for _ in range(NUM_OF_DDS)]
+        self.tones = [LTC2000DDSModule() for _ in range(n_dds)]
         for idx, tone in enumerate(self.tones):
             setattr(self.submodules, f"tone{idx}", tone)
 
@@ -250,7 +250,7 @@ class LTC2000(Module, AutoCSR):
         self.dac_pads = platform.request("ltc2000")
         self.submodules.ltc2000 = Ltc2000phy(self.dac_pads, clk_freq)
 
-        clear = Signal(NUM_OF_DDS)
+        clear = Signal(n_dds)
         self.submodules.reset = PulseSynchronizer("rio", "dds200")
 
         self.comb += self.ltc2000.reset.eq(self.reset.o)
@@ -270,7 +270,7 @@ class LTC2000(Module, AutoCSR):
         ]
 
         clear_iface = rtlink.Interface(rtlink.OInterface(
-            data_width=NUM_OF_DDS,
+            data_width=n_dds,
             enable_replace=False
         ))
         self.phys.append(Phy(clear_iface, [], [], 'clear_iface'))
@@ -282,10 +282,10 @@ class LTC2000(Module, AutoCSR):
         ]
 
         bs_trigger_iface = rtlink.Interface(rtlink.OInterface(
-            data_width=NUM_OF_DDS,
+            data_width=n_dds,
             enable_replace=False))
         cs_trigger_iface = rtlink.Interface(rtlink.OInterface(
-            data_width=NUM_OF_DDS,
+            data_width=n_dds,
             enable_replace=False))
 
         reset_iface = rtlink.Interface(rtlink.OInterface(
@@ -326,8 +326,8 @@ class LTC2000(Module, AutoCSR):
             self.phys.append(Phy(bs_rtl_iface, [], [], f'dds{idx}_bs_iface'))
             self.phys.append(Phy(cs_rtl_iface, [], [], f'dds{idx}_cs_iface'))
 
-        for i in range(NPHASES):
-            for j in range(NUM_OF_DDS):
+        for i in range(n_phases):
+            for j in range(n_dds):
                 self.comb += [
                     self.ltc2000datasynth.data_in[j][i].eq(self.tones[j].dds.dout[i*16:(i+1)*16]),
                     self.ltc2000datasynth.amplitudes[j][i].eq(self.tones[j].amplitude)
@@ -335,7 +335,7 @@ class LTC2000(Module, AutoCSR):
 
         self.specials += [
             MultiReg(self.ltc2000datasynth.summers[i].output, self.ltc2000.data[i*16:(i+1)*16], "dds200")
-            for i in range (NPHASES)
+            for i in range (n_phases)
         ]
 
         self.phys.append(Phy(bs_trigger_iface, [], [], 'bs_trigger_iface'))
