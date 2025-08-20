@@ -17,7 +17,7 @@ from artiq.gateware.rtio.phy import spi2 as rtio_spi
 from artiq.gateware.drtio.transceiver import eem_serdes
 from artiq.gateware.drtio.rx_synchronizer import NoRXSynchronizer
 from artiq.gateware.drtio import *
-from artiq.gateware.shuttler import Shuttler
+from artiq.gateware.shuttler import Shuttler as Shuttler
 from artiq.gateware.songbird import LTC2000
 from artiq.build_soc import *
 
@@ -125,7 +125,7 @@ shuttler_io = [
     ('afe_adc_error_n', 0, Pins('fmc0:LA28_N'), IOStandard("LVCMOS18")),
 ]
 
-class Satellite(BaseSoC, AMPSoC):
+class _SatelliteBase(BaseSoC, AMPSoC):
     mem_map = {
         "rtio":          0x20000000,
         "drtioaux":      0x50000000,
@@ -133,7 +133,7 @@ class Satellite(BaseSoC, AMPSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, gateware_identifier_str=None, efc_hw_rev="v1.1", afe_hw_rev="v1.3", rtio_clk_freq=125e6, variant="shuttler", **kwargs):
+    def __init__(self, gateware_identifier_str=None, efc_hw_rev="v1.1", rtio_clk_freq=125e6, **kwargs):
         BaseSoC.__init__(self,
                  cpu_type="vexriscv",
                  hw_rev=efc_hw_rev,
@@ -214,34 +214,6 @@ class Satellite(BaseSoC, AMPSoC):
         self.config["DRTIO_ROLE"] = "satellite"
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
 
-        if variant == "shuttler":
-            if afe_hw_rev in ("v1.0", "v1.1", "v1.2"):
-                afe_adc_io = ('afe_adc_spi', 0,
-                            Subsignal('clk', Pins('fmc0:LA29_P')),
-                            Subsignal('mosi', Pins('fmc0:LA29_N')),
-                            Subsignal('miso', Pins('fmc0:LA30_N')),
-                            Subsignal('cs_n', Pins('fmc0:LA28_P')),
-                            IOStandard("LVCMOS18"))
-            elif afe_hw_rev == "v1.3":
-                afe_adc_io = ('afe_adc_spi', 0,
-                            Subsignal('clk', Pins('fmc0:LA29_N')),
-                            Subsignal('mosi', Pins('fmc0:LA28_P')),
-                            Subsignal('miso', Pins('fmc0:LA30_N')),
-                            Subsignal('cs_n', Pins('fmc0:LA29_P')),
-                            IOStandard("LVCMOS18"))
-            else:
-                raise ValueError("Unknown AFE hardware revision", afe_hw_rev)
-            shuttler_io.append(afe_adc_io)
-
-            platform.add_extension(shuttler_io)
-
-            self.submodules.converter_spi = spi2.SPIMaster(spi2.SPIInterface(self.platform.request("dac_spi", 0)))
-            self.csr_devices.append("converter_spi")
-            self.config["HAS_CONVERTER_SPI"] = None
-
-            self.submodules.dac_rst = gpio.GPIOOut(self.platform.request("dac_rst"))
-            self.csr_devices.append("dac_rst")
-
         self.rtio_channels = []
 
         for i in range(2):
@@ -249,86 +221,12 @@ class Satellite(BaseSoC, AMPSoC):
             self.submodules += phy
             self.rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        if variant == "shuttler":
-            self.submodules.shuttler = Shuttler([platform.request("dac_din", i) for i in range(8)])
-            self.csr_devices.append("shuttler")
-            self.rtio_channels.extend(rtio.Channel.from_phy(phy) for phy in self.shuttler.phys)
 
-            afe_dir = platform.request("afe_ctrl_dir")
-            self.comb += afe_dir.eq(0b011)
-
-            afe_oe = platform.request("afe_ctrl_oe_n")
-            self.comb += afe_oe.eq(0)
-
-            relay_led_phy = rtio_spi.SPIMaster(self.platform.request("afe_relay"))
-            self.submodules += relay_led_phy
-            print("SHUTTLER RELAY at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
-            self.rtio_channels.append(rtio.Channel.from_phy(relay_led_phy))
-
-            adc_error_n = platform.request("afe_adc_error_n")
-            self.comb += adc_error_n.eq(1)
-
-            adc_spi = rtio_spi.SPIMaster(self.platform.request("afe_adc_spi"))
-            self.submodules += adc_spi
-            print("SHUTTLER ADC at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
-            self.rtio_channels.append(rtio.Channel.from_phy(adc_spi))
-
-        if variant == "songbird":
-            platform.add_extension(ltc2000_spi)
-            ltc2000_spi_phy = rtio_spi.SPIMaster(self.platform.request("ltc2000_spi", 0))
-            self.submodules += ltc2000_spi_phy
-            print("Songbird LTC2000 DAC SPI at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
-            self.rtio_channels.append(rtio.Channel.from_phy(ltc2000_spi_phy))
-
-            self.submodules.ltc2000_dds = LTC2000(self.platform, ltc2000_pads, rtio_clk_freq)
-
-            for phy in self.ltc2000_dds.phys:
-                print("Songbird LTC2000 {} at RTIO channel 0x{:06x}".format(phy.name, len(self.rtio_channels)))
-                self.rtio_channels.append(rtio.Channel.from_phy(phy))
-
-            self.clock_domains.cd_dds200 = ClockDomain(reset_less=True)
-            self.clock_domains.cd_dds600 = ClockDomain(reset_less=True)
-
-            mmcm_fb_in = Signal()
-            mmcm_fb_out = Signal()
-            mmcm_dds200 = Signal()
-            mmcm_dds600 = Signal()
-
-            clk_mult = 12 if rtio_clk_freq == 100e6 else 10
-            self.specials += [
-                Instance("MMCME2_BASE",
-                    p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
-                    i_CLKIN1=ClockSignal(),
-
-                    i_RST=ResetSignal(),
-
-                    i_CLKFBIN=mmcm_fb_in,
-                    o_CLKFBOUT=mmcm_fb_out,
-                    #o_LOCKED=,
-
-                    # VCO @ 1.2/1.25 with MULT=12/10
-                    p_CLKFBOUT_MULT_F=clk_mult, p_DIVCLK_DIVIDE=1,
-
-                    # 600/625MHz
-                    p_CLKOUT0_DIVIDE_F=2, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=mmcm_dds600,
-
-                    # 200/208.33MHz
-                    p_CLKOUT1_DIVIDE=6, p_CLKOUT1_PHASE=0.0, o_CLKOUT1=mmcm_dds200,
-
-                ),
-                Instance("BUFG", i_I=mmcm_dds200, o_O=self.cd_dds200.clk),
-                Instance("BUFG", i_I=mmcm_dds600, o_O=self.cd_dds600.clk),
-                Instance("BUFG", i_I=mmcm_fb_out, o_O=mmcm_fb_in)
-            ]
-            platform.add_false_path_constraints(self.crg.cd_sys.clk, self.cd_dds200.clk)
-
+    def add_rtio(self, rtio_channels, sed_lanes=8):
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
         self.rtio_channels.append(rtio.LogChannel())
 
-        self.add_rtio(self.rtio_channels)
-
-    def add_rtio(self, rtio_channels, sed_lanes=8):
         # Only add MonInj core if there is anything to monitor
         if any([len(c.probes) for c in rtio_channels]):
             self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
@@ -360,6 +258,122 @@ class Satellite(BaseSoC, AMPSoC):
         self.csr_devices.append("rtio_analyzer")
 
 
+class EfcShuttler(_SatelliteBase):
+    def __init__(self, afe_hw_rev="v1.3", **kwargs):
+        _SatelliteBase.__init__(self, **kwargs)
+        platform = self.platform
+
+        if afe_hw_rev in ("v1.0", "v1.1", "v1.2"):
+            afe_adc_io = ('afe_adc_spi', 0,
+                            Subsignal('clk', Pins('fmc0:LA29_P')),
+                            Subsignal('mosi', Pins('fmc0:LA29_N')),
+                            Subsignal('miso', Pins('fmc0:LA30_N')),
+                            Subsignal('cs_n', Pins('fmc0:LA28_P')),
+                            IOStandard("LVCMOS18"))
+        elif afe_hw_rev == "v1.3":
+            afe_adc_io = ('afe_adc_spi', 0,
+                        Subsignal('clk', Pins('fmc0:LA29_N')),
+                        Subsignal('mosi', Pins('fmc0:LA28_P')),
+                        Subsignal('miso', Pins('fmc0:LA30_N')),
+                        Subsignal('cs_n', Pins('fmc0:LA29_P')),
+                        IOStandard("LVCMOS18"))
+        else:
+            raise ValueError("Unknown AFE hardware revision", afe_hw_rev)
+        shuttler_io.append(afe_adc_io)
+
+        platform.add_extension(shuttler_io)
+
+        self.submodules.shuttler = Shuttler([platform.request("dac_din", i) for i in range(8)])
+        self.csr_devices.append("shuttler")
+        self.rtio_channels.extend(rtio.Channel.from_phy(phy) for phy in self.shuttler.phys)
+
+        afe_dir = platform.request("afe_ctrl_dir")
+        self.comb += afe_dir.eq(0b011)
+
+        afe_oe = platform.request("afe_ctrl_oe_n")
+        self.comb += afe_oe.eq(0)
+
+        relay_led_phy = rtio_spi.SPIMaster(self.platform.request("afe_relay"))
+        self.submodules += relay_led_phy
+        print("SHUTTLER RELAY at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
+        self.rtio_channels.append(rtio.Channel.from_phy(relay_led_phy))
+
+        adc_error_n = platform.request("afe_adc_error_n")
+        self.comb += adc_error_n.eq(1)
+
+        adc_spi = rtio_spi.SPIMaster(self.platform.request("afe_adc_spi"))
+        self.submodules += adc_spi
+        print("SHUTTLER ADC at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
+        self.rtio_channels.append(rtio.Channel.from_phy(adc_spi))
+
+        self.submodules.converter_spi = spi2.SPIMaster(spi2.SPIInterface(self.platform.request("dac_spi", 0)))
+        self.csr_devices.append("converter_spi")
+
+        self.submodules.dac_rst = gpio.GPIOOut(self.platform.request("dac_rst"))
+        self.csr_devices.append("dac_rst")
+
+        self.add_rtio(self.rtio_channels)
+
+
+class EfcSongbird(_SatelliteBase):
+    def __init__(self, afe_hw_rev="", **kwargs):
+        _SatelliteBase.__init__(self, **kwargs)
+
+        platform = self.platform
+        rtio_clk_freq = kwargs["rtio_clk_freq"]
+
+        platform.add_extension(ltc2000_spi)
+        ltc2000_spi_phy = rtio_spi.SPIMaster(self.platform.request("ltc2000_spi", 0))
+        self.submodules += ltc2000_spi_phy
+        print("Songbird LTC2000 DAC SPI at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
+        self.rtio_channels.append(rtio.Channel.from_phy(ltc2000_spi_phy))
+
+        self.submodules.ltc2000_dds = LTC2000(self.platform, ltc2000_pads, rtio_clk_freq)
+
+        for phy in self.ltc2000_dds.phys:
+            print("Songbird LTC2000 {} at RTIO channel 0x{:06x}".format(phy.name, len(self.rtio_channels)))
+            self.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        self.clock_domains.cd_dds200 = ClockDomain(reset_less=True)
+        self.clock_domains.cd_dds600 = ClockDomain(reset_less=True)
+
+        mmcm_fb_in = Signal()
+        mmcm_fb_out = Signal()
+        mmcm_dds200 = Signal()
+        mmcm_dds600 = Signal()
+
+        clk_mult = 12 if rtio_clk_freq == 100e6 else 10
+        self.specials += [
+            Instance("MMCME2_BASE",
+                p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
+                i_CLKIN1=ClockSignal(),
+
+                i_RST=ResetSignal(),
+
+                i_CLKFBIN=mmcm_fb_in,
+                o_CLKFBOUT=mmcm_fb_out,
+                #o_LOCKED=,
+
+                # VCO @ 1.2/1.25 with MULT=12/10
+                p_CLKFBOUT_MULT_F=clk_mult, p_DIVCLK_DIVIDE=1,
+
+                # 600/625MHz
+                p_CLKOUT0_DIVIDE_F=2, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=mmcm_dds600,
+
+                # 200/208.33MHz
+                p_CLKOUT1_DIVIDE=6, p_CLKOUT1_PHASE=0.0, o_CLKOUT1=mmcm_dds200,
+
+            ),
+            Instance("BUFG", i_I=mmcm_dds200, o_O=self.cd_dds200.clk),
+            Instance("BUFG", i_I=mmcm_dds600, o_O=self.cd_dds600.clk),
+            Instance("BUFG", i_I=mmcm_fb_out, o_O=mmcm_fb_in)
+        ]
+        platform.add_false_path_constraints(self.crg.cd_sys.clk, self.cd_dds200.clk)
+
+        self.add_rtio(self.rtio_channels)
+
+VARIANTS = {"shuttler": EfcShuttler, "songbird": EfcSongbird}
+
 def main():
     parser = argparse.ArgumentParser(
         description="ARTIQ device binary builder for EEM FMC Carrier systems")
@@ -381,9 +395,15 @@ def main():
     argdict["efc_hw_rev"] = args.efc_hw_rev
     argdict["afe_hw_rev"] = args.afe_hw_rev
     argdict["rtio_clk_freq"] = 100e6 if args.drtio100mhz else 125e6
-    argdict["variant"] = args.variant.lower()
+    variant = args.variant.lower()
 
-    soc = Satellite(**argdict)
+    try:
+        cls = VARIANTS[variant]
+    except KeyError:
+        raise SystemExit("Invalid variant (-V/--variant)")
+
+    soc = cls(**argdict)
+
     build_artiq_soc(soc, builder_argdict(args))
 
 
