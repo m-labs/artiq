@@ -129,6 +129,8 @@ Try reducing the period of the generated waveform until the CPU cannot keep up w
                 print_underflow()
 
 
+.. _getting-started-parallel: 
+
 Parallel and sequential blocks
 ------------------------------
 
