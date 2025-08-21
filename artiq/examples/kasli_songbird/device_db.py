@@ -115,58 +115,51 @@ device_db["songbird0_config"] = {
     "arguments": {"spi_device": "songbird0_spi", "reset_device": "songbird0_reset", "clear_device": "songbird0_clear"},
 }
 
-device_db["songbird0_gain"] = {
-    "type": "local",
-    "module": "artiq.coredevice.songbird",
-    "class": "Gain",
-    "arguments": {"channel": 0x040003},
-}
-
 device_db["songbird0_clear"] = {
     "type": "local",
     "module": "artiq.coredevice.songbird",
     "class": "Clear",
-    "arguments": {"channel": 0x040004},
+    "arguments": {"channel": 0x040003},
 }
 
 device_db["songbird0_reset"] = {
     "type": "local",
     "module": "artiq.coredevice.songbird",
     "class": "Reset",
-    "arguments": {"channel": 0x040005},
+    "arguments": {"channel": 0x040004},
 }
 
 device_db["songbird0_dds0"] = {
     "type": "local",
     "module": "artiq.coredevice.songbird",
     "class": "DDS",
-    "arguments": {"bs_channel": 0x040006, "cs_channel": 0x040007},
+    "arguments": {"bs_channel": 0x040005, "cs_channel": 0x040006},
 }
 
 device_db["songbird0_dds1"] = {
     "type": "local",
     "module": "artiq.coredevice.songbird",
     "class": "DDS",
-    "arguments": {"bs_channel": 0x040008, "cs_channel": 0x040009},
+    "arguments": {"bs_channel": 0x040007, "cs_channel": 0x040008},
 }
 
 device_db["songbird0_dds2"] = {
     "type": "local",
     "module": "artiq.coredevice.songbird",
     "class": "DDS",
-    "arguments": {"bs_channel": 0x04000a, "cs_channel": 0x04000b},
+    "arguments": {"bs_channel": 0x040009, "cs_channel": 0x04000a},
 }
 
 device_db["songbird0_dds3"] = {
     "type": "local",
     "module": "artiq.coredevice.songbird",
     "class": "DDS",
-    "arguments": {"bs_channel": 0x04000c, "cs_channel": 0x04000d},
+    "arguments": {"bs_channel": 0x04000b, "cs_channel": 0x04000c},
 }
 
 device_db["songbird0_trigger"] = {
     "type": "local",
     "module": "artiq.coredevice.songbird",
     "class": "Trigger",
-    "arguments": {"b_channel": 0x04000e, "c_channel": 0x04000f},
+    "arguments": {"b_channel": 0x04000d, "c_channel": 0x04000e},
 }

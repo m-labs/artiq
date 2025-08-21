@@ -774,7 +774,7 @@ class PeripheralManager:
             name=songbird_name,
             channel=rtio_offset + next(channel))
 
-        for class_name in ["Gain", "Clear", "Reset"]:
+        for class_name in ["Clear", "Reset"]:
             self.gen("""
                 device_db["{name}_{class_lower}"] = {{
                     "type": "local",
