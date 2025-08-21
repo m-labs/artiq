@@ -5,6 +5,7 @@ import os
 import struct
 import tempfile
 import atexit
+import logging
 
 from sipyco import common_args
 
@@ -13,6 +14,8 @@ from artiq.master.databases import DeviceDB
 from artiq.coredevice.comm_kernel import CommKernel
 from artiq.coredevice.comm_mgmt import CommMgmt
 from artiq.frontend.flash_tools import bit2bin, fetch_bin
+
+logger = logging.getLogger(__name__)
 
 
 def get_argparser():
@@ -147,7 +150,7 @@ def main():
         if args.action == "read":
             value = mgmt.config_read(args.key)
             if not value:
-                print("Key {} does not exist".format(args.key))
+                logger.error("Key {} does not exist".format(args.key))
             else:
                 print(value)
         if args.action == "write":
@@ -175,6 +178,8 @@ def main():
             ],
         }
 
+        logger.info("Retrieving binaries...")
+
         for bin_list in bin_dict.values():
             try:
                 bins = []
@@ -192,8 +197,12 @@ def main():
             raise ValueError("both risc-v and zynq binaries were found, "
                              "please clean up your build directory. ")
 
+        logger.info("Flashing core device...")
+
         bins = retrieved_bins[0]
         mgmt.flash(bins)
+
+        logger.info("Rebooting core device.")
 
     if args.tool == "reboot":
         mgmt.reboot()
