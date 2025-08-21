@@ -294,7 +294,7 @@ class ADF5356:
 
             # RELOCK AT WANTED PFD FREQUENCY
 
-            for i in [4, 2, 1]:
+            for i in [13, 4, 2, 1]:
                 self.write(self.regs[i])
 
             # force-disable autocal
