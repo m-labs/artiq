@@ -336,7 +336,6 @@ class LogDock(QDockWidgetCloseDetect):
 
         menu.addSeparator()
 
-        # sub-menu with hide/show actions for each column
         hide_show_menu = menu.addMenu("Hide/Show columns")  
         _header = self.log.header()
         for header_index in range(self.log.header().count()):
