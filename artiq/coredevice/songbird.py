@@ -48,15 +48,17 @@ class Config:
 
     @kernel
     def init(self, blind=False):
-        # reset
         self.clear.clear(0b1111)
+        # pulse the hardware reset
         self.reset.reset(1)
-        self.software_reset()
-
-        self.configure(blind)
-        # deassert reset
+        delay(1*us)
         self.reset.reset(0)
-        delay(20*ms)
+        delay(1*ms)  # wait for LTC2000 to be ready after reset
+
+        self.software_reset()
+        self.configure(blind)
+
+        # de-assert clear to enable DDS outputs
         self.clear.clear(0)
 
     @kernel
@@ -92,6 +94,8 @@ class Config:
                 raise ValueError("LTC2000 reset not deasserted")
             if self.read_reg(LTC2K_REG_CLK) & 0x02 == 0:
                 raise ValueError("LTC2000 clock not present")
+            if self.read_reg(LTC2K_REG_DCKI) & 0x02 == 0:
+                raise ValueError("LTC2000 DCKI not present")
 
     @kernel
     def write_reg(self, addr, data):
