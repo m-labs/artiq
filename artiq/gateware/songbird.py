@@ -120,7 +120,6 @@ class LTC2000DDSModule(Module, AutoCSR):
         self.atw = Signal(32)
         self.ptw = Signal(18)
         self.amplitude = Signal(16)
-        self.gain = Signal(16)
 
         self.shift = Signal(4)
         self.shift_counter = Signal(16) # Need to count to 2**shift - 1
@@ -256,20 +255,6 @@ class LTC2000(Module, AutoCSR):
         self.submodules.reset = PulseSynchronizer("rio", "dds200")
 
         self.comb += self.ltc2000.reset.eq(self.reset.o)
-
-        gain_iface = rtlink.Interface(rtlink.OInterface(
-            data_width=16,
-            address_width=4,
-            enable_replace=False
-        ))
-        self.phys.append(Phy(gain_iface, [], [], 'gain_iface'))
-
-        tone_gains = Array([tone.gain for tone in self.tones])
-        self.sync.rio += [
-            If(gain_iface.o.stb,
-                tone_gains[gain_iface.o.address].eq(gain_iface.o.data)
-            )
-        ]
 
         clear_iface = rtlink.Interface(rtlink.OInterface(
             data_width=n_dds,

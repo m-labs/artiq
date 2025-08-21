@@ -422,15 +422,3 @@ class Reset:
         :param reset: Reset signal.
         """
         rtio_output(self.target_o, reset)
-
-class Gain:
-    """LTC2000 sub DDS gain control.
-
-    Not yet fully implemented.
-    """
-    kernel_invariants = {"core", "channel", "target_o"}
-
-    def __init__(self, dmgr, channel, core_device="core"):
-        self.core = dmgr.get(core_device)
-        self.channel = channel
-        self.target_o = channel << 8
