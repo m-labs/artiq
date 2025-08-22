@@ -112,7 +112,7 @@ class DragDropFlowLayoutWidget(QtWidgets.QWidget):
 
     def _get_index(self, pos):
         for i in range(self.layout.count()):
-            if self.itemAt(i).geometry().contains(pos.toPoint()):
+            if self.itemAt(i).geometry().contains(int(pos.x()), int(pos.y())):
                 return i
         return -1
 
