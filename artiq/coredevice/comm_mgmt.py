@@ -172,7 +172,7 @@ class CommMgmt:
         elif ty != Reply.ConfigData:
             raise IOError("Incorrect reply from device: {} (expected {})".
                           format(ty, Reply.ConfigData))
-        return self._read_string()
+        return self._read_bytes()
 
     def config_write(self, key, value):
         self._write_header(Request.ConfigWrite)

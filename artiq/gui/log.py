@@ -46,7 +46,7 @@ class _Model(QtCore.QAbstractItemModel):
     def __init__(self, palette):
         QtCore.QAbstractTableModel.__init__(self)
 
-        self.headers = ["Source", "Message"]
+        self.headers = ["Timestamp", "Source", "Message"]
         self.children_by_row = []
 
         self.entries = []
@@ -159,7 +159,7 @@ class _Model(QtCore.QAbstractItemModel):
         else:
             msgnum = item.parent.row
 
-        if role == QtCore.Qt.ItemDataRole.FontRole and index.column() == 1:
+        if role == QtCore.Qt.ItemDataRole.FontRole and index.column() == 2:
             return self.fixed_font
         elif role == QtCore.Qt.ItemDataRole.BackgroundRole:
             level = self.entries[msgnum][0]
@@ -180,11 +180,18 @@ class _Model(QtCore.QAbstractItemModel):
             column = index.column()
             if item.parent is self:
                 if column == 0:
+                    # use time delta instead of actual time when delta is small
+                    if msgnum > 0:
+                        delta = v[2] - self.entries[msgnum-1][2]
+                        if delta <= 30:
+                            return "+{:.9f}".format(delta)
+                    return time.strftime("%m/%d %H:%M:%S", time.localtime(v[2]))
+                elif column == 1:
                     return v[1]
                 else:
                     return v[3][0]
             else:
-                if column == 0:
+                if column == 0 or column == 1:
                     return ""
                 else:
                     return v[3][item.row+1]
@@ -227,6 +234,7 @@ class LogDock(QDockWidgetCloseDetect):
         scrollbottom.clicked.connect(self.scroll_to_bottom)
 
         clear = QtWidgets.QToolButton()
+        clear.setToolTip("Clear")
         clear.setIcon(QtWidgets.QApplication.style().standardIcon(
             QtWidgets.QStyle.StandardPixmap.SP_DialogResetButton))
         grid.addWidget(clear, 0, 4)
@@ -252,13 +260,8 @@ class LogDock(QDockWidgetCloseDetect):
         self.scroll_at_bottom = False
         self.scroll_value = 0
 
-        self.log.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.ActionsContextMenu)
-        copy_action = QtGui.QAction("Copy entry to clipboard", self.log)
-        copy_action.triggered.connect(self.copy_to_clipboard)
-        self.log.addAction(copy_action)
-        clear_action = QtGui.QAction("Clear", self.log)
-        clear_action.triggered.connect(lambda: self.model.clear())
-        self.log.addAction(clear_action)
+        self.log.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        self.log.customContextMenuRequested.connect(self.open_log_context_menu)
 
         # If Qt worked correctly, this would be nice to have. Alas, resizeSections
         # is broken when the horizontal scrollbar is enabled.
@@ -305,6 +308,38 @@ class LogDock(QDockWidgetCloseDetect):
             source_idx = self.proxy_model.mapToSource(idx[0])
             entry = "\n".join(self.model.full_entry(source_idx))
             QtWidgets.QApplication.clipboard().setText(entry)
+
+    def open_log_context_menu(self, position):
+        menu = QtWidgets.QMenu()
+
+        copy_action = QtGui.QAction("Copy entry to clipboard", self.log)
+        copy_action.triggered.connect(self.copy_to_clipboard)
+        menu.addAction(copy_action)
+
+        clear_action = QtGui.QAction("Clear", self.log)
+        clear_action.triggered.connect(lambda: self.model.clear())
+        menu.addAction(clear_action)
+
+        menu.addSeparator()
+
+        hide_show_menu = menu.addMenu("Hide/Show columns")  
+        _header = self.log.header()
+        for header_index in range(self.log.header().count()):
+            header_text = self.log.model().headerData(header_index, QtCore.Qt.Orientation.Horizontal)
+            header_hidden = self.log.header().isSectionHidden(header_index)
+            header_action = QtGui.QAction(header_text, self.log)
+            header_action.setObjectName(str(header_index))
+            header_action.setCheckable(True)
+            header_action.setChecked(not header_hidden)
+            header_action.triggered.connect(self.toggle_section)
+            hide_show_menu.addAction(header_action)
+
+        menu.exec(self.log.viewport().mapToGlobal(position))
+
+    def toggle_section(self):
+        header_index = int(self.sender().objectName())
+        header_hidden = self.log.header().isSectionHidden(header_index)
+        self.log.header().setSectionHidden(header_index, not header_hidden)
 
     def save_state(self):
         return {

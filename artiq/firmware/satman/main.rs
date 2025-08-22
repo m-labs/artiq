@@ -628,6 +628,7 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
 
             drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })?;
             warn!("restarting");
+            board_misoc::uart::flush();
             unsafe { spiflash::reload(); }
         }
         drtioaux::Packet::CoreMgmtFlashRequest { destination: _destination, payload_length } => {
@@ -661,6 +662,7 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
 
             coremgr.flash_image();
             warn!("restarting");
+            board_misoc::uart::flush();
             unsafe { spiflash::reload(); }
         }
         drtioaux::Packet::CXPReadRequest { destination: _destination, .. }

@@ -402,6 +402,7 @@ pub fn panic_impl(info: &core::panic::PanicInfo) -> ! {
         println!("restarting...");
         unsafe {
             kernel::stop();
+            board_misoc::uart::flush();
             spiflash::reload();
         }
     } else {
