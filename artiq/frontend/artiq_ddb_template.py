@@ -792,12 +792,11 @@ class PeripheralManager:
                 "type": "local",
                 "module": "artiq.coredevice.songbird",
                 "class": "Config",
-                "arguments": {{"spi_device": "{spi_name}", "reset_device": "{reset_name}", "clear_device": "{clear_name}"}},
+                "arguments": {{"spi_device": "{spi_name}", "reset_device": "{reset_name}"}},
             }}""",
             name=songbird_name,
             spi_name=songbird_name+"_spi",
-            reset_name=songbird_name+"_reset",
-            clear_name=songbird_name+"_clear")
+            reset_name=songbird_name+"_reset")
 
         for i in range(4):
             self.gen("""

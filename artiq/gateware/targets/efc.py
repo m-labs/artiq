@@ -18,7 +18,7 @@ from artiq.gateware.drtio.transceiver import eem_serdes
 from artiq.gateware.drtio.rx_synchronizer import NoRXSynchronizer
 from artiq.gateware.drtio import *
 from artiq.gateware.shuttler import Shuttler as Shuttler
-from artiq.gateware.songbird import LTC2000
+from artiq.gateware.songbird import Songbird
 from artiq.build_soc import *
 
 ltc2000_pads = [
@@ -328,7 +328,7 @@ class EfcSongbird(_SatelliteBase):
         print("Songbird LTC2000 DAC SPI at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
         self.rtio_channels.append(rtio.Channel.from_phy(ltc2000_spi_phy))
 
-        self.submodules.ltc2000_dds = LTC2000(self.platform, ltc2000_pads, rtio_clk_freq)
+        self.submodules.ltc2000_dds = Songbird(self.platform, ltc2000_pads, rtio_clk_freq)
 
         for phy in self.ltc2000_dds.phys:
             print("Songbird LTC2000 {} at RTIO channel 0x{:06x}".format(phy.name, len(self.rtio_channels)))
