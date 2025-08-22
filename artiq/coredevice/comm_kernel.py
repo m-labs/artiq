@@ -256,10 +256,15 @@ class CoreException:
         zipped.append(((exception[3], exception[4], exception[5], exception[6],
                        None, []), None))
 
-        for ((filename, line, column, function, address, inlined), sp) in zipped:
+        for i, ((filename, line, column, function, address, inlined),
+                sp) in enumerate(zipped):
             # backtrace of nested exceptions may be discontinuous
-            # but the stack pointer must increase monotonically
-            if sp is not None and sp <= last_sp:
+            # but the stack pointer of the same backtrace must be strictly
+            # monotonically increasing
+            #
+            # Note the order of insertion is reversed. The inserted lines
+            # should have strictly decreasing stack pointers
+            if i != 0 and sp is not None and sp >= last_sp:
                 continue
             last_sp = sp
 
@@ -815,6 +820,11 @@ class CommKernel:
         self._process_async_error()
 
         traceback = list(symbolizer(backtrace))
+        for _, start_backtrace, end_backtrace in exception_info:
+            traceback[start_backtrace: end_backtrace] = reversed(
+                traceback[start_backtrace: end_backtrace])
+            stack_pointers[start_backtrace: end_backtrace] = reversed(
+                stack_pointers[start_backtrace: end_backtrace])
         core_exn = CoreException(nested_exceptions, exception_info,
                                             traceback, stack_pointers)
 
