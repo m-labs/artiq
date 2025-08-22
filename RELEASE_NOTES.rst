@@ -34,6 +34,9 @@ ARTIQ-9 (Unreleased)
      header context menu.
    - State files are now automatically backed up upon successful loading.
    - Experiments can now use ``restart_applet`` CCB command to restart applets.
+* ``artiq_session`` has been revamped. Output now indicates the originating process. Dashboard
+   is started after the controller manager. All processes are cleanly terminated after dashboard
+   is closed.
 * ``afws_client`` now uses the "happy eyeballs" algorithm (RFC 6555) for a faster and more
   reliable connection to the server.
 * Compiler can now give automatic suggestions for ``kernel_invariants``. 
