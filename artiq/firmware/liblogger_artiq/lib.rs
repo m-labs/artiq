@@ -20,7 +20,6 @@ impl<'a> LogBufferRef<'a> {
     fn new(buffer: RefMut<'a, LogBuffer<&'static mut [u8]>>) -> LogBufferRef<'a> {
         let old_log_level = BufferLogger::with(|logger|
             logger.buffer_log_level());
-        // log::set_max_level(LevelFilter::Off);
         BufferLogger::with(|logger|
             logger.set_buffer_log_level(LevelFilter::Off));
         LogBufferRef { buffer, old_log_level }
@@ -43,7 +42,6 @@ impl<'a> Drop for LogBufferRef<'a> {
     fn drop(&mut self) {
         BufferLogger::with(|logger|
             logger.set_buffer_log_level(self.old_log_level));
-
     }
 }
 
@@ -70,7 +68,7 @@ impl BufferLogger {
             log::set_logger(&*LOGGER)
                 .expect("global logger can only be initialized once");
         }
-        log::set_max_level(LevelFilter::Trace);
+        log::set_max_level(LevelFilter::Info);
         f();
     }
 
@@ -90,7 +88,8 @@ impl BufferLogger {
     }
 
     pub fn set_uart_log_level(&self, max_level: LevelFilter) {
-        self.uart_filter.set(max_level)
+        self.uart_filter.set(max_level);
+        self.update_global_log_level()
     }
 
     pub fn buffer_log_level(&self) -> LevelFilter {
@@ -98,7 +97,19 @@ impl BufferLogger {
     }
 
     pub fn set_buffer_log_level(&self, max_level: LevelFilter) {
-        self.buffer_filter.set(max_level)
+        self.buffer_filter.set(max_level);
+        self.update_global_log_level()
+    }
+
+    pub fn update_global_log_level(&self){
+        let uart_level = self.uart_filter.get();
+        let buffer_level = self.buffer_filter.get();
+        let global_level = 
+            if uart_level > buffer_level {
+            uart_level
+            } else {buffer_level};
+
+        log::set_max_level(global_level);
     }
 }
 
