@@ -234,6 +234,7 @@ class LogDock(QDockWidgetCloseDetect):
         scrollbottom.clicked.connect(self.scroll_to_bottom)
 
         clear = QtWidgets.QToolButton()
+        clear.setToolTip("Clear")
         clear.setIcon(QtWidgets.QApplication.style().standardIcon(
             QtWidgets.QStyle.StandardPixmap.SP_DialogResetButton))
         grid.addWidget(clear, 0, 4)
