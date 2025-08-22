@@ -36,45 +36,35 @@ class Config:
 
     :param spi_device: SPI bus device name.
     :param reset_device: Reset device name.
-    :param clear_device: Clear device name.
     """
-    kernel_invariants = {"bus", "reset", "clear", "spi_config"}
+    kernel_invariants = {"bus", "reset", "spi_config"}
     
-    def __init__(self, dmgr, spi_device, reset_device, clear_device):
+    def __init__(self, dmgr, spi_device, reset_device):
         self.bus = dmgr.get(spi_device)
         self.reset = dmgr.get(reset_device)
-        self.clear = dmgr.get(clear_device)
         self.spi_config = SPI_END
 
     @kernel
     def init(self, blind=False):
-        self.clear.clear(0b1111)
+        """Initializes the LTC2000 DAC.
+
+        Sets up the DAC with sensible defaults.
+        For more information, see the LTC2000 datasheet.
+
+        :param blind: If true, skips verifying the configuration.
+        """
         # pulse the hardware reset
         self.reset.reset(1)
-        delay(1*us)
+        delay(1*ms)
         self.reset.reset(0)
-        delay(1*ms)  # wait for LTC2000 to be ready after reset
+        delay(10*ms)  # wait for LTC2000 to be ready after reset
 
-        self.software_reset()
-        self.configure(blind)
+        # configure the LTC2000
 
-        # de-assert clear to enable DDS outputs
-        self.clear.clear(0)
-
-    @kernel
-    def software_reset(self):
         self.write_reg(LTC2K_REG_RESET, 0x01)  # Write 1 to the reset bit
         delay(10*ms)  # Wait for reset to complete
-        self.write_reg(LTC2K_REG_RESET, 0x00)  # Clear the reset bit
-        delay(20*ms)
+        # reset clears automatically after ~CS is deasserted
 
-    @kernel
-    def configure(self, blind):
-        """Configures the LTC2000 DAC with sensible defaults.
-
-        For more information see the LTC2000 datasheet.
-        """
-        self.write_reg(LTC2K_REG_RESET, 0x00)  # deassert reset
         self.write_reg(LTC2K_REG_CLK, 0x00)
         self.write_reg(LTC2K_REG_DCKI, 0x01)  # enable DCKI
         self.write_reg(LTC2K_REG_PORT, 0x03)  # enable Port A and B
@@ -119,9 +109,9 @@ class Config:
 
 
 class DDS:
-    """LTC2000 Core DDS spline.
+    """Songbird Core DDS spline.
 
-    A LTC2000 channel generates a composite waveform `w(t)` according to:
+    A Songbird channel generates a composite waveform `w(t)` according to:
 
     ```
     w(t) = b(t) * cos(c(t))
@@ -146,13 +136,13 @@ class DDS:
     def __init__(self, dmgr, b_channel, c_channel, core_device="core"):
         self.core = dmgr.get(core_device)
         if self.core.ref_period == 1.25e-9:
-            self.dds_freq = 200e6
+            self.dds_freq = 2.4e9
         elif self.core.ref_period == 1e-9:
-            self.dds_freq = 125e6 * 5/3  # 208.33 MHz
+            self.dds_freq = 2.5e9
         else:
-            raise ValueError("Core frequency not supported")
+            raise ValueError("Core frequency not supported by Songbird")
         self.b_channel = b_channel
-        self.c_channel = c_channel + 1
+        self.c_channel = c_channel
         self.b_target_o = self.b_channel << 8
         self.c_target_o = self.c_channel << 8
 
@@ -160,11 +150,11 @@ class DDS:
     def frequency_to_mu(self, frequency: TFloat) -> TInt32:
         """Convert frequency in Hz to a 32-bit frequency tuning word (FTW)
         """
-        return int32(round(frequency * (1 << 32) / self.dds_freq))
+        return int32(round(frequency * (2.0**32) / self.dds_freq))
 
     @kernel
-    def set_waveform(self, b0: TInt32, b1: TInt32, b2: TInt64, b3: TInt64,
-            c0: TInt32, c1: TInt32, c2: TInt32, shift: TInt32 = 0):
+    def set_waveform(self, ampl_offset: TInt32, damp: TInt32, ddamp: TInt64, dddamp: TInt64,
+            phase_offset: TInt32, ftw: TInt32, chirp: TInt32, shift: TInt32 = 0):
         """Set the DDS spline waveform.
 
         The shift parameter controls the spline update rate:
@@ -215,56 +205,56 @@ class DDS:
         **Examples:**
         Constant Amplitude Sine Wave: b(t) = 1.0V, c(t) = f₀t
 
-            dds.set_waveform(b0=volt_to_mu(1.0), b1=0, b2=0, b3=0, c0=0,
-                             c1=dds.frequency_to_mu(1e6), c2=0, shift=0)
+            dds.set_waveform(ampl_offset=volt_to_mu(1.0), damp=0, ddamp=0, dddamp=0,
+                             phase_offset=0, ftw=dds.frequency_to_mu(1e6), chirp=0, shift=0)
 
         Linear Frequency Sweep: chirped sine, constant amplitude
 
-            dds.set_waveform(b0=volt_to_mu(0.5), b1=0, b2=0, b3=0,
-                             c0=0, c1=dds.frequency_to_mu(10e6), c2=chirp_rate_mu, shift=3)
+            dds.set_waveform(ampl_offset=volt_to_mu(0.5), damp=0, ddamp=0, dddamp=0,
+                             phase_offset=0, ftw=dds.frequency_to_mu(10e6), chirp=chirp_rate_mu, shift=3)
 
         Amplitude Modulated Signal: b(t) = A₀ + A₁t (linear amplitude ramp)
 
-            dds.set_waveform(b0=base_amplitude_mu, b1=ramp_rate_mu, b2=0, b3=0,
-                             c0=0, c1=carrier_freq_mu, c2=0, shift=1)
+            dds.set_waveform(ampl_offset=base_amplitude_mu, damp=ramp_rate_mu, ddamp=0, dddamp=0,
+                             phase_offset=0, ftw=carrier_freq_mu, chirp=0, shift=1)
 
-        :param b0: The :math:`b_0` coefficient in machine units.
-        :param b1: The :math:`b_1` coefficient in machine units.
-        :param b2: The :math:`b_2` coefficient in machine units.
-        :param b3: The :math:`b_3` coefficient in machine units.
-        :param c0: The :math:`c_0` (phase offset) coefficient in machine units.
-        :param c1: The :math:`c_1` (frequency) coefficient in machine units.
-        :param c2: The :math:`c_2` (chirp) coefficient in machine units.
+        :param ampl_offset: The :math:`b_0` (amplitude offset) coefficient in machine units.
+        :param damp: The :math:`b_1` coefficient in machine units.
+        :param ddamp: The :math:`b_2` coefficient in machine units.
+        :param dddamp: The :math:`b_3` coefficient in machine units.
+        :param phase_offset: The :math:`c_0` (phase offset) coefficient in machine units.
+        :param ftw: The :math:`c_1` (frequency tuning word) coefficient in machine units.
+        :param chirp: The :math:`c_2` (chirp rate) coefficient in machine units.
         :param shift: Clock division factor (0-15). Defaults to 0 (no division).
         """
 
-        self.set_ampl(b0, b1, b2, b3)
-        self.set_phase(c0, c1, c2, shift)
+        self.set_ampl(ampl_offset, damp, ddamp, dddamp)
+        self.set_phase(phase_offset, ftw, chirp, shift)
 
     @kernel
-    def set_ampl(self, b0: TInt32, b1: TInt32, b2: TInt64, b3: TInt64):
+    def set_ampl(self, ampl_offset: TInt32, damp: TInt32, ddamp: TInt64, dddamp: TInt64):
         """Controls only the amplitude part of the waveform.
 
-        As with set_waveform, the changes must be triggered
+        As with :meth:`set_waveform`, the changes must be triggered
         before they are applied in the LTC2000 core.
         See :class:`Trigger` for the update triggering mechanism.
 
-        :param b0: The :math:`b_0` coefficient in machine units.
-        :param b1: The :math:`b_1` coefficient in machine units.
-        :param b2: The :math:`b_2` coefficient in machine units.
-        :param b3: The :math:`b_3` coefficient in machine units.
+        :param ampl_offset: The :math:`b_0` coefficient in machine units.
+        :param damp: The :math:`b_1` coefficient in machine units.
+        :param ddamp: The :math:`b_2` coefficient in machine units.
+        :param dddamp: The :math:`b_3` coefficient in machine units.
         """
 
         b_coef_words = [
-            b0 & 0xFFFF,                          # Word 0: amplitude offset
-            b1 & 0xFFFF,                          # Word 1: damp low
-            (b1 >> 16) & 0xFFFF,                  # Word 2: damp high
-            b2 & 0xFFFF,                          # Word 3: ddamp low
-            (b2 >> 16) & 0xFFFF,                  # Word 4: ddamp mid
-            (b2 >> 32) & 0xFFFF,                  # Word 5: ddamp high
-            b3 & 0xFFFF,                          # Word 6: dddamp low
-            (b3 >> 16) & 0xFFFF,                  # Word 7: dddamp mid
-            (b3 >> 32) & 0xFFFF,                  # Word 8: dddamp high
+            ampl_offset & 0xFFFF,                          # Word 0: amplitude offset
+            damp & 0xFFFF,                          # Word 1: damp low
+            (damp >> 16) & 0xFFFF,                  # Word 2: damp high
+            ddamp & 0xFFFF,                          # Word 3: ddamp low
+            (ddamp >> 16) & 0xFFFF,                  # Word 4: ddamp mid
+            (ddamp >> 32) & 0xFFFF,                  # Word 5: ddamp high
+            dddamp & 0xFFFF,                          # Word 6: dddamp low
+            (dddamp >> 16) & 0xFFFF,                  # Word 7: dddamp mid
+            (dddamp >> 32) & 0xFFFF,                  # Word 8: dddamp high
         ]
 
         for i in range(len(b_coef_words)):
@@ -272,29 +262,29 @@ class DDS:
             delay_mu(int64(self.core.ref_multiplier))
 
     @kernel
-    def set_phase(self, c0: TInt32, c1: TInt32, c2: TInt32, shift: TInt32 = 0):
-        """Controls the phase, FTW chirp and shift of the waveform. 
+    def set_phase(self, phase_offset: TInt32, ftw: TInt32, chirp: TInt32, shift: TInt32 = 0):
+        """Controls the phase, FTW, chirp, and shift of the waveform.
             See :meth:`set_waveform` for more details.
 
-        :param c0: The :math:`c_0` (phase offset) coefficient in machine units.
-        :param c1: The :math:`c_1` (frequency) coefficient in machine units.
-        :param c2: The :math:`c_2` (chirp) coefficient in machine units.
+        :param phase_offset: The :math:`c_0` coefficient in machine units.
+        :param ftw: The :math:`c_1` coefficient in machine units.
+        :param chirp: The :math:`c_2` coefficient in machine units.
         :param shift: Clock division factor (0-15). Defaults to 0 (no division).
-        """        
+        """
         if not 0 <= shift <= 15:
             raise ValueError("Shift must be between 0 and 15")
 
-        phase_msb = (c0 >> 2) & 0xFFFF   # Upper 16 bits of 18-bit phase value
-        phase_lsb = c0 & 0x3             # Bottom 2 bits of 18-bit phase value
+        phase_msb = (phase_offset >> 2) & 0xFFFF   # Upper 16 bits of 18-bit phase value
+        phase_lsb = phase_offset & 0x3             # Bottom 2 bits of 18-bit phase value
         
         c_coef_words = [
-            phase_msb,                            # Word 9: phase offset main (16 bits)
-            c1 & 0xFFFF,                          # Word 10: ftw low
-            (c1 >> 16) & 0xFFFF,                  # Word 11: ftw high
-            c2 & 0xFFFF,                          # Word 12: chirp low
-            (c2 >> 16) & 0xFFFF,                  # Word 13: chirp high
+            phase_msb,                           # Word 9: phase offset main (16 bits)
+            ftw & 0xFFFF,                        # Word 10: ftw low
+            (ftw >> 16) & 0xFFFF,                # Word 11: ftw high
+            chirp & 0xFFFF,                      # Word 12: chirp low
+            (chirp >> 16) & 0xFFFF,              # Word 13: chirp high
 
-            shift | (phase_lsb << 4),             # Word 14: shift[3:0] + phase_lsb[5:4] + reserved[15:6]
+            shift | (phase_lsb << 4),            # Word 14: shift[3:0] + phase_lsb[5:4] + reserved[15:6]
         ]
 
         for i in range(len(c_coef_words)):
@@ -320,16 +310,16 @@ class Trigger:
 
     @kernel
     def trigger(self, channels_mask):
-        """Triggers coefficient update of LTC2000 Core channel(s).
+        """Triggers coefficient update of Songbird Core channel(s).
 
-        The waveform configuration is not applied to the LTC2000 Core until
+        The waveform configuration is not applied to the Songbird Core until
         explicitly triggered.
         This allows atomic updates across multiple channels.
 
         This method updates both b and c coefficients. See :meth:`trigger_b`
         and :meth:`trigger_c` for separate updates.
 
-        Each bit corresponds to an LTC2000 waveform generator core. Setting
+        Each bit corresponds to a Songbird waveform generator core. Setting
         bits in `channels_mask` commits the pending coefficient updates to
         the corresponding DDS channels synchronously.
 
@@ -343,18 +333,17 @@ class Trigger:
         :param channels_mask: Coefficient update trigger bits. The MSB corresponds
             to Channel 15, LSB corresponds to Channel 0.
         """
-        with parallel:
-            rtio_output(self.b_target_o, channels_mask)
-            rtio_output(self.c_target_o, channels_mask)
+        rtio_output(self.b_target_o, channels_mask)
+        rtio_output(self.c_target_o, channels_mask)
 
     @kernel
     def trigger_b(self, channels_mask):
-        """Triggers amplitude coefficient update of LTC2000 Core channel(s).
+        """Triggers amplitude coefficient update of Songbird Core channel(s).
 
         This method updates only b coefficients. See :meth:`trigger`
         and :meth:`trigger_c` for other update options.
 
-        Each bit corresponds to an LTC2000 waveform generator core. Setting
+        Each bit corresponds to a Songbird waveform generator core. Setting
         bits in `channels_mask` commits the pending coefficient updates to
         the corresponding DDS channels synchronously.
 
@@ -365,12 +354,12 @@ class Trigger:
 
     @kernel
     def trigger_c(self, channels_mask):
-        """Triggers amplitude coefficient update of LTC2000 Core channel(s).
+        """Triggers phase/frequency coefficient update of Songbird Core channel(s).
 
         This method updates only c coefficients. See :meth:`trigger`
         and :meth:`trigger_b` for other update options.
 
-        Each bit corresponds to an LTC2000 waveform generator core. Setting
+        Each bit corresponds to a Songbird waveform generator core. Setting
         bits in `channels_mask` commits the pending coefficient updates to
         the corresponding DDS channels synchronously.
 
@@ -381,7 +370,7 @@ class Trigger:
 
 
 class Clear:
-    """Shuttler Core clear signal.
+    """Songbird Core clear signal.
 
     :param channel: RTIO channel number of the clear interface.
     :param core_device: Core device name.
@@ -395,19 +384,19 @@ class Clear:
 
     @kernel
     def clear(self, clear_out):
-        """Clears the Shuttler Core channel(s).
+        """Clears the Songbird Core channel(s).
 
-        Each bit corresponds to a Shuttler waveform generator core. Setting
+        Each bit corresponds to a Songbird waveform generator core. Setting
         ``clear_out`` bits clears the corresponding channels in the Shuttler Core
         synchronously.
 
         :param clear_out: Clear signal bits. The MSB corresponds
-            to Channel 15, LSB corresponds to Channel 0.
+            to Channel 3, LSB corresponds to Channel 0.
         """
         rtio_output(self.target_o, clear_out)
 
 class Reset:
-    """Shuttler Core reset signal.
+    """Songbird Core reset signal.
 
     :param channel: RTIO channel number of the clear interface.
     :param core_device: Core device name.
@@ -421,7 +410,7 @@ class Reset:
 
     @kernel
     def reset(self, reset):
-        """Resets the LTC2000 DAC.
+        """Resets the Songbird DAC.
 
         :param reset: Reset signal.
         """

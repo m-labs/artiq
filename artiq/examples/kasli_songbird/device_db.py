@@ -112,7 +112,7 @@ device_db["songbird0_config"] = {
     "type": "local",
     "module": "artiq.coredevice.songbird",
     "class": "Config",
-    "arguments": {"spi_device": "songbird0_spi", "reset_device": "songbird0_reset", "clear_device": "songbird0_clear"},
+    "arguments": {"spi_device": "songbird0_spi", "reset_device": "songbird0_reset"},
 }
 
 device_db["songbird0_clear"] = {
