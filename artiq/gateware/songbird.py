@@ -20,18 +20,21 @@ class SumAndScale(Module):
             # First, multiply (preserving full 32-bit result)
             self.sync += products[i].eq(self.inputs[i] * self.amplitudes[i])
 
-        # Sum the full 32-bit results
-        sum_all = Signal((34, True))  # Extra bits to avoid potential overflow
-        self.comb += sum_all.eq(products[0] + products[1] + products[2] + products[3])
+        # Then sum it all up
+        sum_all = Signal((34, True))
+        self.sync += sum_all.eq(products[0] + products[1] + products[2] + products[3])
 
         # Finally, shift and saturate
+        scaled_sum = Signal((19, True))
+        self.comb += scaled_sum.eq(sum_all[15:])
+
         self.sync += [
-            If(sum_all[15:] > 0x7FFF,
+            If(scaled_sum > 0x7FFF,
                 self.output.eq(0x7FFF)
-            ).Elif(sum_all[15:] < -0x8000,
+            ).Elif(scaled_sum < -0x8000,
                 self.output.eq(-0x8000)
             ).Else(
-                self.output.eq(sum_all[15:])
+                self.output.eq(scaled_sum)
             )
         ]
 
@@ -52,8 +55,7 @@ class PolyphaseDDS(Module):
         self.comb += paccu.f.eq(self.ftw)
         self.comb += paccu.p.eq(self.ptw)
         self.submodules.paccu = paccu
-        dds0 = CosSinGen()
-        ddss = [dds0] + [CosSinGen(share_lut=dds0.lut) for i in range(n-1)]
+        ddss = [CosSinGen() for i in range(n)]
         for idx, dds in enumerate(ddss):
             self.submodules += dds
             self.comb += dds.z.eq(paccu.z[idx])
@@ -82,8 +84,7 @@ class DoubleDataRateDDS(Module):
             MultiReg(self.ptw, paccu.p, "dds200"),
         ]
         self.submodules.paccu = paccu
-        dds0 = ClockDomainsRenamer("dds200")(CosSinGen())
-        self.ddss = [dds0] + [ClockDomainsRenamer("dds200")(CosSinGen(share_lut=dds0.lut)) for _ in range(n-1)]
+        self.ddss = [ClockDomainsRenamer("dds200")(CosSinGen()) for _ in range(n)]
         counter = Signal()
         dout2x = Signal((x+1)*n*2)  # output data modified in 2x domain
         for idx, dds in enumerate(self.ddss):
@@ -95,9 +96,10 @@ class DoubleDataRateDDS(Module):
                     dout2x[idx*16:(idx+1)*16].eq(dds.x)
                 ).Else(
                     dout2x[(idx+n)*16:(idx+n+1)*16].eq(dds.x)
-                ),
-                counter.eq(~counter)
+                )
             ]
+        
+        self.sync.dds200 += counter.eq(~counter)
         self.specials += MultiReg(dout2x, self.dout)
 
 
@@ -148,8 +150,8 @@ class LTC2000DDSModule(Module, AutoCSR):
             )
         ]
 
-        z = [Signal(32) for i in range(3)] # phase, dphase, ddphase
-        x = [Signal(48) for i in range(4)] # amp, damp, ddamp, dddamp
+        z = [Signal((32, True)) for i in range(3)] # phase, dphase, ddphase
+        x = [Signal((48, True)) for i in range(4)] # amp, damp, ddamp, dddamp
 
         self.sync += [
             self.ftw.eq(z[1]),
@@ -165,8 +167,8 @@ class LTC2000DDSModule(Module, AutoCSR):
             ),
 
             If(self.bs_i.stb,
-                x[0].eq(0),
-                x[1].eq(0),
+                x[0][:32].eq(0),
+                x[1][:16].eq(0),
                 Cat(x[0][32:],           # b0: amp offset (16 bits)
                     x[1][16:],           # b1: damp (32 bits)
                     x[2],                # b2: ddamp (48 bits)
@@ -188,17 +190,11 @@ class LTC2000DDSModule(Module, AutoCSR):
         self.comb += [
             # Reconstruct 18-bit phase with extension bits in correct position
             reconstructed_phase.eq(Cat(
-                control_word[5],
-                control_word[4],                # Phase extension bits [5:4] become LSBs [1:0]
-                phase_msb_word                  # Main phase bits become MSBs [17:2]
+                control_word[4:6],  # Phase extension bits [5:4] become LSBs [1:0]
+                phase_msb_word      # Main phase bits become MSBs [17:2]
             )),
 
-            self.shift.eq(Cat(
-                control_word[3],
-                control_word[2],
-                control_word[1],
-                control_word[0]
-            )),   # Shift value in bits [3:0]
+            self.shift.eq(control_word[0:4]),   # Shift value in bits [3:0]
 
             self.amplitude.eq(x[0][32:])
         ]
@@ -234,7 +230,7 @@ class LTC2000DataSynth(Module, AutoCSR):
 
 Phy = namedtuple("Phy", "rtlink probes overrides name")
 
-class LTC2000(Module, AutoCSR):
+class Songbird(Module, AutoCSR):
     def __init__(self, platform, ltc2000_pads, clk_freq=125e6):
         n_dds = 4
         n_phases = 24
@@ -320,10 +316,8 @@ class LTC2000(Module, AutoCSR):
                     self.ltc2000datasynth.amplitudes[j][i].eq(self.tones[j].amplitude)
                 ]
 
-        self.specials += [
-            MultiReg(self.ltc2000datasynth.summers[i].output, self.ltc2000.data[i*16:(i+1)*16], "dds200")
-            for i in range (n_phases)
-        ]
+        for i in range(n_phases):
+            self.comb += self.ltc2000.data[i*16:(i+1)*16].eq(self.ltc2000datasynth.summers[i].output)
 
         self.phys.append(Phy(bs_trigger_iface, [], [], 'bs_trigger_iface'))
         self.phys.append(Phy(cs_trigger_iface, [], [], 'cs_trigger_iface'))
@@ -332,9 +326,13 @@ class LTC2000(Module, AutoCSR):
 class Ltc2000phy(Module, AutoCSR):
     def __init__(self, pads, clk_freq=125e6):
         self.data = Signal(16*24) # 16 bits per channel, 24 phases input at sys clock rate
+        data_dds200 = Signal(16*24)
+
         self.reset = Signal()
 
         ###
+
+        self.specials += MultiReg(self.data, data_dds200, "dds200")
 
         # 16 bits per channel, 2 channels, 6 samples per clock cycle, data coming in at dds200 rate
         # for 100 MHz sysclk we get 200 MHz * 2 * 6 = 2.4 Gbps
@@ -345,9 +343,9 @@ class Ltc2000phy(Module, AutoCSR):
         # Load data into register, swapping halves
         self.sync.dds200 += [
             If(~counter,
-                data_in.eq(self.data[16*2*6:])  # Load second half first
+                data_in.eq(data_dds200[16*2*6:])  # Load second half first
             ).Else(
-                data_in.eq(self.data[:16*2*6])  # Load first half second
+                data_in.eq(data_dds200[:16*2*6])  # Load first half second
             ),
             counter.eq(~counter)
         ]
