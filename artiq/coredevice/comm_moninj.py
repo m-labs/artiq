@@ -39,7 +39,7 @@ class CommMonInj:
 
         try:
             self._writer.write(b"ARTIQ moninj\n")
-            self._receive_task = asyncio.ensure_future(self._receive_cr())
+            self._receive_task = asyncio.create_task(self._receive_cr())
         except:
             self._writer.close()
             del self._reader

@@ -103,8 +103,7 @@ def main():
         repo_backend = GitBackend(args.repository)
     else:
         repo_backend = FilesystemBackend(args.repository)
-    experiment_db = ExperimentDB(
-        repo_backend, worker_handlers, args.experiment_subdir)
+    experiment_db = ExperimentDB(repo_backend, worker_handlers, args.experiment_subdir, loop=loop)
     atexit.register(experiment_db.close)
 
     scheduler = Scheduler(RIDCounter(), worker_handlers, experiment_db,
@@ -131,7 +130,7 @@ def main():
         "scheduler_check_termination": scheduler.check_termination,
         "ccb_issue": ccb_issue,
     })
-    experiment_db.scan_repository_async(loop=loop)
+    experiment_db.scan_repository_async()
 
     signal_handler_task = loop.create_task(signal_handler.wait_terminate())
     master_management = SimpleNamespace(
