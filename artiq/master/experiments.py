@@ -84,10 +84,11 @@ class _RepoScanner:
 
 
 class ExperimentDB:
-    def __init__(self, repo_backend, worker_handlers, experiment_subdir=""):
+    def __init__(self, repo_backend, worker_handlers, experiment_subdir="", *, loop):
         self.repo_backend = repo_backend
         self.worker_handlers = worker_handlers
         self.experiment_subdir = experiment_subdir
+        self.loop = loop
 
         self.cur_rev = self.repo_backend.get_head_rev()
         self.repo_backend.request_rev(self.cur_rev)
@@ -124,9 +125,8 @@ class ExperimentDB:
             self._scanning = False
             self.status["scanning"] = False
 
-    def scan_repository_async(self, new_cur_rev=None, loop=None):
-        asyncio.ensure_future(
-            exc_to_warning(self.scan_repository(new_cur_rev)), loop=loop)
+    def scan_repository_async(self, new_cur_rev=None):
+        self.scan_task = self.loop.create_task(exc_to_warning(self.scan_repository(new_cur_rev)))
 
     async def examine(self, filename, use_repository=True, revision=None):
         if use_repository:
