@@ -191,7 +191,7 @@ class AppletsCCBDock(applets.AppletsDock):
                 logger.debug("Applet %s already exists: updating existing spec", name)
                 self.set_spec(applet, spec)
                 if applet.applet_dock:
-                    asyncio.ensure_future(applet.applet_dock.restart())
+                    self.background_tasks.create(applet.applet_dock.restart())
             else:
                 logger.debug("Applet %s already exists and no update required", name)
 
@@ -216,7 +216,7 @@ class AppletsCCBDock(applets.AppletsDock):
             return
         parent, applet = self.locate_applet(name, group, False)
         if applet is not None and applet.applet_dock is not None:
-            asyncio.ensure_future(applet.applet_dock.restart())
+            self.background_tasks.create(applet.applet_dock.restart())
 
     def ccb_disable_applet(self, name, group=None):
         """Disables an applet.

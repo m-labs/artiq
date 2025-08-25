@@ -13,6 +13,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from sipyco.pipe_ipc import AsyncioParentComm
 from sipyco.logs import LogParser
+from sipyco.tools import BackgroundTaskPool
 from sipyco import pyon
 
 from artiq.gui.entries import procdesc_to_entry, EntryTreeWidget
@@ -177,9 +178,8 @@ class AppletIPCServer(AsyncioParentComm):
         finally:
             self.dataset_sub.notify_cbs.remove(self._on_mod)
 
-    def start_server(self, embed_cb, *, loop=None):
-        self.server_task = asyncio.ensure_future(
-            self.serve(embed_cb), loop=loop)
+    def start_server(self, embed_cb, *, loop):
+        self.server_task = loop.create_task(self.serve(embed_cb))
 
     async def stop_server(self):
         if hasattr(self, "server_task"):
@@ -234,13 +234,13 @@ class _AppletDock(QDockWidgetCloseDetect):
             if stdin is not None:
                 self.ipc.process.stdin.write(stdin.encode())
                 self.ipc.process.stdin.write_eof()
-            asyncio.ensure_future(
+            self.log_stdout_task = asyncio.create_task(
                 LogParser(self._get_log_source).stream_task(
                     self.ipc.process.stdout))
-            asyncio.ensure_future(
+            self.log_stderr_task = asyncio.create_task(
                 LogParser(self._get_log_source).stream_task(
                     self.ipc.process.stderr))
-            self.ipc.start_server(self.embed)
+            self.ipc.start_server(self.embed, loop=asyncio.get_running_loop())
         finally:
             self.starting_stopping = False
 
@@ -412,7 +412,7 @@ class _CompleterDelegate(QtWidgets.QStyledItemDelegate):
 
 
 class AppletsDock(QtWidgets.QDockWidget):
-    def __init__(self, main_window, dataset_sub, dataset_ctl, expmgr, extra_substitutes={}, *, loop=None):
+    def __init__(self, main_window, dataset_sub, dataset_ctl, expmgr, extra_substitutes={}, *, loop):
         """
         :param extra_substitutes: Map of extra ``${strings}`` to substitute in applet
             commands to their respective values.
@@ -429,7 +429,7 @@ class AppletsDock(QtWidgets.QDockWidget):
         self.extra_substitutes = extra_substitutes
         self.applet_uids = set()
 
-        self._loop = loop
+        self.background_tasks = BackgroundTaskPool(loop)
 
         self.table = QtWidgets.QTreeWidget()
         self.table.setColumnCount(2)
@@ -531,7 +531,7 @@ class AppletsDock(QtWidgets.QDockWidget):
         dock = _AppletDock(self.dataset_sub, self.dataset_ctl, self.expmgr, item.applet_uid, name, spec, self.extra_substitutes)
         self.main_window.addDockWidget(QtCore.Qt.DockWidgetArea.RightDockWidgetArea, dock)
         dock.setFloating(True)
-        asyncio.ensure_future(dock.start(), loop=self._loop)
+        self.background_tasks.create(dock.start())
         dock.sigClosed.connect(partial(self.on_dock_closed, item, dock))
         return dock
 
@@ -570,7 +570,7 @@ class AppletsDock(QtWidgets.QDockWidget):
 
     def on_dock_closed(self, item, dock):
         item.applet_geometry = dock.saveGeometry()
-        asyncio.ensure_future(dock.terminate(), loop=self._loop)
+        self.background_tasks.create(dock.terminate())
         item.setCheckState(0, QtCore.Qt.CheckState.Unchecked)
 
     def get_untitled(self):
@@ -659,7 +659,7 @@ class AppletsDock(QtWidgets.QDockWidget):
                 if wi.ty == "applet":
                     dock = wi.applet_dock
                     if dock is not None:
-                        asyncio.ensure_future(dock.restart(), loop=self._loop)
+                        self.background_tasks.create(dock.restart())
                 elif wi.ty == "group":
                     for i in range(wi.childCount()):
                         walk(wi.child(i))
