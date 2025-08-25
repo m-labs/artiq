@@ -104,10 +104,7 @@ impl BufferLogger {
     pub fn update_global_log_level(&self){
         let uart_level = self.uart_filter.get();
         let buffer_level = self.buffer_filter.get();
-        let global_level = 
-            if uart_level > buffer_level {
-            uart_level
-            } else {buffer_level};
+        let global_level = core::cmp::max(uart_level, buffer_level);
 
         log::set_max_level(global_level);
     }
