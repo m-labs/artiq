@@ -104,10 +104,15 @@ class CoreException:
         zipped.append(((exception[3], exception[4], exception[5], exception[6],
                        None, []), None))
 
-        for ((filename, line, column, function, address, inlined), sp) in zipped:
+        for i, ((filename, line, column, function, address, inlined),
+                sp) in enumerate(zipped):
             # backtrace of nested exceptions may be discontinuous
-            # but the stack pointer must increase monotonically
-            if sp is not None and sp <= last_sp:
+            # but the stack pointer of the same backtrace must be strictly
+            # monotonically increasing
+            #
+            # Note the order of insertion is reversed. The inserted lines
+            # should have strictly decreasing stack pointers
+            if i != 0 and sp is not None and sp >= last_sp:
                 continue
             last_sp = sp
 
