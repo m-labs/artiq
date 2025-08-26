@@ -696,6 +696,11 @@ class CommKernel:
         self._process_async_error()
 
         traceback = list(symbolizer(backtrace))
+        for _, start_backtrace, end_backtrace in exception_info:
+            traceback[start_backtrace: end_backtrace] = reversed(
+                traceback[start_backtrace: end_backtrace])
+            stack_pointers[start_backtrace: end_backtrace] = reversed(
+                stack_pointers[start_backtrace: end_backtrace])
         core_exn = exceptions.CoreException(nested_exceptions, exception_info,
                                             traceback, stack_pointers)
 
