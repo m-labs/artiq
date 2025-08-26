@@ -84,10 +84,11 @@ class CoreException:
     def single_traceback(self, exception_index):
         # note that we insert in reversed order
         lines = []
-        last_sp = 0
         start_backtrace_index = self.exception_info[exception_index][1]
-        zipped = list(zip(self.traceback[start_backtrace_index:],
-                          self.stack_pointers[start_backtrace_index:]))
+        end_backtrace_index = self.exception_info[exception_index][2]
+        zipped = list(zip(
+            self.traceback[start_backtrace_index:end_backtrace_index],
+            self.stack_pointers[start_backtrace_index:end_backtrace_index]))
         exception = self.exceptions[exception_index]
         name = exception[0]
         message = exception[1]
