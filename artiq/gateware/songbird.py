@@ -141,9 +141,7 @@ class LTC2000DDSModule(Module, AutoCSR):
                              (self.shift_counter == (1 << self.shift) - 1)) # power of two for strobing
         ]
         self.sync += [
-            If(self.shift == 0,
-                self.shift_counter.eq(0)
-            ).Elif(self.shift_counter == (1 << self.shift) - 1,
+            If(self.shift_stb,
                 self.shift_counter.eq(0)
             ).Else(
                 self.shift_counter.eq(self.shift_counter + 1)
@@ -185,6 +183,7 @@ class LTC2000DDSModule(Module, AutoCSR):
                 ).eq(self.cs_i.payload.raw_bits()),
                 self.shift_counter.eq(0),
             ),
+            self.shift.eq(control_word[:4]),   # Shift value in bits [3:0]
         ]
 
         self.comb += [
@@ -193,8 +192,6 @@ class LTC2000DDSModule(Module, AutoCSR):
                 control_word[4:6],  # Phase extension bits [5:4] become LSBs [1:0]
                 phase_msb_word      # Main phase bits become MSBs [17:2]
             )),
-
-            self.shift.eq(control_word[0:4]),   # Shift value in bits [3:0]
 
             self.amplitude.eq(x[0][32:])
         ]
