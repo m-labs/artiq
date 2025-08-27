@@ -8,15 +8,15 @@ from misoc.cores.duc import PhasedAccuPipelined, CosSinGen, saturate
 from collections import namedtuple
 
 class SumAndScale(Module):
-    def __init__(self):
-        self.inputs = [Signal((16, True)) for _ in range(4)]
-        self.amplitudes = [Signal((16, True)) for _ in range(4)]
+    def __init__(self, n_dds):
+        self.inputs = [Signal((16, True)) for _ in range(n_dds)]
+        self.amplitudes = [Signal((16, True)) for _ in range(n_dds)]
         self.output = Signal((16, True))
 
         ###
 
-        products = [Signal((32, True)) for _ in range(4)]
-        for i in range(4):
+        products = [Signal((32, True)) for _ in range(n_dds)]
+        for i in range(n_dds):
             # First, multiply (preserving full 32-bit result)
             self.sync += products[i].eq(self.inputs[i] * self.amplitudes[i])
 
@@ -85,38 +85,39 @@ class DoubleDataRateDDS(Module):
         ]
         self.submodules.paccu = paccu
         self.ddss = [ClockDomainsRenamer("dds200")(CosSinGen()) for _ in range(n)]
-        counter = Signal()
+        self.counter = Signal()
         dout2x = Signal((x+1)*n*2)  # output data modified in 2x domain
         for idx, dds in enumerate(self.ddss):
             setattr(self.submodules, f"dds{idx}", dds)
             self.comb += dds.z.eq(paccu.z[idx])
 
             self.sync.dds200 += [
-                If(counter,
+                If(self.counter,
                     dout2x[idx*16:(idx+1)*16].eq(dds.x)
                 ).Else(
                     dout2x[(idx+n)*16:(idx+n+1)*16].eq(dds.x)
                 )
             ]
-        
-        self.sync.dds200 += counter.eq(~counter)
+
         self.specials += MultiReg(dout2x, self.dout)
 
 
 class LTC2000DDSModule(Module, AutoCSR):
     """The line data is interpreted as:
-
+        
+        Bs:
         * 16 bit amplitude offset
         * 32 bit amplitude first order derivative
         * 48 bit amplitude second order derivative
         * 48 bit amplitude third order derivative
+        Cs:
         * 16 bit phase offset
         * 32 bit frequency word
         * 32 bit chirp
+        * 16 bit shift + remaining phase bits
     """
 
     def __init__(self):
-        NPHASES = 12
         self.clear = Signal()
         self.ftw = Signal(32)
         self.atw = Signal(32)
@@ -132,8 +133,8 @@ class LTC2000DDSModule(Module, AutoCSR):
 
         self.reserved = Signal(12) # for future use
 
-        self.bs_i = Endpoint([("data", 16 * 9)])
-        self.cs_i = Endpoint([("data", 16 * 6)])
+        self.bs_i = Endpoint([("data", 16 + 32 + 48 + 48)])
+        self.cs_i = Endpoint([("data", 16 + 32 + 32 + 16)])
 
         z = [Signal((32, True)) for i in range(3)] # phase, dphase, ddphase
         x = [Signal((48, True)) for i in range(4)] # amp, damp, ddamp, dddamp
@@ -194,7 +195,7 @@ class LTC2000DDSModule(Module, AutoCSR):
         
         # 12 phases at 200/208.33 MHz => 2400/2500 MSPS
         # output updated at 100/125 MHz
-        self.submodules.dds = DoubleDataRateDDS(NPHASES, 32, 18)
+        self.submodules.dds = DoubleDataRateDDS(12, 32, 18)
         self.sync += [
             self.dds.ftw.eq(self.ftw),
             self.dds.ptw.eq(self.ptw),
@@ -208,7 +209,7 @@ class LTC2000DataSynth(Module, AutoCSR):
         self.data_in = Array([[Signal(16, name=f"data_in_{i}_{j}") for i in range(n_phases)] for j in range(n_dds)])
         self.ios = []
 
-        self.summers = [SumAndScale() for _ in range(n_phases)]
+        self.summers = [SumAndScale(n_dds) for _ in range(n_phases)]
         for idx, summer in enumerate(self.summers):
             setattr(self.submodules, f"summer{idx}", summer)
 
@@ -239,6 +240,10 @@ class Songbird(Module, AutoCSR):
         platform.add_extension(ltc2000_pads)
         self.dac_pads = platform.request("ltc2000")
         self.submodules.ltc2000 = Ltc2000phy(self.dac_pads, clk_freq)
+
+        counter = Signal()  # alternating sample loader, shared between Phy and DDS
+        self.comb += self.ltc2000.counter.eq(counter)
+        self.sync.dds200 += counter.eq(~counter)
 
         clear = Signal(n_dds)
         self.submodules.reset = PulseSynchronizer("rio", "dds200")
@@ -279,6 +284,7 @@ class Songbird(Module, AutoCSR):
             self.comb += [
                 tone.clear.eq(clear[idx]),
             ]
+            self.comb += tone.dds.counter.eq(counter)
 
             bs_rtl_iface = rtlink.Interface(rtlink.OInterface(
                 data_width=16, address_width=4))
@@ -322,25 +328,24 @@ class Ltc2000phy(Module, AutoCSR):
         data_dds200 = Signal(16*24)
 
         self.reset = Signal()
+        self.counter = Signal()
 
         ###
 
         self.specials += MultiReg(self.data, data_dds200, "dds200")
 
         # 16 bits per channel, 2 channels, 6 samples per clock cycle, data coming in at dds200 rate
-        # for 100 MHz sysclk we get 200 MHz * 2 * 6 = 2.4 Gbps
         # for 125 MHz sysclk it's 208.33MHz * 2 * 6 = 2.5 Gbps
         data_in = Signal(16*2*6) 
-        counter = Signal()
+        self.counter = Signal()
 
         # Load data into register, swapping halves
         self.sync.dds200 += [
-            If(~counter,
-                data_in.eq(data_dds200[16*2*6:])  # Load second half first
+            If(~self.counter,
+                data_in.eq(data_dds200[:16*2*6])
             ).Else(
-                data_in.eq(data_dds200[:16*2*6])  # Load first half second
+                data_in.eq(data_dds200[16*2*6:])
             ),
-            counter.eq(~counter)
         ]
 
         dac_clk_se = Signal()
