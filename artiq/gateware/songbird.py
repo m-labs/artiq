@@ -124,8 +124,7 @@ class LTC2000DDSModule(Module, AutoCSR):
         self.amplitude = Signal(16)
 
         self.shift = Signal(4)
-        self.shift_counter = Signal(16) # Need to count to 2**shift - 1
-        self.shift_stb = Signal()
+        self.shift_counter = Signal(16) # Need to count from 2**shift - 1
 
         phase_msb_word = Signal(16)      # Upper 16 bits of 18-bit phase value
         control_word = Signal(16)        # Packed: shift[3:0] + phase_lsb[5:4] + reserved[15:6]
@@ -133,20 +132,8 @@ class LTC2000DDSModule(Module, AutoCSR):
 
         self.reserved = Signal(12) # for future use
 
-        self.bs_i = Endpoint([("data", 144)])
-        self.cs_i = Endpoint([("data", 96)])
-
-        self.comb += [
-            self.shift_stb.eq((self.shift == 0) |
-                             (self.shift_counter == (1 << self.shift) - 1)) # power of two for strobing
-        ]
-        self.sync += [
-            If(self.shift_stb,
-                self.shift_counter.eq(0)
-            ).Else(
-                self.shift_counter.eq(self.shift_counter + 1)
-            )
-        ]
+        self.bs_i = Endpoint([("data", 16 * 9)])
+        self.cs_i = Endpoint([("data", 16 * 6)])
 
         z = [Signal((32, True)) for i in range(3)] # phase, dphase, ddphase
         x = [Signal((48, True)) for i in range(4)] # amp, damp, ddamp, dddamp
@@ -156,8 +143,17 @@ class LTC2000DDSModule(Module, AutoCSR):
             self.atw.eq(x[0]),
             self.ptw.eq(reconstructed_phase),
 
+            # count down from 2**shift-1 to 0
+            If(self.shift_counter == 0,
+                Case(self.shift,
+                    { i: self.shift_counter.eq((1 << i) - 1) for i in range(2**len(self.shift)) }
+                )
+            ).Else(
+                self.shift_counter.eq(self.shift_counter - 1)
+            ),
+
             # Using shift here as a divider
-            If(self.shift_stb,
+            If(self.shift_counter == 0,
                 x[0].eq(x[0] + x[1]),
                 x[1].eq(x[1] + x[2]),
                 x[2].eq(x[2] + x[3]),
@@ -183,7 +179,6 @@ class LTC2000DDSModule(Module, AutoCSR):
                 ).eq(self.cs_i.payload.raw_bits()),
                 self.shift_counter.eq(0),
             ),
-            self.shift.eq(control_word[:4]),   # Shift value in bits [3:0]
         ]
 
         self.comb += [
@@ -193,7 +188,8 @@ class LTC2000DDSModule(Module, AutoCSR):
                 phase_msb_word      # Main phase bits become MSBs [17:2]
             )),
 
-            self.amplitude.eq(x[0][32:])
+            self.amplitude.eq(x[0][32:]),
+            self.shift.eq(control_word[:4]),   # Shift value in bits [3:0]
         ]
         
         # 12 phases at 200/208.33 MHz => 2400/2500 MSPS
