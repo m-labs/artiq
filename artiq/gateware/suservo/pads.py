@@ -5,7 +5,7 @@ from migen.genlib.io import DifferentialOutput, DifferentialInput, DDROutput
 class SamplerPads(Module):
     def __init__(self, platform, eem):
         self.sck_en = Signal()
-        self.cnv = Signal()
+        self.cnv = Signal(attr={"iob"})
         self.clkout = Signal()
 
         spip = platform.request("{}_adc_spi_p".format(eem))
@@ -67,17 +67,29 @@ class UrukulPads(Module):
         self.cs_n = Signal()
         self.clk = Signal()
         self.io_update = Signal()
+
+        cs_r = Signal(len(eems), attr={"iob"})
+        clk_r = Signal(len(eems), attr={"iob"})
+        io_update_r = Signal(len(eems), attr={"iob"})
+        self.sync += [
+            cs_r.eq(Replicate(~self.cs_n, len(eems))),
+            clk_r.eq(Replicate(self.clk, len(eems))),
+            io_update_r.eq(Replicate(self.io_update, len(eems))),
+        ]
+
         self.specials += [(
-                DifferentialOutput(~self.cs_n, spip[i].cs, spin[i].cs),
-                DifferentialOutput(self.clk, spip[i].clk, spin[i].clk),
-                DifferentialOutput(self.io_update, ioup[i].p, ioup[i].n))
+                DifferentialOutput(cs_r[i], spip[i].cs, spin[i].cs),
+                DifferentialOutput(clk_r[i], spip[i].clk, spin[i].clk),
+                DifferentialOutput(io_update_r[i], ioup[i].p, ioup[i].n))
                 for i in range(len(eems))]
         for i in range(8):
             mosi = Signal()
             setattr(self, "mosi{}".format(i), mosi)
         for i in range(4*len(eems)):
+            mosi_r = Signal(attr={"iob"})
+            self.sync += mosi_r.eq(getattr(self, "mosi{}".format(i)))
             self.specials += [
-                DifferentialOutput(getattr(self, "mosi{}".format(i)),
+                DifferentialOutput(mosi_r,
                     getattr(spip[i // 4], "mosi{}".format(i % 4)),
                     getattr(spin[i // 4], "mosi{}".format(i % 4)))
             ]
