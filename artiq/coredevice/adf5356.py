@@ -183,15 +183,13 @@ class ADF5356:
 
         :param f: 53.125 MHz <= f <= 6800 MHz
         """
-        freq = f
-
-        if freq > ADF5356_MAX_VCO_FREQ:
+        if f > ADF5356_MAX_VCO_FREQ:
             raise ValueError("Requested too high frequency")
 
         # select minimal output divider
         rf_div_sel = 0
-        while freq < ADF5356_MIN_VCO_FREQ:
-            freq *= 2
+        while f < ADF5356_MIN_VCO_FREQ:
+            f *= 2
             rf_div_sel += 1
 
         if (1 << rf_div_sel) > 64:
@@ -204,12 +202,12 @@ class ADF5356:
         f_pfd = self.f_pfd()
 
         # choose prescaler
-        if freq > 6e9:
+        if f > 6e9:
             self.regs[0] |= ADF5356_REG0_PRESCALER(1)  # 8/9
             n_min, n_max = 75, 65535
 
             # adjust reference divider to be able to match n_min constraint
-            while n_min * f_pfd > freq:
+            while n_min * f_pfd > f:
                 r = ADF5356_REG4_R_COUNTER_GET(self.regs[4])
                 self.regs[4] = ADF5356_REG4_R_COUNTER_UPDATE(self.regs[4], r + 1)
                 f_pfd = self.f_pfd()
@@ -219,7 +217,7 @@ class ADF5356:
 
         # calculate PLL parameters
         n, frac1, (frac2_msb, frac2_lsb), (mod2_msb, mod2_lsb) = calculate_pll(
-            freq, f_pfd
+            f, f_pfd
         )
 
         if not (n_min <= n <= n_max):
