@@ -202,7 +202,7 @@ class ADF5356:
         f_pfd = self.f_pfd()
 
         # choose prescaler
-        if f > 6e9:
+        if f > 6 * GHz:  # see datasheet "Prescaler Value" section (Rev. A, p.21)
             self.regs[0] |= ADF5356_REG0_PRESCALER(1)  # 8/9
             n_min, n_max = 75, 65535
 
