@@ -397,7 +397,7 @@ class IIR(Module):
         # both share the same coeff word (sel in the lower 8 bits)
         sel_profile = Signal(max=w.adc_channels)
         dly_profile = Signal(w.dly)
-        # assert w.channels <= 1 << 8
+        assert w.adc_channels <= 1 << 8
         assert 8 + w.dly <= w.coeff
 
         # latched adc selection
