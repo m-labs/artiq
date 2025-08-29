@@ -72,10 +72,9 @@ class UrukulPads(Module):
                 DifferentialOutput(self.clk, spip[i].clk, spin[i].clk),
                 DifferentialOutput(self.io_update, ioup[i].p, ioup[i].n))
                 for i in range(len(eems))]
-        for i in range(8):
+        for i in range(4*len(eems)):
             mosi = Signal()
             setattr(self, "mosi{}".format(i), mosi)
-        for i in range(4*len(eems)):
             self.specials += [
                 DifferentialOutput(getattr(self, "mosi{}".format(i)),
                     getattr(spip[i // 4], "mosi{}".format(i % 4)),

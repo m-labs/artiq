@@ -7,11 +7,6 @@ from artiq.coredevice import urukul, sampler
 
 COEFF_WIDTH = 18
 Y_FULL_SCALE_MU = (1 << (COEFF_WIDTH - 1)) - 1
-COEFF_DEPTH = 10 + 1
-WE = 1 << COEFF_DEPTH + 1
-STATE_SEL = 1 << COEFF_DEPTH
-CONFIG_SEL = 1 << COEFF_DEPTH - 1
-CONFIG_ADDR = CONFIG_SEL | STATE_SEL
 T_CYCLE = (2*(8 + 64) + 2)*8*ns  # Must match gateware Servo.t_cycle.
 COEFF_SHIFT = 11
 
@@ -66,7 +61,8 @@ class SUServo:
     :param core_device: Core device name
     """
     kernel_invariants = {"channel", "core", "pgia", "cplds", "ddses",
-                         "ref_period_mu", "corrected_fs"}
+                         "ref_period_mu", "corrected_fs", "we", "state_sel",
+                         "config_addr"}
 
     def __init__(self, dmgr, channel, pgia_device,
                  cpld_devices, dds_devices,
@@ -84,6 +80,12 @@ class SUServo:
             self.core.coarse_ref_period)
         self.corrected_fs = sampler.Sampler.use_corrected_fs(sampler_hw_rev)
         assert self.ref_period_mu == self.core.ref_multiplier
+
+        coeff_depth = 10 + (len(cpld_devices) - 1).bit_length()
+        self.we = 1 << coeff_depth + 1
+        self.state_sel = 1 << coeff_depth
+        config_sel = 1 << coeff_depth - 1
+        self.config_addr = self.state_sel | config_sel
 
     @staticmethod
     def get_rtio_channels(channel, **kwargs):
@@ -128,7 +130,7 @@ class SUServo:
         :param addr: Memory location address.
         :param value: Data to be written.
         """
-        addr |= WE
+        addr |= self.we
         value &= (1 << COEFF_WIDTH) - 1
         value |= (addr >> 8) << COEFF_WIDTH
         addr = addr & 0xff
@@ -164,7 +166,7 @@ class SUServo:
             Disabling takes up to two servo cycles (~2.3 µs) to clear the
             processing pipeline.
         """
-        self.write(CONFIG_ADDR, enable)
+        self.write(self.config_addr, enable)
 
     @kernel
     def get_status(self):
@@ -185,7 +187,7 @@ class SUServo:
         :return: Status. Bit 0: enabled, bit 1: done,
           bits 8-15: channel clip indicators.
         """
-        return self.read(CONFIG_ADDR)
+        return self.read(self.config_addr)
 
     @kernel
     def get_adc_mu(self, adc):
@@ -203,7 +205,7 @@ class SUServo:
         # State memory entries are 25 bits. Due to the pre-adder dynamic
         # range, X0/X1/OFFSET are only 24 bits. Finally, the RTIO interface
         # only returns the 18 MSBs (the width of the coefficient memory).
-        return self.read(STATE_SEL | (adc << 1) | (1 << 8))
+        return self.read(self.state_sel | (adc << 1) | (1 << 8))
 
     @kernel
     def set_pgia_mu(self, channel, gain):
@@ -501,7 +503,7 @@ class Channel:
         :param profile: Profile number (0-31)
         :return: 17-bit unsigned Y0
         """
-        return self.servo.read(STATE_SEL | (self.servo_channel << 5) | profile)
+        return self.servo.read(self.servo.state_sel | (self.servo_channel << 5) | profile)
 
     @kernel
     def get_y(self, profile):
@@ -539,7 +541,7 @@ class Channel:
         """
         # State memory is 25 bits wide and signed.
         # Reads interact with the 18 MSBs (coefficient memory width)
-        self.servo.write(STATE_SEL | (self.servo_channel << 5) | profile, y)
+        self.servo.write(self.servo.state_sel | (self.servo_channel << 5) | profile, y)
 
     @kernel
     def set_y(self, profile, y):
