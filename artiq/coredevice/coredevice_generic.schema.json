@@ -406,21 +406,12 @@
                             "pattern": "^v[0-9]+\\.[0-9]+",
                             "default": "v2.2"
                         },
-                        "urukul0_ports": {
+                        "urukul_ports": {
                             "type": "array",
                             "items": {
-                                "type": "integer"
+                                "$ref": "#/definitions/urukul_ports_pair"
                             },
-                            "minItems": 2,
-                            "maxItems": 2
-                        },
-                        "urukul1_ports": {
-                            "type": "array",
-                            "items": {
-                                "type": "integer"
-                            },
-                            "minItems": 2,
-                            "maxItems": 2
+                            "minItems": 1
                         },
                         "refclk": {
                             "type": "number",
@@ -449,7 +440,7 @@
                             "default": 9
                         }
                     },
-                    "required": ["sampler_ports", "urukul0_ports"]
+                    "required": ["sampler_ports", "urukul_ports"]
                 }
             }, {
                 "title": "Zotino",
@@ -678,6 +669,15 @@
                     }
                 }
             }]
+        },
+
+        "urukul_ports_pair": {
+            "type": "array",
+            "items": {
+                "type": "integer"
+            },
+            "minItems": 2,
+            "maxItems": 2
         }
     }
 }
