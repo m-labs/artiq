@@ -11,7 +11,7 @@ on Mirny-style prefixed SPI buses.
 
 from artiq.language.core import kernel, portable, delay
 from artiq.language.units import us, GHz, MHz
-from artiq.language.types import TInt32, TInt64
+from artiq.language.types import TFloat, TInt32, TInt64
 from artiq.coredevice import spi2 as spi
 from artiq.coredevice.adf5356_reg import *
 
@@ -30,8 +30,8 @@ SPI_CONFIG = (
 )
 
 
-ADF5356_MIN_VCO_FREQ = int64(3.4 * GHz)
-ADF5356_MAX_VCO_FREQ = int64(6.8 * GHz)
+ADF5356_MIN_VCO_FREQ = 3.4 * GHz
+ADF5356_MAX_VCO_FREQ = 6.8 * GHz
 ADF5356_MAX_FREQ_PFD = int32(125.0 * MHz)
 ADF5356_MODULUS1 = int32(1 << 24)
 ADF5356_MAX_MODULUS2 = int32(1 << 28)  # FIXME: ADF5356 has 28 bits MOD2
@@ -183,15 +183,13 @@ class ADF5356:
 
         :param f: 53.125 MHz <= f <= 6800 MHz
         """
-        freq = int64(round(f))
-
-        if freq > ADF5356_MAX_VCO_FREQ:
+        if f > ADF5356_MAX_VCO_FREQ:
             raise ValueError("Requested too high frequency")
 
         # select minimal output divider
         rf_div_sel = 0
-        while freq < ADF5356_MIN_VCO_FREQ:
-            freq <<= 1
+        while f < ADF5356_MIN_VCO_FREQ:
+            f *= 2
             rf_div_sel += 1
 
         if (1 << rf_div_sel) > 64:
@@ -204,12 +202,12 @@ class ADF5356:
         f_pfd = self.f_pfd()
 
         # choose prescaler
-        if freq > int64(6e9):
+        if f > 6e9:
             self.regs[0] |= ADF5356_REG0_PRESCALER(1)  # 8/9
             n_min, n_max = 75, 65535
 
             # adjust reference divider to be able to match n_min constraint
-            while n_min * f_pfd > freq:
+            while n_min * f_pfd > f:
                 r = ADF5356_REG4_R_COUNTER_GET(self.regs[4])
                 self.regs[4] = ADF5356_REG4_R_COUNTER_UPDATE(self.regs[4], r + 1)
                 f_pfd = self.f_pfd()
@@ -219,7 +217,7 @@ class ADF5356:
 
         # calculate PLL parameters
         n, frac1, (frac2_msb, frac2_lsb), (mod2_msb, mod2_lsb) = calculate_pll(
-            freq, f_pfd
+            f, f_pfd
         )
 
         if not (n_min <= n <= n_max):
@@ -294,7 +292,7 @@ class ADF5356:
 
             # RELOCK AT WANTED PFD FREQUENCY
 
-            for i in [4, 2, 1]:
+            for i in [13, 4, 2, 1]:
                 self.write(self.regs[i])
 
             # force-disable autocal
@@ -311,17 +309,14 @@ class ADF5356:
         return self._compute_pfd_frequency(r, d, t)
 
     @portable
-    def f_vco(self) -> TInt64:
+    def f_vco(self) -> TFloat:
         """
         Return the VCO frequency for the cached set of registers.
         """
-        return int64(
-            self.f_pfd()
-            * (
-                self.pll_n()
-                + (self.pll_frac1() + self.pll_frac2() / self.pll_mod2())
-                / ADF5356_MODULUS1
-            )
+        return self.f_pfd() * (
+            self.pll_n()
+            + (self.pll_frac1() + self.pll_frac2() / self.pll_mod2())
+            / ADF5356_MODULUS1
         )
 
     @portable
@@ -561,7 +556,7 @@ def split_msb_lsb_28b(v):
 
 
 @portable
-def calculate_pll(f_vco: TInt64, f_pfd: TInt64):
+def calculate_pll(f_vco: TFloat, f_pfd: TInt64):
     """
     Calculate fractional-N PLL parameters such that
 
@@ -576,14 +571,13 @@ def calculate_pll(f_vco: TInt64, f_pfd: TInt64):
     :return: (``n``, ``frac1``, ``(frac2_msb, frac2_lsb)``, ``(mod2_msb, mod2_lsb)``)
     """
     f_pfd = int64(f_pfd)
-    f_vco = int64(f_vco)
 
     # integral part
     n, r = int32(f_vco // f_pfd), f_vco % f_pfd
 
     # main fractional part
     r *= ADF5356_MODULUS1
-    frac1, frac2 = int32(r // f_pfd), r % f_pfd
+    frac1, frac2 = int32(r // f_pfd), int64(r % f_pfd)
 
     # auxiliary fractional part
     mod2 = f_pfd
