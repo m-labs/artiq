@@ -22,7 +22,7 @@ class SumAndScale(Module):
 
         # Then sum it all up
         sum_all = Signal((34, True))
-        self.sync += sum_all.eq(products[0] + products[1] + products[2] + products[3])
+        self.sync += sum_all.eq(sum(products))
 
         # Finally, shift and saturate
         scaled_sum = Signal((19, True))
@@ -37,29 +37,6 @@ class SumAndScale(Module):
                 self.output.eq(scaled_sum)
             )
         ]
-
-class PolyphaseDDS(Module):
-    """Composite DDS with sub-DDSs synthesizing
-       individual phases to increase fmax.
-    """
-    def __init__(self, n, fwidth, pwidth, x=15):
-        self.ftw  = Signal(fwidth)
-        self.ptw  = Signal(pwidth)
-        self.clr  = Signal()
-        self.dout = Signal((x+1)*n)
-
-        ###
-
-        paccu = PhasedAccuPipelined(n, fwidth, pwidth)
-        self.comb += paccu.clr.eq(self.clr)
-        self.comb += paccu.f.eq(self.ftw)
-        self.comb += paccu.p.eq(self.ptw)
-        self.submodules.paccu = paccu
-        ddss = [CosSinGen() for i in range(n)]
-        for idx, dds in enumerate(ddss):
-            self.submodules += dds
-            self.comb += dds.z.eq(paccu.z[idx])
-            self.comb += self.dout[idx*16:(idx+1)*16].eq(dds.y)
 
 
 class DoubleDataRateDDS(Module):
@@ -83,7 +60,7 @@ class DoubleDataRateDDS(Module):
             MultiReg(self.ftw, paccu.f, "dds200"),
             MultiReg(self.ptw, paccu.p, "dds200"),
         ]
-        self.submodules.paccu = paccu
+        self.submodules += paccu
         self.ddss = [ClockDomainsRenamer("dds200")(CosSinGen()) for _ in range(n)]
         self.counter = Signal()
         dout2x = Signal((x+1)*n*2)  # output data modified in 2x domain
@@ -130,8 +107,6 @@ class LTC2000DDSModule(Module, AutoCSR):
         phase_msb_word = Signal(16)      # Upper 16 bits of 18-bit phase value
         control_word = Signal(16)        # Packed: shift[3:0] + phase_lsb[5:4] + reserved[15:6]
         reconstructed_phase = Signal(18)
-
-        self.reserved = Signal(12) # for future use
 
         self.bs_i = Endpoint([("data", 16 + 32 + 48 + 48)])
         self.cs_i = Endpoint([("data", 16 + 32 + 32 + 16)])
@@ -283,8 +258,8 @@ class Songbird(Module, AutoCSR):
         for idx, tone in enumerate(self.tones):
             self.comb += [
                 tone.clear.eq(clear[idx]),
+                tone.dds.counter.eq(counter)
             ]
-            self.comb += tone.dds.counter.eq(counter)
 
             bs_rtl_iface = rtlink.Interface(rtlink.OInterface(
                 data_width=16, address_width=4))
