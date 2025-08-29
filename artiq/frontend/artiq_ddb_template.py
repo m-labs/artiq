@@ -496,9 +496,11 @@ class PeripheralManager:
     def process_suservo(self, rtio_offset, peripheral):
         suservo_name = self.get_name("suservo")
         sampler_name = self.get_name("sampler")
-        urukul_names = [self.get_name("urukul") for _ in range(2)]
+        num_of_urukuls = len(peripheral["urukul_ports"])
+        urukul_names = [self.get_name("urukul") for _ in range(num_of_urukuls)]
         channel = count(0)
-        for i in range(8):
+        num_of_channels = num_of_urukuls * 4
+        for i in range(num_of_channels):
             self.gen("""
                 device_db["{suservo_name}_ch{suservo_chn}"] = {{
                     "type": "local",
