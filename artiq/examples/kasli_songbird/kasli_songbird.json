@@ -1,0 +1,13 @@
+{
+    "target": "kasli",
+    "variant": "songbird",
+    "hw_rev": "v2.0",
+    "drtio_role": "master",
+    "peripherals": [
+        {
+            "type": "songbird",
+            "hw_rev": "v1.1",
+            "ports": [0]
+        }
+    ]
+}   
