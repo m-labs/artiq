@@ -150,9 +150,9 @@ If you wish to support remote execution in your controller, you may do so by sim
 Command-line arguments
 ----------------------
 
-Use the Python ``argparse`` module to make the bind address(es) and port configurable on the controller, and the server address, port and message configurable on the client. We suggest naming the controller parameters ``--bind`` (which adds a bind address in addition to a default binding to localhost), ``--no-bind-localhost`` (which disables the default binding to localhost), and ``--port``, so that those parameters stay consistent across controllers. Use ``-s/--server`` and ``--port`` on the client. The :meth:`sipyco.common_args.simple_network_args` library function adds such arguments for the controller, and the :meth:`sipyco.common_args.bind_address_from_args` function processes them.
+Use the Python ``argparse`` module to make the bind address(es) and port configurable on the controller, and the server address, port and message configurable on the client. We suggest naming the controller parameters ``--bind`` (which adds a bind address in addition to a default binding to localhost), ``--no-bind-localhost`` (which disables the default binding to localhost), and ``--port``, so that those parameters stay consistent across controllers. Use ``-s/--server`` and ``--port`` on the client. Additionally, if you choose to make your controller SSL-capable, it should use the flag ``--ssl`` in order to be recognized as such by the controller manager.
 
-The controller's code would contain something similar to this: ::
+The :meth:`sipyco.common_args.simple_network_args` library function adds such arguments for the controller, and the :meth:`sipyco.common_args.bind_address_from_args` function processes them. The controller's code would contain something similar to this: ::
 
     from sipyco.common_args import simple_network_args
 
