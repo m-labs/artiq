@@ -794,9 +794,10 @@ class SinaraTester(EnvExperiment):
             self.setup_suservo(card_dev)
         print("...done")
         print("Setting up SUServo channels...")
+        print("ADC to DDS mapping:")
         for channels in chunker(self.suschannels, 8):
             for i, (channel_name, channel_dev) in enumerate(channels):
-                print(channel_name)
+                print("ADC{i} -> {name}".format(i=i, name=channel_name))
                 self.setup_suservo_loop(channel_dev, i)
         print("...done")
         print("Enabling...")
@@ -805,8 +806,7 @@ class SinaraTester(EnvExperiment):
             self.setup_start_suservo(card_dev)
         print("...done")
         print("Each Sampler channel applies proportional amplitude control")
-        print("on the respective Urukul0 (ADC 0-3) and Urukul1 (ADC 4-7, if")
-        print("present) channels.")
+        print("on the respective Urukul channels. See the mapping.")
         print("Frequency: 10 MHz, output power: about -9 dBm at 0 V and about -15 dBm at 1.5 V")
         print("Verify frequency and power behavior.")
         print("Press ENTER when done.")
