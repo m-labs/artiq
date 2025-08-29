@@ -71,17 +71,9 @@ def peripheral_sampler(module, peripheral, **kwargs):
 def peripheral_suservo(module, peripheral, **kwargs):
     if len(peripheral["sampler_ports"]) != 2:
         raise ValueError("wrong number of Sampler ports")
-    urukul_ports = []
-    if len(peripheral["urukul0_ports"]) != 2:
-        raise ValueError("wrong number of Urukul #0 ports")
-    urukul_ports.append(peripheral["urukul0_ports"])
-    if "urukul1_ports" in peripheral:
-        if len(peripheral["urukul1_ports"]) != 2:
-            raise ValueError("wrong number of Urukul #1 ports")
-        urukul_ports.append(peripheral["urukul1_ports"])
     eem.SUServo.add_std(module,
         peripheral["sampler_ports"],
-        urukul_ports, **kwargs)
+        peripheral["urukul_ports"], **kwargs)
 
 
 def peripheral_zotino(module, peripheral, **kwargs):
