@@ -530,7 +530,8 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
 
             if let Ok(level_filter) = mgmt::byte_to_level_filter(log_level) {
                 info!("changing log level to {}", level_filter);
-                log::set_max_level(level_filter);
+                logger_artiq::BufferLogger::with(|logger|
+                    logger.set_buffer_log_level(level_filter));
                 drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })
             } else {
                 drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false })
@@ -867,7 +868,8 @@ fn setup_log_levels() {
         Ok(Ok(log_level_filter)) => {
             info!("log level set to {} by `log_level` config key",
                   log_level_filter);
-            log::set_max_level(log_level_filter);
+            logger_artiq::BufferLogger::with(|logger|
+                logger.set_buffer_log_level(log_level_filter));
         }
         _ => info!("log level set to INFO by default")
     }
