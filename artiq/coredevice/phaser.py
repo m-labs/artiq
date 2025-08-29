@@ -1270,6 +1270,9 @@ class PhaserChannel:
         forward_gain = (b0 + b1) * (1 << SERVO_DATA_WIDTH - 1 - SERVO_COEFF_SHIFT)
         effective_offset = int(round(DATA_MAX * y_offset + forward_gain * x_offset))
 
+        if (effective_offset >= DATA_MAX or effective_offset < -DATA_MAX):
+            raise ValueError("effective offset out of bounds")
+
         self.set_iir_mu(profile, b0, b1, a1, effective_offset)
 
 
