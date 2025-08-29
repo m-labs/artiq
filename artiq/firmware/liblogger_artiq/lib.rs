@@ -11,6 +11,18 @@ use log::{Log, LevelFilter};
 use log_buffer::LogBuffer;
 use board_misoc::clock;
 
+pub enum LogError{
+    Utf8Error(core::str::Utf8Error),
+    ParseError,
+    KeyNotFound
+}
+
+impl From<core::str::Utf8Error> for LogError {
+    fn from(error: core::str::Utf8Error) -> Self {
+        LogError::Utf8Error(error)
+    }
+}
+
 pub struct LogBufferRef<'a> {
     buffer:        RefMut<'a, LogBuffer<&'static mut [u8]>>,
     old_log_level: LevelFilter
@@ -18,8 +30,10 @@ pub struct LogBufferRef<'a> {
 
 impl<'a> LogBufferRef<'a> {
     fn new(buffer: RefMut<'a, LogBuffer<&'static mut [u8]>>) -> LogBufferRef<'a> {
-        let old_log_level = log::max_level();
-        log::set_max_level(LevelFilter::Off);
+        let old_log_level = BufferLogger::with(|logger|
+            logger.buffer_log_level());
+        BufferLogger::with(|logger|
+            logger.set_buffer_log_level(LevelFilter::Off));
         LogBufferRef { buffer, old_log_level }
     }
 
@@ -38,13 +52,15 @@ impl<'a> LogBufferRef<'a> {
 
 impl<'a> Drop for LogBufferRef<'a> {
     fn drop(&mut self) {
-        log::set_max_level(self.old_log_level)
+        BufferLogger::with(|logger|
+            logger.set_buffer_log_level(self.old_log_level));
     }
 }
 
 pub struct BufferLogger {
     buffer:      RefCell<LogBuffer<&'static mut [u8]>>,
-    uart_filter: Cell<LevelFilter>
+    uart_filter: Cell<LevelFilter>,
+    buffer_filter: Cell<LevelFilter>
 }
 
 static mut LOGGER: *const BufferLogger = 0 as *const _;
@@ -54,6 +70,7 @@ impl BufferLogger {
         BufferLogger {
             buffer: RefCell::new(LogBuffer::new(buffer)),
             uart_filter: Cell::new(LevelFilter::Info),
+            buffer_filter: Cell::new(LevelFilter::Info),
         }
     }
 
@@ -83,7 +100,45 @@ impl BufferLogger {
     }
 
     pub fn set_uart_log_level(&self, max_level: LevelFilter) {
-        self.uart_filter.set(max_level)
+        self.uart_filter.set(max_level);
+        self.update_global_log_level()
+    }
+
+    pub fn buffer_log_level(&self) -> LevelFilter {
+        self.buffer_filter.get()
+    }
+
+    pub fn set_buffer_log_level(&self, max_level: LevelFilter) {
+        self.buffer_filter.set(max_level);
+        self.update_global_log_level()
+    }
+
+    pub fn set_log_filter_level(&self, key: &str, value: &[u8]) -> Result<(), LogError> {
+        let value_str = core::str::from_utf8(value)?;
+        let max_level = value_str.parse::<LevelFilter>()
+            .map_err(|_| LogError::ParseError)?;
+
+        match key{
+            "log_level" => {
+                self.set_buffer_log_level(max_level);
+                log::info!("changing log level to {}", max_level);
+            }
+            "uart_log_level" => {
+                self.set_uart_log_level(max_level);
+                log::info!("changing UART log level to {}", max_level);
+            }
+            _ => return Err(LogError::KeyNotFound)
+        }
+
+        Ok(())
+    }
+
+    pub fn update_global_log_level(&self){
+        let uart_level = self.uart_filter.get();
+        let buffer_level = self.buffer_filter.get();
+        let global_level = core::cmp::max(uart_level, buffer_level);
+
+        log::set_max_level(global_level);
     }
 }
 
@@ -102,8 +157,11 @@ impl Log for BufferLogger {
             let micros    = timestamp % 1_000_000;
 
             if let Ok(mut buffer) = self.buffer.try_borrow_mut() {
+
+                if record.level() <= self.buffer_filter.get() {
                 writeln!(buffer, "[{:6}.{:06}s] {:>5}({}): {}", seconds, micros,
                          record.level(), record.target(), record.args()).unwrap();
+                }
             }
 
             if record.level() <= self.uart_filter.get() {
