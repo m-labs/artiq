@@ -83,7 +83,7 @@ class RTServoMem(Module):
         assert 8 + w.dly < w.coeff
 
         # coeff, profile, channel, 2 mems, rw
-        internal_address_width = 3 + w.profile + w.channel + 1 + 1
+        internal_address_width = 3 + w.profile + bits_for(w.dds_channels - 1) + 1 + 1
         rtlink_address_width = min(8, internal_address_width)
         overflow_address_width = internal_address_width - rtlink_address_width
         self.rtlink = rtlink.Interface(
