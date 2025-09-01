@@ -98,14 +98,15 @@ class IIR(Module):
     This module implements a multi-channel IIR (infinite impulse response)
     filter processor optimized for synthesis on FPGAs.
 
-    The module is parametrized by passing a ``IIRWidths()`` object which
-    will be abbreviated W here.
+    The module is parametrized by passing a ``IIRWidths()`` object, and the
+    number of input and output channels respectively. The ``IIRWidths()``
+    object will be abbreviated W here.
 
-    It reads 1 << W.channels input channels (typically from an ADC)
+    It reads ``i_channels`` input channels (typically from an ADC)
     and on each iteration processes the data using a first-order IIR filter.
     At the end of the cycle each the output of the filter together with
     additional data (typically frequency tunning word and phase offset word
-    for a DDS) are presented at the 1 << W.channels outputs of the module.
+    for a DDS) are presented at the ``o_channels`` outputs of the module.
 
     Profile memory
     ==============
@@ -144,9 +145,9 @@ class IIR(Module):
     -------------
 
     The state memory holds all Y1 values (IIR processor outputs) for all
-    profiles of all channels in the lower half (1 << W.profile + W.channel
+    profiles of all channels in the lower half ((1 << W.profile) * o_channels
     addresses) and the pairs of old and new ADC input values X1, and X0,
-    in the upper half (1 << W.channel addresses). Each memory location is
+    in the upper half (i_channels addresses each). Each memory location is
     W.state bits wide.
 
     Real-time control
@@ -177,7 +178,7 @@ class IIR(Module):
 
     IIRWidths(state=25, coeff=18, adc=16,
         asf=14, word=16, accu=48, shift=11,
-        channel=3, profile=5, dly=8)
+        profile=5, dly=8)
 
     X0 = ADC * 2^(25 - 1 - 16)
     X1 = X0 delayed by one cycle

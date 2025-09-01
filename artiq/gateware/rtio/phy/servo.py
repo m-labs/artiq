@@ -39,7 +39,8 @@ class RTServoMem(Module):
     onto the RTIO data word after the data.
 
     Servo address space (from LSB):
-      - IIR coefficient/state memory address, (w.profile + w.channel + 2) bits.
+      - IIR coefficient/state memory address, (w.profile + w_channel + 2) bits.
+        w_channel is the number of bits needed to address all IIR channels.
         If the state memory is selected, the lower bits are used directly as
         the memory address. If the coefficient memory is selected, the LSB
         (high_coeff) selects between the upper and lower halves of the memory
