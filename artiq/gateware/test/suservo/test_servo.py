@@ -14,10 +14,9 @@ class ServoSim(servo.Servo):
                 t_cnvh=4, t_conv=57 - 4, t_rtt=4 + 4)
         iir_p = servo.IIRWidths(state=25, coeff=18, adc=16, asf=14, word=16,
                 accu=48, shift=11,
-                adc_channels=adc_p.channels, dds_channels=8,
                 profile=5, dly=8)
         dds_p = servo.DDSParams(width=8 + 32 + 16 + 16,
-                channels=adc_p.channels, clk=1)
+                channels=8, clk=1)
 
         self.submodules.adc_tb = test_adc.TB(adc_p)
         self.submodules.dds_tb = test_dds.TB(dds_p)

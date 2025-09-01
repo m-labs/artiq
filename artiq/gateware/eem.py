@@ -587,11 +587,9 @@ class SUServo(_EEM):
                                 t_conv=57 - 4, t_rtt=t_rtt + 4)
         iir_p = servo.IIRWidths(state=25, coeff=18, adc=16, asf=14, word=16,
                                 accu=48, shift=shift,
-                                adc_channels=adc_p.channels,
-                                dds_channels=4*len(eems_urukul),
                                 profile=profile, dly=8)
         dds_p = servo.DDSParams(width=8 + 32 + 16 + 16,
-                                channels=iir_p.dds_channels, clk=clk)
+                                channels=4*len(eems_urukul), clk=clk)
         su = servo.Servo(sampler_pads, urukul_pads, adc_p, iir_p, dds_p)
         su = ClockDomainsRenamer("rio_phy")(su)
         # explicitly name the servo submodule to enable the migen namer to derive
