@@ -496,7 +496,12 @@ class PeripheralManager:
     def process_suservo(self, rtio_offset, peripheral):
         suservo_name = self.get_name("suservo")
         sampler_name = self.get_name("sampler")
-        num_of_urukuls = len(peripheral["urukul_ports"])
+        if peripheral.get("urukul1_ports") is not None:
+            num_of_urukuls = 2
+        elif peripheral.get("urukul0_ports") is not None:
+            num_of_urukuls = 1
+        else:
+            num_of_urukuls = len(peripheral["urukul_ports"])
         urukul_names = [self.get_name("urukul") for _ in range(num_of_urukuls)]
         channel = count(0)
         num_of_channels = num_of_urukuls * 4
