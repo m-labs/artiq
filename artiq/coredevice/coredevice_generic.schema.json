@@ -413,6 +413,22 @@
                             },
                             "minItems": 1
                         },
+                        "urukul0_ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 2,
+                            "maxItems": 2
+                        },
+                        "urukul1_ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 2,
+                            "maxItems": 2
+                        },
                         "refclk": {
                             "type": "number",
                             "minimum": 0
@@ -440,7 +456,15 @@
                             "default": 9
                         }
                     },
-                    "required": ["sampler_ports", "urukul_ports"]
+                    "oneOf": [
+                        {
+                            "required": ["sampler_ports", "urukul0_ports"]
+                        },
+                        {
+                            "required": ["sampler_ports", "urukul_ports"],
+                            "not": { "required": ["urukul1_ports"] }
+                        }
+                    ]
                 }
             }, {
                 "title": "Zotino",
