@@ -46,11 +46,16 @@ class DoubleDataRateDDS(Module):
         self.ftw  = Signal(fwidth)
         self.ptw  = Signal(pwidth)
         self.clr  = Signal()
-        self.dout = Signal((x+1)*n*2)
+
+        # for loading the samples
+        self.counter = Signal()
+        # output data modified in dds200 domain
+        self.dout2x = Signal((x+1)*n*2)
 
         ###
 
-        paccu = ClockDomainsRenamer("dds200")(PhasedAccuPipelined(n, fwidth, pwidth)) # Running this at 2x clock speed
+        # phased accu running in dds200 clock domain
+        paccu = ClockDomainsRenamer("dds200")(PhasedAccuPipelined(n, fwidth, pwidth))
         self.submodules.clear = PulseSynchronizer("sys", "dds200")
         self.comb += [
             self.clear.i.eq(self.clr),
@@ -62,21 +67,18 @@ class DoubleDataRateDDS(Module):
         ]
         self.submodules += paccu
         self.ddss = [ClockDomainsRenamer("dds200")(CosSinGen()) for _ in range(n)]
-        self.counter = Signal()
-        dout2x = Signal((x+1)*n*2)  # output data modified in 2x domain
+
         for idx, dds in enumerate(self.ddss):
             setattr(self.submodules, f"dds{idx}", dds)
             self.comb += dds.z.eq(paccu.z[idx])
 
             self.sync.dds200 += [
                 If(self.counter,
-                    dout2x[idx*16:(idx+1)*16].eq(dds.x)
+                    self.dout2x[idx*16:(idx+1)*16].eq(dds.x)
                 ).Else(
-                    dout2x[(idx+n)*16:(idx+n+1)*16].eq(dds.x)
+                    self.dout2x[(idx+n)*16:(idx+n+1)*16].eq(dds.x)
                 )
             ]
-
-        self.specials += MultiReg(dout2x, self.dout)
 
 
 class LTC2000DDSModule(Module, AutoCSR):
@@ -122,7 +124,7 @@ class LTC2000DDSModule(Module, AutoCSR):
             # count down from 2**shift-1 to 0
             If(self.shift_counter == 0,
                 Case(self.shift,
-                    { i: self.shift_counter.eq((1 << i) - 1) for i in range(2**len(self.shift)) }
+                    { i: self.shift_counter.eq((1 << i) - 1) for i in range(2**len(self.shift)) } | { "default": self.shift_counter.eq(0) }
                 )
             ).Else(
                 self.shift_counter.eq(self.shift_counter - 1)
@@ -184,7 +186,7 @@ class LTC2000DataSynth(Module, AutoCSR):
         self.data_in = Array([[Signal(16, name=f"data_in_{i}_{j}") for i in range(n_phases)] for j in range(n_dds)])
         self.ios = []
 
-        self.summers = [SumAndScale(n_dds) for _ in range(n_phases)]
+        self.summers = [ClockDomainsRenamer("dds200")(SumAndScale(n_dds)) for _ in range(n_phases)]
         for idx, summer in enumerate(self.summers):
             setattr(self.submodules, f"summer{idx}", summer)
 
@@ -286,11 +288,12 @@ class Songbird(Module, AutoCSR):
         for i in range(n_phases):
             for j in range(n_dds):
                 self.comb += [
-                    self.ltc2000datasynth.data_in[j][i].eq(self.tones[j].dds.dout[i*16:(i+1)*16]),
+                    self.ltc2000datasynth.data_in[j][i].eq(self.tones[j].dds.dout2x[i*16:(i+1)*16]),
                     self.ltc2000datasynth.amplitudes[j][i].eq(self.tones[j].amplitude)
                 ]
 
         for i in range(n_phases):
+            # summers are in dds200 clock domain
             self.comb += self.ltc2000.data[i*16:(i+1)*16].eq(self.ltc2000datasynth.summers[i].output)
 
         self.phys.append(Phy(bs_trigger_iface, [], [], 'bs_trigger_iface'))
@@ -300,26 +303,22 @@ class Songbird(Module, AutoCSR):
 class Ltc2000phy(Module, AutoCSR):
     def __init__(self, pads, clk_freq=125e6):
         self.data = Signal(16*24) # 16 bits per channel, 24 phases input at sys clock rate
-        data_dds200 = Signal(16*24)
 
         self.reset = Signal()
         self.counter = Signal()
 
         ###
 
-        self.specials += MultiReg(self.data, data_dds200, "dds200")
-
         # 16 bits per channel, 2 channels, 6 samples per clock cycle, data coming in at dds200 rate
         # for 125 MHz sysclk it's 208.33MHz * 2 * 6 = 2.5 Gbps
-        data_in = Signal(16*2*6) 
-        self.counter = Signal()
+        data_in = Signal(16*2*6)
 
         # Load data into register, swapping halves
         self.sync.dds200 += [
-            If(~self.counter,
-                data_in.eq(data_dds200[:16*2*6])
+            If(self.counter,
+                data_in.eq(self.data[:16*2*6])
             ).Else(
-                data_in.eq(data_dds200[16*2*6:])
+                data_in.eq(self.data[16*2*6:])
             ),
         ]
 
