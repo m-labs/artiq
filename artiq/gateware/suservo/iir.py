@@ -212,10 +212,10 @@ class IIR(Module):
     --/--: signal with a given bit width always includes a sign bit
     -->--: flow is to the right and down unless otherwise indicated
     """
-    def __init__(self, w, adc_channels, dds_channels):
+    def __init__(self, w, i_channels, o_channels):
         self.widths = w
-        self.adc_channels = adc_channels
-        self.dds_channels = dds_channels
+        self.i_channels = i_channels
+        self.o_channels = o_channels
         for i, j in enumerate(w):
             assert j > 0, (i, j, w)
         assert w.word <= w.coeff  # same memory
@@ -225,13 +225,13 @@ class IIR(Module):
         # ~processing
         self.specials.m_coeff = Memory(
                 width=2*w.coeff,  # Cat(pow/ftw/offset, cfg/a/b)
-                depth=(4 << w.profile) * dds_channels)
+                depth=(4 << w.profile) * o_channels)
         # m_state[x] should only be read externally during ~(shifting | loading)
         # m_state[y] of active profiles should only be read externally during
         # ~processing
         self.specials.m_state = Memory(
                 width=w.state,  # y1,x0,x1
-                depth=((1 << w.profile) * dds_channels) + (2 * adc_channels))
+                depth=((1 << w.profile) * o_channels) + (2 * i_channels))
         # ctrl should only be updated synchronously
         self.ctrl = [Record([
                 ("profile", w.profile),
@@ -239,14 +239,14 @@ class IIR(Module):
                 ("en_iir", 1),
                 ("clip", 1),
                 ("stb", 1)])
-                for i in range(dds_channels)]
+                for i in range(o_channels)]
         # only update during ~loading
         self.adc = [Signal((w.adc, True), reset_less=True)
-                for i in range(adc_channels)]
+                for i in range(i_channels)]
         # Cat(ftw0, ftw1, pow, asf)
         # only read externally during ~processing
         self.dds = [Signal(4*w.word, reset_less=True)
-                for i in range(dds_channels)]
+                for i in range(o_channels)]
         # perform one IIR iteration, start with loading,
         # then processing, then shifting, end with done
         self.start = Signal()
@@ -282,7 +282,7 @@ class IIR(Module):
         # using the (MSBs of) t_current_step, and, after all channels have been
         # covered, proceed once the pipeline has completely drained.
         self.submodules.fsm = fsm = FSM("IDLE")
-        t_current_step = Signal(max=max(adc_channels * 2, dds_channels * 4, ))
+        t_current_step = Signal(max=max(i_channels * 2, o_channels * 4))
         t_current_step_clr = Signal()
 
         # pipeline group activity flags (SR)
@@ -299,7 +299,7 @@ class IIR(Module):
         )
         fsm.act("LOAD",
                 self.loading.eq(1),
-                If(t_current_step == adc_channels - 1,
+                If(t_current_step == i_channels - 1,
                     t_current_step_clr.eq(1),
                     NextValue(stages_active[0], 1),
                     NextState("PROCESS")
@@ -316,7 +316,7 @@ class IIR(Module):
         )
         fsm.act("SHIFT",
                 self.shifting.eq(1),
-                If(t_current_step == (adc_channels * 2) - 1,
+                If(t_current_step == (i_channels * 2) - 1,
                     NextState("IDLE")
                 )
         )
@@ -334,13 +334,13 @@ class IIR(Module):
         # pipeline group channel pointer (SR)
         # for each pipeline stage, this is the channel currently being
         # processed
-        channel = [Signal(max=dds_channels, reset_less=True) for i in range(3)]
+        channel = [Signal(max=o_channels, reset_less=True) for i in range(3)]
         self.comb += Cat(pipeline_phase, channel[0]).eq(t_current_step)
         self.sync += [
             If(pipeline_phase == 3,
                 Cat(channel[1:]).eq(Cat(channel[:-1])),
                 stages_active[1:].eq(stages_active[:-1]),
-                If(channel[0] == dds_channels - 1,
+                If(channel[0] == o_channels - 1,
                     stages_active[0].eq(0)
                 )
             )
@@ -394,13 +394,13 @@ class IIR(Module):
 
         # selected adc and profile delay (combinatorial from dat_r)
         # both share the same coeff word (sel in the lower 8 bits)
-        sel_profile = Signal(max=adc_channels)
+        sel_profile = Signal(max=i_channels)
         dly_profile = Signal(w.dly)
-        assert adc_channels <= 1 << 8
+        assert i_channels <= 1 << 8
         assert 8 + w.dly <= w.coeff
 
         # latched adc selection
-        sel = Signal(max=adc_channels, reset_less=True)
+        sel = Signal(max=i_channels, reset_less=True)
         # iir enable SR
         en = Signal(2, reset_less=True)
 
@@ -408,12 +408,12 @@ class IIR(Module):
                 sel_profile.eq(m_coeff.dat_r[w.coeff:]),
                 dly_profile.eq(m_coeff.dat_r[w.coeff + 8:]),
                 If(self.shifting,
-                    m_state.adr.eq(t_current_step + ((1 << w.profile) * dds_channels)),
+                    m_state.adr.eq(t_current_step + ((1 << w.profile) * o_channels)),
                     m_state.dat_w.eq(m_state.dat_r),
                     m_state.we.eq(t_current_step[0])
                 ),
                 If(self.loading,
-                    m_state.adr.eq((t_current_step << 1) + ((1 << w.profile) * dds_channels)),
+                    m_state.adr.eq((t_current_step << 1) + ((1 << w.profile) * o_channels)),
                     m_state.dat_w[-w.adc - 1:-1].eq(Array(self.adc)[t_current_step]),
                     m_state.dat_w[-1].eq(m_state.dat_w[-2]),
                     m_state.we.eq(1)
@@ -425,9 +425,9 @@ class IIR(Module):
                         # read old y
                         Cat(profile[0], channel[0]),
                         # read x0 (recent)
-                        0 | (sel_profile << 1) + ((1 << w.profile) * dds_channels),
+                        0 | (sel_profile << 1) + ((1 << w.profile) * o_channels),
                         # read x1 (old)
-                        1 | (sel << 1) + ((1 << w.profile) * dds_channels),
+                        1 | (sel << 1) + ((1 << w.profile) * o_channels),
                     ])[pipeline_phase]),
                     m_state.dat_w.eq(dsp.output),
                     m_state.we.eq((pipeline_phase == 0) & stages_active[2] & en[1]),
@@ -440,10 +440,10 @@ class IIR(Module):
 
         # internal channel delay counters
         dlys = Array([Signal(w.dly)
-            for i in range(dds_channels)])
+            for i in range(o_channels)])
         self._dlys = dlys  # expose for debugging only
 
-        for i in range(dds_channels):
+        for i in range(o_channels):
             self.sync += [
                     # (profile != profile_old) | ~en_out
                     If(self.ctrl[i].stb,
@@ -573,11 +573,11 @@ class IIR(Module):
         elif coeff == "x0":
             assert profile is None
             yield self.m_state[(channel << 1) |
-                    ((1 << w.profile) * self.dds_channels)].eq(val)
+                    ((1 << w.profile) * self.o_channels)].eq(val)
         elif coeff == "x1":
             assert profile is None
             yield self.m_state[1 | (channel << 1) |
-                    ((1 << w.profile) * self.dds_channels)].eq(val)
+                    ((1 << w.profile) * self.o_channels)].eq(val)
         else:
             raise ValueError("no such state", coeff)
 
@@ -588,10 +588,10 @@ class IIR(Module):
             val = yield self.m_state[profile | (channel << w.profile)]
         elif coeff == "x0":
             val = yield self.m_state[(channel << 1) |
-                    ((1 << w.profile) * self.dds_channels)]
+                    ((1 << w.profile) * self.o_channels)]
         elif coeff == "x1":
             val = yield self.m_state[1 | (channel << 1) |
-                    ((1 << w.profile) * self.dds_channels)]
+                    ((1 << w.profile) * self.o_channels)]
         else:
             raise ValueError("no such state", coeff)
         return signed(val, w.state)
@@ -625,7 +625,7 @@ class IIR(Module):
 
         x0s = []
         # check adc loading
-        for i in range(self.adc_channels):
+        for i in range(self.i_channels):
             v_adc = signed((yield self.adc[i]), w.adc)
             x0 = yield from self.get_state(i, coeff="x0")
             x0s.append(x0)
@@ -634,7 +634,7 @@ class IIR(Module):
 
         data = []
         # predict output
-        for i in range(self.dds_channels):
+        for i in range(self.o_channels):
             j = yield self.ctrl[i].profile
             en_iir = yield self.ctrl[i].en_iir
             en_out = yield self.ctrl[i].en_out
@@ -643,7 +643,7 @@ class IIR(Module):
                     i, j, en_iir, en_out, dly_i)
 
             cfg = yield from self.get_coeff(i, j, "cfg")
-            k_j = cfg % self.adc_channels
+            k_j = cfg % self.i_channels
             dly_j = (cfg >> 8) & 0xff
             logger.debug("cfg[%d,%d] sel=%d dly=%d", i, j, k_j, dly_j)
 
@@ -697,7 +697,7 @@ class IIR(Module):
             logger.debug("adc[%d] x0=%x x1=%x", i, x0, x1)
 
         # check new state
-        for i in range(self.dds_channels):
+        for i in range(self.o_channels):
             j = yield self.ctrl[i].profile
             logger.debug("ch[%d] profile=%d", i, j)
             y1 = yield from self.get_state(i, j, "y1")
@@ -705,7 +705,7 @@ class IIR(Module):
             assert y1 == y0, (hex(y1), hex(y0))
 
         # check dds output
-        for i in range(self.dds_channels):
+        for i in range(self.o_channels):
             ftw0, ftw1, pow, y0, x1, x0 = data[i]
             asf = y0 >> (w.state - w.asf - 1)
             dds = (ftw0 | (ftw1 << w.word) |
