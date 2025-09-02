@@ -238,14 +238,6 @@ class Songbird(Module, AutoCSR):
                 clear.eq(clear_iface.o.data)
             )
         ]
-
-        bs_trigger_iface = rtlink.Interface(rtlink.OInterface(
-            data_width=n_dds,
-            enable_replace=False))
-        cs_trigger_iface = rtlink.Interface(rtlink.OInterface(
-            data_width=n_dds,
-            enable_replace=False))
-
         reset_iface = rtlink.Interface(rtlink.OInterface(
             data_width=1,
             enable_replace=False))
@@ -256,6 +248,12 @@ class Songbird(Module, AutoCSR):
             )
         ]
         self.phys.append(Phy(reset_iface, [], [], 'reset_iface'))
+
+        trigger_iface = rtlink.Interface(rtlink.OInterface(
+            data_width=n_dds,
+            address_width=1,  # address 0 for b trigger, 1 for c trigger
+            enable_replace=False))
+        self.phys.append(Phy(trigger_iface, [], [], 'trigger_iface'))
 
         for idx, tone in enumerate(self.tones):
             self.comb += [
@@ -272,11 +270,15 @@ class Songbird(Module, AutoCSR):
             cs_array = Array(tone.cs_i.data[wi: wi+16] for wi in range(0, len(tone.cs_i.data), 16))
 
             self.sync.rio += [
-                tone.bs_i.stb.eq(bs_trigger_iface.o.data[idx] & bs_trigger_iface.o.stb),
+                tone.bs_i.stb.eq((trigger_iface.o.address == 0) &
+                                  trigger_iface.o.data[idx] & 
+                                  trigger_iface.o.stb),
                 If(bs_rtl_iface.o.stb,
                     bs_array[bs_rtl_iface.o.address].eq(bs_rtl_iface.o.data),
                 ),
-                tone.cs_i.stb.eq(cs_trigger_iface.o.data[idx] & cs_trigger_iface.o.stb),
+                tone.cs_i.stb.eq((trigger_iface.o.address == 1) &
+                                  trigger_iface.o.data[idx] & 
+                                  trigger_iface.o.stb),
                 If(cs_rtl_iface.o.stb,
                     cs_array[cs_rtl_iface.o.address].eq(cs_rtl_iface.o.data),
                 ),
@@ -286,18 +288,13 @@ class Songbird(Module, AutoCSR):
             self.phys.append(Phy(cs_rtl_iface, [], [], f'dds{idx}_cs_iface'))
 
         for i in range(n_phases):
+            # summers are in dds200 clock domain
+            self.comb += self.ltc2000.data[i*16:(i+1)*16].eq(self.ltc2000datasynth.summers[i].output)
             for j in range(n_dds):
                 self.comb += [
                     self.ltc2000datasynth.data_in[j][i].eq(self.tones[j].dds.dout2x[i*16:(i+1)*16]),
                     self.ltc2000datasynth.amplitudes[j][i].eq(self.tones[j].amplitude)
                 ]
-
-        for i in range(n_phases):
-            # summers are in dds200 clock domain
-            self.comb += self.ltc2000.data[i*16:(i+1)*16].eq(self.ltc2000datasynth.summers[i].output)
-
-        self.phys.append(Phy(bs_trigger_iface, [], [], 'bs_trigger_iface'))
-        self.phys.append(Phy(cs_trigger_iface, [], [], 'cs_trigger_iface'))
 
 
 class Ltc2000phy(Module, AutoCSR):
