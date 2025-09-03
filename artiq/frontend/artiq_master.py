@@ -82,7 +82,7 @@ def main():
         ssl_config = SimpleSSLConfig(*args.ssl)
     server_broadcast = Broadcaster()
     loop.run_until_complete(server_broadcast.start(
-        bind, args.port_broadcast, ssl_config))
+        bind, args.port_broadcast, ssl_config=ssl_config))
     atexit_register_coroutine(server_broadcast.stop, loop=loop)
 
     log_forwarder.callback = lambda msg: server_broadcast.broadcast("log", msg)
@@ -150,7 +150,7 @@ def main():
         "experiment_db": experiment_db,
     }, allow_parallel=True)
     loop.run_until_complete(server_control.start(
-        bind, args.port_control, ssl_config))
+        bind, args.port_control, ssl_config=ssl_config))
     atexit_register_coroutine(server_control.stop, loop=loop)
 
     server_notify = Publisher({
@@ -162,12 +162,12 @@ def main():
         "explist_status": experiment_db.status,
     })
     loop.run_until_complete(server_notify.start(
-        bind, args.port_notify, ssl_config))
+        bind, args.port_notify, ssl_config=ssl_config))
     atexit_register_coroutine(server_notify.stop, loop=loop)
 
     server_logging = LoggingServer()
     loop.run_until_complete(server_logging.start(
-        bind, args.port_logging, ssl_config))
+        bind, args.port_logging, ssl_config=ssl_config))
     atexit_register_coroutine(server_logging.stop, loop=loop)
 
     print("ARTIQ master is now ready.")

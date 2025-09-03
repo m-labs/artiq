@@ -157,7 +157,7 @@ def main():
     for target in "schedule", "experiment_db", "dataset_db", "device_db", "interactive_arg_db":
         client = AsyncioClient()
         loop.run_until_complete(client.connect_rpc(
-            args.server, args.port_control, target, ssl_config))
+            args.server, args.port_control, target, ssl_config=ssl_config))
         atexit_register_coroutine(client.close_rpc)
         rpc_clients[target] = client
 
@@ -192,7 +192,7 @@ def main():
     for target in "log", "ccb":
         client = Receiver(target, [], report_disconnect)
         loop.run_until_complete(client.connect(
-            args.server, args.port_broadcast, ssl_config))
+            args.server, args.port_broadcast, ssl_config=ssl_config))
         atexit_register_coroutine(client.close, loop=loop)
         broadcast_clients[target] = client
 
@@ -284,7 +284,7 @@ def main():
         d_waveform.init_ddb(ddb)
         return ddb
     devices_sub = Subscriber("devices", init_cbs, [d_ttl_dds.dm.notify_ddb, d_waveform.notify_ddb])
-    loop.run_until_complete(devices_sub.connect(args.server, args.port_notify))
+    loop.run_until_complete(devices_sub.connect(args.server, args.port_notify, ssl_config=ssl_config))
     atexit_register_coroutine(devices_sub.close, loop=loop)
 
     smgr.start(loop=loop)

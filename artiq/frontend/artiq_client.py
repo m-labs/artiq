@@ -316,7 +316,7 @@ def _run_subscriber(host, port, subscriber, ssl_config=None):
         signal_handler = SignalHandler()
         signal_handler.setup()
         try:
-            loop.run_until_complete(subscriber.connect(host, port, None, ssl_config))
+            loop.run_until_complete(subscriber.connect(host, port, None, ssl_config=ssl_config))
             try:
                 _, pending = loop.run_until_complete(asyncio.wait(
                     [loop.create_task(signal_handler.wait_terminate()), subscriber.receive_task],
