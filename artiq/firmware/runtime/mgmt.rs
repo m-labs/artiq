@@ -5,52 +5,12 @@ use io::{ProtoRead, Write, Error as IoError};
 use mgmt_proto::*;
 use sched::{Io, Mutex, TcpListener, TcpStream, Error as SchedError};
 use urc::Urc;
-use logger_artiq::Error as LogError;
-
-pub enum ConfigWriteError{
-    SchedError(SchedError),
-    LogError(LogError)
-}
-
-impl From<LogError> for ConfigWriteError {
-    fn from(error: LogError) -> Self {
-        ConfigWriteError::LogError(error)
-    }
-}
-
-impl From<SchedError> for Error<ConfigWriteError> {
-    fn from(value: SchedError) -> Self {
-        let config_error = ConfigWriteError::SchedError(value);
-        Error::Io(IoError::Other(config_error))
-    }
-}
 
 impl From<SchedError> for Error<SchedError> {
     fn from(value: SchedError) -> Error<SchedError> {
         Error::Io(IoError::Other(value))
     }
 }
-
-impl From<SchedError> for ConfigWriteError {
-    fn from(value: SchedError) -> ConfigWriteError {
-        ConfigWriteError::SchedError(value)
-    }
-}
-
-impl From<ConfigWriteError> for Error<ConfigWriteError> {
-    fn from(value: ConfigWriteError) -> Error<ConfigWriteError> {
-        Error::Io(IoError::Other(value))
-    }
-}
-
-// impl From<IoError<SchedError>> for Error<ConfigWriteError> {
-//     fn from(value: IoError<SchedError>) -> Self {
-//         match value {
-//             IoError::Other(e) => Error::<ConfigWriteError>::from(e),
-//             _ => Error::Io(IoError::Other(ConfigWriteError::SchedError(value.into()))),
-//         }
-//     }
-// }
 
 mod local_coremgmt {
     use alloc::{string::String, vec::Vec};
@@ -140,68 +100,33 @@ mod local_coremgmt {
         Ok(())
     }
 
-    // pub fn config_write(io: &Io, stream: &mut TcpStream, key: &String, value: &Vec<u8>, restart_idle: &Urc<Cell<bool>>) -> Result<(), Error<SchedError>> {
-    //     match config::write(key, value) {
-    //         Ok(_) => {
-    //             if key == "idle_kernel" {
-    //                 io.until(|| !restart_idle.get())?;
-    //                 restart_idle.set(true);
-    //             }
-    //             if key == "log_level" || key == "uart_log_level" {
-    //                 BufferLogger::with(|logger| {
-    //                     let _ = logger.set_log_filter_level(key, value);
-    //                 })
-    //             }
-    //             Reply::Success.write_to(stream)
-    //         },
-    //         Err(_) => Reply::Error.write_to(stream)
-    //     }?;
-    //     Ok(())
-    // }
-
-    // let max_level = value_str.parse::<LevelFilter>().map_err(|_| ConfigWriteError::from(LogError::ParseError))?;
-
     pub fn config_write(io: &Io, stream: &mut TcpStream, key: &String, value: &Vec<u8>, restart_idle: &Urc<Cell<bool>>) -> Result<(), Error<SchedError>> {
-        let _ = match config::write(key, value) {
-            Ok(_) => {
-                match key.as_str() {
-                    "idle_kernel" => {
-                        let _ = io.until(|| !restart_idle.get());
-                        restart_idle.set(true);
-                    }
-                    "log_level" => {
-                        let value_str = match core::str::from_utf8(value) {
-                            Ok(s) => s,
-                            Err(_) => "default",
-                        };
-                        let max_level = match value_str.parse::<LevelFilter>() {
-                            Ok(s) => s,
-                            Err(_) => LevelFilter::Info,
-                        };
-                        BufferLogger::with(|logger| {
-                            logger.set_buffer_log_level(max_level);
-                            log::info!("changing log level to {}", max_level);
-                        })}
-                    "uart_log_level" => {
-                        let value_str = match core::str::from_utf8(value) {
-                            Ok(s) => s,
-                            Err(_) => "default",
-                        };
-                            // .map_err(|e| ConfigWriteError::from(LogError::Utf8Error(e)))?;
-                            let max_level = match value_str.parse::<LevelFilter>() {
-                            Ok(level) => level,
-                            Err(_) => LevelFilter::Info, // Provide a sensible default
-                        };
-                            // .map_err(|_| ConfigWriteError::from(LogError::ParseError))?;
-                        BufferLogger::with(|logger| {
-                            logger.set_uart_log_level(max_level);
-                            log::info!("changing UART log level to {}", max_level);
-                        })}
-                    _ => ()
+        if key == "log_level" || key == "uart_log_level" {
+            let byte = value.first().copied().unwrap_or(255);
+            let value_str = core::str::from_utf8(value)
+                .map_err(Error::<SchedError>::from)?;
+            let max_level = value_str.parse::<LevelFilter>()
+                .map_err(|_| Error::<SchedError>::UnknownLogLevel(byte))?;
+
+            BufferLogger::with(|logger| {
+                if key == "log_level" {
+                    logger.set_buffer_log_level(max_level);
+                    log::info!("changing log level to {}", max_level);
+                } else {
+                    logger.set_uart_log_level(max_level);
+                    log::info!("changing UART log level to {}", max_level);
                 }
-                Reply::Success.write_to(stream)
+            })
+        };
+        match config::write(key, value) {
+            Ok(_) => {
+                if key == "idle_kernel" {
+                    io.until(|| !restart_idle.get())?;
+                    restart_idle.set(true);
+                }
+                Reply::Success.write_to(stream)?
             },
-            Err(_) => Reply::Error.write_to(stream)
+            Err(_) => Reply::Error.write_to(stream)?
         };
         Ok(())
     }

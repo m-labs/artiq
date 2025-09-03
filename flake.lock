@@ -11,11 +11,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1756174750,
-        "narHash": "sha256-GSYJKbI5uLhB5X9b+N23vZtSFkStvlKlj/QoKL5+YLE=",
+        "lastModified": 1756451104,
+        "narHash": "sha256-Tm0q98QcQnYxQoQVLVY5wKQv3ZHs0dUMPAEc4/RO7+M=",
         "owner": "m-labs",
         "repo": "artiq-comtools",
-        "rev": "3635c4b9b61cde5d8c5b068263bed46752e6779e",
+        "rev": "f837afcdab5af70c2ca7554538f812890717cc59",
         "type": "github"
       },
       "original": {
