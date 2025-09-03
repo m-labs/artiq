@@ -36,6 +36,12 @@ impl<T> From<ReadStringError<IoError<T>>> for Error<T> {
     }
 }
 
+impl<T> From<Utf8Error> for Error<T> {
+    fn from(value: Utf8Error) -> Error<T> {
+        Error::Utf8(value)
+    }
+}
+
 pub fn read_magic<R>(reader: &mut R) -> Result<(), Error<R::ReadError>>
     where R: Read + ?Sized
 {

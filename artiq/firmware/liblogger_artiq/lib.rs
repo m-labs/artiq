@@ -11,14 +11,15 @@ use log::{Log, LevelFilter};
 use log_buffer::LogBuffer;
 use board_misoc::clock;
 
-pub enum Error{
+pub enum LogError{
     Utf8Error(core::str::Utf8Error),
     ParseError,
+    KeyNotFound
 }
 
-impl From<core::str::Utf8Error> for Error {
+impl From<core::str::Utf8Error> for LogError {
     fn from(error: core::str::Utf8Error) -> Self {
-        Error::Utf8Error(error)
+        LogError::Utf8Error(error)
     }
 }
 
@@ -112,25 +113,25 @@ impl BufferLogger {
         self.update_global_log_level()
     }
 
-    // pub fn set_log_filter_level(&self, key: &str, value: &[u8]) -> Result<(), Error> {
-    //     let value_str = core::str::from_utf8(value)?;
-    //     let max_level = value_str.parse::<LevelFilter>()
-    //         .map_err(|_| Error::ParseError)?;
+    pub fn set_log_filter_level(&self, key: &str, value: &[u8]) -> Result<(), LogError> {
+        let value_str = core::str::from_utf8(value)?;
+        let max_level = value_str.parse::<LevelFilter>()
+            .map_err(|_| LogError::ParseError)?;
 
-    //     match key{
-    //         "log_level" => {
-    //             self.set_buffer_log_level(max_level);
-    //             log::info!("changing log level to {}", max_level);
-    //         }
-    //         "uart_log_level" => {
-    //             self.set_uart_log_level(max_level);
-    //             log::info!("changing UART log level to {}", max_level);
-    //         }
-    //         _ => ()
-    //     }
+        match key{
+            "log_level" => {
+                self.set_buffer_log_level(max_level);
+                log::info!("changing log level to {}", max_level);
+            }
+            "uart_log_level" => {
+                self.set_uart_log_level(max_level);
+                log::info!("changing UART log level to {}", max_level);
+            }
+            _ => return Err(LogError::KeyNotFound)
+        }
 
-    //     Ok(())
-    // }
+        Ok(())
+    }
 
     pub fn update_global_log_level(&self){
         let uart_level = self.uart_filter.get();
