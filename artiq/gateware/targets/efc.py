@@ -316,7 +316,7 @@ class EfcShuttler(_SatelliteBase):
 
 
 class EfcSongbird(_SatelliteBase):
-    def __init__(self, afe_hw_rev="", **kwargs):
+    def __init__(self, **kwargs):
         _SatelliteBase.__init__(self, **kwargs)
 
         platform = self.platform
@@ -379,31 +379,33 @@ def main():
         description="ARTIQ device binary builder for EEM FMC Carrier systems")
     builder_args(parser)
     parser.set_defaults(output_dir="artiq_efc")
-    parser.add_argument("-V", "--variant", choices=["shuttler", "songbird"], default="shuttler")
     parser.add_argument("--efc-hw-rev", choices=["v1.0", "v1.1"], default="v1.1",
                         help="EFC hardware revision")
-    parser.add_argument("--afe-hw-rev", choices=["v1.0", "v1.1", "v1.2", "v1.3"],
-                        default="v1.3", help="AFE hardware revision")
     parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
     parser.add_argument("--drtio100mhz", action="store_true",
                         help="Set RTIO clock frequency to 100 MHz (default is 125 MHz)")
+
+    subparsers = parser.add_subparsers(dest="variant", help="Variant to build", required=True)
+
+    parser_shuttler = subparsers.add_parser("shuttler", help="Build Shuttler variant")
+    parser_shuttler.add_argument("--afe-hw-rev", choices=["v1.0", "v1.1", "v1.2", "v1.3"],
+                                 default="v1.3", help="AFE hardware revision")
+
+    subparsers.add_parser("songbird", help="Build Songbird variant")
+
     args = parser.parse_args()
 
     argdict = dict()
     argdict["gateware_identifier_str"] = args.gateware_identifier_str
     argdict["efc_hw_rev"] = args.efc_hw_rev
-    argdict["afe_hw_rev"] = args.afe_hw_rev
+    if args.variant == "shuttler":
+        argdict["afe_hw_rev"] = args.afe_hw_rev
     argdict["rtio_clk_freq"] = 100e6 if args.drtio100mhz else 125e6
     variant = args.variant.lower()
 
-    try:
-        cls = VARIANTS[variant]
-    except KeyError:
-        raise SystemExit("Invalid variant (-V/--variant)")
-
+    cls = VARIANTS[variant]
     soc = cls(**argdict)
-
     build_artiq_soc(soc, builder_argdict(args))
 
 
