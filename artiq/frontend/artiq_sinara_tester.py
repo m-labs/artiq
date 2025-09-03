@@ -118,14 +118,12 @@ class SinaraTester(EnvExperiment):
                         "relay": self.get_device("{}_relay".format(shuttler_name)),
                         "adc": self.get_device("{}_adc".format(shuttler_name)),
                     })
-                elif (module, cls) == ("artiq.coredevice.songbird", "Config"):
+                elif (module, cls) == ("artiq.coredevice.songbird", "Songbird"):
                     songbird_name = name.replace("_config", "")
                     self.songbirds[songbird_name] = ({
                         "config": self.get_device(name),
-                        "trigger": self.get_device(f"{songbird_name}_trigger"),
                         "leds": [self.get_device(f"{songbird_name}_led{i}") for i in range(2)],
                         "dds": [self.get_device(f"{songbird_name}_dds{i}") for i in range(4)],
-                        "clear": self.get_device(f"{songbird_name}_clear"),
                     })
                 elif (module, cls) == ("artiq.coredevice.cxp_grabber", "CXPGrabber"):
                     self.coaxpress_sfps[name] = self.get_device(name)
@@ -949,15 +947,15 @@ class SinaraTester(EnvExperiment):
         config.init()
 
     @kernel
-    def setup_songbird_waveforms(self, card_n, dds_channels, trigger, clear):
+    def setup_songbird_waveforms(self, card_n, config, ddss):
         self.core.break_realtime()
-        clear.clear(0b1111)
+        config.clear(0b1111)
         delay(1*ms)
         # Set some waveforms
         i = 1
-        for channel in dds_channels:
+        for channel in ddss:
             freq = (10.0*float(i) + float(card_n)) * MHz
-            freq_mu = channel.frequency_to_mu(freq)
+            freq_mu = config.frequency_to_mu(freq)
             channel.set_waveform(ampl_offset=0x2000, 
                                  damp=0, 
                                  ddamp=0, 
@@ -968,9 +966,9 @@ class SinaraTester(EnvExperiment):
                                  shift=0)
             i += 1
         delay(1*ms)
-        trigger.trigger(0b1111)
+        config.trigger(0b1111)
         delay(1*ms)
-        clear.clear(0)
+        config.clear(0)
 
     def test_songbirds(self):
         print("*** Testing Songbird.")
@@ -981,7 +979,7 @@ class SinaraTester(EnvExperiment):
             self.setup_songbird_init(card_dev["config"])
             print("...done")
             print("Setting up DDS waveforms...")
-            self.setup_songbird_waveforms(card_n, card_dev["dds"], card_dev["trigger"], card_dev["clear"])
+            self.setup_songbird_waveforms(card_n, card_dev["config"], card_dev["dds"])
             print("...done")
             print("{} output active. Frequencies: {} MHz.".format(
                 card_name,

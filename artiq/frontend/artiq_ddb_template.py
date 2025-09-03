@@ -774,29 +774,18 @@ class PeripheralManager:
             name=songbird_name,
             channel=rtio_offset + next(channel))
 
-        for class_name in ["Clear", "Reset"]:
-            self.gen("""
-                device_db["{name}_{class_lower}"] = {{
-                    "type": "local",
-                    "module": "artiq.coredevice.songbird",
-                    "class": "{class_name}",
-                    "arguments": {{"channel": 0x{channel:06x}}},
-                }}""",
-                name=songbird_name,
-                class_lower=class_name.lower(),
-                class_name=class_name,
-                channel=rtio_offset + next(channel))
-
         self.gen("""
             device_db["{name}_config"] = {{
                 "type": "local",
                 "module": "artiq.coredevice.songbird",
-                "class": "Config",
-                "arguments": {{"spi_device": "{spi_name}", "reset_device": "{reset_name}"}},
+                "class": "Songbird",
+                "arguments": {{"spi_device": "{spi_name}", "channel": 0x{channel:06x}}}
             }}""",
             name=songbird_name,
             spi_name=songbird_name+"_spi",
-            reset_name=songbird_name+"_reset")
+            channel=rtio_offset + next(channel)) # base channel: reset
+
+        config_offset = 2  # then clear, trigger
 
         for i in range(4):
             self.gen("""
@@ -804,25 +793,15 @@ class PeripheralManager:
                     "type": "local",
                     "module": "artiq.coredevice.songbird",
                     "class": "DDS",
-                    "arguments": {{"b_channel": 0x{b_channel:06x}, "c_channel": 0x{c_channel:06x}}},
+                    "arguments": {{"config_device": "{config_name}", "channel": 0x{base_channel:06x}, "dds_no": {ch}}}
                 }}""",
                 name=songbird_name,
                 ch=i,
-                b_channel=rtio_offset + next(channel),
-                c_channel=rtio_offset + next(channel))
+                config_name=songbird_name + "_config",
+                base_channel=rtio_offset + config_offset + next(channel))
+            next(channel) # c coefficients channel
 
-        self.gen("""
-            device_db["{name}_trigger"] = {{
-                "type": "local",
-                "module": "artiq.coredevice.songbird",
-                "class": "Trigger",
-                "arguments": {{"b_channel": 0x{b_channel:06x}, "c_channel": 0x{c_channel:06x}}},
-            }}""",
-            name=songbird_name,
-            b_channel=rtio_offset + next(channel),
-            c_channel=rtio_offset + next(channel))
-
-        return 0
+        return 0    
 
 
     def process_coaxpress_sfp(self, rtio_offset, peripheral):
