@@ -102,6 +102,7 @@ class LTC2000DDSModule(Module, AutoCSR):
         self.atw = Signal(32)
         self.ptw = Signal(18)
         self.amplitude = Signal(16)
+        self.reset = Signal()
 
         self.shift = Signal(4)
         self.shift_counter = Signal(16) # Need to count from 2**shift - 1
@@ -120,6 +121,19 @@ class LTC2000DDSModule(Module, AutoCSR):
             self.ftw.eq(z[1]),
             self.atw.eq(x[0]),
             self.ptw.eq(reconstructed_phase),
+
+            If(self.reset,
+                self.ftw.eq(0),
+                self.atw.eq(0),
+                self.ptw.eq(0),
+                x[0].eq(0),
+                x[1].eq(0),
+                x[2].eq(0),
+                x[3].eq(0),
+                z[0].eq(0),
+                z[1].eq(0),
+                z[2].eq(0),
+            ),
 
             # count down from 2**shift-1 to 0
             If(self.shift_counter == 0,
@@ -171,7 +185,6 @@ class LTC2000DDSModule(Module, AutoCSR):
         ]
         
         # 12 phases at 200/208.33 MHz => 2400/2500 MSPS
-        # output updated at 100/125 MHz
         self.submodules.dds = DoubleDataRateDDS(12, 32, 18)
         self.sync += [
             self.dds.ftw.eq(self.ftw),
@@ -206,6 +219,8 @@ class Songbird(Module, AutoCSR):
         n_dds = 4
         n_phases = 24
 
+        self.mmcm_locked = Signal()
+
         self.submodules.ltc2000datasynth = LTC2000DataSynth(n_dds, n_phases)
 
         self.tones = [LTC2000DDSModule() for _ in range(n_dds)]
@@ -225,7 +240,7 @@ class Songbird(Module, AutoCSR):
         clear = Signal(n_dds)
         self.submodules.reset = PulseSynchronizer("rio", "dds200")
 
-        self.comb += self.ltc2000.reset.eq(self.reset.o)
+        self.comb += self.ltc2000.reset.eq(self.reset.o | ~self.mmcm_locked)
 
         clear_iface = rtlink.Interface(rtlink.OInterface(
             data_width=n_dds,
@@ -258,7 +273,8 @@ class Songbird(Module, AutoCSR):
         for idx, tone in enumerate(self.tones):
             self.comb += [
                 tone.clear.eq(clear[idx]),
-                tone.dds.counter.eq(counter)
+                tone.dds.counter.eq(counter),
+                tone.reset.eq(self.reset.i)
             ]
 
             bs_rtl_iface = rtlink.Interface(rtlink.OInterface(
@@ -270,15 +286,15 @@ class Songbird(Module, AutoCSR):
             cs_array = Array(tone.cs_i.data[wi: wi+16] for wi in range(0, len(tone.cs_i.data), 16))
 
             self.sync.rio += [
-                tone.bs_i.stb.eq((trigger_iface.o.address == 0) &
-                                  trigger_iface.o.data[idx] & 
-                                  trigger_iface.o.stb),
+                tone.bs_i.stb.eq(self.reset.i | ((trigger_iface.o.address == 0) &
+                                 trigger_iface.o.data[idx] & 
+                                 trigger_iface.o.stb)),
                 If(bs_rtl_iface.o.stb,
                     bs_array[bs_rtl_iface.o.address].eq(bs_rtl_iface.o.data),
                 ),
-                tone.cs_i.stb.eq((trigger_iface.o.address == 1) &
-                                  trigger_iface.o.data[idx] & 
-                                  trigger_iface.o.stb),
+                tone.cs_i.stb.eq(self.reset.i | ((trigger_iface.o.address == 1) &
+                                 trigger_iface.o.data[idx] & 
+                                 trigger_iface.o.stb)),
                 If(cs_rtl_iface.o.stb,
                     cs_array[cs_rtl_iface.o.address].eq(cs_rtl_iface.o.data),
                 ),
@@ -382,3 +398,4 @@ class Ltc2000phy(Module, AutoCSR):
                     o_OB=pads.datb_n[i]
                 )
         ]
+
