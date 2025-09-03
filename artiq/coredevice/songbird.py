@@ -19,6 +19,7 @@ LTC2K_REG_TEMP  = 0x19  # Temperature measurement controls
 LTC2K_REG_PATTERN = 0x1E  # Pattern generator enable
 LTC2K_REG_PATTERN_DATA = 0x1F  # Pattern generator data
 
+N_DDS = 4
 
 @portable
 def volt_to_mu(volt: TFloat, width=16) -> TInt32:
@@ -29,20 +30,39 @@ def volt_to_mu(volt: TFloat, width=16) -> TInt32:
     return round((1 << width) * (volt / 2.0)) & ((1 << width) - 1)
 
 
-class Config:
+class Songbird:
     """Songbird LTC2000 configuration interface.
 
     Available as a DC2303A-A FMC connected to the EFC.
 
     :param spi_device: SPI bus device name.
-    :param reset_device: Reset device name.
+    :param base_channel: Base RTIO channel number.
     """
-    kernel_invariants = {"bus", "reset", "spi_config"}
+    B_TRIG_OFFSET = 0
+    C_TRIG_OFFSET = 1
+
+    kernel_invariants = {"bus", "core", "dds_freq", "spi_config"}
     
-    def __init__(self, dmgr, spi_device, reset_device):
+    def __init__(self, dmgr, spi_device, channel, core_device="core"):
         self.bus = dmgr.get(spi_device)
-        self.reset = dmgr.get(reset_device)
+        self.core = dmgr.get(core_device)
+        if self.core.ref_period == 1.25e-9:
+            self.dds_freq = 2.4e9
+        elif self.core.ref_period == 1e-9:
+            self.dds_freq = 2.5e9
+        else:
+            raise ValueError("Core frequency not supported by Songbird")
+        self.target_clear_o = channel << 8
+        self.target_reset_o = (channel + 1) << 8
+        self.target_trigger_o = (channel + 2) << 8
+        self.clear_state = 0
         self.spi_config = SPI_END
+
+    @portable
+    def frequency_to_mu(self, frequency: TFloat) -> TInt32:
+        """Convert frequency in Hz to a 32-bit frequency tuning word (FTW)
+        """
+        return int32(round(frequency * (2.0**32) / self.dds_freq))
 
     @kernel
     def init(self, blind=False):
@@ -54,9 +74,9 @@ class Config:
         :param blind: If true, skips verifying the configuration.
         """
         # pulse the hardware reset
-        self.reset.reset(1)
+        self.reset(1)
         delay(1*ms)
-        self.reset.reset(0)
+        self.reset(0)
         delay(10*ms)  # wait for LTC2000 to be ready after reset
 
         # configure the LTC2000
@@ -88,7 +108,7 @@ class Config:
                 raise ValueError("LTC2000 DCKI not present")
 
     @kernel
-    def write_reg(self, addr, data):
+    def write_reg(self, addr: TInt32, data: TInt32):
         self.bus.set_config_mu(self.spi_config, 32, 256, 0b0001)
         delay(20*us)
         self.bus.write((addr << 24) | (data << 16))
@@ -96,7 +116,7 @@ class Config:
         self.bus.set_config_mu(self.spi_config, 32, 256, 0b0000)
 
     @kernel
-    def read_reg(self, addr) -> TInt32:
+    def read_reg(self, addr: TInt32) -> TInt32:
         self.bus.set_config_mu(self.spi_config | SPI_INPUT, 32, 256, 0b0001)
         delay(2*us)
         self.bus.write((1 << 31) | (addr << 24))
@@ -106,6 +126,101 @@ class Config:
         self.bus.set_config_mu(self.spi_config, 32, 256, 0b0000)
         value = (result >> 16) & 0xFF
         return value
+
+    @kernel
+    def trigger(self, channels_mask: TInt32):
+        """Triggers coefficient update of Songbird Core channel(s).
+
+        The waveform configuration is not applied to the Songbird Core until
+        explicitly triggered.
+        This allows atomic updates across multiple channels.
+
+        This method updates both b and c coefficients. See :meth:`trigger_b`
+        and :meth:`trigger_c` for separate updates. In the :class:DDS class
+        you can also find `trigger` methods that will apply to that channel.
+
+        Each bit corresponds to a Songbird waveform generator core. Setting
+        bits in `channels_mask` commits the pending coefficient updates to
+        the corresponding DDS channels synchronously.
+
+        **Example 1:**
+            # Configure waveforms for dds0
+            self.songbird0_dds0.set_waveform(...)
+
+            # Apply the configuration
+            self.songbird0_dds0.trigger()  # Trigger amplitude and phase spline for channel 0
+
+        **Example 2:**
+            # Configure waveforms for dds0 and dds1
+            self.songbird0_dds0.set_waveform(...)
+            self.songbird0_dds1.set_waveform(...)
+
+            # Trigger amplitude and phase spline for both channels simultaneously
+            self.songbird0_config.trigger()
+
+        :param channels_mask: Coefficient update trigger bits. The MSB corresponds
+            to Channel 4, LSB corresponds to Channel 0.
+        """
+        rtio_output(self.target_trigger_o | self.B_TRIG_OFFSET, channels_mask)
+        delay_mu(int64(self.core.ref_multiplier))
+        rtio_output(self.target_trigger_o | self.C_TRIG_OFFSET, channels_mask)
+
+    @kernel
+    def trigger_b(self, channels_mask: TInt32):
+        """Triggers amplitude coefficient update of Songbird Core channel(s).
+
+        This method updates only b coefficients. See :meth:`trigger`
+        and :meth:`trigger_c` for other update options.
+
+        :param channels_mask: Coefficient update trigger bits.
+        """
+        rtio_output(self.target_trigger_o | self.B_TRIG_OFFSET, channels_mask)
+
+    @kernel
+    def trigger_c(self, channels_mask: TInt32):
+        """Triggers phase/frequency coefficient update of Songbird Core channel(s).
+
+        This method updates only c coefficients. See :meth:`trigger`
+        and :meth:`trigger_b` for other update options.
+
+        :param channels_mask: Coefficient update trigger bits.
+        """
+        rtio_output(self.target_trigger_o | self.C_TRIG_OFFSET, channels_mask)
+
+    @kernel
+    def clear(self, clear_out: TInt32):
+        """Clears the Songbird Core channel(s).
+
+        Each bit corresponds to a Songbird waveform generator core. Setting
+        ``clear_out`` bits clears the corresponding channels in the Shuttler Core
+        synchronously.
+
+        :param clear_out: Clear signal bits. The MSB corresponds
+            to Channel 3, LSB corresponds to Channel 0.
+        """
+        self.clear_state = clear_out
+        rtio_output(self.target_clear_o, self.clear_state)
+
+    @kernel
+    def clear_channel(self, channel: TInt32, clear: bool):
+        """Clears a specified Songbird Core channel.
+
+        :param channel: Channel number.
+        :param clear: Clear signal.
+        """
+        if clear:
+            self.clear_state |= 1 << channel
+        else:
+            self.clear_state &= ~(1 << channel)
+        rtio_output(self.target_clear_o, self.clear_state)
+
+    @kernel
+    def reset(self, reset: TInt32):
+        """Resets the Songbird DAC.
+
+        :param reset: Reset signal.
+        """
+        rtio_output(self.target_reset_o, reset)
 
 
 class DDS:
@@ -131,26 +246,39 @@ class DDS:
     :param channel: RTIO channel number of this DC-bias spline interface.
     :param core_device: Core device name.
     """
-    kernel_invariants = {"core", "b_channel", "c_channel", "dds_freq", "b_target_o", "c_target_o"}
+    kernel_invariants = {"config", "core", "b_channel", "c_channel", "dds_no", "b_target_o", "c_target_o"}
 
-    def __init__(self, dmgr, b_channel, c_channel, core_device="core"):
+    def __init__(self, dmgr, channel, config_device, dds_no, core_device="core"):
+        self.config = dmgr.get(config_device)
         self.core = dmgr.get(core_device)
-        if self.core.ref_period == 1.25e-9:
-            self.dds_freq = 2.4e9
-        elif self.core.ref_period == 1e-9:
-            self.dds_freq = 2.5e9
-        else:
-            raise ValueError("Core frequency not supported by Songbird")
-        self.b_channel = b_channel
-        self.c_channel = c_channel
+        self.dds_no = dds_no
+        self.b_channel = channel
+        self.c_channel = channel + 1
         self.b_target_o = self.b_channel << 8
         self.c_target_o = self.c_channel << 8
 
-    @portable
-    def frequency_to_mu(self, frequency: TFloat) -> TInt32:
-        """Convert frequency in Hz to a 32-bit frequency tuning word (FTW)
+    @kernel
+    def trigger(self):
+        """Triggers the update of the channel, for both b and c coefficients."""
+        self.config.trigger(1 << self.dds_no)
+
+    @kernel
+    def trigger_b(self):
+        """Triggers the update of the b coeff   ·icients of the channel."""
+        self.config.trigger_b(1 << self.dds_no)
+
+    @kernel
+    def trigger_c(self):
+        """Triggers the update of the c coefficients of the channel."""
+        self.config.trigger_c(1 << self.dds_no)
+
+    @kernel
+    def clear(self, clear=True):
+        """Clears the output of the DDS channel.
+
+        :param clear: Clear signal. True disables the output.
         """
-        return int32(round(frequency * (2.0**32) / self.dds_freq))
+        self.config.clear_channel(self.dds_n, clear)
 
     @kernel
     def set_waveform(self, ampl_offset: TInt32, damp: TInt32, ddamp: TInt64, dddamp: TInt64,
@@ -246,15 +374,15 @@ class DDS:
         """
 
         b_coef_words = [
-            ampl_offset & 0xFFFF,                          # Word 0: amplitude offset
-            damp & 0xFFFF,                          # Word 1: damp low
-            (damp >> 16) & 0xFFFF,                  # Word 2: damp high
-            ddamp & 0xFFFF,                          # Word 3: ddamp low
-            (ddamp >> 16) & 0xFFFF,                  # Word 4: ddamp mid
-            (ddamp >> 32) & 0xFFFF,                  # Word 5: ddamp high
-            dddamp & 0xFFFF,                          # Word 6: dddamp low
-            (dddamp >> 16) & 0xFFFF,                  # Word 7: dddamp mid
-            (dddamp >> 32) & 0xFFFF,                  # Word 8: dddamp high
+            ampl_offset & 0xFFFF,      # Word 0: amplitude offset
+            damp & 0xFFFF,             # Word 1: damp low
+            (damp >> 16) & 0xFFFF,     # Word 2: damp high
+            ddamp & 0xFFFF,            # Word 3: ddamp low
+            (ddamp >> 16) & 0xFFFF,    # Word 4: ddamp mid
+            (ddamp >> 32) & 0xFFFF,    # Word 5: ddamp high
+            dddamp & 0xFFFF,           # Word 6: dddamp low
+            (dddamp >> 16) & 0xFFFF,   # Word 7: dddamp mid
+            (dddamp >> 32) & 0xFFFF,   # Word 8: dddamp high
         ]
 
         for i in range(len(b_coef_words)):
@@ -274,8 +402,8 @@ class DDS:
         if not 0 <= shift <= 15:
             raise ValueError("Shift must be between 0 and 15")
 
-        phase_msb = (phase_offset >> 2) & 0xFFFF   # Upper 16 bits of 18-bit phase value
-        phase_lsb = phase_offset & 0x3             # Bottom 2 bits of 18-bit phase value
+        phase_msb = (phase_offset >> 2) & 0xFFFF  # Upper 16 bits of 18-bit phase value
+        phase_lsb = phase_offset & 0x3            # Bottom 2 bits of 18-bit phase value
         
         c_coef_words = [
             phase_msb,                           # Word 9: phase offset main (16 bits)
@@ -283,90 +411,12 @@ class DDS:
             (ftw >> 16) & 0xFFFF,                # Word 11: ftw high
             chirp & 0xFFFF,                      # Word 12: chirp low
             (chirp >> 16) & 0xFFFF,              # Word 13: chirp high
-
             shift | (phase_lsb << 4),            # Word 14: shift[3:0] + phase_lsb[5:4] + reserved[15:6]
         ]
 
         for i in range(len(c_coef_words)):
             rtio_output(self.c_target_o | i, c_coef_words[i])
             delay_mu(int64(self.core.ref_multiplier))
-
-
-class Trigger:
-    """Shuttler Core spline coefficients update trigger.
-
-    :param b_channel: RTIO channel number of the b coefficients trigger interface.
-    :param c_channel: RTIO channel number of the c coefficients trigger interface.
-    :param core_device: Core device name.
-    """
-    kernel_invariants = {"core", "b_channel", "c_channel", "b_target_o", "c_target_o"}
-
-    def __init__(self, dmgr, b_channel, c_channel, core_device="core"):
-        self.core = dmgr.get(core_device)
-        self.b_channel = b_channel
-        self.c_channel = c_channel
-        self.b_target_o = b_channel << 8
-        self.c_target_o = c_channel << 8
-
-    @kernel
-    def trigger(self, channels_mask):
-        """Triggers coefficient update of Songbird Core channel(s).
-
-        The waveform configuration is not applied to the Songbird Core until
-        explicitly triggered.
-        This allows atomic updates across multiple channels.
-
-        This method updates both b and c coefficients. See :meth:`trigger_b`
-        and :meth:`trigger_c` for separate updates.
-
-        Each bit corresponds to a Songbird waveform generator core. Setting
-        bits in `channels_mask` commits the pending coefficient updates to
-        the corresponding DDS channels synchronously.
-
-        **Example:**
-            # Configure waveforms for dds0
-            self.songbird0_dds0.set_waveform(...)
-
-            # Apply the configuration
-            self.songbird0_trigger.trigger(1 << 0)  # Trigger amplitude and phase spline for channel 0
-
-        :param channels_mask: Coefficient update trigger bits. The MSB corresponds
-            to Channel 15, LSB corresponds to Channel 0.
-        """
-        rtio_output(self.b_target_o, channels_mask)
-        rtio_output(self.c_target_o, channels_mask)
-
-    @kernel
-    def trigger_b(self, channels_mask):
-        """Triggers amplitude coefficient update of Songbird Core channel(s).
-
-        This method updates only b coefficients. See :meth:`trigger`
-        and :meth:`trigger_c` for other update options.
-
-        Each bit corresponds to a Songbird waveform generator core. Setting
-        bits in `channels_mask` commits the pending coefficient updates to
-        the corresponding DDS channels synchronously.
-
-        :param channels_mask: Coefficient update trigger bits. The MSB corresponds
-            to Channel 15, LSB corresponds to Channel 0.
-        """
-        rtio_output(self.b_target_o, channels_mask)
-
-    @kernel
-    def trigger_c(self, channels_mask):
-        """Triggers phase/frequency coefficient update of Songbird Core channel(s).
-
-        This method updates only c coefficients. See :meth:`trigger`
-        and :meth:`trigger_b` for other update options.
-
-        Each bit corresponds to a Songbird waveform generator core. Setting
-        bits in `channels_mask` commits the pending coefficient updates to
-        the corresponding DDS channels synchronously.
-
-        :param channels_mask: Coefficient update trigger bits. The MSB corresponds
-            to Channel 15, LSB corresponds to Channel 0.
-        """
-        rtio_output(self.c_target_o, channels_mask)
 
 
 class Clear:
@@ -381,37 +431,3 @@ class Clear:
         self.core = dmgr.get(core_device)
         self.channel = channel
         self.target_o = channel << 8
-
-    @kernel
-    def clear(self, clear_out):
-        """Clears the Songbird Core channel(s).
-
-        Each bit corresponds to a Songbird waveform generator core. Setting
-        ``clear_out`` bits clears the corresponding channels in the Shuttler Core
-        synchronously.
-
-        :param clear_out: Clear signal bits. The MSB corresponds
-            to Channel 3, LSB corresponds to Channel 0.
-        """
-        rtio_output(self.target_o, clear_out)
-
-class Reset:
-    """Songbird Core reset signal.
-
-    :param channel: RTIO channel number of the clear interface.
-    :param core_device: Core device name.
-    """
-    kernel_invariants = {"core", "channel", "target_o"}
-
-    def __init__(self, dmgr, channel, core_device="core"):
-        self.core = dmgr.get(core_device)
-        self.channel = channel
-        self.target_o = channel << 8
-
-    @kernel
-    def reset(self, reset):
-        """Resets the Songbird DAC.
-
-        :param reset: Reset signal.
-        """
-        rtio_output(self.target_o, reset)
