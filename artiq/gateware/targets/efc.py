@@ -3,7 +3,6 @@
 import argparse
 
 from migen import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.build.generic_platform import *
 
 from misoc.cores import gpio, spi2
@@ -331,53 +330,11 @@ class EfcSongbird(_SatelliteBase):
 
         self.submodules.songbird = Songbird(self.platform, ltc2000_pads, rtio_clk_freq)
 
+        platform.add_false_path_constraints(self.crg.cd_sys.clk, self.songbird.dds_clock.cd_dds200.clk)
+
         for phy in self.songbird.phys:
             print("Songbird LTC2000 {} at RTIO channel 0x{:06x}".format(phy.name, len(self.rtio_channels)))
             self.rtio_channels.append(rtio.Channel.from_phy(phy))
-
-        self.clock_domains.cd_dds200 = ClockDomain()
-        self.clock_domains.cd_dds600 = ClockDomain(reset_less=True)
-
-        mmcm_fb_in = Signal()
-        mmcm_fb_out = Signal()
-        mmcm_dds200 = Signal()
-        mmcm_dds600 = Signal()
-        mmcm_locked = Signal()
-        mmcm_reset = Signal()
-
-        self.comb += [
-            self.songbird.mmcm_locked.eq(mmcm_locked),
-            mmcm_reset.eq(self.songbird.reset.i),
-        ]
-
-        clk_mult = 12 if rtio_clk_freq == 100e6 else 10
-        self.specials += [
-            Instance("MMCME2_BASE",
-                p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
-                i_CLKIN1=ClockSignal(),
-
-                i_RST=ResetSignal() | mmcm_reset,
-
-                i_CLKFBIN=mmcm_fb_in,
-                o_CLKFBOUT=mmcm_fb_out,
-                o_LOCKED=mmcm_locked,
-
-                # VCO @ 1.2/1.25 with MULT=12/10
-                p_CLKFBOUT_MULT_F=clk_mult, p_DIVCLK_DIVIDE=1,
-
-                # 600/625MHz
-                p_CLKOUT0_DIVIDE_F=2, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=mmcm_dds600,
-
-                # 200/208.33MHz
-                p_CLKOUT1_DIVIDE=6, p_CLKOUT1_PHASE=0.0, o_CLKOUT1=mmcm_dds200,
-
-            ),
-            Instance("BUFG", i_I=mmcm_dds200, o_O=self.cd_dds200.clk),
-            Instance("BUFG", i_I=mmcm_dds600, o_O=self.cd_dds600.clk),
-            Instance("BUFG", i_I=mmcm_fb_out, o_O=mmcm_fb_in),
-            AsyncResetSynchronizer(self.cd_dds200, ~mmcm_locked)
-        ]
-        platform.add_false_path_constraints(self.crg.cd_sys.clk, self.cd_dds200.clk)
 
         self.add_rtio(self.rtio_channels)
 

@@ -1,11 +1,57 @@
 from artiq.gateware import rtio
 from migen import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
+from migen.genlib.resetsync import AsyncResetSynchronizer
 from misoc.interconnect.csr import AutoCSR, CSRStorage
 from misoc.interconnect.stream import Endpoint
 from artiq.gateware.rtio import rtlink
 from misoc.cores.duc import PhasedAccuPipelined, CosSinGen, saturate
 from collections import namedtuple
+
+
+class DDSClocks(Module):
+    def __init__(self, rtio_clk_freq):
+        self.mmcm_locked = Signal()
+        self.mmcm_reset = Signal()
+
+        ###
+        
+        self.clock_domains.cd_dds200 = ClockDomain()
+        self.clock_domains.cd_dds600 = ClockDomain(reset_less=True)
+
+        mmcm_fb_in = Signal()
+        mmcm_fb_out = Signal()
+        mmcm_dds200 = Signal()
+        mmcm_dds600 = Signal()
+
+        clk_mult = 12 if rtio_clk_freq == 100e6 else 10
+        self.specials += [
+            Instance("MMCME2_BASE",
+                p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
+                i_CLKIN1=ClockSignal(),
+
+                i_RST=ResetSignal() | self.mmcm_reset,
+
+                i_CLKFBIN=mmcm_fb_in,
+                o_CLKFBOUT=mmcm_fb_out,
+                o_LOCKED=self.mmcm_locked,
+
+                # VCO @ 1.2/1.25 with MULT=12/10
+                p_CLKFBOUT_MULT_F=clk_mult, p_DIVCLK_DIVIDE=1,
+
+                # 600/625MHz
+                p_CLKOUT0_DIVIDE_F=2, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=mmcm_dds600,
+
+                # 200/208.33MHz
+                p_CLKOUT1_DIVIDE=6, p_CLKOUT1_PHASE=0.0, o_CLKOUT1=mmcm_dds200,
+
+            ),
+            Instance("BUFG", i_I=mmcm_dds200, o_O=self.cd_dds200.clk),
+            Instance("BUFG", i_I=mmcm_dds600, o_O=self.cd_dds600.clk),
+            Instance("BUFG", i_I=mmcm_fb_out, o_O=mmcm_fb_in),
+            AsyncResetSynchronizer(self.cd_dds200, ~self.mmcm_locked)
+        ]
+
 
 class SumAndScale(Module):
     def __init__(self, n_dds):
@@ -66,7 +112,9 @@ class DoubleDataRateDDS(Module):
             MultiReg(self.ptw, paccu.p, "dds200"),
         ]
         self.submodules += paccu
-        self.ddss = [ClockDomainsRenamer("dds200")(CosSinGen()) for _ in range(n)]
+        dds0 = ClockDomainsRenamer("dds200")(CosSinGen())
+    
+        self.ddss = [ClockDomainsRenamer("dds200")(CosSinGen(share_lut=dds0.lut)) for _ in range(1, n)]
 
         for idx, dds in enumerate(self.ddss):
             setattr(self.submodules, f"dds{idx}", dds)
@@ -81,7 +129,7 @@ class DoubleDataRateDDS(Module):
             ]
 
 
-class LTC2000DDSModule(Module, AutoCSR):
+class SongbirdDDSModule(Module, AutoCSR):
     """The line data is interpreted as:
         
         Bs:
@@ -193,7 +241,7 @@ class LTC2000DDSModule(Module, AutoCSR):
         ]
 
 
-class LTC2000DataSynth(Module, AutoCSR):
+class DataSynth(Module, AutoCSR):
     def __init__(self, n_dds, n_phases):
         self.amplitudes = Array([[Signal(16, name=f"amplitudes_{i}_{j}") for i in range(n_phases)] for j in range(n_dds)])
         self.data_in = Array([[Signal(16, name=f"data_in_{i}_{j}") for i in range(n_phases)] for j in range(n_dds)])
@@ -219,11 +267,10 @@ class Songbird(Module, AutoCSR):
         n_dds = 4
         n_phases = 24
 
-        self.mmcm_locked = Signal()
+        self.submodules.dds_clock = DDSClocks(clk_freq)
+        self.submodules.datasynth = DataSynth(n_dds, n_phases)
 
-        self.submodules.ltc2000datasynth = LTC2000DataSynth(n_dds, n_phases)
-
-        self.tones = [LTC2000DDSModule() for _ in range(n_dds)]
+        self.tones = [SongbirdDDSModule() for _ in range(n_dds)]
         for idx, tone in enumerate(self.tones):
             setattr(self.submodules, f"tone{idx}", tone)
 
@@ -240,7 +287,7 @@ class Songbird(Module, AutoCSR):
         clear = Signal(n_dds)
         self.submodules.reset = PulseSynchronizer("rio", "dds200")
 
-        self.comb += self.ltc2000.reset.eq(self.reset.o | ~self.mmcm_locked)
+        self.comb += self.ltc2000.reset.eq(self.reset.o | ~self.dds_clock.mmcm_locked)
 
         clear_iface = rtlink.Interface(rtlink.OInterface(
             data_width=n_dds,
@@ -259,7 +306,8 @@ class Songbird(Module, AutoCSR):
 
         self.sync.rio += [
             If(reset_iface.o.stb,
-                self.reset.i.eq(reset_iface.o.data)
+                self.reset.i.eq(reset_iface.o.data),
+                self.dds_clock.mmcm_reset.eq(reset_iface.o.data)
             )
         ]
         self.phys.append(Phy(reset_iface, [], [], 'reset_iface'))
@@ -305,17 +353,17 @@ class Songbird(Module, AutoCSR):
 
         for i in range(n_phases):
             # summers are in dds200 clock domain
-            self.comb += self.ltc2000.data[i*16:(i+1)*16].eq(self.ltc2000datasynth.summers[i].output)
+            self.comb += self.ltc2000.data[i*16:(i+1)*16].eq(self.datasynth.summers[i].output)
             for j in range(n_dds):
                 self.comb += [
-                    self.ltc2000datasynth.data_in[j][i].eq(self.tones[j].dds.dout2x[i*16:(i+1)*16]),
-                    self.ltc2000datasynth.amplitudes[j][i].eq(self.tones[j].amplitude)
+                    self.datasynth.data_in[j][i].eq(self.tones[j].dds.dout2x[i*16:(i+1)*16]),
+                    self.datasynth.amplitudes[j][i].eq(self.tones[j].amplitude)
                 ]
 
 
 class Ltc2000phy(Module, AutoCSR):
     def __init__(self, pads, clk_freq=125e6):
-        self.data = Signal(16*24) # 16 bits per channel, 24 phases input at sys clock rate
+        self.data = Signal(16*24) # 16 bits per channel, 24 phases input
 
         self.reset = Signal()
         self.counter = Signal()
