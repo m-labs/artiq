@@ -1,6 +1,6 @@
 from migen import *
 
-from misoc.cores.spi2 import SPIMachine, SPIInterfaceXC7Diff, SPIInterface
+from misoc.cores.spi2 import SPIMachine, SPIInterfaceXC7, SPIInterface
 from artiq.gateware.rtio import rtlink
 
 
@@ -27,7 +27,7 @@ class SPIMaster(Module):
             (1, 1): idle high, output on falling, input on rising
             There is never a clk edge during a cs edge.
         1 lsb_first: LSB is the first bit on the wire (reset=0)
-        1 half_duplex: 3-wire SPI, in/out on mosi (reset=0)
+        1 mosi_out_disable: 3-wire SPI, disable mosi output (reset=0)
         5 length: 1-32 bits = length + 1 (reset=0)
         3 padding
         8 div: counter load value to divide this module's clock
@@ -36,24 +36,7 @@ class SPIMaster(Module):
         8 cs: active high bit pattern of chip selects (reset=0)
     """
     def __init__(self, pads, pads_n=None):
-        to_rio_phy = ClockDomainsRenamer("rio_phy")
-        if pads_n is None:
-            interface = SPIInterface(pads)
-        else:
-            interface = SPIInterfaceXC7Diff(pads, pads_n)
-        interface = to_rio_phy(interface)
-        spi = to_rio_phy(SPIMachine(data_width=32, div_width=8))
-        self.submodules += interface, spi
-
-        self.rtlink = rtlink.Interface(
-                rtlink.OInterface(len(spi.reg.pdo), address_width=1,
-                    enable_replace=False),
-                rtlink.IInterface(len(spi.reg.pdi), timestamped=False)
-        )
-
-        ###
-
-        config = Record([
+        layout = [
             ("offline", 1),
             ("end", 1),
             ("input", 1),
@@ -66,12 +49,35 @@ class SPIMaster(Module):
             ("padding", 3),
             ("div", 8),
             ("cs", 8),
-        ])
-        assert len(config) == len(spi.reg.pdo) == len(spi.reg.pdi) == 32
+        ]
+
+        config = Record(layout)
 
         config.offline.reset = 1
         config.end.reset = 1
+
+        to_rio_phy = ClockDomainsRenamer("rio_phy")
+        spi = to_rio_phy(SPIMachine(data_width=32, div_width=8))
+        assert len(config) == len(spi.reg.pdo) == len(spi.reg.pdi) == 32
+
+        if hasattr(pads, "mosi"):
+            spi.reg.sdo.attr.add("iob")
+
+        interface = to_rio_phy(SPIInterfaceXC7(pads, pads_n, sdo=spi.reg.sdo))
+        self.submodules += interface, spi
+
+        self.rtlink = rtlink.Interface(
+                rtlink.OInterface(len(spi.reg.pdo), address_width=1,
+                    enable_replace=False),
+                rtlink.IInterface(len(spi.reg.pdi), timestamped=False)
+        )
+
+        ###
+
         read = Signal()
+
+        data = Record(layout)
+        self.comb += data.raw_bits().eq(self.rtlink.o.data)
 
         self.sync.rio_phy += [
             If(self.rtlink.i.stb,
@@ -79,7 +85,7 @@ class SPIMaster(Module):
             ),
             If(self.rtlink.o.stb & spi.writable,
                 If(self.rtlink.o.address,
-                    config.raw_bits().eq(self.rtlink.o.data)
+                    config.raw_bits().eq(data.raw_bits()),
                 ).Else(
                     read.eq(config.input)
                 )
@@ -93,18 +99,22 @@ class SPIMaster(Module):
                 spi.clk_phase.eq(config.clk_phase),
                 spi.reg.lsb_first.eq(config.lsb_first),
 
-                interface.half_duplex.eq(config.half_duplex),
                 interface.cs.eq(config.cs),
                 interface.cs_polarity.eq(Replicate(
                     config.cs_polarity, len(interface.cs_polarity))),
                 interface.clk_polarity.eq(config.clk_polarity),
-                interface.offline.eq(config.offline),
+                If(self.rtlink.o.stb & spi.writable & self.rtlink.o.address,
+                    interface.half_duplex_next.eq(data.half_duplex),
+                    interface.offline_next.eq(data.offline),
+                ).Else(
+                    interface.half_duplex_next.eq(config.half_duplex),
+                    interface.offline_next.eq(config.offline),
+                ),
                 interface.cs_next.eq(spi.cs_next),
                 interface.clk_next.eq(spi.clk_next),
                 interface.ce.eq(spi.ce),
                 interface.sample.eq(spi.reg.sample),
                 spi.reg.sdi.eq(interface.sdi),
-                interface.sdo.eq(spi.reg.sdo),
 
                 spi.load.eq(self.rtlink.o.stb & spi.writable &
                     ~self.rtlink.o.address),
