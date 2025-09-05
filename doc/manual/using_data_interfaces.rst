@@ -141,14 +141,14 @@ Respectively, in the controller command, indicate the server key, server certifi
 
 Be careful: the paths given in ``ssl-args`` will be used **both** by the controller manager  **and** by any experiments making RPCs to this controller. Depending on where your controllers are hosted, these may be running on two entirely different machines.
 
-One solution is to standardize a path and naming scheme so that you can guarantee the key and certificate files will be found at the same location on both machines. Alternatively, to make path management easier, a template variable ``{SSL_DIR}`` is supported. It can be used to substitute paths, for example as follows: ::
+One solution is to standardize a path and naming scheme so that you can guarantee the key and certificate files will be found at the same location on both machines. Alternatively, to make path management easier, a template variable ``{ARTIQ_SSL_DIR}`` is supported. It can be used to substitute paths, for example as follows: ::
 
     "ssl_args": {
-        "client_cert": "{SSL_DIR}/client.pem",
-        "client_key": "{SSL_DIR}/client.key",
-        "server_cert": "{SSL_DIR}/server.pem"
+        "client_cert": "{ARTIQ_SSL_DIR}/client.pem",
+        "client_key": "{ARTIQ_SSL_DIR}/client.key",
+        "server_cert": "{ARTIQ_SSL_DIR}/server.pem"
     }
-    "command": "python path/to/aqctl_hello.py -p {port} --bind {bind} --ssl {SSL_DIR}/server.pem {SSL_DIR}/server.key {SSL_DIR}/client.pem"
+    "command": "python path/to/aqctl_hello.py -p {port} --bind {bind} --ssl {ARTIQ_SSL_DIR}/server.pem {ARTIQ_SSL_DIR}/server.key {ARTIQ_SSL_DIR}/client.pem"
 
 This variable can be set independently on each machine, removing the need for a unitary standardized path.
 
@@ -156,18 +156,18 @@ This variable can be set independently on each machine, removing the need for a 
 
     Setting a shell variable can be done very simply in the command line: ::
 
-        $ export SSL_DIR="path/to/ssl"
+        $ export ARTIQ_SSL_DIR="path/to/ssl"
         $ artiq_ctlmgr
 
     However, this will reset if the shell is closed and reopened. Consequently, it is generally more convenient to set the value permanently in some kind of shell configuration. Most commonly (for both MSYS2 and Linux) you will be using Bash, which allows you to set variables in a file called ``.bashrc``. Find this file in your system and add the line: ::
 
-        export SSL_DIR="path/to/ssl"
+        export ARTIQ_SSL_DIR="path/to/ssl"
 
     Close and reopen shells for changes to apply. You can check whether the variable is set correctly with: ::
 
-        $ echo $SSL_DIR
+        $ echo $ARTIQ_SSL_DIR
 
-    Alternatively, if you are using Nix flakes, you can also add ``export SSL_DIR="path/to/ssl"`` to your flake's ``shellHook`` for the same effect. Search ``shellHook`` in the main ARTIQ flake to see examples of variables being set there.
+    Alternatively, if you are using Nix flakes, you can also add ``export ARTIQ_SSL_DIR="path/to/ssl"`` to your flake's ``shellHook`` for the same effect. Search ``shellHook`` in the main ARTIQ flake to see examples of variables being set there.
 
 .. _interactivity-moninj:
 
