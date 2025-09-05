@@ -127,9 +127,9 @@ Controllers with SSL
 
 Encryption for communications with controllers is optional and managed through the :ref:`device database <device-db>`. The controllers in question must support communication over SSL. For each controller, generate two keys (a client and a server key), with certificates, using the process described in :ref:`mgmt-ssl`. Note carefully that in this context, the "server key" belongs to the controller, and the "client key" should be used to make requests (that is, on one hand by the controller manager, on the other hand by experiments themselves).
 
-In the device database, indicate paths to the client key, client certificate, and server certificate in the ``ssl_args`` field as follows: ::
+In the device database, indicate paths to the client key, client certificate, and server certificate in the ``simple_ssl_config`` field as follows: ::
 
-    "ssl_args": {
+    "simple_ssl_config": {
         "client_cert": "path/to/client.pem",
         "client_key": "path/to/client.key",
         "server_cert": "path/to/server.pem"
@@ -139,11 +139,11 @@ Respectively, in the controller command, indicate the server key, server certifi
 
     "command": "python path/to/aqctl_hello.py -p {port} --bind {bind} --ssl path/to/server.pem path/to/server.key path/to/client.pem"
 
-Be careful: the paths given in ``ssl-args`` will be used **both** by the controller manager  **and** by any experiments making RPCs to this controller. Depending on where your controllers are hosted, these may be running on two entirely different machines.
+Be careful: the paths given in ``simple_ssl_config`` will be used **both** by the controller manager  **and** by any experiments making RPCs to this controller. Depending on where your controllers are hosted, these may be running on two entirely different machines.
 
 One solution is to standardize a path and naming scheme so that you can guarantee the key and certificate files will be found at the same location on both machines. Alternatively, to make path management easier, a template variable ``{ARTIQ_SSL_DIR}`` is supported. It can be used to substitute paths, for example as follows: ::
 
-    "ssl_args": {
+    "simple_ssl_config": {
         "client_cert": "{ARTIQ_SSL_DIR}/client.pem",
         "client_key": "{ARTIQ_SSL_DIR}/client.key",
         "server_cert": "{ARTIQ_SSL_DIR}/server.pem"
