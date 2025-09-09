@@ -24,19 +24,22 @@ N_DDS = 4
 @portable
 def volt_to_mu(volt: TFloat, width=16) -> TInt32:
     """Return the equivalent DAC machine unit value.
+
     Adjust register width accordingly.
     Valid input range is from -1 to 1 - LSB.
+
+    :param volt: The voltage to convert.
+    :param width: The bit width of the DAC.
     """
     return round((1 << width) * (volt / 2.0)) & ((1 << width) - 1)
 
 
 class Songbird:
-    """Songbird LTC2000 configuration interface.
-
-    Available as a DC2303A-A FMC connected to the EFC.
+    """Songbird and LTC2000 configuration, trigger and clear interfaces.
 
     :param spi_device: SPI bus device name.
-    :param base_channel: Base RTIO channel number.
+    :param channel: Base RTIO channel number.
+    :param core_device: Core device name (default: "core").
     """
     B_TRIG_OFFSET = 0
     C_TRIG_OFFSET = 1
@@ -61,6 +64,8 @@ class Songbird:
     @portable
     def frequency_to_mu(self, frequency: TFloat) -> TInt32:
         """Convert frequency in Hz to a 32-bit frequency tuning word (FTW)
+
+        :param frequency: Frequency in Hz.
         """
         return int32(round(frequency * (2.0**32) / self.dds_freq))
 
@@ -80,11 +85,9 @@ class Songbird:
         delay(10*ms)  # wait for LTC2000 to be ready after reset
 
         # configure the LTC2000
-
         self.write_reg(LTC2K_REG_RESET, 0x01)  # Write 1 to the reset bit
         delay(10*ms)  # Wait for reset to complete
         # reset clears automatically after ~CS is deasserted
-
         self.write_reg(LTC2K_REG_CLK, 0x00)
         self.write_reg(LTC2K_REG_DCKI, 0x01)  # enable DCKI
         self.write_reg(LTC2K_REG_PORT, 0x03)  # enable Port A and B
@@ -109,6 +112,11 @@ class Songbird:
 
     @kernel
     def write_reg(self, addr: TInt32, data: TInt32):
+        """Write to an LTC2000 register.
+
+        :param addr: Register address.
+        :param data: Data to write.
+        """
         self.bus.set_config_mu(self.spi_config, 32, 256, 0b0001)
         delay(20*us)
         self.bus.write((addr << 24) | (data << 16))
@@ -117,6 +125,11 @@ class Songbird:
 
     @kernel
     def read_reg(self, addr: TInt32) -> TInt32:
+        """Read from an LTC2000 register.
+
+        :param addr: Register address.
+        :return: The 8-bit value read from the register.
+        """
         self.bus.set_config_mu(self.spi_config | SPI_INPUT, 32, 256, 0b0001)
         delay(2*us)
         self.bus.write((1 << 31) | (addr << 24))
@@ -136,27 +149,27 @@ class Songbird:
         This allows atomic updates across multiple channels.
 
         This method updates both b and c coefficients. See :meth:`trigger_b`
-        and :meth:`trigger_c` for separate updates. In the :class:DDS class
+        and :meth:`trigger_c` for separate updates. In the :class:`DDS` class
         you can also find `trigger` methods that will apply to that channel.
 
         Each bit corresponds to a Songbird waveform generator core. Setting
         bits in `channels_mask` commits the pending coefficient updates to
         the corresponding DDS channels synchronously.
 
-        **Example 1:**
-            # Configure waveforms for dds0
+        **Examples**
+
+        Example 1::
+
+            # Configure and apply waveforms for dds0
             self.songbird0_dds0.set_waveform(...)
+            self.songbird0_dds0.trigger()
 
-            # Apply the configuration
-            self.songbird0_dds0.trigger()  # Trigger amplitude and phase spline for channel 0
+        Example 2::
 
-        **Example 2:**
-            # Configure waveforms for dds0 and dds1
+            # Configure and apply waveforms for dds0 and dds1 simultaneously
             self.songbird0_dds0.set_waveform(...)
             self.songbird0_dds1.set_waveform(...)
-
-            # Trigger amplitude and phase spline for both channels simultaneously
-            self.songbird0_config.trigger()
+            self.songbird0_config.trigger(0b11)
 
         :param channels_mask: Coefficient update trigger bits. The MSB corresponds
             to Channel 4, LSB corresponds to Channel 0.
@@ -226,24 +239,9 @@ class Songbird:
 class DDS:
     """Songbird Core DDS spline.
 
-    A Songbird channel generates a composite waveform `w(t)` according to:
-
-    ```
-    w(t) = b(t) * cos(c(t))
-    ```
-
-    and `t` corresponds to time in seconds.
-    This class controls the cubic spline `b(t)` and quadratic spline `c(t)`,
-    in which
-
-    .. math::
-        b(t) &= q_0 + q_1t + \\frac{q_2t^2}{2} + \\frac{q_3t^3}{6}
-
-        c(t) &= r_0 + r_1t + \\frac{r_2t^2}{2}
-
-    `b(t)` is in volts, `c(t)` is in number of turns.
-
     :param channel: RTIO channel number of this DC-bias spline interface.
+    :param config_device: Songbird config device name.
+    :param dds_no: DDS channel number.
     :param core_device: Core device name.
     """
     kernel_invariants = {"config", "core", "b_channel", "c_channel", "dds_no", "b_target_o", "c_target_o"}
@@ -277,20 +275,38 @@ class DDS:
         """Clears the output of the DDS channel.
 
         :param clear: Clear signal. True disables the output.
+            Defaults to True.
         """
-        self.config.clear_channel(self.dds_n, clear)
+        self.config.clear_channel(self.dds_no, clear)
 
     @kernel
     def set_waveform(self, ampl_offset: TInt32, damp: TInt32, ddamp: TInt64, dddamp: TInt64,
             phase_offset: TInt32, ftw: TInt32, chirp: TInt32, shift: TInt32 = 0):
         """Set the DDS spline waveform.
 
+        A Songbird channel generates a composite waveform `w(t)` according to:
+
+        .. math::
+            w(t) = b(t) * cos(c(t))
+
+        and `t` corresponds to time in seconds.
+        This class controls the cubic spline `b(t)` and quadratic spline `c(t)`,
+        in which
+
+        .. math::
+            b(t) &= q_0 + q_1t + \\frac{q_2t^2}{2} + \\frac{q_3t^3}{6}
+
+            c(t) &= r_0 + r_1t + \\frac{r_2t^2}{2}
+
+        `b(t)` is in volts, `c(t)` is in number of turns.
+
         The shift parameter controls the spline update rate:
-        - shift = 0: normal rate (no division)
-        - shift = 1: half rate (2x longer duration)
-        - shift = 2: quarter rate (4x longer duration)
-        - ...
-        - shift = 15: 1/32768 rate (32768x longer duration)
+
+        * ``shift = 0``: normal rate (no division)
+        * ``shift = 1``: half rate (2x longer duration)
+        * ``shift = 2``: quarter rate (4x longer duration)
+        * ...
+        * ``shift = 15``: 1/32768 rate (32768x longer duration)
 
         Given `b(t)` and `c(t)` as defined in :class:`DDS`, the coefficients
         should be configured by the following formulae.
@@ -316,10 +332,11 @@ class DDS:
         units. Use :meth:`volt_to_mu` to convert from volts.
 
         The coefficients for the phase/frequency spline `c(t)` are:
-        - `c0`: initial phase offset, 18-bit word.
-        - `c1`: initial frequency, as a 32-bit frequency tuning word (FTW).
-          Use :meth:`frequency_to_mu` to convert from Hz.
-        - `c2`: frequency chirp rate, as the change in FTW per spline update tick.
+
+        * ``phase_offset``: initial phase offset, 18-bit word.
+        * ``ftw``: initial frequency, as a 32-bit frequency tuning word (FTW).
+          Use :meth:`Songbird.frequency_to_mu` to convert from Hz.
+        * ``chirp``: frequency chirp rate, as the change in FTW per spline update tick.
           A spline update tick is `(8 ns) * (1 << shift)`.
 
         :math:`b_0`, :math:`b_1`, :math:`b_2` and :math:`b_3` are 16, 32, 48
@@ -327,24 +344,25 @@ class DDS:
         machine unit conversion. :math:`c_0`, :math:`c_1` and :math:`c_2` are
         18, 32 and 32 bits in width respectively.
 
-        Note: The waveform is not updated to the LTC2000 Core until
-        triggered. See :class:`Trigger` for the update triggering mechanism.
+        .. note::
+            The waveform is not updated to the Songbird Core until triggered.
+            See :class:`Trigger` for the update triggering mechanism.
 
         **Examples:**
-        Constant Amplitude Sine Wave: b(t) = 1.0V, c(t) = f₀t
+        Constant Amplitude Sine Wave: :math:`b(t) = 1.0V`, :math:`c(t) = f_0t`::
 
             dds.set_waveform(ampl_offset=volt_to_mu(1.0), damp=0, ddamp=0, dddamp=0,
-                             phase_offset=0, ftw=dds.frequency_to_mu(1e6), chirp=0, shift=0)
+                phase_offset=0, ftw=songbird.frequency_to_mu(1e6), chirp=0)
 
-        Linear Frequency Sweep: chirped sine, constant amplitude
+        Linear Frequency Sweep: chirped sine, constant amplitude::
 
             dds.set_waveform(ampl_offset=volt_to_mu(0.5), damp=0, ddamp=0, dddamp=0,
-                             phase_offset=0, ftw=dds.frequency_to_mu(10e6), chirp=chirp_rate_mu, shift=3)
+                phase_offset=0, ftw=songbird.frequency_to_mu(10e6), chirp=chirp_rate_mu)
 
-        Amplitude Modulated Signal: b(t) = A₀ + A₁t (linear amplitude ramp)
+        Amplitude Modulated Signal: :math:`b(t) = A_0 + A_1t` (linear amplitude ramp)::
 
-            dds.set_waveform(ampl_offset=base_amplitude_mu, damp=ramp_rate_mu, ddamp=0, dddamp=0,
-                             phase_offset=0, ftw=carrier_freq_mu, chirp=0, shift=1)
+            dds.set_waveform(ampl_offset=volt_to_mu(0.1), damp=ramp_rate_mu, 
+                ddamp=0, dddamp=0, phase_offset=0, ftw=carrier_freq_mu, chirp=0)
 
         :param ampl_offset: The :math:`b_0` (amplitude offset) coefficient in machine units.
         :param damp: The :math:`b_1` coefficient in machine units.
@@ -417,17 +435,3 @@ class DDS:
         for i in range(len(c_coef_words)):
             rtio_output(self.c_target_o | i, c_coef_words[i])
             delay_mu(int64(self.core.ref_multiplier))
-
-
-class Clear:
-    """Songbird Core clear signal.
-
-    :param channel: RTIO channel number of the clear interface.
-    :param core_device: Core device name.
-    """
-    kernel_invariants = {"core", "channel", "target_o"}
-
-    def __init__(self, dmgr, channel, core_device="core"):
-        self.core = dmgr.get(core_device)
-        self.channel = channel
-        self.target_o = channel << 8
