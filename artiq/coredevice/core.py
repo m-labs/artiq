@@ -39,7 +39,6 @@ nac3_builtins = {
     "list": list,
     "tuple": tuple,
     "Exception": Exception,
-
     "staticmethod": staticmethod,
 
     "types": {
@@ -49,6 +48,7 @@ nac3_builtins = {
 
     "typing": {
         "_GenericAlias": _GenericAlias,
+        "Generic": Generic,
         "TypeVar": TypeVar,
     },
 
@@ -71,7 +71,7 @@ nac3_builtins = {
         "virtual": virtual,
         "Option": Option,
 
-        # Decorators
+        # Decorator functions
         "compile": compile,
         "extern": extern,
         "kernel": kernel,
