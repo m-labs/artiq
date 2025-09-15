@@ -17,21 +17,6 @@ pub fn clear_log() -> Result<(), ()> {
     }).map_err(|()| error!("error on clearing log buffer"))
 }
 
-pub fn byte_to_level_filter(level_byte: u8) -> Result<LevelFilter, ()> {
-    Ok(match level_byte {
-        0 => LevelFilter::Off,
-        1 => LevelFilter::Error,
-        2 => LevelFilter::Warn,
-        3 => LevelFilter::Info,
-        4 => LevelFilter::Debug,
-        5 => LevelFilter::Trace,
-        lv => {
-            error!("unknown log level: {}", lv);
-            return Err(());
-        }
-    })
-}
-
 pub struct Manager {
     config_payload: Cursor<Vec<u8>>,
     image_payload: Cursor<Vec<u8>>,
@@ -114,17 +99,15 @@ impl Manager {
                 }
             };
 
-            if key == "log_level" {
-                info!("Changing log level to {}", max_level);
-                BufferLogger::with(|logger| {
-                    logger.set_buffer_log_level(max_level)
-                });
-            } else {
-                info!("Changing UART log level to {}", max_level);
-                BufferLogger::with(|logger| {
-                    logger.set_uart_log_level(max_level)
-                });
-            }
+            BufferLogger::with(|logger| {
+                if key == "log_level" {
+                    logger.set_buffer_log_level(max_level);
+                    log::info!("changing log level to {}", max_level);
+                } else {
+                    logger.set_uart_log_level(max_level);
+                    log::info!("changing UART log level to {}", max_level);
+                }
+            })
         };
         
         let succeeded = config::write(&key, &value).map_err(|err| {
