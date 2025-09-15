@@ -70,6 +70,7 @@ ltc2000_spi = [
         Subsignal("miso", Pins("fmc0:HA21_P"), IOStandard("LVCMOS25"), Misc("PULLUP=TRUE"))
     )
 ]
+
 shuttler_io = [
     ('dac_spi', 0,
         Subsignal('clk', Pins('fmc0:HB16_N')),
@@ -349,7 +350,7 @@ def main():
                         help="EFC hardware revision")
     parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
-    parser.add_argument("--drtio100mhz", action="store_true",
+    parser.add_argument("--rtio100mhz", action="store_true",
                         help="Set RTIO clock frequency to 100 MHz (default is 125 MHz)")
 
     subparsers = parser.add_subparsers(dest="variant", help="Variant to build", required=True)
@@ -367,7 +368,7 @@ def main():
     argdict["efc_hw_rev"] = args.efc_hw_rev
     if args.variant == "shuttler":
         argdict["afe_hw_rev"] = args.afe_hw_rev
-    argdict["rtio_clk_freq"] = 100e6 if args.drtio100mhz else 125e6
+    argdict["rtio_clk_freq"] = 100e6 if args.rtio100mhz else 125e6
     variant = args.variant.lower()
 
     cls = VARIANTS[variant]

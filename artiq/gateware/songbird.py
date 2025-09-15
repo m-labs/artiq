@@ -1,11 +1,12 @@
-from artiq.gateware import rtio
+from collections import namedtuple
 from migen import *
+from misoc.cores.duc import PhasedAccuPipelined, CosSinGen, saturate
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from misoc.interconnect.csr import AutoCSR, CSRStorage
 from misoc.interconnect.stream import Endpoint
 from artiq.gateware.rtio import rtlink
-from misoc.cores.duc import PhasedAccuPipelined, CosSinGen, saturate
+from artiq.gateware import rtio
 from collections import namedtuple
 
 

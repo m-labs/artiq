@@ -1,8 +1,8 @@
 from artiq.coredevice.rtio import rtio_output
-from artiq.experiment import *
 from artiq.coredevice.spi2 import SPI_END, SPI_INPUT
-from artiq.language.core import kernel, delay
-from artiq.language.units import us
+from artiq.language.core import kernel, delay, delay_mu, portable
+from artiq.language.types import TFloat, TInt32, TInt64
+from artiq.language.units import ms, us
 
 
 LTC2K_REG_RESET = 0x01  # Reset, power down controls
@@ -25,8 +25,7 @@ N_DDS = 4
 def volt_to_mu(volt: TFloat, width=16) -> TInt32:
     """Return the equivalent DAC machine unit value.
 
-    Adjust register width accordingly.
-    Valid input range is from -1 to 1 - LSB.
+    Valid input range is from -1.0 to 1.0.
 
     :param volt: The voltage to convert.
     :param width: The bit width of the DAC.
@@ -54,7 +53,7 @@ class Songbird:
         elif self.core.ref_period == 1e-9:
             self.dds_freq = 2.5e9
         else:
-            raise ValueError("Core frequency not supported by Songbird")
+            raise ValueError("RTIO reference period not supported by Songbird")
         self.target_clear_o = channel << 8
         self.target_reset_o = (channel + 1) << 8
         self.target_trigger_o = (channel + 2) << 8
@@ -63,25 +62,23 @@ class Songbird:
 
     @portable
     def frequency_to_mu(self, frequency: TFloat) -> TInt32:
-        """Convert frequency in Hz to a 32-bit frequency tuning word (FTW)
+        """Convert frequency in Hz to a 32-bit frequency tuning word (FTW).
 
         :param frequency: Frequency in Hz.
         """
         return int32(round(frequency * (2.0**32) / self.dds_freq))
 
     @kernel
-    def init(self, blind=False):
+    def init(self):
         """Initializes the LTC2000 DAC.
 
         Sets up the DAC with sensible defaults.
         For more information, see the LTC2000 datasheet.
-
-        :param blind: If true, skips verifying the configuration.
         """
         # pulse the hardware reset
-        self.reset(1)
-        delay(1*ms)
-        self.reset(0)
+        self.reset(True)
+        delay(10*us)
+        self.reset(False)
         delay(10*ms)  # wait for LTC2000 to be ready after reset
 
         # configure the LTC2000
@@ -101,14 +98,13 @@ class Songbird:
         self.write_reg(LTC2K_REG_PATTERN, 0x00)  # disable pattern generation
         self.write_reg(LTC2K_REG_PATTERN, 0x00)
 
-        if not blind:
-            # verify the configuration
-            if self.read_reg(LTC2K_REG_RESET) != 0x00:
-                raise ValueError("LTC2000 reset not deasserted")
-            if self.read_reg(LTC2K_REG_CLK) & 0x02 == 0:
-                raise ValueError("LTC2000 clock not present")
-            if self.read_reg(LTC2K_REG_DCKI) & 0x02 == 0:
-                raise ValueError("LTC2000 DCKI not present")
+        # verify the configuration
+        if self.read_reg(LTC2K_REG_RESET) != 0x00:
+            raise ValueError("LTC2000 reset not deasserted")
+        if self.read_reg(LTC2K_REG_CLK) & 0x02 == 0:
+            raise ValueError("LTC2000 clock not present")
+        if self.read_reg(LTC2K_REG_DCKI) & 0x02 == 0:
+            raise ValueError("LTC2000 DCKI not present")
 
     @kernel
     def write_reg(self, addr: TInt32, data: TInt32):
@@ -142,18 +138,18 @@ class Songbird:
 
     @kernel
     def trigger(self, channels_mask: TInt32):
-        """Triggers coefficient update of Songbird Core channel(s).
+        """Triggers coefficient update of Songbird PHY channel(s).
 
-        The waveform configuration is not applied to the Songbird Core until
+        The waveform configuration is not applied to the Songbird PHY until
         explicitly triggered.
         This allows atomic updates across multiple channels.
 
         This method updates both b and c coefficients. See :meth:`trigger_b`
         and :meth:`trigger_c` for separate updates. In the :class:`DDS` class
-        you can also find `trigger` methods that will apply to that channel.
+        you can also find :meth:`trigger` method that will apply to that channel.
 
         Each bit corresponds to a Songbird waveform generator core. Setting
-        bits in `channels_mask` commits the pending coefficient updates to
+        bits in ``channels_mask`` commits the pending coefficient updates to
         the corresponding DDS channels synchronously.
 
         **Examples**
@@ -172,7 +168,7 @@ class Songbird:
             self.songbird0_config.trigger(0b11)
 
         :param channels_mask: Coefficient update trigger bits. The MSB corresponds
-            to Channel 4, LSB corresponds to Channel 0.
+            to Channel 3, LSB corresponds to Channel 0.
         """
         rtio_output(self.target_trigger_o | self.B_TRIG_OFFSET, channels_mask)
         delay_mu(int64(self.core.ref_multiplier))
@@ -185,7 +181,8 @@ class Songbird:
         This method updates only b coefficients. See :meth:`trigger`
         and :meth:`trigger_c` for other update options.
 
-        :param channels_mask: Coefficient update trigger bits.
+        :param channels_mask: Coefficient update trigger bits. The MSB corresponds
+            to Channel 3, LSB corresponds to Channel 0.
         """
         rtio_output(self.target_trigger_o | self.B_TRIG_OFFSET, channels_mask)
 
@@ -196,17 +193,19 @@ class Songbird:
         This method updates only c coefficients. See :meth:`trigger`
         and :meth:`trigger_b` for other update options.
 
-        :param channels_mask: Coefficient update trigger bits.
+        :param channels_mask: Coefficient update trigger bits. The MSB corresponds
+            to Channel 3, LSB corresponds to Channel 0.
         """
         rtio_output(self.target_trigger_o | self.C_TRIG_OFFSET, channels_mask)
 
     @kernel
     def clear(self, clear_out: TInt32):
-        """Clears the Songbird Core channel(s).
+        """Clears the Songbird Core channel(s). Clearing essentially
+        disables the output of the channel.
 
         Each bit corresponds to a Songbird waveform generator core. Setting
-        ``clear_out`` bits clears the corresponding channels in the Shuttler Core
-        synchronously.
+        ``clear_out`` bits disables the output of the corresponding channels 
+        in the Songbird Core synchronously. 
 
         :param clear_out: Clear signal bits. The MSB corresponds
             to Channel 3, LSB corresponds to Channel 0.
@@ -216,10 +215,11 @@ class Songbird:
 
     @kernel
     def clear_channel(self, channel: TInt32, clear: bool):
-        """Clears a specified Songbird Core channel.
+        """Clear disables the output of a specified Songbird Core channel.
+        See also :meth:`clear` for more information.
 
         :param channel: Channel number.
-        :param clear: Clear signal.
+        :param clear: Disable bit. True disables the output.
         """
         if clear:
             self.clear_state |= 1 << channel
@@ -228,12 +228,13 @@ class Songbird:
         rtio_output(self.target_clear_o, self.clear_state)
 
     @kernel
-    def reset(self, reset: TInt32):
+    def reset(self, reset: bool):
         """Resets the Songbird DAC.
 
         :param reset: Reset signal.
         """
-        rtio_output(self.target_reset_o, reset)
+        reset_bit = 1 if reset else 0
+        rtio_output(self.target_reset_o, reset_bit)
 
 
 class DDS:
@@ -262,7 +263,7 @@ class DDS:
 
     @kernel
     def trigger_b(self):
-        """Triggers the update of the b coeff   ·icients of the channel."""
+        """Triggers the update of the b coefficients of the channel."""
         self.config.trigger_b(1 << self.dds_no)
 
     @kernel
@@ -272,10 +273,9 @@ class DDS:
 
     @kernel
     def clear(self, clear=True):
-        """Clears the output of the DDS channel.
+        """Clears the output of the Songbird core channel. That disables the output.
 
-        :param clear: Clear signal. True disables the output.
-            Defaults to True.
+        :param clear: Disable bit.
         """
         self.config.clear_channel(self.dds_no, clear)
 
@@ -289,7 +289,7 @@ class DDS:
         .. math::
             w(t) = b(t) * cos(c(t))
 
-        and `t` corresponds to time in seconds.
+        and where `t` corresponds to time in seconds.
         This class controls the cubic spline `b(t)` and quadratic spline `c(t)`,
         in which
 
@@ -346,7 +346,7 @@ class DDS:
 
         .. note::
             The waveform is not updated to the Songbird Core until triggered.
-            See :class:`Trigger` for the update triggering mechanism.
+            See :meth:`trigger` for the update triggering mechanism.
 
         **Examples:**
         Constant Amplitude Sine Wave: :math:`b(t) = 1.0V`, :math:`c(t) = f_0t`::
@@ -383,7 +383,7 @@ class DDS:
 
         As with :meth:`set_waveform`, the changes must be triggered
         before they are applied in the LTC2000 core.
-        See :class:`Trigger` for the update triggering mechanism.
+        See :meth:`trigger` for the update triggering mechanism.
 
         :param ampl_offset: The :math:`b_0` coefficient in machine units.
         :param damp: The :math:`b_1` coefficient in machine units.
@@ -410,7 +410,7 @@ class DDS:
     @kernel
     def set_phase(self, phase_offset: TInt32, ftw: TInt32, chirp: TInt32, shift: TInt32 = 0):
         """Controls the phase, FTW, chirp, and shift of the waveform.
-            See :meth:`set_waveform` for more details.
+        See :meth:`set_waveform` for more details.
 
         :param phase_offset: The :math:`c_0` coefficient in machine units.
         :param ftw: The :math:`c_1` coefficient in machine units.
