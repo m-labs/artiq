@@ -13,8 +13,6 @@ class Request(Enum):
     GetLog = 1
     ClearLog = 2
     PullLog = 7
-    SetLogFilter = 3
-    SetUartLogFilter = 6
 
     ConfigRead = 12
     ConfigWrite = 13
@@ -38,15 +36,6 @@ class Reply(Enum):
     ConfigData = 7
 
     RebootImminent = 3
-
-
-class LogLevel(Enum):
-    OFF = 0
-    ERROR = 1
-    WARN = 2
-    INFO = 3
-    DEBUG = 4
-    TRACE = 5
 
 
 class CommMgmt:
@@ -146,22 +135,6 @@ class CommMgmt:
         self._write_header(Request.PullLog)
         self._read_expect(Reply.LogContent)
         return self._read_string()
-
-    def set_log_level(self, level):
-        if level not in LogLevel.__members__:
-            raise ValueError("invalid log level {}".format(level))
-
-        self._write_header(Request.SetLogFilter)
-        self._write_int8(getattr(LogLevel, level).value)
-        self._read_expect(Reply.Success)
-
-    def set_uart_log_level(self, level):
-        if level not in LogLevel.__members__:
-            raise ValueError("invalid log level {}".format(level))
-
-        self._write_header(Request.SetUartLogFilter)
-        self._write_int8(getattr(LogLevel, level).value)
-        self._read_expect(Reply.Success)
 
     def config_read(self, key):
         self._write_header(Request.ConfigRead)

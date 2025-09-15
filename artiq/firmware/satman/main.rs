@@ -525,30 +525,6 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
 
             drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: mgmt::clear_log().is_ok() })
         }
-        drtioaux::Packet::CoreMgmtSetLogLevelRequest {destination: _destination, log_level } => {
-            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
-
-            if let Ok(level_filter) = mgmt::byte_to_level_filter(log_level) {
-                info!("changing log level to {}", level_filter);
-                logger_artiq::BufferLogger::with(|logger|
-                    logger.set_buffer_log_level(level_filter));
-                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })
-            } else {
-                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false })
-            }
-        }
-        drtioaux::Packet::CoreMgmtSetUartLogLevelRequest { destination: _destination, log_level } => {
-            forward!(router, _routing_table, _destination, *rank, *self_destination, _repeaters, &packet);
-
-            if let Ok(level_filter) = mgmt::byte_to_level_filter(log_level) {
-                info!("changing UART log level to {}", level_filter);
-                logger_artiq::BufferLogger::with(|logger|
-                    logger.set_uart_log_level(level_filter));
-                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: true })
-            } else {
-                drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false })
-            }
-        }
         drtioaux::Packet::CoreMgmtConfigReadRequest {
             destination: _destination,
             length,

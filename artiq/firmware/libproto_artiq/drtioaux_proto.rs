@@ -136,8 +136,6 @@ pub enum Packet {
 
     CoreMgmtGetLogRequest { destination: u8, clear: bool },
     CoreMgmtClearLogRequest { destination: u8 },
-    CoreMgmtSetLogLevelRequest { destination: u8, log_level: u8 },
-    CoreMgmtSetUartLogLevelRequest { destination: u8, log_level: u8 },
     CoreMgmtConfigReadRequest { destination: u8, length: u16, key: [u8; MASTER_PAYLOAD_MAX_SIZE] },
     CoreMgmtConfigReadContinue { destination: u8 },
     CoreMgmtConfigWriteRequest { destination: u8, last: bool, length: u16, data: [u8; MASTER_PAYLOAD_MAX_SIZE] },
@@ -448,15 +446,7 @@ impl Packet {
             0xd1 => Packet::CoreMgmtClearLogRequest {
                 destination: reader.read_u8()?,
             },
-            0xd2 => Packet::CoreMgmtSetLogLevelRequest {
-                destination: reader.read_u8()?,
-                log_level: reader.read_u8()?,
-            },
-            0xd3 => Packet::CoreMgmtSetUartLogLevelRequest {
-                destination: reader.read_u8()?,
-                log_level: reader.read_u8()?,
-            },
-            0xd4 => {
+            0xd2 => {
                 let destination = reader.read_u8()?;
                 let length = reader.read_u16()?;
                 let mut key: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
@@ -467,10 +457,10 @@ impl Packet {
                     key: key,
                 }
             },
-            0xd5 => Packet::CoreMgmtConfigReadContinue {
+            0xd3 => Packet::CoreMgmtConfigReadContinue {
                 destination: reader.read_u8()?,
             },
-            0xd6 => {
+            0xd4 => {
                 let destination = reader.read_u8()?;
                 let last = reader.read_bool()?;
                 let length = reader.read_u16()?;
@@ -483,7 +473,7 @@ impl Packet {
                     data: data,
                 }
             },
-            0xd7 => {
+            0xd5 => {
                 let destination = reader.read_u8()?;
                 let length = reader.read_u16()?;
                 let mut key: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
@@ -494,20 +484,20 @@ impl Packet {
                     key: key,
                 }
             },
-            0xd8 => Packet::CoreMgmtConfigEraseRequest {
+            0xd6 => Packet::CoreMgmtConfigEraseRequest {
                 destination: reader.read_u8()?,
             },
-            0xd9 => Packet::CoreMgmtRebootRequest {
+            0xd7 => Packet::CoreMgmtRebootRequest {
                 destination: reader.read_u8()?,
             },
-            0xda => Packet::CoreMgmtAllocatorDebugRequest {
+            0xd8 => Packet::CoreMgmtAllocatorDebugRequest {
                 destination: reader.read_u8()?,
             },
-            0xdb => Packet::CoreMgmtFlashRequest {
+            0xd9 => Packet::CoreMgmtFlashRequest {
                 destination: reader.read_u8()?,
                 payload_length: reader.read_u32()?,
             },
-            0xdc => {
+            0xda => {
                 let destination = reader.read_u8()?;
                 let last = reader.read_bool()?;
                 let length = reader.read_u16()?;
@@ -520,11 +510,11 @@ impl Packet {
                     data: data,
                 }
             },
-            0xdd => Packet::CoreMgmtDropLinkAck {
+            0xdb => Packet::CoreMgmtDropLinkAck {
                 destination: reader.read_u8()?,
             },
-            0xde => Packet::CoreMgmtDropLink,
-            0xdf => {
+            0xdc => Packet::CoreMgmtDropLink,
+            0xdd => {
                 let last = reader.read_bool()?;
                 let length = reader.read_u16()?;
                 let mut data: [u8; SAT_PAYLOAD_MAX_SIZE] = [0; SAT_PAYLOAD_MAX_SIZE];
@@ -535,7 +525,7 @@ impl Packet {
                     data: data,
                 }
             },
-            0xe0 => {
+            0xde => {
                 let last = reader.read_bool()?;
                 let length = reader.read_u16()?;
                 let mut value: [u8; SAT_PAYLOAD_MAX_SIZE] = [0; SAT_PAYLOAD_MAX_SIZE];
@@ -546,45 +536,45 @@ impl Packet {
                     value: value,
                 }
             },
-            0xe1 => Packet::CoreMgmtReply {
+            0xdf => Packet::CoreMgmtReply {
                 succeeded: reader.read_bool()?,
             },
-            0xe2 => {
+            0xe0 => {
                 let length = reader.read_u16()?;
                 let mut message: [u8; CXP_PAYLOAD_MAX_SIZE] = [0; CXP_PAYLOAD_MAX_SIZE];
                 reader.read_exact(&mut message[0..length as usize])?;
                 Packet::CXPError { length, message }
             }
-            0xe3 => Self::CXPWaitReply,
-            0xe4 => Packet::CXPReadRequest {
+            0xe1 => Self::CXPWaitReply,
+            0xe2 => Packet::CXPReadRequest {
                 destination: reader.read_u8()?,
                 address: reader.read_u32()?,
                 length: reader.read_u16()?,
             },
-            0xe5 => {
+            0xe3 => {
                 let length = reader.read_u16()?;
                 let mut data: [u8; CXP_PAYLOAD_MAX_SIZE] = [0; CXP_PAYLOAD_MAX_SIZE];
                 reader.read_exact(&mut data[0..length as usize])?;
                 Packet::CXPReadReply { length, data }
             }
-            0xe6 => Packet::CXPWrite32Request {
+            0xe4 => Packet::CXPWrite32Request {
                 destination: reader.read_u8()?,
                 address: reader.read_u32()?,
                 value: reader.read_u32()?,
             },
-            0xe7 => Packet::CXPWrite32Reply,
-            0xe8 => Packet::CXPROIViewerSetupRequest {
+            0xe5 => Packet::CXPWrite32Reply,
+            0xe6 => Packet::CXPROIViewerSetupRequest {
                 destination: reader.read_u8()?,
                 x0: reader.read_u16()?,
                 y0: reader.read_u16()?,
                 x1: reader.read_u16()?,
                 y1: reader.read_u16()?,
             },
-            0xe9 => Packet::CXPROIViewerSetupReply,
-            0xea => Packet::CXPROIViewerDataRequest {
+            0xe7 => Packet::CXPROIViewerSetupReply,
+            0xe8 => Packet::CXPROIViewerDataRequest {
                 destination: reader.read_u8()?,
             },
-            0xeb => {
+            0xe9 => {
                 let length = reader.read_u16()?;
                 let mut data: [u64; CXP_PAYLOAD_MAX_SIZE / 8] = [0; CXP_PAYLOAD_MAX_SIZE / 8];
                 for i in 0..length as usize {
@@ -592,7 +582,7 @@ impl Packet {
                 }
                 Packet::CXPROIViewerPixelDataReply { length, data }
             }
-            0xec => Packet::CXPROIViewerFrameDataReply {
+            0xea => Packet::CXPROIViewerFrameDataReply {
                 width: reader.read_u16()?,
                 height: reader.read_u16()?,
                 pixel_code: reader.read_u16()?,
@@ -896,28 +886,18 @@ impl Packet {
                 writer.write_u8(0xd1)?;
                 writer.write_u8(destination)?;
             },
-            Packet::CoreMgmtSetLogLevelRequest { destination, log_level } => {
-                writer.write_u8(0xd2)?;
-                writer.write_u8(destination)?;
-                writer.write_u8(log_level)?;
-            },
-            Packet::CoreMgmtSetUartLogLevelRequest { destination, log_level } => {
-                writer.write_u8(0xd3)?;
-                writer.write_u8(destination)?;
-                writer.write_u8(log_level)?;
-            },
             Packet::CoreMgmtConfigReadRequest {
                 destination,
                 length,
                 key,
             } => {
-                writer.write_u8(0xd4)?;
+                writer.write_u8(0xd2)?;
                 writer.write_u8(destination)?;
                 writer.write_u16(length)?;
                 writer.write_all(&key[0..length as usize])?;
             },
             Packet::CoreMgmtConfigReadContinue { destination } => {
-                writer.write_u8(0xd5)?;
+                writer.write_u8(0xd3)?;
                 writer.write_u8(destination)?;
             },
             Packet::CoreMgmtConfigWriteRequest {
@@ -926,7 +906,7 @@ impl Packet {
                 length,
                 data,
             } => {
-                writer.write_u8(0xd6)?;
+                writer.write_u8(0xd4)?;
                 writer.write_u8(destination)?;
                 writer.write_bool(last)?;
                 writer.write_u16(length)?;
@@ -937,77 +917,77 @@ impl Packet {
                 length,
                 key,
             } => {
-                writer.write_u8(0xd7)?;
+                writer.write_u8(0xd5)?;
                 writer.write_u8(destination)?;
                 writer.write_u16(length)?;
                 writer.write_all(&key[0..length as usize])?;
             },
             Packet::CoreMgmtConfigEraseRequest { destination } => {
-                writer.write_u8(0xd8)?;
+                writer.write_u8(0xd6)?;
                 writer.write_u8(destination)?;
             },
             Packet::CoreMgmtRebootRequest { destination } => {
-                writer.write_u8(0xd9)?;
+                writer.write_u8(0xd7)?;
                 writer.write_u8(destination)?;
             },
             Packet::CoreMgmtAllocatorDebugRequest { destination } => {
-                writer.write_u8(0xda)?;
+                writer.write_u8(0xd8)?;
                 writer.write_u8(destination)?;
             },
             Packet::CoreMgmtFlashRequest { destination, payload_length } => {
-                writer.write_u8(0xdb)?;
+                writer.write_u8(0xd9)?;
                 writer.write_u8(destination)?;
                 writer.write_u32(payload_length)?;
             },
             Packet::CoreMgmtFlashAddDataRequest { destination, last, length, data } => {
-                writer.write_u8(0xdc)?;
+                writer.write_u8(0xda)?;
                 writer.write_u8(destination)?;
                 writer.write_bool(last)?;
                 writer.write_u16(length)?;
                 writer.write_all(&data[..length as usize])?;
             },
             Packet::CoreMgmtDropLinkAck { destination } => {
-                writer.write_u8(0xdd)?;
+                writer.write_u8(0xdb)?;
                 writer.write_u8(destination)?;
             },
             Packet::CoreMgmtDropLink => 
-                writer.write_u8(0xde)?,
+                writer.write_u8(0xdc)?,
             Packet::CoreMgmtGetLogReply { last, length, data } => {
-                writer.write_u8(0xdf)?;
+                writer.write_u8(0xdd)?;
                 writer.write_bool(last)?;
                 writer.write_u16(length)?;
                 writer.write_all(&data[0..length as usize])?;
             },
             Packet::CoreMgmtConfigReadReply { last, length, value } => {
-                writer.write_u8(0xe0)?;
+                writer.write_u8(0xde)?;
                 writer.write_bool(last)?;
                 writer.write_u16(length)?;
                 writer.write_all(&value[0..length as usize])?;
             },
             Packet::CoreMgmtReply { succeeded } => {
-                writer.write_u8(0xe1)?;
+                writer.write_u8(0xdf)?;
                 writer.write_bool(succeeded)?;
             },
             Packet::CXPError { length, message } => {
-                writer.write_u8(0xe2)?;
+                writer.write_u8(0xe0)?;
                 writer.write_u16(length)?;
                 writer.write_all(&message[0..length as usize])?;
             }
             Packet::CXPWaitReply => {
-                writer.write_u8(0xe3)?;
+                writer.write_u8(0xe1)?;
             }
             Packet::CXPReadRequest {
                 destination,
                 address,
                 length,
             } => {
-                writer.write_u8(0xe4)?;
+                writer.write_u8(0xe2)?;
                 writer.write_u8(destination)?;
                 writer.write_u32(address)?;
                 writer.write_u16(length)?;
             }
             Packet::CXPReadReply { length, data } => {
-                writer.write_u8(0xe5)?;
+                writer.write_u8(0xe3)?;
                 writer.write_u16(length)?;
                 writer.write_all(&data[0..length as usize])?;
             }
@@ -1016,13 +996,13 @@ impl Packet {
                 address,
                 value,
             } => {
-                writer.write_u8(0xe6)?;
+                writer.write_u8(0xe4)?;
                 writer.write_u8(destination)?;
                 writer.write_u32(address)?;
                 writer.write_u32(value)?;
             }
             Packet::CXPWrite32Reply => {
-                writer.write_u8(0xe7)?;
+                writer.write_u8(0xe5)?;
             }
             Packet::CXPROIViewerSetupRequest {
                 destination,
@@ -1031,7 +1011,7 @@ impl Packet {
                 x1,
                 y1,
             } => {
-                writer.write_u8(0xe8)?;
+                writer.write_u8(0xe6)?;
                 writer.write_u8(destination)?;
                 writer.write_u16(x0)?;
                 writer.write_u16(y0)?;
@@ -1039,14 +1019,14 @@ impl Packet {
                 writer.write_u16(y1)?;
             }
             Packet::CXPROIViewerSetupReply => {
-                writer.write_u8(0xe9)?;
+                writer.write_u8(0xe7)?;
             }
             Packet::CXPROIViewerDataRequest { destination } => {
-                writer.write_u8(0xea)?;
+                writer.write_u8(0xe8)?;
                 writer.write_u8(destination)?;
             }
             Packet::CXPROIViewerPixelDataReply { length, data } => {
-                writer.write_u8(0xeb)?;
+                writer.write_u8(0xe9)?;
                 writer.write_u16(length)?;
                 for i in 0..length as usize {
                     writer.write_u64(data[i])?;
@@ -1057,7 +1037,7 @@ impl Packet {
                 height,
                 pixel_code,
             } => {
-                writer.write_u8(0xec)?;
+                writer.write_u8(0xea)?;
                 writer.write_u16(width)?;
                 writer.write_u16(height)?;
                 writer.write_u16(pixel_code)?;

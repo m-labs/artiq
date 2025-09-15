@@ -34,23 +34,12 @@ def get_argparser():
 
     # logging
     t_log = tools.add_parser("log",
-                             help="read logs and change log levels")
+                             help="read logs")
 
     subparsers = t_log.add_subparsers(dest="action")
 
     p_clear = subparsers.add_parser("clear",
                                     help="clear log buffer")
-
-    p_set_level = subparsers.add_parser("set_level",
-                                        help="set minimum level for messages to be logged")
-    p_set_level.add_argument("level", metavar="LEVEL", type=str,
-                             help="log level (one of: OFF ERROR WARN INFO DEBUG TRACE)")
-
-    p_set_uart_level = subparsers.add_parser("set_uart_level",
-                                             help="set minimum level for messages to be logged "
-                                                  "to UART")
-    p_set_uart_level.add_argument("level", metavar="LEVEL", type=str,
-                                  help="log level (one of: OFF ERROR WARN INFO DEBUG TRACE)")
 
     # configuration
     t_config = tools.add_parser("config",
@@ -138,10 +127,6 @@ def main():
     mgmt = CommMgmt(core_addr, drtio_dest=args.drtio_dest)
 
     if args.tool == "log":
-        if args.action == "set_level":
-            mgmt.set_log_level(args.level)
-        if args.action == "set_uart_level":
-            mgmt.set_uart_log_level(args.level)
         if args.action == "clear":
             mgmt.clear_log()
         if args.action == None:
