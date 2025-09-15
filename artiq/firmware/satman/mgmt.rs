@@ -10,7 +10,6 @@ use logger_artiq::BufferLogger;
 use io::{Cursor, ProtoRead, ProtoWrite};
 use proto_artiq::drtioaux_proto::SAT_PAYLOAD_MAX_SIZE;
 
-
 pub fn clear_log() -> Result<(), ()> {
     BufferLogger::with(|logger| {
         let mut buffer = logger.buffer()?;
@@ -97,6 +96,37 @@ impl Manager {
 
         let value = self.config_payload.read_bytes().unwrap();
 
+        if key == "log_level" || key == "uart_log_level" {
+            let value_str = match core::str::from_utf8(&value) {
+                Ok(s) => s,
+                Err(err) => {
+                    self.clear_config_data();
+                    error!("invalid UTF-8: {:?}", err);
+                    return drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false });
+                }
+            };
+            let max_level = match value_str.parse::<LevelFilter>() {
+                Ok(s) => s,
+                Err(err) => {
+                    self.clear_config_data();
+                    error!("unknown log level: {:?}", err);
+                    return drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false });
+                }
+            };
+
+            if key == "log_level" {
+                info!("Changing log level to {}", max_level);
+                BufferLogger::with(|logger| {
+                    logger.set_buffer_log_level(max_level)
+                });
+            } else {
+                info!("Changing UART log level to {}", max_level);
+                BufferLogger::with(|logger| {
+                    logger.set_uart_log_level(max_level)
+                });
+            }
+        };
+        
         let succeeded = config::write(&key, &value).map_err(|err| {
             error!("error on writing config: {:?}", err);
         }).is_ok();
