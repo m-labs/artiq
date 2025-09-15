@@ -852,7 +852,7 @@ def main():
     else:
         raise ValueError("Invalid DRTIO role")
 
-    has_coaxpress_sfp, has_drtio_eem False, False
+    has_coaxpress_sfp, has_drtio_eem = False, False
     for peripheral in description["peripherals"]:
         if peripheral["type"] == "coaxpress_sfp":
             has_coaxpress_sfp = True
