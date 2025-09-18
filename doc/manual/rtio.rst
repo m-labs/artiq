@@ -136,58 +136,12 @@ RTIO buffers are finite, and can be filled up if input events are never collecte
 .. note::
   It is not possible to provoke a :class:`~artiq.coredevice.exceptions.RTIOOverflow` on a RTIO output channel. While output buffers are also of finite size, the CPU will simply stall the submission of further events until there is once again space to do so. See :ref:`rtio-overflows` for more details.
 
-.. note::
-  To change the number of SED lanes, it is necessary to recompile the gateware and reflash your core device. Use the ``sed_lanes`` field in your system description file to set the value, then follow the instructions in :doc:`building_developing`. Alternatively, if you have an active firmware subscription with M-Labs, contact helpdesk@ for edited binaries.
+.. _rtio-handover-synchronization:
 
-.. _collisions-busy-errors:
+Seamless handover and synchronization
+-------------------------------------
 
-Collisions
-""""""""""
-Collision errors are possible when two events have similar or same timestamps. For example, a collision occurs when events are submitted to a given RTIO output channel at a resolution the channel is not equipped to handle. Some channels implement 'replacement behavior', meaning that RTIO events submitted to the same timestamp will override each other (for example, if a ``ttl.off()`` and ``ttl.on()`` are scheduled to the same timestamp, the latter automatically overrides the former and only ``ttl.on()`` will be submitted to the channel). On the other hand, if replacement behavior is absent or disabled, or if the two events have the same coarse timestamp with differing fine timestamps, a collision error will be reported.
-
-Like sequence errors, collisions originate in gateware and do not stop the execution of the kernel. The offending event is discarded and the problem is reported asynchronously via the core log.
-
-Busy errors
-"""""""""""
-
-A busy error occurs when at least one output event could not be executed because the output channel was already busy executing an event. This differs from a collision error in that a collision is triggered when a sequence of events overwhelms *communication* with a channel, and a busy error is triggered when *execution* is overwhelmed. Busy errors are only possible in the context of single events with execution times longer than a coarse RTIO clock cycle; the exact parameters will depend on the nature of the output channel (e.g. the specific peripheral device).
-
-Offending event(s) are discarded and the problem is reported asynchronously via the core log.
-
-Input errors and exceptions
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Overflows
-"""""""""
-
-Overflow exceptions occur when an RTIO input channel receives an input event when the FIFO buffer is already full. 
-
-To understand how this happens, let us examine how input events are processed. The RTIO input channels buffer input events received while an input gate is open, or when using the sampling API (:meth:`TTLInOut.sample_input <artiq.coredevice.ttl.TTLInOut.sample_input>`) at certain points in time. The events are kept in a FIFO until the CPU reads them out via e.g. :meth:`~artiq.coredevice.ttl.TTLInOut.count`, :meth:`~artiq.coredevice.ttl.TTLInOut.timestamp_mu` or :meth:`~artiq.coredevice.ttl.TTLInOut.sample_get`. The size of these FIFOs is finite and specified in gateware; in practice, it is limited by the resources available to the FPGA, and therefore differs depending on the specific core device being used. If a FIFO is full and another event comes in, this causes an overflow condition. The condition is converted into an :class:`~artiq.coredevice.exceptions.RTIOOverflow` exception that is raised on a subsequent invocation of one of the readout methods. Overflow exceptions are generally best dealt with simply by reading out from the input buffers more frequently. In odd or particular cases, users may consider modifying the length of individual buffers in gateware.
-
-.. note::
-  It is not possible to provoke an :class:`~artiq.coredevice.exceptions.RTIOOverflow` on a RTIO output channel. While output buffers are also of finite size, and can be filled up, the CPU will simply stall the submission of further events until it is once again possible to buffer them. Among other things, this means that padding the timeline cursor with large amounts of positive slack is not always a valid strategy to avoid :class:`~artiq.coredevice.exceptions.RTIOOverflow` exceptions when generating fast event sequences. In practice only a fixed number of events can be generated in advance, and the rest of the processing will be carried out when the wall clock is much closer to ``now_mu``.
-
-  For larger numbers of events which run up against this restriction, the correct method is to use :ref:`getting-started-dma`. In edge cases, enabling event spreading (see below) may also be helpful. It should be carefully noted however that DMA is useful in cases where events are chronologically linear, but too closely spaced to be processed in real time; if the root of the issue is bad event *ordering,* DMA will not avoid underflows. In particular, filling up output buffers in any but the last statement of a :ref:`parallel block <getting-started-parallel>` is likely to cause underflows with or without DMA.
-
-.. _sed-event-spreading:
-
-Event spreading
-^^^^^^^^^^^^^^^
-
-By default, the SED only ever switches lanes for timestamp sequence reasons, as described above in :ref:`sequence-errors`. If only output events of strictly increasing coarse timestamps are queued, the SED fills up a single lane and stalls when it is full, regardless of the state of other lanes. This is preserved to avoid nondeterminism in sequence errors and corresponding unpredictable failures (since the timing of 'fullness' depends on the timing of when events are *queued*, which can vary slightly based on CPU execution jitter).
-
-For better utilization of resources and to maximize buffering capacity, *event spreading* may be enabled, which allows the SED to switch lanes immediately when they reach a certain high watermark of 'fullness', increasing the number of events that can be queued before stalls ensue. To enable event spreading, use the ``sed_spread_enable`` config key and set it to ``1``: ::
-
-  $ artiq_coremgmt config write -s sed_spread_enable 1
-
-This will change where and when sequence errors occur in your kernels, and might cause them to vary from execution to execution of the same experiment. It will generally reduce or eliminate :class:`~artiq.coredevice.exceptions.RTIOUnderflow` exceptions caused by queueing stalls and significantly increase the threshold on sequence length before :ref:`DMA <getting-started-dma>` becomes necessary.
-
-Note that event spreading can be particularly helpful in DRTIO satellites, as it is the space remaining in the *fullest* FIFO that is used as a metric for when the satellite can receive more data from the master. The setting is not system-wide and can and must be set independently for each core device in a system. In other words, to enable or disable event spreading in satellites, flash the satellite core configuration directly; this will have no effect on any other satellites or the master.
-
-Seamless handover
-^^^^^^^^^^^^^^^^^
-
-The timeline cursor persists across kernel invocations. This is demonstrated in the following example where a pulse is split across two kernels::
+Both wall clock time and the timeline cursor persist across kernel invocations and across experiments. That is to say, in the following experiment: ::
 
   def run():
     k1()
