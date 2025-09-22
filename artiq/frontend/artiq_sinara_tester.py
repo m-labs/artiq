@@ -597,11 +597,12 @@ class SinaraTester(EnvExperiment):
         self.core.break_realtime()
         fastino.init()
         delay(200*us)
-        i = 0
-        for voltage in voltages:
-            fastino.set_dac(i, voltage)
+        for i in range(0, 32, fastino.width):
+            if fastino.width == 1:
+                fastino.set_dac(i, voltages[i])
+            else:
+                fastino.set_group(i, voltages[i:i+fastino.width])
             delay(100*us)
-            i += 1
 
     @kernel
     def fastinos_led_wave(self, fastinos):
