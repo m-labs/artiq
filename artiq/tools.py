@@ -154,7 +154,8 @@ def get_experiment(module, class_name=None):
     if not exps:
         raise ValueError("No experiments in module")
     if len(exps) > 1:
-        raise ValueError("More than one experiment found in module")
+        names = ", ".join(e[0] for e in exps)
+        raise ValueError(f"More than one experiment found in module: {names}")
 
     return exps[0][1]
 
