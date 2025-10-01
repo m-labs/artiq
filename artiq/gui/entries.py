@@ -83,7 +83,8 @@ class EntryTreeWidget(QtWidgets.QTreeWidget):
         widgets = dict()
         self._arg_to_widgets[key] = widgets
         entry_class = procdesc_to_entry(argument["desc"])
-        argument["state"] = entry_class.default_state(argument["desc"])
+        if "state" not in argument:
+            argument["state"] = entry_class.default_state(argument["desc"])
         entry = entry_class(argument)
         if argument["desc"].get("quickstyle"):
             entry.quickStyleClicked.connect(self.quickStyleClicked)
