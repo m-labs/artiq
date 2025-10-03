@@ -285,7 +285,7 @@ pub fn process_kern_hwreq(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subker
     match request {
         &kern::RtioInitRequest => {
             info!("resetting RTIO");
-            rtio_mgt::reset(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table);
+            rtio_mgt::reset(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table)?;
             kern_acknowledge()
         }
 
