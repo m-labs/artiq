@@ -4,10 +4,10 @@ use board_misoc::{csr, config};
 #[cfg(has_drtio)]
 use board_misoc::clock;
 use board_artiq::drtio_routing;
-use sched::Io;
-use sched::Mutex;
+use sched::{Io, Mutex, Error as SchedError};
 use io::{Cursor, ProtoRead};
 use session_proto::{DeviceMap, resolve_channel_name, set_device_map};
+
 const ASYNC_ERROR_COLLISION: u8 = 1 << 0;
 const ASYNC_ERROR_BUSY: u8 = 1 << 1;
 const ASYNC_ERROR_SEQUENCE_ERROR: u8 = 1 << 2;
@@ -22,7 +22,6 @@ pub mod drtio {
     #[cfg(has_rtio_analyzer)]
     use analyzer::remote_analyzer::RemoteBuffer;
     use kernel::subkernel;
-    use sched::Error as SchedError;
 
     #[derive(Fail, Debug)]
     pub enum Error {
@@ -447,13 +446,15 @@ pub mod drtio {
         }
     }
 
-    pub fn reset(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable) {
+    pub fn reset(io: &Io, aux_mutex: &Mutex, 
+        ddma_mutex: &Mutex, subkernel_mutex: &Mutex,
+        routing_table: &drtio_routing::RoutingTable) -> Result<(), SchedError> {
         for linkno in 0..csr::DRTIO.len() {
             unsafe {
                 (csr::DRTIO[linkno].reset_write)(1);
             }
         }
-        io.sleep(1).unwrap();
+        io.sleep(1)?;
         for linkno in 0..csr::DRTIO.len() {
             unsafe {
                 (csr::DRTIO[linkno].reset_write)(0);
@@ -472,6 +473,7 @@ pub mod drtio {
                 }
             }
         }
+        Ok(())
     }
 
     fn partition_data<F>(data: &[u8], send_f: F) -> Result<(), Error>
@@ -658,7 +660,9 @@ pub mod drtio {
         _routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         _up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
         _ddma_mutex: &Mutex, _subkernel_mutex: &Mutex) {}
-    pub fn reset(_io: &Io, _aux_mutex: &Mutex, _ddma_mutex: &Mutex, _subkernel_mutex: &Mutex, _routing_table: &drtio_routing::RoutingTable) {}
+    pub fn reset(_io: &Io, _aux_mutex: &Mutex, _ddma_mutex: &Mutex, 
+        _subkernel_mutex: &Mutex, _routing_table: &drtio_routing::RoutingTable
+    ) -> Result<(), SchedError> { Ok(()) }
 }
 
 static mut SEEN_ASYNC_ERRORS: u8 = 0;
@@ -750,7 +754,7 @@ pub fn startup(io: &Io, aux_mutex: &Mutex,
 }
 
 pub fn reset(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex,
-    routing_table: &drtio_routing::RoutingTable) {
+    routing_table: &drtio_routing::RoutingTable) -> Result<(), SchedError> {
     unsafe {
         csr::rtio_core::reset_write(1);
     }
