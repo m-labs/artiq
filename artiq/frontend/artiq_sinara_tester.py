@@ -271,7 +271,7 @@ class SinaraTester(EnvExperiment):
             readback_word = cpld.get_att_mu()
             if readback_word != test_word:
                 print(readback_word, test_word)
-                raise ValueError
+                raise ValueError("Test and readback attenuator word mismatch")
 
     @kernel
     def calibrate_urukul(self, channel):
