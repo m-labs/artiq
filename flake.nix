@@ -74,6 +74,8 @@
       QML2_IMPORT_PATH = "${qtbase}/${qtQmlPrefix}";
     };
 
+    inherit (pkgs.callPackage ./llvm {}) llvm_15 lld_15 llvmPackages_15;
+
     rust = pkgs.rust-bin.nightly."2021-09-01".default.override {
       extensions = ["rust-src"];
       targets = [];
@@ -167,7 +169,7 @@
       };
       pyproject = true;
       build-system = [pkgs.python3Packages.setuptools];
-      nativeBuildInputs = [pkgs.llvm_15];
+      nativeBuildInputs = [llvm_15];
       # Disable static linking
       # https://github.com/numba/llvmlite/issues/93
       postPatch = ''
@@ -176,7 +178,7 @@
       '';
       # Set directory containing llvm-config binary
       preConfigure = ''
-        export LLVM_CONFIG=${pkgs.llvm_15.dev}/bin/llvm-config
+        export LLVM_CONFIG=${llvm_15.dev}/bin/llvm-config
       '';
     };
 
@@ -195,7 +197,7 @@
       nativeBuildInputs = [pkgs.qt6.wrapQtAppsHook];
       # keep llvm_x and lld_x in sync with llvmlite
       propagatedBuildInputs =
-        [pkgs.llvm_15 pkgs.lld_15 sipyco.packages.x86_64-linux.sipyco pythonparser llvmlite-new pkgs.qt6.qtsvg artiq-comtools.packages.x86_64-linux.artiq-comtools]
+        [llvm_15 lld_15 sipyco.packages.x86_64-linux.sipyco pythonparser llvmlite-new pkgs.qt6.qtsvg artiq-comtools.packages.x86_64-linux.artiq-comtools]
         ++ (with pkgs.python3Packages; [pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial levenshtein h5py pyqt6 qasync tqdm lmdb jsonschema platformdirs]);
 
       dontWrapQtApps = true;
@@ -220,7 +222,7 @@
       # FIXME: automatically propagate lld_15 llvm_15 dependencies
       # cacert is required in the check stage only, as certificates are to be
       # obtained from system elsewhere
-      nativeCheckInputs = with pkgs; [lld_15 llvm_15 lit outputcheck cacert] ++ [libartiq-support];
+      nativeCheckInputs = [lld_15 llvm_15 libartiq-support pkgs.lit pkgs.outputcheck pkgs.cacert];
       checkPhase = ''
         python -m unittest discover -v artiq.test
 
@@ -306,9 +308,9 @@
         nativeBuildInputs = [
           (pkgs.python3.withPackages (ps: [migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ps.packaging]))
           rust
-          pkgs.llvmPackages_15.clang-unwrapped
-          pkgs.llvm_15
-          pkgs.lld_15
+          llvm_15
+          lld_15
+          llvmPackages_15.clang-unwrapped
           vivado
         ];
         overrideMain = _: {
@@ -496,9 +498,6 @@
           [
             git
             lit
-            lld_15
-            llvm_15
-            llvmPackages_15.clang-unwrapped
             outputcheck
             pdf2svg
 
@@ -511,8 +510,11 @@
             (python3.withPackages (ps: [migen misoc microscope ps.packaging ps.paramiko] ++ artiq.propagatedBuildInputs))
           ]
           ++ [
-            latex-artiq-manual
+            llvm_15
+            lld_15
+            llvmPackages_15.clang-unwrapped
             rust
+            latex-artiq-manual
             artiq-frontend-dev-wrappers
 
             # To manually run compiler tests:
@@ -536,9 +538,9 @@
         packages = [
           rust
 
-          pkgs.llvmPackages_15.clang-unwrapped
-          pkgs.llvm_15
-          pkgs.lld_15
+          llvm_15
+          lld_15
+          llvmPackages_15.clang-unwrapped
 
           packages.x86_64-linux.vivado
           packages.x86_64-linux.openocd-bscanspi
@@ -582,8 +584,8 @@
                 ]
                 ++ ps.paramiko.optional-dependencies.ed25519
           ))
-          pkgs.llvm_15
-          pkgs.lld_15
+          llvm_15
+          lld_15
           pkgs.openssh
           packages.x86_64-linux.openocd-bscanspi # for the bscanspi bitstreams
         ];
