@@ -410,7 +410,7 @@ class ProtoRev8(CPLDVersion):
         :param state: IO_UPDATE state as a 4-bit integer.
             IO_UPDATE is asserted if any bit(s) is/are asserted, deasserted otherwise.
         """
-        self.cfg_io_update(self.cpld, 0, (state & 0xF) != 0)
+        self.cfg_io_update(0, (state & 0xF) != 0)
 
 
 class ProtoRev9(CPLDVersion):
