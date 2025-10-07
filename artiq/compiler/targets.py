@@ -2,7 +2,6 @@ import os, sys, tempfile, subprocess, io
 from artiq.compiler import types, ir
 from llvmlite import ir as ll, binding as llvm
 
-llvm.initialize()
 llvm.initialize_all_targets()
 llvm.initialize_all_asmprinters()
 
@@ -108,35 +107,19 @@ class Target:
         return llmachine
 
     def optimize(self, llmodule):
-        llpassmgr = llvm.create_module_pass_manager()
+        llmachine = self.target_machine()
+        pto = llvm.create_pipeline_tuning_options(size_level=1)
 
-        # Register our alias analysis passes.
-        llpassmgr.add_basic_alias_analysis_pass()
-        llpassmgr.add_type_based_alias_analysis_pass()
+        # This combination of levels gets mapped to the -Os PassManagerBuilder default in
+        # llvmlite 0.45. The mapping is slightly nonsensical in that -Oz (which is more
+        # aggressively optimizing for size at the expense of runtime) is accessed via
+        # speed_level=size_level=2.
+        pto.speed_level = 1
 
-        # Start by cleaning up after our codegen and exposing as much
-        # information to LLVM as possible.
-        llpassmgr.add_constant_merge_pass()
-        llpassmgr.add_cfg_simplification_pass()
-        llpassmgr.add_instruction_combining_pass()
-        llpassmgr.add_sroa_pass()
-        llpassmgr.add_dead_code_elimination_pass()
-        llpassmgr.add_function_attrs_pass()
-        llpassmgr.add_global_optimizer_pass()
+        pb = llvm.create_pass_builder(llmachine, pto)
+        llpassmgr = pb.getModulePassManager()
 
-        # Now, actually optimize the code.
-        llpassmgr.add_function_inlining_pass(275)
-        llpassmgr.add_ipsccp_pass()
-        llpassmgr.add_instruction_combining_pass()
-        llpassmgr.add_gvn_pass()
-        llpassmgr.add_cfg_simplification_pass()
-        llpassmgr.add_licm_pass()
-
-        # Clean up after optimizing.
-        llpassmgr.add_dead_arg_elimination_pass()
-        llpassmgr.add_global_dce_pass()
-
-        llpassmgr.run(llmodule)
+        llpassmgr.run(llmodule, pb)
 
     def compile(self, module):
         """Compile the module to a relocatable object for this target."""
