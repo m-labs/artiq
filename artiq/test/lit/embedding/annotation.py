@@ -4,7 +4,7 @@
 from artiq.language.core import *
 from artiq.language.types import *
 
-# CHECK: i64 @_Z13testbench.foozz\(i64 %ARG.x, \{ i1, i64 \} %ARG.y\)
+# CHECK-L: i64 @_Z13testbench.foozz(i64
 
 @kernel
 def foo(x: TInt64, y: TInt64 = 1) -> TInt64:

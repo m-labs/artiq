@@ -15,7 +15,7 @@ def entrypoint():
 
 
 # CHECK-L: declare void @subkernel_load_run(i32, i8, i1) local_unnamed_addr
-# CHECK-L: declare void @subkernel_send_message(i32, i1, i8, i8, { i8*, i32 }*, i8**) local_unnamed_addr
+# CHECK-L: declare void @subkernel_send_message(i32, i1, i8, i8, ptr, ptr) local_unnamed_addr
 @subkernel(destination=1)
 def accept_arg(arg_a, arg_b=5) -> TNone:
     pass
