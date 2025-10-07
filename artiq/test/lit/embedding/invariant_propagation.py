@@ -15,8 +15,8 @@ class Class:
         if self.foo:
             print("bar")
         else:
-            # Make sure all the code for this branch will be completely elided:
-            # CHECK-NOT: baz
+            # The kernel_invariant annotation should generate !invariant.load metadata
+            # CHECK: invariant.load
             print("baz")
 
 obj = Class()

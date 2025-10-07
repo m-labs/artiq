@@ -6,7 +6,7 @@ from artiq.language.types import *
 
 # CHECK: call void @foo\(\)(, !dbg !\d+)?
 
-# CHECK-L: ; Function Attrs: inaccessiblememonly nounwind
+# CHECK-L: ; Function Attrs: nounwind memory(inaccessiblemem: readwrite)
 # CHECK-NEXT-L: declare void @foo()
 
 @syscall(flags={"nounwind", "nowrite"})
@@ -15,7 +15,7 @@ def foo() -> TNone:
 
 # sret nowrite functions shouldn't be marked inaccessiblememonly.
 # CHECK-L: ; Function Attrs: nounwind
-# CHECK-NEXT-L: declare void @bar({ i32, i64 }* sret({ i32, i64 }))
+# CHECK-NEXT-L: declare void @bar(ptr sret({ i32, i64 }))
 @syscall(flags={"nounwind", "nowrite"})
 def bar() -> TTuple([TInt32, TInt64]):
     pass

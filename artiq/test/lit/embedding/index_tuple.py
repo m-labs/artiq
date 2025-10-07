@@ -4,7 +4,7 @@
 from artiq.language.core import *
 from artiq.language.types import *
 
-# CHECK-L: void @_Z16testbench.unpackzz({ i32, { i8*, i32 }, i1 } %ARG.x)
+# CHECK-L: void @_Z16testbench.unpackzz({ i32, { ptr, i32 }, i1 } %ARG.x)
 
 @kernel
 def unpack(x):

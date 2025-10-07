@@ -11,20 +11,20 @@ from artiq.language.types import *
 
 @kernel
 def entrypoint():
-    # CHECK: call void @accept_str\({ i8\*, i32 }
+    # CHECK: call void @accept_str\({ ptr, i32 }
     accept_str("foo")
 
-    # CHECK: call void @return_str\({ i8\*, i32 }\* nonnull sret
+    # CHECK: call void @return_str\(ptr nonnull sret
     return_str()
 
 
-# CHECK: declare void @accept_str\({ i8\*, i32 }\)
+# CHECK: declare void @accept_str\({ ptr, i32 }\)
 @syscall
 def accept_str(name: TStr) -> TNone:
     pass
 
 
-# CHECK: declare void @return_str\({ i8\*, i32 }\* sret\({ i8\*, i32 }\)\)
+# CHECK: declare void @return_str\(ptr sret\({ ptr, i32 }\)\)
 @syscall
 def return_str() -> TStr:
     pass
