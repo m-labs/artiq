@@ -71,5 +71,6 @@ SECTIONS
     /DISCARD/ :
     {
         *(.debug*)
+        *(.riscv.attributes)
     }
 }
