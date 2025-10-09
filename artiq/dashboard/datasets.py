@@ -217,6 +217,21 @@ class DatasetsDock(QtWidgets.QDockWidget):
         delete_action.setShortcutContext(QtCore.Qt.ShortcutContext.WidgetShortcut)
         self.table.addAction(delete_action)
 
+        self.confirm_delete_dialog = QtWidgets.QMessageBox(self)
+        self.confirm_delete_dialog.setIcon(
+            QtWidgets.QMessageBox.Icon.Warning
+        )
+        self.confirm_delete_dialog.setText("Delete dataset group?")
+        self.confirm_delete_dialog.setStandardButtons(
+            QtWidgets.QMessageBox.StandardButton.Ok |
+            QtWidgets.QMessageBox.StandardButton.Cancel
+        )
+        self.confirm_delete_dialog.setDefaultButton(
+            QtWidgets.QMessageBox.StandardButton.Ok
+        )
+        self.confirm_delete_dialog.keys = []
+        self.confirm_delete_dialog.accepted.connect(self._delete_group)
+
         self.table_model = Model(dict())
         dataset_sub.add_setmodel_callback(self.set_model)
 
@@ -250,7 +265,17 @@ class DatasetsDock(QtWidgets.QDockWidget):
             idx = self.table_model_filter.mapToSource(idx[0])
             key = self.table_model.index_to_key(idx)
             if key is not None:
-                asyncio.ensure_future(self.dataset_ctl.delete(key))
+                asyncio.create_task(self.dataset_ctl.delete(key))
+            else:
+                keys = self.table_model.index_to_child_keys(idx)
+                self.confirm_delete_dialog.keys = keys
+                self.confirm_delete_dialog.open()
+
+    def _delete_group(self):
+        async def _delete_keys(keys):
+            for key in keys:
+                await self.dataset_ctl.delete(key)
+        asyncio.create_task(_delete_keys(self.confirm_delete_dialog.keys))
 
     def save_state(self):
         return bytes(self.table.header().saveState())
