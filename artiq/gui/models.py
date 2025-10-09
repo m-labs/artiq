@@ -393,6 +393,27 @@ class DictSyncTreeSepModel(QtCore.QAbstractItemModel):
             item = item.parent
         return key
 
+    def index_to_child_keys(self, index):
+        item = index.internalPointer()
+        if not item.is_node:
+            return None
+        key = item.name
+        parent = item.parent
+        while parent is not self:
+            key = parent.name + self.separator + key
+            parent = parent.parent
+
+        def get_child_keys(key, item):
+            if item.is_node:
+                arr = []
+                for node in item.children_by_row:
+                    arr += get_child_keys(key + self.separator + node.name, node)
+                return arr
+            else:
+                return [key]
+        return get_child_keys(key, item)
+
+
     def data(self, index, role):
         if not index.isValid() or (role != QtCore.Qt.ItemDataRole.DisplayRole
                                    and role != QtCore.Qt.ItemDataRole.ToolTipRole):
