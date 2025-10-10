@@ -134,7 +134,7 @@ class Satellite(BaseSoC, AMPSoC):
         self.submodules.rtio_dma = rtio.DMA(self.get_native_sdram_if(), self.cpu_dw)
         self.csr_devices.append("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
-            [self.drtiosat.cri, self.rtio_dma.cri],
+            [self.drtiosat.cri, self.rtio_dma.cri, self.rtio.cri],
             [self.local_io.cri],
             enable_routing=True)
         self.csr_devices.append("cri_con")
