@@ -827,7 +827,7 @@ class CommKernel:
             stack_pointers[start_backtrace: end_backtrace] = reversed(
                 stack_pointers[start_backtrace: end_backtrace])
         core_exn = CoreException(nested_exceptions, exception_info,
-                                            traceback, stack_pointers)
+                                 traceback, stack_pointers)
 
         if core_exn.id == 0:
             python_exn_type = getattr(exceptions, core_exn.name.split('.')[-1])

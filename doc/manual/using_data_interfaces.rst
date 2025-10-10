@@ -116,6 +116,59 @@ Broadly speaking, these controllers are edge cases, serving as proxies for inter
 
 Although they are listed in the references for completeness' sake, there is normally no reason to run the built-in controllers independently. A controller manager run alongside the master (or anywhere else, provided the given addresses are edited accordingly; proxy controllers communicate with the core device by network just as the master does) is more than sufficient.
 
+.. _ctlrs-ssl:
+
+Controllers with SSL
+^^^^^^^^^^^^^^^^^^^^
+
+.. note::
+
+    Controller managers must communicate in two directions -- with the master (often on a different machine) and with its controllers (usually on the same machine.) To encrypt communications with the master, see :ref:`mgmt-ssl`.
+
+Encryption for communications with controllers is optional and managed through the :ref:`device database <device-db>`. The controllers in question must support communication over SSL. For each controller, generate two keys (a client and a server key), with certificates, using the process described in :ref:`mgmt-ssl`. Note carefully that in this context, the "server key" belongs to the controller, and the "client key" should be used to make requests (that is, on one hand by the controller manager, on the other hand by experiments themselves).
+
+In the device database, indicate paths to the client key, client certificate, and server certificate in the ``simple_ssl_config`` field as follows: ::
+
+    "simple_ssl_config": {
+        "client_cert": "path/to/client.pem",
+        "client_key": "path/to/client.key",
+        "server_cert": "path/to/server.pem"
+    }
+
+Respectively, in the controller command, indicate the server key, server certificate, and client certificate, e.g.: ::
+
+    "command": "python path/to/aqctl_hello.py -p {port} --bind {bind} --ssl path/to/server.pem path/to/server.key path/to/client.pem"
+
+Be careful: the paths given in ``simple_ssl_config`` will be used **both** by the controller manager  **and** by any experiments making RPCs to this controller. Depending on where your controllers are hosted, these may be running on two entirely different machines.
+
+One solution is to standardize a path and naming scheme so that you can guarantee the key and certificate files will be found at the same location on both machines. Alternatively, to make path management easier, a template variable ``{ARTIQ_SSL_DIR}`` is supported. It can be used to substitute paths, for example as follows: ::
+
+    "simple_ssl_config": {
+        "client_cert": "{ARTIQ_SSL_DIR}/client.pem",
+        "client_key": "{ARTIQ_SSL_DIR}/client.key",
+        "server_cert": "{ARTIQ_SSL_DIR}/server.pem"
+    }
+    "command": "python path/to/aqctl_hello.py -p {port} --bind {bind} --ssl {ARTIQ_SSL_DIR}/server.pem {ARTIQ_SSL_DIR}/server.key {ARTIQ_SSL_DIR}/client.pem"
+
+This variable can be set independently on each machine, removing the need for a unitary standardized path.
+
+.. tip::
+
+    Setting a shell variable can be done very simply in the command line: ::
+
+        $ export ARTIQ_SSL_DIR="path/to/ssl"
+        $ artiq_ctlmgr
+
+    However, this will reset if the shell is closed and reopened. Consequently, it is generally more convenient to set the value permanently in some kind of shell configuration. Most commonly (for both MSYS2 and Linux) you will be using Bash, which allows you to set variables in a file called ``.bashrc``. Find this file in your system and add the line: ::
+
+        export ARTIQ_SSL_DIR="path/to/ssl"
+
+    Close and reopen shells for changes to apply. You can check whether the variable is set correctly with: ::
+
+        $ echo $ARTIQ_SSL_DIR
+
+    Alternatively, if you are using Nix flakes, you can also add ``export ARTIQ_SSL_DIR="path/to/ssl"`` to your flake's ``shellHook`` for the same effect. Search ``shellHook`` in the main ARTIQ flake to see examples of variables being set there.
+
 .. _interactivity-moninj:
 
 Using MonInj

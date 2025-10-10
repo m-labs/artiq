@@ -42,7 +42,7 @@ class Servo(Module):
         assert t_iir + 2*adc_p.channels < t_cycle, "need shifting time"
 
         self.submodules.adc = ADC(adc_pads, adc_p)
-        self.submodules.iir = IIR(iir_p)
+        self.submodules.iir = IIR(iir_p, adc_p.channels, dds_p.channels)
         self.submodules.dds = DDS(dds_pads, dds_p)
 
         # adc channels are reversed on Sampler

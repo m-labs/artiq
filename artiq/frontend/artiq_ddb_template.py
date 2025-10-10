@@ -32,7 +32,8 @@ def get_num_leds(description):
     kasli_board_leds = {
         "v1.0": 4,
         "v1.1": 6,
-        "v2.0": 3
+        "v2.0": 3,
+        "v2.1": 3,
     }
     if target == "kasli":
         if hw_rev in ("v1.0", "v1.1") and drtio_role != "standalone":
@@ -468,9 +469,16 @@ class PeripheralManager:
     def process_suservo(self, rtio_offset, peripheral):
         suservo_name = self.get_name("suservo")
         sampler_name = self.get_name("sampler")
-        urukul_names = [self.get_name("urukul") for _ in range(2)]
+        if peripheral.get("urukul1_ports") is not None:
+            num_of_urukuls = 2
+        elif peripheral.get("urukul0_ports") is not None:
+            num_of_urukuls = 1
+        else:
+            num_of_urukuls = len(peripheral["urukul_ports"])
+        urukul_names = [self.get_name("urukul") for _ in range(num_of_urukuls)]
         channel = count(0)
-        for i in range(8):
+        num_of_channels = num_of_urukuls * 4
+        for i in range(num_of_channels):
             self.gen("""
                 device_db["{suservo_name}_ch{suservo_chn}"] = {{
                     "type": "local",

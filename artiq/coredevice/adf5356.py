@@ -32,8 +32,8 @@ SPI_CONFIG = (
 )
 
 
-ADF5356_MIN_VCO_FREQ = int64(3.4 * GHz)
-ADF5356_MAX_VCO_FREQ = int64(6.8 * GHz)
+ADF5356_MIN_VCO_FREQ = 3.4 * GHz
+ADF5356_MAX_VCO_FREQ = 6.8 * GHz
 ADF5356_MAX_FREQ_PFD = int32(125.0 * MHz)
 ADF5356_MODULUS1 = int32(1 << 24)
 ADF5356_MAX_MODULUS2 = int32(1 << 28)  # FIXME: ADF5356 has 28 bits MOD2
@@ -191,17 +191,15 @@ class ADF5356:
         """
         Output given frequency on output A.
 
-        :param f: 53.125 MHz <= f <= 6800 MHz
+        :param frequency: 53.125 MHz <= f <= 6800 MHz
         """
-        freq = round64(f)
-
-        if freq > ADF5356_MAX_VCO_FREQ:
+        if f > ADF5356_MAX_VCO_FREQ:
             raise ValueError("Requested too high frequency")
 
         # select minimal output divider
         rf_div_sel = 0
-        while freq < ADF5356_MIN_VCO_FREQ:
-            freq <<= 1
+        while f < ADF5356_MIN_VCO_FREQ:
+            f *= 2.0
             rf_div_sel += 1
 
         if (1 << rf_div_sel) > 64:
@@ -214,12 +212,12 @@ class ADF5356:
         f_pfd = self.f_pfd()
 
         # choose prescaler
-        if freq > int64(6e9):
+        if f > 6. * GHz:  # see datasheet "Prescaler Value" section (Rev. A, p.21)
             self.regs[0] |= ADF5356_REG0_PRESCALER(1)  # 8/9
             n_min, n_max = 75, 65535
 
             # adjust reference divider to be able to match n_min constraint
-            while int64(n_min) * f_pfd > freq:
+            while int64(n_min) * f_pfd > int64(f):
                 r = ADF5356_REG4_R_COUNTER_GET(self.regs[4])
                 self.regs[4] = ADF5356_REG4_R_COUNTER_UPDATE(self.regs[4], r + 1)
                 f_pfd = self.f_pfd()
@@ -229,7 +227,7 @@ class ADF5356:
 
         # calculate PLL parameters
         n, frac1, (frac2_msb, frac2_lsb), (mod2_msb, mod2_lsb) = calculate_pll(
-            freq, f_pfd
+            f, float(f_pfd)
         )
 
         if not (n_min <= n <= n_max):
@@ -274,7 +272,7 @@ class ADF5356:
 
             # calculate PLL at f_pfd/2
             n, frac1, (frac2_msb, frac2_lsb), (mod2_msb, mod2_lsb) = calculate_pll(
-                self.f_vco(), f_pfd >> 1
+                self.f_vco(), float(f_pfd >> 1)
             )
             self.core.delay(200. * us)     # Slack
 
@@ -304,7 +302,7 @@ class ADF5356:
 
             # RELOCK AT WANTED PFD FREQUENCY
 
-            for i in [4, 2, 1]:
+            for i in [13, 4, 2, 1]:
                 self.write(self.regs[i])
 
             # force-disable autocal
@@ -321,18 +319,15 @@ class ADF5356:
         return self._compute_pfd_frequency(r, d, t)
 
     @portable
-    def f_vco(self) -> int64:
+    def f_vco(self) -> float:
         """
         Return the VCO frequency for the cached set of registers.
         """
-        return round64(
-            float(self.f_pfd())
-            * (
+        return float(self.f_pfd()) * (
                  float(self.pll_n())
                  + (float(self.pll_frac1() + self.pll_frac2()) / float(self.pll_mod2()))
                  / float(ADF5356_MODULUS1)
              )
-        )
 
     @portable
     def pll_n(self) -> int32:
@@ -571,7 +566,7 @@ def split_msb_lsb_28b(v: int32) -> tuple[int32, int32]:
 
 
 @portable
-def calculate_pll(f_vco: int64, f_pfd: int64) -> tuple[int32, int32, tuple[int32, int32], tuple[int32, int32]]:
+def calculate_pll(f_vco: float, f_pfd: float) -> tuple[int32, int32, tuple[int32, int32], tuple[int32, int32]]:
     """
     Calculate fractional-N PLL parameters such that
 
@@ -585,16 +580,18 @@ def calculate_pll(f_vco: int64, f_pfd: int64) -> tuple[int32, int32, tuple[int32
     :param f_pfd: PFD frequency
     :return: (``n``, ``frac1``, ``(frac2_msb, frac2_lsb)``, ``(mod2_msb, mod2_lsb)``)
     """
+    f_pfd_i = int64(f_pfd)
+    f_vco_i = int64(f_vco)
 
     # integral part
-    n, r = int32(f_vco // f_pfd), f_vco % f_pfd
+    n, r = int32(f_vco_i // f_pfd_i), f_vco_i % f_pfd_i
 
     # main fractional part
     r *= int64(ADF5356_MODULUS1)
-    frac1, frac2 = int32(r // f_pfd), r % f_pfd
+    frac1, frac2 = int32(r // f_pfd_i), int64(r % f_pfd_i)
 
     # auxiliary fractional part
-    mod2 = f_pfd
+    mod2 = f_pfd_i
 
     while mod2 > int64(ADF5356_MAX_MODULUS2):
         mod2 >>= 1

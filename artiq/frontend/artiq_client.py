@@ -16,7 +16,7 @@ from sipyco.pc_rpc import Client
 from sipyco.sync_struct import Subscriber
 from sipyco.broadcast import Receiver
 from sipyco import common_args, pyon
-from sipyco.tools import SignalHandler
+from sipyco.tools import SignalHandler, SimpleSSLConfig
 
 from artiq.tools import (scale_from_metadata, short_format, parse_arguments,
                          parse_devarg_override)
@@ -43,6 +43,12 @@ def get_argparser():
                         version="ARTIQ v{}".format(artiq_version),
                         help="print the ARTIQ version number")
 
+    parser.add_argument("--ssl", nargs=3, metavar=('CERT', 'KEY', 'PEER'), default=None,
+                        help="Enable SSL authentication: "
+                             "CERT: client certificate file, "
+                             "KEY: client private key, "
+                             "PEER: server certificate to trust "
+                             "(default: %(default)s)")
     subparsers = parser.add_subparsers(dest="action")
     subparsers.required = True
 
@@ -303,14 +309,14 @@ def _show_interactive_args(interactive_args):
     print(table)
 
 
-def _run_subscriber(host, port, subscriber):
+def _run_subscriber(host, port, subscriber, ssl_config=None):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
         signal_handler = SignalHandler()
         signal_handler.setup()
         try:
-            loop.run_until_complete(subscriber.connect(host, port))
+            loop.run_until_complete(subscriber.connect(host, port, None, ssl_config=ssl_config))
             try:
                 _, pending = loop.run_until_complete(asyncio.wait(
                     [loop.create_task(signal_handler.wait_terminate()), subscriber.receive_task],
@@ -335,7 +341,8 @@ def _show_dict(args, notifier_name, display_fun):
     subscriber = Subscriber(notifier_name, init_d,
                             lambda mod: display_fun(d))
     port = 3250 if args.port is None else args.port
-    _run_subscriber(args.server, port, subscriber)
+    ssl_config = SimpleSSLConfig(*args.ssl) if args.ssl else None
+    _run_subscriber(args.server, port, subscriber, ssl_config)
 
 
 def _print_log_record(record):
@@ -347,7 +354,8 @@ def _print_log_record(record):
 def _show_log(args):
     subscriber = Receiver("log", [_print_log_record])
     port = 1067 if args.port is None else args.port
-    _run_subscriber(args.server, port, subscriber)
+    ssl_config = SimpleSSLConfig(*args.ssl) if args.ssl else None
+    _run_subscriber(args.server, port, subscriber, ssl_config)
 
 
 def _show_ccb(args):
@@ -357,7 +365,8 @@ def _show_ccb(args):
                         "kwargs:", d["kwargs"])
     ])
     port = 1067 if args.port is None else args.port
-    _run_subscriber(args.server, port, subscriber)
+    ssl_config = SimpleSSLConfig(*args.ssl) if args.ssl else None
+    _run_subscriber(args.server, port, subscriber, ssl_config)
 
 
 def main():
@@ -392,7 +401,8 @@ def main():
             "ls": "experiment_db",
             "terminate": "master_management",
         }[action]
-        remote = Client(args.server, port, target_name)
+        ssl_config = SimpleSSLConfig(*args.ssl) if args.ssl else None
+        remote = Client(args.server, port, target_name, ssl_config=ssl_config)
         try:
             globals()["_action_" + action](remote, args)
         finally:
