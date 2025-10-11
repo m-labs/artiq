@@ -22,16 +22,21 @@ def get_argparser():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="ARTIQ flashing/deployment tool",
         epilog="""\
-Valid actions:
+Valid commands:
 
-    * gateware: write main gateware bitstream to flash
-    * bootloader: write bootloader to flash
-    * storage: write storage image to flash
-    * firmware: write firmware to flash
-    * load: load main gateware bitstream into device (volatile but fast)
-    * erase: erase flash memory
+    * write: write the binary or image file(s) to the specified flash region(s).
+    * erase: erase the specified flash region(s).
+    * load: load the main gateware bitstream into device (volatile but fast).
     * start: trigger the target to (re)load its gateware bitstream from flash.
       If your core device is reachable by network, prefer 'artiq_coremgmt reboot'. 
+
+Valid regions for write and erase actions:
+    
+    * gateware
+    * bootloader
+    * storage
+    * firmware
+    * Example: gateware,bootloader,storage,firmware
 
 Prerequisites:
 
@@ -68,9 +73,11 @@ Prerequisites:
     parser.add_argument("-d", "--dir", default=None, help="look for board binaries in this directory")
     parser.add_argument("--srcbuild", help="board binaries directory is laid out as a source build tree",
                         default=False, action="store_true")
-    parser.add_argument("action", metavar="ACTION", nargs="*",
-                        default=[],
-                        help="actions to perform, default: flash everything")
+    parser.add_argument("cmds", metavar="COMMANDS", nargs="*",
+                        default=["write", "start"],
+                        help="run cmd(s), for write and erase command, use format: CMD=REGION | "
+                             "for other commands, use format: CMD | "
+                             "default: flash gateware, firmware and bootloader and restart the FPGA device")
     return parser
 
 def openocd_root():
@@ -140,12 +147,30 @@ class Programmer:
             "flash bank {name} jtagspi 0 0 0 0 {tap}.{name}.proxy {ir:#x}",
             tap=tap, name=name, ir=0x02 + index)
 
-    def erase_flash(self, bankname):
+    def erase(self, target_regions, config, bankname="spi0"):
         self.load_proxy()
-        add_commands(self._script,
-                     "flash probe {bankname}",
-                     "flash erase_sector {bankname} 0 last",
-                     bankname=bankname)
+
+        firstsector, erase_list = None, []
+        for region, t in config.items():
+            if region == "programmer":
+                continue
+            sector = t[1] // self._sector_size
+
+            if firstsector is None and region in target_regions:
+                firstsector = sector
+            elif firstsector is not None and region not in target_regions:
+                erase_list.append([firstsector, sector - 1])
+                firstsector = None
+
+        add_commands(self._script,"flash probe {bankname}", bankname=bankname)
+
+        if firstsector is not None:
+            erase_list.append([firstsector, "last"])
+
+        for firstsector, lastsector in erase_list:
+            add_commands(self._script,
+                "flash erase_sector {bankname} {firstsector} {lastsector}",
+                bankname=bankname, firstsector=firstsector, lastsector=lastsector)
 
     def load(self, bitfile, pld):
         os.stat(bitfile) # check for existence
@@ -292,13 +317,28 @@ def main():
         },
     }[args.target]
 
-    if not args.action:
-        args.action = "gateware bootloader firmware start".split()
-    needs_artifacts = any(
-        action in args.action
-        for action in ["gateware", "bootloader", "firmware", "load"])
-    if needs_artifacts and args.dir is None:
-        raise ValueError("the directory containing the binaries need to be specified using -d.")
+    cmds = []
+    for cmd in args.cmds:
+        cmd, *regions = cmd.replace("=", ",").split(",")
+        if not regions:
+            if cmd == "write":
+                regions = ["gateware", "bootloader", "firmware"]
+            elif cmd == "erase":
+                regions = ["gateware", "bootloader", "storage", "firmware"]
+        elif cmd in ["write", "erase"]:
+            if not(all(region in list(config)[1:] for region in regions)):
+                raise ValueError(f"unrecognized flash region(s): '{regions}'")
+        else:
+            raise ValueError(f"invalid command: {cmd}={','.join(regions)}")
+        
+        if cmd in ["write", "load"] and args.dir is None:
+            if any(region in regions for region in ["gateware", "bootloader", "firmware"]):
+                raise ValueError("the directory containing the binaries needs to be specified using -d.")
+        if cmd == "write" and args.storage is None:
+            if "storage" in regions:
+                raise ValueError("the storage image file name needs to be specified using -f.")
+
+        cmds.append([cmd, set(regions)])
 
     binary_dir = args.dir
 
@@ -309,28 +349,25 @@ def main():
 
     programmer = config["programmer"](client, preinit_script=args.preinit_command)
 
-    for action in args.action:
-        if action == "gateware":
-            gateware_bin = fetch_bin(binary_dir, ["gateware"], args.srcbuild)
-            programmer.write_binary(*config["gateware"], gateware_bin)
-        elif action == "bootloader":
-            bootloader_bin = fetch_bin(binary_dir, ["bootloader"], args.srcbuild)
-            programmer.write_binary(*config["bootloader"], bootloader_bin)
-        elif action == "storage":
-            storage_img = args.storage
-            programmer.write_binary(*config["storage"], storage_img)
-        elif action == "firmware":
-            firmware_fbi = fetch_bin(binary_dir, ["satman", "runtime"], args.srcbuild)
-            programmer.write_binary(*config["firmware"], firmware_fbi)
-        elif action == "load":
+    for cmd, regions in cmds:
+        if cmd == "write":
+            for region in regions:
+                if region == "firmware":
+                    path = fetch_bin(binary_dir, ["satman", "runtime"], args.srcbuild)
+                elif region == "storage":
+                    path = args.storage
+                else:
+                    path = fetch_bin(binary_dir, [region], args.srcbuild)
+                programmer.write_binary(*config[region], path)
+        elif cmd == "load":
             gateware_bit = artifact_path(binary_dir, "gateware", "top.bit")
             programmer.load(gateware_bit, 0)
-        elif action == "start":
+        elif cmd == "start":
             programmer.start()
-        elif action == "erase":
-            programmer.erase_flash("spi0")
+        elif cmd == "erase":
+            programmer.erase(regions, config)
         else:
-            raise ValueError("invalid action", action)
+            raise ValueError(f"invalid command: {cmd}")
 
     if args.dry_run:
         print("\n".join(programmer.script()))
