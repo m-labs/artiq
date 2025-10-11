@@ -237,7 +237,7 @@
     makeArtiqBoardPackage = {
       target,
       variant,
-      buildCommand ? "python -m artiq.gateware.targets.${target} -V ${variant}",
+      buildCommand ? "python -m artiq.gateware.targets.${target} ${variant}",
       experimentalFeatures ? [],
     }:
       naerskLib.buildPackage {

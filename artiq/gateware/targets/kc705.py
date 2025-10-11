@@ -681,23 +681,22 @@ def main():
     builder_args(parser)
     soc_kc705_args(parser)
     parser.set_defaults(output_dir="artiq_kc705")
-    parser.add_argument("-V", "--variant", default="nist_clock",
-                        help="variant: "
-                             "[standalone: nist_clock/nist_qc2] "
-                             "[DRTIO master: nist_clock_master/nist_qc2_master] "
-                             "[DRTIO satellite: nist_clock_satellite/nist_qc2_satellite]  "
-                             "(default: %(default)s)")
     parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
     parser.add_argument("--drtio100mhz", action="store_true", default=False,
                         help="DRTIO systems only - use 100MHz RTIO clock")
+    parser.add_argument("variant", metavar="VARIANT",
+                    help="variant: "
+                         "[standalone: nist_clock/nist_qc2] "
+                         "[DRTIO master: nist_clock_master/nist_qc2_master] "
+                         "[DRTIO satellite: nist_clock_satellite/nist_qc2_satellite] ")
     args = parser.parse_args()
 
     variant = args.variant.lower()
     try:
         cls = VARIANTS[variant]
     except KeyError:
-        raise SystemExit("Invalid variant (-V/--variant)")
+        raise SystemExit("Invalid variant")
 
     soc = cls(gateware_identifier_str=args.gateware_identifier_str, drtio_100mhz=args.drtio100mhz, **soc_kc705_argdict(args))
     build_artiq_soc(soc, builder_argdict(args))
