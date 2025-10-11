@@ -319,10 +319,12 @@ def main():
 
     cmds = []
     for cmd in args.cmds:
-        cmd, *regions = cmd.replace("=",",").split(",")
-        if len(regions) == 0:
-            regions = ["gateware", "bootloader", "firmware"] if cmd == "write" else regions
-            regions = ["gateware", "bootloader", "storage", "firmware"] if cmd == "erase" else regions
+        cmd, *regions = cmd.replace("=", ",").split(",")
+        if not regions:
+            if cmd == "write":
+                regions = ["gateware", "bootloader", "firmware"]
+            elif cmd == "erase":
+                regions = ["gateware", "bootloader", "storage", "firmware"]
         elif cmd in ["write", "erase"]:
             if not(all(region in list(config)[1:] for region in regions)):
                 raise ValueError(f"unrecognized flash region(s): '{regions}'")
