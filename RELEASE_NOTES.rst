@@ -51,15 +51,14 @@ ARTIQ-9 (Unreleased)
 
 Breaking changes:
 
-* ``artiq_flash``:
-   - ``gateware``, ``firmware``, ``bootloader``, ``storage`` actions are now ``REGION``.
-   - ``write`` and ``erase`` should be used in the format ``CMD=REGION`` instead.
-   - See the example below.
+* ``artiq_flash``: the syntax is different when operating on partial regions of the flash. See the example below.
+  The new syntax also allows erasing partial regions. Backward compatibility is retained when erasing and 
+  flashing all regions.
 
 ::
 
-  # Erase the storage flash region, flash the gateware, firmware, bootloader and then restart the FPGA device
-  artiq_flash erase=storage write=gateware,firmware,bootloader start -d ./artiq_kasli/master/ --srcbuild
+  # Erase the storage flash region, flash the gateware and firmware but not bootloader and then restart the FPGA device
+  artiq_flash erase=storage write=gateware,firmware start -d ./artiq_kasli/master/ --srcbuild
 
 ARTIQ-8
 -------
