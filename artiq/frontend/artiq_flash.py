@@ -332,9 +332,9 @@ def main():
         if cmd in ["write", "load"] and args.dir is None:
             if any(region in regions for region in ["gateware", "bootloader", "firmware"]):
                 raise ValueError("the directory containing the binaries needs to be specified using -d.")
-        elif cmd == "write" and args.storage is None:
+        if cmd == "write" and args.storage is None:
             if "storage" in regions:
-                raise ValueError("the storage image filepath needs to be specified using -f.")
+                raise ValueError("the storage image file name needs to be specified using -f.")
 
         cmds.append([cmd, set(regions)])
 
