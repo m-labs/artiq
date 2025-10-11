@@ -73,6 +73,7 @@ Breaking changes:
 
 Breaking changes:
 
+* The variant for EFC and KC705 gateware builds must always be specified.
 * ``artiq_flash``: the syntax is different when operating on partial regions of the flash. See the example below.
   The new syntax also allows erasing partial regions. Backward compatibility is retained when erasing and 
   flashing all regions.
