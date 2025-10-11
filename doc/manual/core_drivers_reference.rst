@@ -109,6 +109,12 @@ RF generation drivers
 .. automodule:: artiq.coredevice.phaser
     :members:
 
+:mod:`artiq.coredevice.songbird` module
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: artiq.coredevice.songbird
+    :members:
+
 DAC/ADC drivers
 ---------------
 

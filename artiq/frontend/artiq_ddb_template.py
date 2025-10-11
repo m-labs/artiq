@@ -12,7 +12,7 @@ from artiq.coredevice.phaser import PHASER_GW_MIQRO, PHASER_GW_BASE
 
 
 def get_cpu_target(description):
-    if description.get("type", None) == "shuttler":
+    if description.get("type", None) in ["shuttler", "songbird"]:
         return "rv32g"
     if description["target"] == "kasli":
         if description["hw_rev"] in ("v1.0", "v1.1"):
@@ -729,6 +729,53 @@ class PeripheralManager:
                 spi=spi_name)
         return 0
 
+
+    def process_songbird(self, songbird_peripheral):
+        songbird_name = self.get_name("songbird")
+        rtio_offset = songbird_peripheral["drtio_destination"] << 16
+        rtio_offset += self.add_board_leds(rtio_offset, board_name=songbird_name)
+        
+        channel = count(0)
+        self.gen("""
+            device_db["{name}_spi"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.spi2",
+                "class": "SPIMaster",
+                "arguments": {{"channel": 0x{channel:06x}}},
+            }}""",
+            name=songbird_name,
+            channel=rtio_offset + next(channel))
+
+        self.gen("""
+            device_db["{name}_config"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.songbird",
+                "class": "Songbird",
+                "arguments": {{"spi_device": "{spi_name}", "channel": 0x{channel:06x}}}
+            }}""",
+            name=songbird_name,
+            spi_name=songbird_name+"_spi",
+            channel=rtio_offset + next(channel)) # base channel: reset
+
+        config_offset = 2  # then clear, trigger
+
+        for i in range(4):
+            self.gen("""
+                device_db["{name}_dds{ch}"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.songbird",
+                    "class": "DDS",
+                    "arguments": {{"config_device": "{config_name}", "channel": 0x{base_channel:06x}, "dds_no": {ch}}}
+                }}""",
+                name=songbird_name,
+                ch=i,
+                config_name=songbird_name + "_config",
+                base_channel=rtio_offset + config_offset + next(channel))
+            next(channel) # c coefficients channel
+
+        return 0    
+
+
     def process_coaxpress_sfp(self, rtio_offset, peripheral):
         self.gen("""
             device_db["{name}"] = {{
@@ -765,7 +812,7 @@ class PeripheralManager:
 
 def split_drtio_eem(peripherals):
     # Shuttler is the only peripheral that uses DRTIO-over-EEM at this moment
-    drtio_eem_filter = lambda peripheral: peripheral["type"] == "shuttler"
+    drtio_eem_filter = lambda peripheral: peripheral["type"] in ["shuttler", "songbird"]
     return filterfalse(drtio_eem_filter, peripherals), \
         list(filter(drtio_eem_filter, peripherals))
 

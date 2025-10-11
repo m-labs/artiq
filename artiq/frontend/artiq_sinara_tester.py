@@ -89,6 +89,7 @@ class SinaraTester(EnvExperiment):
         self.legacy_almaznys = dict()
         self.almaznys = dict()
         self.shuttler = dict()
+        self.songbirds = dict()
         self.coaxpress_sfps = dict()
 
         ddb = self.get_device_db()
@@ -142,6 +143,13 @@ class SinaraTester(EnvExperiment):
                         "relay": self.get_device("{}_relay".format(shuttler_name)),
                         "adc": self.get_device("{}_adc".format(shuttler_name)),
                     })
+                elif (module, cls) == ("artiq.coredevice.songbird", "Songbird"):
+                    songbird_name = name.replace("_config", "")
+                    self.songbirds[songbird_name] = ({
+                        "config": self.get_device(name),
+                        "leds": [self.get_device(f"{songbird_name}_led{i}") for i in range(2)],
+                        "dds": [self.get_device(f"{songbird_name}_dds{i}") for i in range(4)],
+                    })
                 elif (module, cls) == ("artiq.coredevice.cxp_grabber", "CXPGrabber"):
                     self.coaxpress_sfps[name] = self.get_device(name)
 
@@ -193,6 +201,7 @@ class SinaraTester(EnvExperiment):
         self.suservos = sorted(self.suservos.items(), key=lambda x: x[1].channel)
         self.suschannels = sorted(self.suschannels.items(), key=lambda x: x[1].channel)
         self.shuttler = sorted(self.shuttler.items(), key=lambda x: x[1]["leds"][0].channel)
+        self.songbirds = sorted(self.songbirds.items(), key=lambda x: x[1]["leds"][0].channel)
         self.coaxpress_sfps = sorted(self.coaxpress_sfps.items(), key=lambda x: x[1].channel)
 
     @kernel
@@ -959,6 +968,53 @@ class SinaraTester(EnvExperiment):
                 print("FAILED")
                 print("Shuttler Remote AFE Board ADC has abnormal readings.")
                 print(f"ADC Readings:", " ".join(["{:.2f}".format(x) for x in adc_readings]))
+
+    @kernel
+    def setup_songbird_init(self, config):
+        self.core.break_realtime()
+        config.init()
+
+    @kernel
+    def setup_songbird_waveforms(self, card_n, config, ddss):
+        self.core.break_realtime()
+        config.clear(0b1111)
+        delay(1*ms)
+        # Set some waveforms
+        i = 1
+        for channel in ddss:
+            freq = (10.0*float(i) + float(card_n)) * MHz
+            freq_mu = config.frequency_to_mu(freq)
+            channel.set_waveform(ampl_offset=0x2000, 
+                                 damp=0, 
+                                 ddamp=0, 
+                                 dddamp=0, 
+                                 phase_offset=0, 
+                                 ftw=freq_mu,
+                                 chirp=0,
+                                 shift=0)
+            i += 1
+        delay(1*ms)
+        config.trigger(0b1111)
+        delay(1*ms)
+        config.clear(0)
+
+    def test_songbirds(self):
+        print("*** Testing Songbird.")
+        print("Note: Songbird requires an appropriate sample clock. Connect it before testing.")
+
+        for card_n, (card_name, card_dev) in enumerate(self.songbirds):
+            print("Initializing {}...".format(card_name))
+            self.setup_songbird_init(card_dev["config"])
+            print("...done")
+            print("Setting up DDS waveforms...")
+            self.setup_songbird_waveforms(card_n, card_dev["config"], card_dev["dds"])
+            print("...done")
+            print("{} output active. Frequencies: {} MHz.".format(
+                card_name,
+                ", ".join([str(10*i + card_n) for i in range(1, 5)]))
+                )
+        print("Check the outputs on an oscilloscope, using the FFT function. Press ENTER to continue.")
+        input()
 
     @kernel
     def boA2448_250cm_setup(self, dev: CXPGrabber) -> int32:
