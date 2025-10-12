@@ -20,7 +20,7 @@ from artiq import __artiq_dir__ as artiq_dir, __version__ as artiq_version
 from artiq.tools import get_user_config_dir
 from artiq.gui.models import ModelSubscriber
 from artiq.gui import state, log
-from artiq.dashboard import (experiments, shortcuts, explorer,
+from artiq.dashboard import (experiments, experiment_tabs, shortcuts, explorer,
                              moninj, datasets, schedule, applets_ccb,
                              waveform, interactive_args)
 
@@ -81,47 +81,29 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.exit_request = asyncio.Event()
 
+        self.multiple_tabs_management = experiment_tabs.MultipleTabsManagement(self)
+
     def closeEvent(self, event):
         event.ignore()
         self.exit_request.set()
 
     def save_state(self):
+        # Save MainWindow state including MDI areas.
+        # (This is separate from the QMainWindow state.)
+        mdi_areas = self.multiple_tabs_management.get_mdi_areas_state()
         return {
             "state": bytes(self.saveState()),
-            "geometry": bytes(self.saveGeometry())
+            "geometry": bytes(self.saveGeometry()),
+            "mdi_areas": mdi_areas,
         }
 
     def restore_state(self, state):
+        # Restore MainWindow state including MDI areas
         self.restoreGeometry(QtCore.QByteArray(state["geometry"]))
         self.restoreState(QtCore.QByteArray(state["state"]))
-
-
-class MdiArea(QtWidgets.QMdiArea):
-    def __init__(self):
-        QtWidgets.QMdiArea.__init__(self)
-        self.pixmap = QtGui.QPixmap(os.path.join(
-            artiq_dir, "gui", "logo_ver.svg"))
-
-        self.setActivationOrder(
-            QtWidgets.QMdiArea.WindowOrder.ActivationHistoryOrder)
-
-        self.tile = QtGui.QShortcut(
-            QtGui.QKeySequence('Ctrl+Shift+T'), self)
-        self.tile.activated.connect(
-            lambda: self.tileSubWindows())
-
-        self.cascade = QtGui.QShortcut(
-            QtGui.QKeySequence('Ctrl+Shift+C'), self)
-        self.cascade.activated.connect(
-            lambda: self.cascadeSubWindows())
-
-    def paintEvent(self, event):
-        QtWidgets.QMdiArea.paintEvent(self, event)
-        painter = QtGui.QPainter(self.viewport())
-        x = (self.width() - self.pixmap.width()) // 2
-        y = (self.height() - self.pixmap.height()) // 2
-        painter.setOpacity(0.5)
-        painter.drawPixmap(x, y, self.pixmap)
+        self.multiple_tabs_management.restore_mdi_areas_state(
+            state.get("mdi_areas", [])
+        )
 
 
 def main():
@@ -198,11 +180,6 @@ def main():
 
     # initialize main window
     main_window = MainWindow(args.server if server_name is None else server_name)
-    smgr.register(main_window)
-    mdi_area = MdiArea()
-    mdi_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-    mdi_area.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-    main_window.setCentralWidget(mdi_area)
 
     # create UI components
     expmgr = experiments.ExperimentManager(main_window,
@@ -212,6 +189,7 @@ def main():
                                            rpc_clients["schedule"],
                                            rpc_clients["experiment_db"])
     smgr.register(expmgr)
+    smgr.register(main_window)
     d_shortcuts = shortcuts.ShortcutsDock(main_window, expmgr)
     smgr.register(d_shortcuts)
     d_explorer = explorer.ExplorerDock(expmgr, d_shortcuts,
