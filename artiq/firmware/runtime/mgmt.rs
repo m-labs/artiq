@@ -48,7 +48,7 @@ mod local_coremgmt {
             loop {
                 // Do this *before* acquiring the buffer, since that sets the log level
                 // to OFF.
-                let log_level = log::max_level();
+                let log_level = logger.buffer_log_level();
 
                 let mut buffer = io.until_ok(|| logger.buffer())?;
                 if buffer.is_empty() { continue }
@@ -76,7 +76,8 @@ mod local_coremgmt {
 
     pub fn set_log_filter(_io: &Io, stream: &mut TcpStream, level: LevelFilter) -> Result<(), Error<SchedError>> {
         info!("changing log level to {}", level);
-        log::set_max_level(level);
+        BufferLogger::with(|logger|
+            logger.set_buffer_log_level(level));
         Reply::Success.write_to(stream)?;
         Ok(())
     }
