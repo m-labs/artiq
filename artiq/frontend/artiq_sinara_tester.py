@@ -6,7 +6,7 @@ import os
 import select
 import sys
 
-from numpy import int32
+from numpy import int32, int64
 
 from artiq.experiment import *
 from artiq.coredevice.core import Core
@@ -22,6 +22,7 @@ from artiq.coredevice.fastino import Fastino
 from artiq.coredevice.phaser import Phaser, PHASER_GW_BASE, PHASER_GW_MIQRO
 from artiq.coredevice.grabber import Grabber
 from artiq.coredevice.suservo import SUServo, Channel as SUServoChannel
+from artiq.coredevice.songbird import Songbird, DDS as SongbirdDDS
 from artiq.coredevice.shuttler import (
     Config as ShuttlerConfig,
     Trigger as ShuttlerTrigger,
@@ -970,15 +971,15 @@ class SinaraTester(EnvExperiment):
                 print(f"ADC Readings:", " ".join(["{:.2f}".format(x) for x in adc_readings]))
 
     @kernel
-    def setup_songbird_init(self, config):
+    def setup_songbird_init(self, config: Songbird):
         self.core.break_realtime()
         config.init()
 
     @kernel
-    def setup_songbird_waveforms(self, card_n, config, ddss):
+    def setup_songbird_waveforms(self, card_n: int32, config: Songbird, ddss: list[SongbirdDDS]):
         self.core.break_realtime()
         config.clear(0b1111)
-        delay(1*ms)
+        self.core.delay(1.0*ms)
         # Set some waveforms
         i = 1
         for channel in ddss:
@@ -986,16 +987,16 @@ class SinaraTester(EnvExperiment):
             freq_mu = config.frequency_to_mu(freq)
             channel.set_waveform(ampl_offset=0x2000, 
                                  damp=0, 
-                                 ddamp=0, 
-                                 dddamp=0, 
+                                 ddamp=int64(0), 
+                                 dddamp=int64(0), 
                                  phase_offset=0, 
                                  ftw=freq_mu,
                                  chirp=0,
                                  shift=0)
             i += 1
-        delay(1*ms)
+        self.core.delay(1.0*ms)
         config.trigger(0b1111)
-        delay(1*ms)
+        self.core.delay(1.0*ms)
         config.clear(0)
 
     def test_songbirds(self):
