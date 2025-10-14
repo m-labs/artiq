@@ -193,17 +193,23 @@ class Urukul(_EEM):
             ),
         ]
         ttls = [(6, eem0, "io_update"),
-                (7, eem0, "dds_reset_sync_in"),
+                # FIXME: Causes critical warning "[Place 30-722]" when
+                # synchronization is disabled.
+                # No practical issue since `dds_reset_sync_in` is tied to GND
+                # constant in this situation.
+                #
+                # See the proposed resolution in #2757.
+                (7, eem0, "dds_reset_sync_in", Misc("IOB=TRUE")),
                 (4, eem1, "sw0"),
                 (5, eem1, "sw1"),
                 (6, eem1, "sw2"),
                 (7, eem1, "sw3")]
-        for i, j, sig in ttls:
+        for i, j, sig, *extra_args in ttls:
             ios.append(
                 ("urukul{}_{}".format(eem0, sig), 0,
                     Subsignal("p", Pins(_eem_pin(j, i, "p"))),
                     Subsignal("n", Pins(_eem_pin(j, i, "n"))),
-                    iostandard(j)
+                    iostandard(j), *extra_args
                 ))
         ios += [
             ("urukul{}_qspi_p".format(eem0), 0,
@@ -553,6 +559,7 @@ class SUServo(_EEM):
     @classmethod
     def add_std(cls, target, eems_sampler, eems_urukul,
                 t_rtt=4, clk=1, shift=11, profile=5,
+                sync_gen_cls=None,
                 iostandard=default_iostandard):
         """Add a 8-channel Sampler-Urukul Servo
 
@@ -578,7 +585,7 @@ class SUServo(_EEM):
 
         sampler_pads = servo_pads.SamplerPads(target.platform, eem_sampler)
         urukul_pads = servo_pads.UrukulPads(
-            target.platform, *eem_urukul)
+            target.platform, sync_gen_cls is not None, *eem_urukul)
         target.submodules += sampler_pads, urukul_pads
         # timings in units of RTIO coarse period
         adc_p = servo.ADCParams(width=16, channels=8, lanes=4, t_cnvh=4,
@@ -611,6 +618,19 @@ class SUServo(_EEM):
         target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
 
         for j, eem_urukuli in enumerate(eem_urukul):
+            sync_pads = target.platform.request("{}_dds_reset_sync_in".format(eem_urukuli))
+
+            if sync_gen_cls is not None:
+                io_upd_phy = urukul_pads.ttl_rtio_phys[j]
+                target.rtio_channels.append(rtio.Channel.from_phy(io_upd_phy))
+
+                sync_phy = sync_gen_cls(pad=sync_pads.p, pad_n=sync_pads.n, ftw_width=4)
+                target.submodules += sync_phy
+                target.rtio_channels.append(rtio.Channel.from_phy(sync_phy))
+
+            else:
+                target.specials += DifferentialOutput(0, sync_pads.p, sync_pads.n)
+
             spi_p, spi_n = (
                 target.platform.request("{}_spi_p".format(eem_urukuli)),
                 target.platform.request("{}_spi_n".format(eem_urukuli)))
@@ -618,9 +638,6 @@ class SUServo(_EEM):
             phy = spi2.SPIMaster(spi_p, spi_n)
             target.submodules += phy
             target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
-
-            pads = target.platform.request("{}_dds_reset_sync_in".format(eem_urukuli))
-            target.specials += DifferentialOutput(0, pads.p, pads.n)
 
             for i, signal in enumerate("sw0 sw1 sw2 sw3".split()):
                 pads = target.platform.request("{}_{}".format(eem_urukuli, signal))
