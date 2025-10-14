@@ -465,7 +465,7 @@ class AD9910:
                      (sync_validation_disable << 5))
 
     @kernel
-    def init(self, blind: TBool = False):
+    def init(self, blind: TBool = False, dds_channel_idx: TInt32 = 0):
         """Initialize and configure the DDS.
 
         Sets up SPI mode, confirms chip presence, powers down unused blocks,
@@ -514,12 +514,16 @@ class AD9910:
                     sta = self.cpld.sta_read()
                     lock = urukul_sta_pll_lock(sta)
                     delay(1 * ms)
-                    if lock & (1 << self.chip_select - 4):
+                    if self.chip_select == 3:
+                        lock_bit_offset = dds_channel_idx
+                    else:
+                        lock_bit_offset = self.chip_select - 4
+                    if lock & (1 << lock_bit_offset):
                         break
                     if i >= 100 - 1:
                         raise ValueError("PLL lock timeout")
         delay(10 * us)  # slack
-        if self.sync_data.sync_delay_seed >= 0 and not blind:
+        if self.sync_data.sync_delay_seed >= 0 and not blind and self.chip_select != 3:
             self.tune_sync_delay(self.sync_data.sync_delay_seed)
         delay(1 * ms)
         # FIXME: Re-write the configuration (needed for proper
@@ -1059,7 +1063,8 @@ class AD9910:
 
     @kernel
     def tune_sync_delay(self,
-                        search_seed: TInt32 = 15) -> TTuple([TInt32, TInt32]):
+                        search_seed: TInt32 = 15,
+                        dds_channel_idx=0) -> TTuple([TInt32, TInt32]):
         """Find a stable ``SYNC_IN`` delay.
 
         This method first locates a valid ``SYNC_IN`` delay at zero validation
@@ -1097,7 +1102,8 @@ class AD9910:
                 delay(100 * us)
                 err = urukul_sta_smp_err(self.cpld.sta_read())
                 delay(100 * us)  # slack
-                if not (err >> (self.chip_select - 4)) & 1:
+                err_offset = dds_channel_idx if self.chip_select == 3 else (self.chip_select - 4)
+                if not (err >> err_offset) & 1:
                     next_seed = in_delay
                     break
             if next_seed >= 0:  # valid delay found, scan next window
