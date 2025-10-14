@@ -454,6 +454,10 @@
                         "proto_rev": {
                             "type": "integer",
                             "default": 9
+                        },
+                        "synchronization": {
+                            "type": "boolean",
+                            "default": false
                         }
                     },
                     "oneOf": [
