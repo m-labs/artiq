@@ -573,3 +573,52 @@ class Channel:
             raise ValueError("Invalid SUServo y-value!")
         self.set_y_mu(profile, y_mu)
         return y_mu
+
+
+class _MaskedIOUpdate:
+    def __init__(self, core, cpld, dds, io_update):
+        self.cpld = cpld
+        self.dds = dds
+        self.core = core
+        self.io_update = io_update
+
+        # Synchronized SU-Servo uses the designated I/O update pin.
+        # When communicating with the DDS via slow SPI, MASK_NU must be set to
+        # perform serial transfer, then unset to propagate I/O update.
+        self.toggle_mask_nu = self.cpld.io_update is not None
+    
+    @kernel
+    def pulse_mu(self, duration):
+        """Unset MASK_NU, then pulse the IO Update TTL high for the specified
+        duration (in machine units). MASK_NU is restored to the previous value
+        after the I/O pulse.
+
+        The I/O update TTL supports fine timestamp.
+        The preamble CFG write advances the timestamp to a fine-timestamp
+        invariant position, then I/O update TTL pulses.
+
+        The time cursor is advanced to the end of the second CFG write,
+        incremented by the initial fine timestamp.
+
+        The timestamp delta is not varied by the fine timestamp."""
+        toggle_needed = bool((self.cpld.cfg_reg >> (urukul.ProtoRev9.CFG_MASK_NU + self.dds.selected_ch)) & 1)
+        if self.toggle_mask_nu and toggle_needed:
+            fine_ts = now_mu() & 7
+            delay_mu(8 - fine_ts)
+            self.cpld.cfg_mask_nu(self.dds.selected_ch, False)
+            delay_mu(fine_ts)
+
+        self.io_update.pulse_mu(duration)
+
+        if self.toggle_mask_nu and toggle_needed:
+            fine_ts = now_mu() & 7
+            delay_mu(8 - fine_ts)
+            self.cpld.cfg_mask_nu(self.dds.selected_ch, True)
+            delay_mu(fine_ts)
+
+    @kernel
+    def pulse(self, duration):
+        """Pulse the output high for the specified duration (in seconds).
+
+        See pulse_mu."""
+        self.pulse_mu(self.core.seconds_to_mu(duration))
