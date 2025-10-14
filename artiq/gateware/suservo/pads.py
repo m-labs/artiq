@@ -57,8 +57,46 @@ class SamplerPads(Module):
                 clk=dp.clkout, port=sdop)
 
 
+class OutIoUpdate_8X(Module):
+    def __init__(self, pad):
+        serdes = ttl_serdes_7series._OSERDESE2_8X()
+        self.submodules += serdes
+
+        # External trigger to issue pulses bypassing RTIO
+        self.trigger = Signal()
+        self.data = Signal()
+        self.fine_ts = Signal(3)
+
+        self.rtlink = rtlink.Interface(
+            rtlink.OInterface(1, fine_ts_width=3))
+        self.probes = []
+        self.overrides = []
+
+        # # #
+
+        self.specials += Instance("IOBUFDS",
+                                  i_I=serdes.ser_out,
+                                  i_T=serdes.t_out,
+                                  io_IO=pad.p,
+                                  io_IOB=pad.n)
+
+        trigger_r = Signal.like(self.trigger)
+        extern_active = Signal()
+        self.sync.rio_phy += trigger_r.eq(self.trigger)
+        self.comb += extern_active.eq(self.trigger | trigger_r)
+
+        self.submodules += ttl_serdes_generic._SerdesDriver(
+            serdes.o,
+            self.rtlink.o.stb | extern_active,
+            Mux(extern_active, self.trigger, self.rtlink.o.data),
+            Mux(extern_active, self.fine_ts, self.rtlink.o.fine_ts),
+            0, 0)   # serdes override controls only supports coarse timestamp
+
+        self.comb += self.rtlink.o.busy.eq(extern_active)
+
+
 class UrukulPads(Module):
-    def __init__(self, platform, *eems):
+    def __init__(self, platform, io_update_fine_ts=False, *eems):
         spip, spin = [[
                 platform.request("{}_qspi_{}".format(eem, pol), 0)
                 for eem in eems] for pol in "pn"]
@@ -67,16 +105,28 @@ class UrukulPads(Module):
         self.cs_n = Signal()
         self.clk = Signal()
         self.io_update = Signal()
-        self.specials += [(
-                DifferentialOutput(~self.cs_n, spip[i].cs, spin[i].cs),
-                DifferentialOutput(self.clk, spip[i].clk, spin[i].clk),
-                DifferentialOutput(self.io_update, ioup[i].p, ioup[i].n))
-                for i in range(len(eems))]
-        for i in range(4*len(eems)):
-            mosi = Signal()
-            setattr(self, "mosi{}".format(i), mosi)
-            self.specials += [
-                DifferentialOutput(getattr(self, "mosi{}".format(i)),
-                    getattr(spip[i // 4], "mosi{}".format(i % 4)),
-                    getattr(spin[i // 4], "mosi{}".format(i % 4)))
-            ]
+        if io_update_fine_ts:
+            self.io_update_dlys = [ Signal(3) for _ in range(len(eems)) ]
+            self.ttl_rtio_phys = []
+
+        for i in range(len(eems)):
+            self.specials += DifferentialOutput(self.clk, spip[i].clk, spin[i].clk)
+            if io_update_fine_ts:
+                io_upd_phy = OutIoUpdate_8X(ioup[i])
+                self.comb += [
+                    io_upd_phy.trigger.eq(self.io_update),
+                    io_upd_phy.fine_ts.eq(self.io_update_dlys[i]),
+                ]
+                self.submodules += io_upd_phy
+                self.ttl_rtio_phys.append(io_upd_phy)
+            else:
+                self.specials += DifferentialOutput(self.io_update, ioup[i].p, ioup[i].n)
+
+            for j in range(4):
+                mosi = Signal()
+                setattr(self, "mosi{}".format(i * 4 + j), mosi)
+                self.specials += [
+                    DifferentialOutput(getattr(self, "mosi{}".format(i * 4 + j)),
+                        getattr(spip[i], "mosi{}".format(j)),
+                        getattr(spin[i], "mosi{}".format(j)))
+                ]
