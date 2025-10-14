@@ -104,7 +104,6 @@ class UrukulPads(Module):
                 for eem in eems] for pol in "pn"]
         ioup = [platform.request("{}_io_update".format(eem), 0)
                 for eem in eems]
-        self.cs_n = Signal()
         self.clk = Signal()
         self.io_update = Signal()
         if io_update_fine_ts:
