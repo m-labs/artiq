@@ -267,6 +267,30 @@ class SUServo:
         gain = (self.gains >> (channel*2)) & 0b11
         return adc_mu_to_volts(val, gain, self.corrected_fs)
 
+    @kernel
+    def reset_dds_phase_accumulator(self):
+        """Reset all DDS phase accumulators.
+
+        This method clears the phase accumulator by enabling autoclear, with
+        setting FTW of the DDS single-tone profile to 0.
+
+        SU-Servo is assumed to be disabled before reset takes place.
+        """
+        self.core.break_realtime()
+        num_of_urukuls = len(self.cplds)
+        for i in range(num_of_urukuls):
+            cpld = self.cplds[i]
+            dds = self.ddses[i]._inner_dds
+            cpld.cfg_mask_nu_all(0xf)
+            dds.set_cfr1(phase_autoclear=1)
+            dds.write64(ad9910._AD9910_REG_PROFILE0 + urukul.DEFAULT_PROFILE, 0, 0)
+            cpld.cfg_io_update_all(0xf)
+            cpld.cfg_io_update_all(0)
+            dds.set_cfr1(phase_autoclear=0)
+            cpld.cfg_io_update_all(0xf)
+            cpld.cfg_io_update_all(0)
+            cpld.cfg_mask_nu_all(0)
+
 
 class Channel:
     """Sampler-Urukul Servo channel
@@ -789,3 +813,15 @@ class SharedDDS:
                 return i
 
         raise ValueError("IO_UPDATE-SYNC_CLK alignment edges are too broad")
+
+    @portable(flags={"fast-math"})
+    def frequency_to_ftw(self, frequency: TFloat) -> TInt32:
+        """Return the 32-bit frequency tuning word corresponding to the given
+        frequency."""
+        return self._inner_dds.frequency_to_ftw(frequency)
+
+    @portable(flags={"fast-math"})
+    def turns_to_pow(self, turns: TFloat) -> TInt32:
+        """Return the 16-bit phase offset word corresponding to the given phase
+        in turns."""
+        return self._inner_dds.turns_to_pow(turns)
