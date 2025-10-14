@@ -57,6 +57,10 @@ class Servo(Module):
         # is active.
         self.start = Signal()
 
+        # expose fine timestamp delays for each urukul, if available
+        if hasattr(dds_pads, "io_update_dlys"):
+            self.io_update_dlys = dds_pads.io_update_dlys
+
         # Counter for delay between end of ADC cycle and start of next one,
         # depending on the duration of the other steps.
         t_restart = t_cycle - t_adc + 1

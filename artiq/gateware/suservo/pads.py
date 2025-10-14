@@ -1,5 +1,7 @@
 from migen import *
 from migen.genlib.io import DifferentialOutput, DifferentialInput, DDROutput
+from artiq.gateware.rtio.phy import ttl_serdes_7series, ttl_serdes_generic
+from artiq.gateware.rtio import rtlink
 
 
 class SamplerPads(Module):
