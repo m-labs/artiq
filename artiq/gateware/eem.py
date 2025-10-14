@@ -180,6 +180,7 @@ class Urukul(_EEM):
             ("urukul{}_spi_p".format(eem0), 0,
                 Subsignal("clk", Pins(_eem_pin(eem0, 0, "p"))),
                 Subsignal("mosi", Pins(_eem_pin(eem0, 1, "p"))),
+                Subsignal("miso", Pins(_eem_pin(eem0, 2, "p"))),
                 Subsignal("cs_n", Pins(
                     _eem_pin(eem0, 3, "p"), _eem_pin(eem0, 4, "p"))),
                 iostandard(eem0),
@@ -187,6 +188,7 @@ class Urukul(_EEM):
             ("urukul{}_spi_n".format(eem0), 0,
                 Subsignal("clk", Pins(_eem_pin(eem0, 0, "n"))),
                 Subsignal("mosi", Pins(_eem_pin(eem0, 1, "n"))),
+                Subsignal("miso", Pins(_eem_pin(eem0, 2, "n"))),
                 Subsignal("cs_n", Pins(
                     _eem_pin(eem0, 3, "n"), _eem_pin(eem0, 4, "n"))),
                 iostandard(eem0),
@@ -213,16 +215,14 @@ class Urukul(_EEM):
                 ))
         ios += [
             ("urukul{}_qspi_p".format(eem0), 0,
-                Subsignal("cs", Pins(_eem_pin(eem0, 5, "p")), iostandard(eem0)),
-                Subsignal("clk", Pins(_eem_pin(eem0, 2, "p")), iostandard(eem0)),
+                Subsignal("clk", Pins(_eem_pin(eem0, 5, "p")), iostandard(eem0)),
                 Subsignal("mosi0", Pins(_eem_pin(eem1, 0, "p")), iostandard(eem1)),
                 Subsignal("mosi1", Pins(_eem_pin(eem1, 1, "p")), iostandard(eem1)),
                 Subsignal("mosi2", Pins(_eem_pin(eem1, 2, "p")), iostandard(eem1)),
                 Subsignal("mosi3", Pins(_eem_pin(eem1, 3, "p")), iostandard(eem1)),
             ),
             ("urukul{}_qspi_n".format(eem0), 0,
-                Subsignal("cs", Pins(_eem_pin(eem0, 5, "n")), iostandard(eem0)),
-                Subsignal("clk", Pins(_eem_pin(eem0, 2, "n")), iostandard(eem0)),
+                Subsignal("clk", Pins(_eem_pin(eem0, 5, "n")), iostandard(eem0)),
                 Subsignal("mosi0", Pins(_eem_pin(eem1, 0, "n")), iostandard(eem1)),
                 Subsignal("mosi1", Pins(_eem_pin(eem1, 1, "n")), iostandard(eem1)),
                 Subsignal("mosi2", Pins(_eem_pin(eem1, 2, "n")), iostandard(eem1)),
