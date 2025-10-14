@@ -700,7 +700,7 @@ class SharedDDS:
     """DDS configuration device for SU-Servo.
 
     Shared DDS device controls all 4 DDSes on the same Urukul device. Control
-    of the 4 channels are multiplexed by selecting the corresponding MASK_NU
+    of the 4 channels is multiplexed by selecting the corresponding MASK_NU
     bit in prior to SPI transaction. IO_UPDATE is transferred by temporarily
     disabling the corresponding MASK_NU bit.
 
