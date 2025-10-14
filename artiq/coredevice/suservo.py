@@ -662,6 +662,40 @@ class _MaskedIOUpdate:
         self.pulse_mu(self.core.seconds_to_mu(duration))
 
 
+class SyncDataUser:
+    def __init__(self, core, sync_delay_seeds, io_update_delay):
+        self.core = core
+        self.sync_delay_seeds = sync_delay_seeds
+        self.io_update_delay = io_update_delay
+
+    @kernel
+    def init(self):
+        pass
+
+
+class SyncDataEeprom:
+    def __init__(self, dmgr, core, eeprom_str):
+        self.core = core
+
+        eeprom_device, eeprom_offset = eeprom_str.split(":")
+        self.eeprom_device = dmgr.get(eeprom_device)
+        self.eeprom_offset = int(eeprom_offset)
+
+        self.sync_delay_seeds = [0] * 4
+        self.io_update_delay = 0
+
+    @kernel
+    def init(self):
+        word = self.eeprom_device.read_i32(self.eeprom_offset)
+        for i in range(len(self.sync_delay_seeds)):
+            self.sync_delay_seeds[i] = (word >> (i * 5)) & 0x1F
+        io_update_delay = (word >> 20) & 0xFFF
+        if io_update_delay == 0xFFF:    # unprogrammed EEPROM
+            self.io_update_delay = 0
+        else:
+            self.io_update_delay = int32(io_update_delay)
+
+
 class SharedDDS:
     """DDS configuration device for SU-Servo.
 
