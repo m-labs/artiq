@@ -175,24 +175,23 @@ class Urukul(_EEM):
         return ios
 
     @staticmethod
-    def io_qspi(eem0, eem1, iostandard):
+    def io_qspi(eem0, eem1, use_miso, iostandard):
+        spi_ios = [(0, "clk"),
+                   (1, "mosi"),
+                   (3, 4, "cs_n")]
+        if use_miso:
+            spi_ios.append((2, "miso"))
         ios = [
-            ("urukul{}_spi_p".format(eem0), 0,
-                Subsignal("clk", Pins(_eem_pin(eem0, 0, "p"))),
-                Subsignal("mosi", Pins(_eem_pin(eem0, 1, "p"))),
-                Subsignal("miso", Pins(_eem_pin(eem0, 2, "p"))),
-                Subsignal("cs_n", Pins(
-                    _eem_pin(eem0, 3, "p"), _eem_pin(eem0, 4, "p"))),
+            (
+                "urukul{}_spi_{}".format(eem0, pol),
+                0,
+                *[
+                    Subsignal(sig_name, Pins(
+                        *[ _eem_pin(eem0, pin_idx, pol) for pin_idx in pin_indices ]
+                    )) for *pin_indices, sig_name in spi_ios
+                ],
                 iostandard(eem0),
-            ),
-            ("urukul{}_spi_n".format(eem0), 0,
-                Subsignal("clk", Pins(_eem_pin(eem0, 0, "n"))),
-                Subsignal("mosi", Pins(_eem_pin(eem0, 1, "n"))),
-                Subsignal("miso", Pins(_eem_pin(eem0, 2, "n"))),
-                Subsignal("cs_n", Pins(
-                    _eem_pin(eem0, 3, "n"), _eem_pin(eem0, 4, "n"))),
-                iostandard(eem0),
-            ),
+            ) for pol in ("p", "n")
         ]
         ttls = [(6, eem0, "io_update"),
                 # FIXME: Causes critical warning "[Place 30-722]" when
@@ -213,21 +212,22 @@ class Urukul(_EEM):
                     Subsignal("n", Pins(_eem_pin(j, i, "n"))),
                     iostandard(j), *extra_args
                 ))
+        qspi_ios = [ (i, eem1, "mosi{}".format(i)) for i in range(4) ]
+        if use_miso:
+            # SPI MISO squeezes out QSPI NU_CLK from EEM0[2]
+            # QSPI CS needs to make way for NU_CLK
+            qspi_ios.append((5, eem0, "clk"))
+        else:
+            qspi_ios += [(2, eem0, "clk"),
+                         (5, eem0, "cs")]
         ios += [
-            ("urukul{}_qspi_p".format(eem0), 0,
-                Subsignal("clk", Pins(_eem_pin(eem0, 5, "p")), iostandard(eem0)),
-                Subsignal("mosi0", Pins(_eem_pin(eem1, 0, "p")), iostandard(eem1)),
-                Subsignal("mosi1", Pins(_eem_pin(eem1, 1, "p")), iostandard(eem1)),
-                Subsignal("mosi2", Pins(_eem_pin(eem1, 2, "p")), iostandard(eem1)),
-                Subsignal("mosi3", Pins(_eem_pin(eem1, 3, "p")), iostandard(eem1)),
-            ),
-            ("urukul{}_qspi_n".format(eem0), 0,
-                Subsignal("clk", Pins(_eem_pin(eem0, 5, "n")), iostandard(eem0)),
-                Subsignal("mosi0", Pins(_eem_pin(eem1, 0, "n")), iostandard(eem1)),
-                Subsignal("mosi1", Pins(_eem_pin(eem1, 1, "n")), iostandard(eem1)),
-                Subsignal("mosi2", Pins(_eem_pin(eem1, 2, "n")), iostandard(eem1)),
-                Subsignal("mosi3", Pins(_eem_pin(eem1, 3, "n")), iostandard(eem1)),
-            ),
+            (
+                "urukul{}_qspi_{}".format(eem0, pol),
+                0,
+                *[ Subsignal(sig_name, Pins(_eem_pin(eem, i, pol)),
+                    iostandard(eem)) for i, eem, sig_name in qspi_ios
+                ]
+            ) for pol in ("p", "n")
         ]
         return ios
 
@@ -549,17 +549,19 @@ class Grabber(_EEM):
 
 class SUServo(_EEM):
     @staticmethod
-    def io(*eems, iostandard):
+    def io(*eems, use_miso, iostandard):
         assert len(eems) in range(4, 12 + 1, 2)
         io = Sampler.io(*eems[0:2], iostandard=iostandard)
         for eem0, eem1 in zip(eems[2::2], eems[3::2]):
-            io += Urukul.io_qspi(eem0, eem1, iostandard=iostandard)
+            io += Urukul.io_qspi(
+                eem0, eem1, use_miso=use_miso, iostandard=iostandard)
         return io
 
     @classmethod
     def add_std(cls, target, eems_sampler, eems_urukul,
                 t_rtt=4, clk=1, shift=11, profile=5,
                 sync_gen_cls=None,
+                use_miso=True,
                 iostandard=default_iostandard):
         """Add a 8-channel Sampler-Urukul Servo
 
@@ -579,7 +581,7 @@ class SUServo(_EEM):
         """
         cls.add_extension(
             target, *(eems_sampler + sum(eems_urukul, [])),
-            iostandard=iostandard)
+            use_miso=use_miso, iostandard=iostandard)
         eem_sampler = "sampler{}".format(eems_sampler[0])
         eem_urukul = ["urukul{}".format(i[0]) for i in eems_urukul]
 
