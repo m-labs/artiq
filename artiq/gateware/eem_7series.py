@@ -86,10 +86,11 @@ def peripheral_suservo(module, peripheral, **kwargs):
         sync_gen_cls = ttl_simple.ClockGen
     else:
         sync_gen_cls = None
+    use_miso = peripheral["proto_rev"] == 9
 
     eem.SUServo.add_std(module,
         peripheral["sampler_ports"],
-        urukul_ports, sync_gen_cls=sync_gen_cls, **kwargs)
+        urukul_ports, sync_gen_cls=sync_gen_cls, use_miso=use_miso, **kwargs)
 
 
 def peripheral_zotino(module, peripheral, **kwargs):
