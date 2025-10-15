@@ -4,6 +4,9 @@ from artiq.gateware.rtio.phy import ttl_serdes_7series, ttl_serdes_generic
 from artiq.gateware.rtio import rtlink
 
 
+FINE_TS_WIDTH = 3
+
+
 class SamplerPads(Module):
     def __init__(self, platform, eem):
         self.sck_en = Signal()
@@ -107,7 +110,8 @@ class UrukulPads(Module):
         self.clk = Signal()
         self.io_update = Signal()
         if io_update_fine_ts:
-            self.io_update_dlys = [ Signal(3) for _ in range(len(eems)) ]
+            assert FINE_TS_WIDTH == 3   # PHY hardcoded to a 8x serdes
+            self.io_update_dlys = [ Signal(FINE_TS_WIDTH) for _ in range(len(eems)) ]
             self.ttl_rtio_phys = []
 
         for i in range(len(eems)):
