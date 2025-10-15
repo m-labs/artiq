@@ -126,9 +126,11 @@ class SUServo:
             cpld = self.cplds[i]
             dds = self.ddses[i]
 
-            cpld.init()
+            use_miso = cpld.proto_rev == 9
+
+            cpld.init(blind=not use_miso)
             prev_cpld_cfg = int64(cpld.cfg_reg)
-            dds.init()
+            dds.init(blind=not use_miso)
             cpld.cfg_write(prev_cpld_cfg)
             io_update_delays[i] = dds.sync_data.io_update_delay
 
@@ -756,11 +758,14 @@ class SharedDDS:
         self.selected_ch = channel
 
     @kernel
-    def init(self):
+    def init(self, blind=False):
         """Initialize and configure the SU-Servo as a whole.
 
         See the :meth:`~artiq.coredevice.ad9910.AD9910.init` method of
         :class:`~artiq.coredevice.ad9910.AD9910` for AD9910 initialization.
+
+        :param blind: Do not read back DDS identity and do not wait for lock.
+            See :meth:`~artiq.coredevice.ad9910.AD9910.init`.
         """
         self.core.break_realtime()
         self.sync_data.init()
@@ -768,7 +773,7 @@ class SharedDDS:
             self.core.break_realtime()
             self.update_dds_sel(i)
             self.core.break_realtime()
-            self._inner_dds.init(dds_channel_idx=i)
+            self._inner_dds.init(blind=blind, dds_channel_idx=i)
 
             if self.sync_data.sync_delay_seeds != [-1, -1, -1, -1]:
                 self._inner_dds.tune_sync_delay(self.sync_data.sync_delay_seeds[i], dds_channel_idx=i)
