@@ -6,6 +6,7 @@ from artiq.language.units import us, ns
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 from artiq.coredevice import spi2 as spi
 from artiq.coredevice import ad9910, urukul, sampler
+from artiq.gateware.suservo.pads import FINE_TS_WIDTH
 
 
 COEFF_WIDTH = 18
@@ -187,7 +188,7 @@ class SUServo:
         if write_delay:
             value |= (1 << 1)
             for i in range(len(io_update_delays)):
-                value |= (io_update_delays[i] << (i * 3 + 2))
+                value |= (io_update_delays[i] << (i * FINE_TS_WIDTH + 2))
         self.write(self.config_addr, value)
 
     @kernel
