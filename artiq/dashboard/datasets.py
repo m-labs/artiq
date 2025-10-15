@@ -4,6 +4,7 @@ import logging
 import numpy as np
 from PyQt6 import QtCore, QtGui, QtWidgets
 from sipyco import pyon
+from sipyco.tools import BackgroundTaskPool
 
 from artiq.tools import scale_from_metadata, short_format, exc_to_warning
 from artiq.gui.tools import LayoutWidget
@@ -178,7 +179,7 @@ class Model(DictSyncTreeSepModel):
 
 
 class DatasetsDock(QtWidgets.QDockWidget):
-    def __init__(self, dataset_sub, dataset_ctl):
+    def __init__(self, dataset_sub, dataset_ctl, loop):
         QtWidgets.QDockWidget.__init__(self, "Datasets")
         self.setObjectName("Datasets")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetFeature.DockWidgetMovable |
@@ -231,6 +232,7 @@ class DatasetsDock(QtWidgets.QDockWidget):
         )
         self.confirm_delete_dialog.keys = []
         self.confirm_delete_dialog.accepted.connect(self._delete_group)
+        self.delete_task_pool = BackgroundTaskPool(loop)
 
         self.table_model = Model(dict())
         dataset_sub.add_setmodel_callback(self.set_model)
@@ -265,7 +267,7 @@ class DatasetsDock(QtWidgets.QDockWidget):
             idx = self.table_model_filter.mapToSource(idx[0])
             key = self.table_model.index_to_key(idx)
             if key is not None:
-                asyncio.create_task(self.dataset_ctl.delete(key))
+                self.delete_task_pool.create(self.dataset_ctl.delete(key))
             else:
                 keys = self.table_model.index_to_child_keys(idx)
                 self.confirm_delete_dialog.keys = keys
@@ -275,7 +277,7 @@ class DatasetsDock(QtWidgets.QDockWidget):
         async def _delete_keys(keys):
             for key in keys:
                 await self.dataset_ctl.delete(key)
-        asyncio.create_task(_delete_keys(self.confirm_delete_dialog.keys))
+        self.delete_task_pool.create(_delete_keys(self.confirm_delete_dialog.keys))
 
     def save_state(self):
         return bytes(self.table.header().saveState())

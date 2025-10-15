@@ -223,7 +223,8 @@ def main():
     smgr.register(d_explorer)
 
     d_datasets = datasets.DatasetsDock(sub_clients["datasets"],
-                                       rpc_clients["dataset_db"])
+                                       rpc_clients["dataset_db"],
+                                       loop)
     smgr.register(d_datasets)
 
     d_applets = applets_ccb.AppletsCCBDock(main_window,
