@@ -108,7 +108,7 @@ class RTServoMem(Module):
 
         # # #
 
-        dly_we_n = self.rtlink.o.data[1]
+        dly_we = self.rtlink.o.data[1]
         dly_data = self.rtlink.o.data[2:] if hasattr(servo, "io_update_dlys") else 0
         status = Signal(w.coeff)
         pad = Signal(6)
@@ -170,7 +170,7 @@ class RTServoMem(Module):
         self.sync.rio_phy += [
                 If(self.rtlink.o.stb & we & state_sel & config_sel,
                     servo.start.eq(self.rtlink.o.data[0]),
-                    If(dly_we_n,
+                    If(dly_we,
                         Cat(*dly_sinks).eq(dly_data)
                     )
                 ),
