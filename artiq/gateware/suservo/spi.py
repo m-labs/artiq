@@ -62,6 +62,7 @@ class SPISimple(Module):
 
         fsm.act("IDLE",
                 self.done.eq(1),
+                pads.cs_n.eq(1),
                 If(self.start,
                     cnt_next.eq(1),
                     NextState("SETUP")

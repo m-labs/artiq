@@ -108,6 +108,7 @@ class UrukulPads(Module):
         ioup = [platform.request("{}_io_update".format(eem), 0)
                 for eem in eems]
         self.clk = Signal()
+        self.cs_n = Signal()
         self.io_update = Signal()
         if io_update_fine_ts:
             assert FINE_TS_WIDTH == 3   # PHY hardcoded to a 8x serdes
@@ -116,6 +117,8 @@ class UrukulPads(Module):
 
         for i in range(len(eems)):
             self.specials += DifferentialOutput(self.clk, spip[i].clk, spin[i].clk)
+            if hasattr(spip[i], "cs"):
+                self.specials += DifferentialOutput(~self.cs_n, spip[i].cs, spin[i].cs)
             if io_update_fine_ts:
                 io_upd_phy = OutIoUpdate_8X(ioup[i])
                 self.comb += [
