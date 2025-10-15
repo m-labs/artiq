@@ -100,8 +100,10 @@ class RTServoMem(Module):
 
         dly_sinks = getattr(servo, "io_update_dlys", [ Signal() ])
 
-        # start, I/O update WE_n, I/O update delay (3 bits per urukul, if available)
-        config_data_width = 1 + 1 + 3 * len(dly_sinks)
+        # start, I/O update WE (if has I/O update), I/O update delay
+        # (FINE_TS_WIDTH bits per urukul, if available)
+        dly_sink_width = len(Cat(*dly_sinks))
+        config_data_width = 1 + (dly_sink_width + 1 if dly_sink_width else 0)
         assert config_data_width <= len(self.rtlink.o.data)
 
         # # #
