@@ -553,6 +553,7 @@ class SUServo(_EEM):
     @classmethod
     def add_std(cls, target, eems_sampler, eems_urukul,
                 t_rtt=4, clk=1, shift=11, profile=5,
+                sysclks_per_clk=8,
                 iostandard=default_iostandard):
         """Add a 8-channel Sampler-Urukul Servo
 
@@ -569,6 +570,10 @@ class SUServo(_EEM):
             (default: 11)
         :param profile: log2 of the number of profiles for each DDS channel
             (default: 5)
+        :param sysclks_per_clk: DDS "sysclk" cycles per RTIO clock cycle.
+            Only the default (8) is supported. Other ratio can be supported in
+            the condition that I/O update of the DDSes are aligned to its own
+            sysclk (default: 8)
         """
         cls.add_extension(
             target, *(eems_sampler + sum(eems_urukul, [])),
@@ -590,13 +595,13 @@ class SUServo(_EEM):
                                 profile=profile, dly=8)
         dds_p = servo.DDSParams(width=8 + 32 + 16 + 16,
                                 channels=4*len(eems_urukul), clk=clk)
-        su = servo.Servo(sampler_pads, urukul_pads, adc_p, iir_p, dds_p)
+        su = servo.Servo(sampler_pads, urukul_pads, adc_p, iir_p, dds_p, sysclk_per_clk)
         su = ClockDomainsRenamer("rio_phy")(su)
         # explicitly name the servo submodule to enable the migen namer to derive
         # a name for the adc return clock domain
         setattr(target.submodules, "suservo_eem{}".format(eems_sampler[0]), su)
 
-        ctrls = [rtservo.RTServoCtrl(ctrl) for ctrl in su.iir.ctrl]
+        ctrls = [rtservo.RTServoCtrl(ctrl, reftime) for ctrl, reftime in zip(su.iir.ctrl, su.iir.reftime)]
         target.submodules += ctrls
         target.rtio_channels.extend(
             rtio.Channel.from_phy(ctrl) for ctrl in ctrls)

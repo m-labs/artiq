@@ -9,6 +9,7 @@ COEFF_WIDTH = 18
 Y_FULL_SCALE_MU = (1 << (COEFF_WIDTH - 1)) - 1
 T_CYCLE = (2*(8 + 64) + 2)*8*ns  # Must match gateware Servo.t_cycle.
 COEFF_SHIFT = 11
+FINE_TS_WIDTH = 3
 
 
 @portable
@@ -268,7 +269,7 @@ class Channel:
         return [(channel, None)]
 
     @kernel
-    def set(self, en_out, en_iir=0, profile=0):
+    def set(self, en_out, en_iir=0, en_pt=0, profile=0):
         """Operate channel.
 
         This method does not advance the timeline. Output RF switch setting
@@ -281,10 +282,21 @@ class Channel:
 
         :param en_out: RF switch enable
         :param en_iir: IIR updates enable
+        :param en_pt: Phase tracking enable
         :param profile: Active profile (0-31)
         """
         rtio_output(self.channel << 8,
-                    en_out | (en_iir << 1) | (profile << 2))
+                    en_out | (en_iir << 1) | (en_pt << 2) | (profile << 3))
+
+    @kernel
+    def set_reference_time(self):
+        """Set reference time for "coherent phase mode" (see :meth:`set`).
+        This method does not advance the timeline.
+        With en_pt=1 (see :meth:`set`), the tracked DDS output phase of
+        this channel will refer to the current timeline position.
+        """
+        fine_ts = now_mu() & ((1 << FINE_TS_WIDTH) - 1)
+        rtio_output(self.channel << 8 | 1, self.dds.sysclk_per_mu * fine_ts)
 
     @kernel
     def set_dds_mu(self, profile, ftw, offs, pow_=0):
@@ -298,10 +310,10 @@ class Channel:
         :param pow_: Phase offset word (16-bit)
         """
         base = (self.servo_channel << 8) | (profile << 3)
-        self.servo.write(base + 0, ftw >> 16)
-        self.servo.write(base + 6, (ftw & 0xffff))
+        self.servo.write(base + 6, ftw >> 16)
+        self.servo.write(base + 2, (ftw & 0xffff))
         self.set_dds_offset_mu(profile, offs)
-        self.servo.write(base + 2, pow_)
+        self.servo.write(base, pow_)
 
     @kernel
     def set_dds(self, profile, frequency, offset, phase=0.):
