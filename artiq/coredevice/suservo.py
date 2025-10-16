@@ -126,7 +126,7 @@ class SUServo:
             cpld = self.cplds[i]
             dds = self.ddses[i]
 
-            use_miso = cpld.proto_rev == 9
+            use_miso = cpld.proto_rev == urukul.STA_PROTO_REV_9
 
             cpld.init(blind=not use_miso)
             prev_cpld_cfg = int64(cpld.cfg_reg)
