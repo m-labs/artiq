@@ -5,7 +5,7 @@ from artiq.coredevice.rtio import rtio_output, rtio_input_data, rtio_input_times
 from artiq.language.units import us, ns, ms, MHz
 from artiq.language.types import TInt32
 from artiq.coredevice.dac34h84_reg import DAC34H84
-from artiq.coredevice.trf372017 import TRF372017
+from artiq.coredevice.trf372017_reg import TRF372017
 
 
 PHASER_BOARD_ID = 19
