@@ -19,8 +19,6 @@ LTC2K_REG_TEMP  = 0x19  # Temperature measurement controls
 LTC2K_REG_PATTERN = 0x1E  # Pattern generator enable
 LTC2K_REG_PATTERN_DATA = 0x1F  # Pattern generator data
 
-N_DDS = 4
-
 @portable
 def volt_to_mu(volt: TFloat, width=16) -> TInt32:
     """Return the equivalent DAC machine unit value.

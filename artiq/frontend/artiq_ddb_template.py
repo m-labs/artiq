@@ -810,6 +810,7 @@ class PeripheralManager:
         songbird_name = self.get_name("songbird")
         rtio_offset = songbird_peripheral["drtio_destination"] << 16
         rtio_offset += self.add_board_leds(rtio_offset, board_name=songbird_name)
+        dds_count = songbird_peripheral["dds_count"]
         
         channel = count(0)
         self.gen("""
@@ -835,7 +836,7 @@ class PeripheralManager:
 
         config_offset = 2  # then clear, trigger
 
-        for i in range(4):
+        for i in range(dds_count):
             self.gen("""
                 device_db["{name}_dds{ch}"] = {{
                     "type": "local",

@@ -698,6 +698,12 @@
                         "drtio_destination": {
                             "type": "integer"
                         },
+                        "dds_count": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 16,
+                            "default": 4
+                        },
                         "hw_rev": {
                             "type": "string",
                             "enum": ["v1.0", "v1.1"]
