@@ -156,3 +156,11 @@ class InteractiveArgsDock(QtWidgets.QDockWidget):
         except Exception:
             logger.error("failed to cancel interactive args request for experiment: %d",
                          rid, exc_info=True)
+
+    def save_state(self):
+        return {
+            "geometry": bytes(self.saveGeometry())
+        }
+
+    def restore_state(self, state):
+        self.restoreGeometry(QtCore.QByteArray(state["geometry"]))
