@@ -39,7 +39,7 @@ def predict_timing(adc_p, iir_p, dds_p):
 
 class Servo(Module):
     def __init__(self, adc_pads, dds_pads,
-            adc_p, iir_p, dds_p, sysclks_per_clk):
+            adc_p, iir_p, dds_p, sysclks_per_clk=8):
         t_adc, t_iir, t_dds, t_cycle = predict_timing(adc_p, iir_p, dds_p)
         assert t_iir + 2*adc_p.channels < t_cycle, "need shifting time"
 
