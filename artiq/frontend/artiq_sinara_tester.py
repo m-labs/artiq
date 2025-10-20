@@ -120,6 +120,16 @@ class SinaraTester(EnvExperiment):
                     })
                 elif (module, cls) == ("artiq.coredevice.songbird", "Songbird"):
                     songbird_name = name.replace("_config", "")
+                    n_dds = 0
+                    # try to find out how many DDS there are
+                    # hard limit on 16 (see schema)
+                    while n_dds < 16:
+                        try:
+                            self.get_device(f"{songbird_name}_dds{n_dds}")
+                            n_dds += 1
+                        except DeviceError:
+                            break
+
                     self.songbirds[songbird_name] = ({
                         "config": self.get_device(name),
                         "leds": [self.get_device(f"{songbird_name}_led{i}") for i in range(2)],
@@ -983,7 +993,7 @@ class SinaraTester(EnvExperiment):
             print("...done")
             print("{} output active. Frequencies: {} MHz.".format(
                 card_name,
-                ", ".join([str(10*i + card_n) for i in range(1, 5)]))
+                ", ".join([str(10*(i + 1) + card_n) for i in range(len(card_dev["dds"]))]))
                 )
         print("Check the outputs on an oscilloscope, using the FFT function. Press ENTER to continue.")
         input()
