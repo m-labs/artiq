@@ -598,8 +598,8 @@ class IIR(Module):
                     If(stages_active[1],
                         phase_dsp.augend.eq(1),
                         phase_dsp.addend.eq(0),
-                        phase_dsp.mcand_load.eq(1),
-                        phase_dsp.accu_load.eq(1),
+                        phase_dsp.mcand_load.eq(1),  # ftw1
+                        phase_dsp.accu_load.eq(1),  # phase accumulator (-ve)
                         phase_dsp.accu_imm.eq(accu_neg),
                     ),
                 ],
@@ -609,14 +609,14 @@ class IIR(Module):
                         phase_dsp.addend.eq(m_phase.dat_r[:16]),
                     ),
                     If(stages_active[1],
-                        phase_dsp.mcand_load.eq(1),
+                        phase_dsp.mcand_load.eq(1),  # pow
                         phase_dsp.accu_load.eq(1),
                         phase_dsp.accu_imm.eq(phase_dsp.output[16:]),
                     ),
                 ],
                 2: [
                     If(stages_active[0],
-                        phase_dsp.mcand_load.eq(1),
+                        phase_dsp.mcand_load.eq(1),  # ftw0
                         phase_dsp.augend.eq(t_global[16:]),
                         phase_dsp.addend.eq(t_ref[16:]),
                     ),
