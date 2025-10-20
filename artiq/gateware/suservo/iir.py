@@ -357,7 +357,7 @@ class IIR(Module):
         )
         fsm.act("SHIFT",
                 self.shifting.eq(1),
-                If(t_current_step == (i_channels * 2) - 1,
+                If(t_current_step == max(o_channels, (i_channels * 2)) - 1,
                     NextValue(t_global, t_global + sysclks_per_clk * t_cycle),  
                     NextState("IDLE")
                 )
@@ -480,13 +480,18 @@ class IIR(Module):
                 sel_profile.eq(m_coeff.dat_r[w.coeff:]),
                 dly_profile.eq(m_coeff.dat_r[w.coeff + 8:]),
                 If(self.shifting,
+                    # There can be more steps than necessary to shift
+                    # This only causes truncation of address, and can only
+                    # cause rewrites of the same entry by the same value
                     m_state.adr.eq(t_current_step + ((1 << w.profile) * o_channels)),
                     m_state.dat_w.eq(m_state.dat_r),
                     m_state.we.eq(t_current_step[0]),
 
-                    m_phase.adr.eq(Cat(Constant(1, bits_sign=(2, False)), t_current_step[1:])),
-                    m_phase.we.eq(t_current_step[0]),
-                    m_phase.dat_w.eq(ddss[t_current_step[1:]][:2 * w.word]),
+                    # Same as the above, but o_channels may not be a power of 2
+                    # Then there can be an address of out of bound issue
+                    m_phase.adr.eq(Cat(Constant(1, bits_sign=(2, False)), t_current_step)),
+                    m_phase.we.eq(t_current_step < o_channels),
+                    m_phase.dat_w.eq(ddss[t_current_step][:2 * w.word]),
                 ),
                 If(self.loading,
                     m_state.adr.eq((t_current_step << 1) + ((1 << w.profile) * o_channels)),
