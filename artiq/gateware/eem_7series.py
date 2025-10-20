@@ -173,6 +173,7 @@ peripheral_processors = {
     "mirny": peripheral_mirny,
     "fastino": peripheral_fastino,
     "phaser": peripheral_phaser,
+    "phaser_drtio": peripheral_drtio_over_eem,
     "hvamp": peripheral_hvamp,
     "shuttler": peripheral_drtio_over_eem,
     "songbird": peripheral_drtio_over_eem,
