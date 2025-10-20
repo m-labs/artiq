@@ -67,13 +67,28 @@ class SumAndScale(Module):
             # First, multiply (preserving full 32-bit result)
             self.sync += products[i].eq(self.inputs[i] * self.amplitudes[i])
 
-        # Then sum it all up
-        sum_all = Signal((34, True))
-        self.sync += sum_all.eq(sum(products))
+        # Then sum it all up in a pipelined adder tree
+        stage = products
+        is_first_stage = True
+        while len(stage) > 1:
+            next_stage = []
+            for i in range(0, len(stage) // 2):
+                # increase width to avoid overflow
+                s = Signal((len(stage[0]) + 1, True))
+                # First stage is combinatorial to save registers
+                if is_first_stage:
+                    self.comb += s.eq(stage[2*i] + stage[2*i+1])
+                else:
+                    self.sync += s.eq(stage[2*i] + stage[2*i+1])
+                next_stage.append(s)
+            if len(stage) % 2 == 1:
+                next_stage.append(stage[-1])
+            stage = next_stage
+            is_first_stage = False
 
         # Finally, shift and saturate
         scaled_sum = Signal((19, True))
-        self.comb += scaled_sum.eq(sum_all[15:])
+        self.sync += scaled_sum.eq(stage[0][15:])
 
         self.sync += [
             If(scaled_sum > 0x7FFF,
@@ -264,8 +279,8 @@ class DataSynth(Module, AutoCSR):
 Phy = namedtuple("Phy", "rtlink probes overrides name")
 
 class Songbird(Module, AutoCSR):
-    def __init__(self, platform, ltc2000_pads, clk_freq=125e6):
-        n_dds = 4
+    def __init__(self, platform, ltc2000_pads, clk_freq=125e6, dds_count=4):
+        n_dds = dds_count
         n_phases = 24
 
         self.submodules.dds_clock = DDSClocks(clk_freq)
@@ -447,4 +462,3 @@ class Ltc2000phy(Module, AutoCSR):
                     o_OB=pads.datb_n[i]
                 )
         ]
-
