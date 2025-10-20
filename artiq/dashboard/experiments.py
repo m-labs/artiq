@@ -204,7 +204,6 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         devarg_override = QtWidgets.QComboBox()
         devarg_override.setEditable(True)
         devarg_override.lineEdit().setPlaceholderText("Override device arguments")
-        devarg_override.lineEdit().setClearButtonEnabled(True)
         devarg_override.insertItem(0, "core:analyze_at_run_end=true")
         devarg_override.insertItem(1, "core:report_invariants=true")
         self.layout.addWidget(devarg_override, 2, 3)
