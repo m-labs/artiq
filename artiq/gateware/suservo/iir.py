@@ -69,6 +69,11 @@ class DSP(Module):
         m = Signal((w.accu, True), reset_less=True)
         p = Signal((w.accu, True), reset_less=True)
 
+        # Equation: output = (((augend' +- addend')' * mcand')' + (output OR accu_imm))'
+        #
+        # Each prime denotes 1 cycle of delay.
+        # Augend and addend should be provided 4 cycles in advance;
+        # 3 cycles for mcand, 1 cycle for accu_imm.
         self.sync += [
                 a.eq(self.addend),
                 If(self.augend_load,
@@ -150,7 +155,7 @@ class IIR(Module):
     The profile data is stored sequentially for each channel.
     Each channel has 1 << W.profile profiles available.
     Each profile stores 8 values, each up to W.coeff bits wide, arranged as:
-        [FTW1, B1, POW, CFG, OFFSET, A1, FTW0, B0]
+        [POW, B1, FTW0, CFG, OFFSET, A1, FTW1, B0]
     The lower 8 bits of CFG hold the ADC input channel index SEL.
     The subsequent 8 bits hold the IIR activation delay DLY.
     The back memory is 2*W.coeff bits wide and each value pair
@@ -184,6 +189,7 @@ class IIR(Module):
         * The active profile, PROFILE
         * Whether to perform IIR filter iterations, EN_IIR
         * The RF switch state enabling output from the channel, EN_OUT
+        * Whether to perform phase tracking, EN_PT
 
     Delayed IIR processing
     ======================
@@ -450,7 +456,13 @@ class IIR(Module):
         # iir enable SR
         en = Signal(2, reset_less=True)
 
-        # offset 3 unused, to avoid maintaining a separate counter
+        # Memory for values required to track the phase accumulator.
+        # Values are arranged as: [PREV_ACCU, T_REF, PREV_FTW, UNUSED]
+        #
+        # PREV_ACCU is the phase accumulator in the previous iteration.
+        # T_REF is the fiducial timestamp.
+        # PREV_FTW is the FTW in the previous iteration.
+        # Offset 3 is unused, to avoid maintaining a separate counter.
         self.specials.m_phase = Memory(32, 4 * o_channels)
 
         self.reftime = [Record([
@@ -568,11 +580,30 @@ class IIR(Module):
             }),
         ]
 
+        # The DSP calculates this on EN_PT:
+        # POW_TOTAL = POW + (t - t_ref) * FTW - ACCU
         #
-        # Update DDS profile with FTW/POW/ASF
-        # Stage 0 loads the POW, stage 1 the FTW, and stage 2 writes
-        # the ASF computed by the IIR filter.
+        # The POW adjustment calculation will be unused if ~EN_PT
+        # i.e. POW_TOTAL = POW
         #
+        # It decomposes into 4 steps:
+        # P0 = ((t[:16] - t_ref[:16]) * FTW[:16]) - ACCU
+        # P1 = ((t[16:] - t_ref[16:]) * FTW[:16]) + P0[16:]
+        # P2 = ((t[:16] - t_ref[:16]) * FTW[16:]) + P1
+        # POW_TOTAL = (1 - 0) * POW + (P2 or 0)
+        #
+        # Each input corresponds to the augend, addend, mcand variables and
+        # the accumulator input respectively.
+        #
+        # Pipeline table:
+        #
+        # | Signals \ Pipeline phase (stage) |    1 (0)   |    2 (0)   |    3 (0)   |   0 (1)  |   1 (1)  | 2 (1) |  3 (1)  |   0 (2)   |
+        # |:--------------------------------:|:----------:|:----------:|:----------:|:--------:|:--------:|:-----:|:-------:|:---------:|
+        # |              Augend              |   t[:16]   |   t[16:]   |   t[:16]   |     1    |    ---   |  ---  |   ---   |    ---    |
+        # |              Addend              | t_ref[:16] | t_ref[16:] | t_ref[:16] |     0    |    ---   |  ---  |   ---   |    ---    |
+        # |           Multiplicand           |     ---    |  FTW[:16]  |  FTW[:16]  | FTW[16:] |    POW   |  ---  |   ---   |    ---    |
+        # |            Accumulator           |     ---    |     ---    |     ---    |   -ACCU  | P0 >> 16 |   P1  | P2 OR 0 |    ---    |
+        # |              Output              |     ---    |     ---    |     ---    |    ---   |    P0    |   P1  |    P2   | POW_TOTAL |
 
         phase_dsp_w = DSPWidth(
             padder=w.word+1, mplier=w.word+2, mcand=w.word+1,
@@ -633,6 +664,13 @@ class IIR(Module):
                 ],
             })
         ]
+
+        #
+        # Update DDS profile with FTW/POW/ASF.
+        # Stage 1 loads the FTW.
+        # Stage 2 writes the ASF computed by the IIR filter, and the computed
+        # POW from the phase tracking DSP.
+        #
 
         self.sync += [
             Case(pipeline_phase, {
