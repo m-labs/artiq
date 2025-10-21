@@ -324,10 +324,13 @@ class ADF5356:
         Return the VCO frequency for the cached set of registers.
         """
         return float(self.f_pfd()) * (
-                 float(self.pll_n())
-                 + (float(self.pll_frac1() + self.pll_frac2()) / float(self.pll_mod2()))
-                 / float(ADF5356_MODULUS1)
-             )
+            float(self.pll_n())
+            + (
+                float(self.pll_frac1())
+                + self.pll_frac2() / self.pll_mod2()
+            )
+            / float(ADF5356_MODULUS1)
+        )
 
     @portable
     def pll_n(self) -> int32:
