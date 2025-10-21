@@ -58,9 +58,15 @@ In other words, a worker created by the master has executed the experiment and c
 
 .. tip::
 
+    Before connecting master and client, please make sure your pc's and network's firewall do not block traffic on the ports used. Or you may try using ssh port forwarding.
+    
     In order to run the master and the clients on different PCs, start the master with a ``--bind`` flag: ::
 
-        $ artiq_master --bind [hostname or IP to bind to]
+        $ artiq_master --bind [master computer's hostname or IP to bind to]
+
+    use "\\\*", escaped \*, to indicate bind to all interfaces, for example: ::
+
+        $ artiq_master --bind \*
 
     and then use the option ``--server`` or ``-s`` for clients, as in: ::
 
@@ -319,3 +325,7 @@ Arguments to the individual tools (including ``-s`` and ``--bind``) can still be
     $ artiq_session -m=-g
 
 to start the session with Git integration. See also :mod:`~artiq.frontend.artiq_session`.
+
+.. note::
+
+    ``$ artiq_session`` does not support ssl, since it is only intended for simple single-machine setups.
