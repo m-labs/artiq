@@ -97,10 +97,10 @@ def get_argparser():
     t_flash = tools.add_parser("flash",
                                help="flash the core device and reboot into the new system")
 
-    p_directory = t_flash.add_argument("directory",
-                                       metavar="DIRECTORY", type=str,
-                                       help="directory that contains the "
-                                            "binaries")
+    p_path = t_flash.add_argument("path",
+                                  metavar="PATH", type=str,
+                                  help="binary file or directory"
+                                       "containing the binaries")
 
     p_srcbuild = t_flash.add_argument("--srcbuild",
                                       help="board binaries directory is laid "
@@ -169,6 +169,16 @@ def main():
             mgmt.config_erase()
 
     if args.tool == "flash":
+        if not os.path.exists(args.path):
+            raise FileNotFoundError("no such file or directory")
+
+        if os.path.isfile(args.path):
+            if os.path.basename(args.path) == "boot.bin":
+                mgmt.flash([args.path])
+            else:
+                raise ValueError("not a valid zynq binary")
+            return
+
         retrieved_bins = []
         bin_dict = {
             "zynq":[
@@ -186,7 +196,7 @@ def main():
                 bins = []
                 for bin_name in bin_list:
                     bins.append(fetch_bin(
-                        args.directory, bin_name, args.srcbuild))
+                        args.path, bin_name, args.srcbuild))
                 retrieved_bins.append(bins)
             except FileNotFoundError:
                 pass
