@@ -57,14 +57,14 @@ Return to the terminal where the master is running. You should see an output sim
 In other words, a worker created by the master has executed the experiment and carried out the print instruction. Congratulations!
 
 .. tip::
-
-    Before connecting master and client, please make sure your pc's and network's firewall do not block traffic on the ports used. Or you may try using ssh port forwarding.
     
-    In order to run the master and the clients on different PCs, start the master with a ``--bind`` flag: ::
+    In order to run the master and the clients on different PCs, please make sure your PC's and network's firewall do not block traffic on the ports used. Or you may try using SSH port forwarding.
+
+    First, start the master with a ``--bind`` flag: ::
 
         $ artiq_master --bind [master computer's hostname or IP to bind to]
 
-    use "\\\*", escaped \*, to indicate bind to all interfaces, for example: ::
+    "\*" can be used to indicate all interfaces, but depending on which shell is used, may need to use "\\\*", escaped \*, for example: ::
 
         $ artiq_master --bind \*
 
@@ -328,4 +328,4 @@ to start the session with Git integration. See also :mod:`~artiq.frontend.artiq_
 
 .. note::
 
-    ``$ artiq_session`` does not support ssl, since it is only intended for simple single-machine setups.
+    ``artiq_session`` does not support SSL, since it is only intended for simple single-machine setups.
