@@ -396,6 +396,10 @@
         target = "efc";
         variant = "songbird";
       };
+      artiq-board-phaser-mtdds = makeArtiqBoardPackage {
+        target = "phaser";
+        variant = "mtdds";
+      };
       inherit latex-artiq-manual;
       artiq-manual-html = pkgs.stdenvNoCC.mkDerivation rec {
         name = "artiq-manual-html-${version}";
