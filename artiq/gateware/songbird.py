@@ -297,7 +297,10 @@ class Songbird(Module, AutoCSR):
         self.submodules.ltc2000 = Ltc2000phy(self.dac_pads, clk_freq)
 
         counter = Signal()  # alternating sample loader, shared between Phy and DDS
-        self.comb += self.ltc2000.counter.eq(counter)
+
+        # counter should be inverted if the sumandscale tree height is odd
+        invert_counter = log2_int(n_dds, False) % 2 == 1
+        self.comb += self.ltc2000.counter.eq(~counter if invert_counter else counter)
         self.sync.dds200 += counter.eq(~counter)
 
         clear = Signal(n_dds)
@@ -404,17 +407,14 @@ class Ltc2000phy(Module, AutoCSR):
         dac_datb_se = Signal(16)
 
         self.specials += [
-            Instance("OSERDESE2",
-                p_DATA_WIDTH=6, p_TRISTATE_WIDTH=1,
-                p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="BUF",
-                p_SERDES_MODE="MASTER",
-
-                o_OQ=dac_clk_se,
-                i_OCE=1,
-                i_RST=self.reset,
-                i_CLK=ClockSignal("dds600"), i_CLKDIV=ClockSignal("dds200"),
-                i_D1=1, i_D2=0, i_D3=1, i_D4=0,
-                i_D5=1, i_D6=0,
+            # Use ODDR for low-jitter forwarded clock generation
+            Instance("ODDR",
+                p_DDR_CLK_EDGE="SAME_EDGE",
+                i_C=ClockSignal("dds600"),
+                i_R=self.reset,
+                i_CE=1,
+                i_D1=1, i_D2=0,
+                o_Q=dac_clk_se
             ),
             Instance("OBUFDS",
                 i_I=dac_clk_se,
