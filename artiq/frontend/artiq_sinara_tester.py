@@ -11,7 +11,7 @@ from artiq.coredevice.ad9910 import AD9910, SyncDataEeprom
 from artiq.coredevice.phaser import PHASER_GW_BASE, PHASER_GW_MIQRO
 from artiq.coredevice.shuttler import shuttler_volt_to_mu
 from artiq.master.databases import DeviceDB
-from artiq.master.worker_db import DeviceManager
+from artiq.master.worker_db import DeviceManager, DeviceError
 
 
 if os.name == "nt":
@@ -133,7 +133,7 @@ class SinaraTester(EnvExperiment):
                     self.songbirds[songbird_name] = ({
                         "config": self.get_device(name),
                         "leds": [self.get_device(f"{songbird_name}_led{i}") for i in range(2)],
-                        "dds": [self.get_device(f"{songbird_name}_dds{i}") for i in range(4)],
+                        "dds": [self.get_device(f"{songbird_name}_dds{i}") for i in range(n_dds)],
                     })
                 elif (module, cls) == ("artiq.coredevice.cxp_grabber", "CXPGrabber"):
                     self.coaxpress_sfps[name] = self.get_device(name)
@@ -959,14 +959,16 @@ class SinaraTester(EnvExperiment):
     @kernel
     def setup_songbird_waveforms(self, card_n, config, ddss):
         self.core.break_realtime()
-        config.clear(0b1111)
+        n_dds = len(ddss)
+        config.clear((1 << n_dds) - 1)
         delay(1*ms)
         # Set some waveforms
         i = 1
+        ampl_offset = 0x8000 // n_dds
         for channel in ddss:
-            freq = (10.0*float(i) + float(card_n)) * MHz
+            freq = (25.0 + 50.0*float(card_n) + 15.0*float(i)) * MHz
             freq_mu = config.frequency_to_mu(freq)
-            channel.set_waveform(ampl_offset=0x2000, 
+            channel.set_waveform(ampl_offset=ampl_offset, 
                                  damp=0, 
                                  ddamp=0, 
                                  dddamp=0, 
@@ -975,8 +977,8 @@ class SinaraTester(EnvExperiment):
                                  chirp=0,
                                  shift=0)
             i += 1
-        delay(1*ms)
-        config.trigger(0b1111)
+            delay(1*ms)
+        config.trigger((1 << n_dds) - 1)
         delay(1*ms)
         config.clear(0)
 
@@ -993,7 +995,7 @@ class SinaraTester(EnvExperiment):
             print("...done")
             print("{} output active. Frequencies: {} MHz.".format(
                 card_name,
-                ", ".join([str(10*(i + 1) + card_n) for i in range(len(card_dev["dds"]))]))
+                ", ".join([str(25 + 15*(i + 1) + 50*card_n) for i in range(len(card_dev["dds"]))]))
                 )
         print("Check the outputs on an oscilloscope, using the FFT function. Press ENTER to continue.")
         input()
