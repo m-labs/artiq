@@ -58,13 +58,15 @@ In other words, a worker created by the master has executed the experiment and c
 
 .. tip::
     
-    In order to run the master and the clients on different PCs, please make sure your PC's and network's firewall do not block traffic on the ports used. Or you may try using SSH port forwarding.
+    In order to run the master and the clients on different PCs, please make sure your PC's and network's firewall do not block traffic on the ports used. 
 
     First, start the master with a ``--bind`` flag: ::
 
         $ artiq_master --bind [master computer's hostname or IP to bind to]
 
-    "\*" can be used to indicate all interfaces, but depending on which shell is used, may need to use "\\\*", escaped \*, for example: ::
+    On most Linux shells, including the Bash shell used in the default Windows MSYS2 ARTIQ installation, 
+    the asterisk \* must be escaped as \\\* to indicate all interfaces. 
+    Windows PowerShell and CMD allow using * directly without escaping. ::
 
         $ artiq_master --bind \*
 
