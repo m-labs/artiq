@@ -64,7 +64,7 @@ In other words, a worker created by the master has executed the experiment and c
 
         $ artiq_master --bind [master computer's hostname or IP to bind to]
 
-    On most Linux shells, including the Bash shell used in the default Windows MSYS2 ARTIQ installation, 
+    On most Linux/Unix shells, including the Bash shell used in the default Windows MSYS2 ARTIQ installation, 
     the asterisk \* must be escaped as \\\* to indicate all interfaces. 
     Windows PowerShell and CMD allow using * directly without escaping. ::
 
