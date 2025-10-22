@@ -227,7 +227,7 @@ class ADF5356:
 
         # calculate PLL parameters
         n, frac1, (frac2_msb, frac2_lsb), (mod2_msb, mod2_lsb) = calculate_pll(
-            f, float(f_pfd)
+            f, f_pfd
         )
 
         if not (n_min <= n <= n_max):
@@ -272,7 +272,7 @@ class ADF5356:
 
             # calculate PLL at f_pfd/2
             n, frac1, (frac2_msb, frac2_lsb), (mod2_msb, mod2_lsb) = calculate_pll(
-                self.f_vco(), float(f_pfd >> 1)
+                self.f_vco(), f_pfd >> 1
             )
             self.core.delay(200. * us)     # Slack
 
@@ -569,7 +569,7 @@ def split_msb_lsb_28b(v: int32) -> tuple[int32, int32]:
 
 
 @portable
-def calculate_pll(f_vco: float, f_pfd: float) -> tuple[int32, int32, tuple[int32, int32], tuple[int32, int32]]:
+def calculate_pll(f_vco: float, f_pfd: int64) -> tuple[int32, int32, tuple[int32, int32], tuple[int32, int32]]:
     """
     Calculate fractional-N PLL parameters such that
 
@@ -583,18 +583,15 @@ def calculate_pll(f_vco: float, f_pfd: float) -> tuple[int32, int32, tuple[int32
     :param f_pfd: PFD frequency
     :return: (``n``, ``frac1``, ``(frac2_msb, frac2_lsb)``, ``(mod2_msb, mod2_lsb)``)
     """
-    f_pfd_i = int64(f_pfd)
-    f_vco_i = int64(f_vco)
-
     # integral part
-    n, r = int32(f_vco_i // f_pfd_i), f_vco_i % f_pfd_i
+    n, r = int32(f_vco // float(f_pfd)), f_vco % float(f_pfd)
 
     # main fractional part
-    r *= int64(ADF5356_MODULUS1)
-    frac1, frac2 = int32(r // f_pfd_i), int64(r % f_pfd_i)
+    r *= float(ADF5356_MODULUS1)
+    frac1, frac2 = int32(r // float(f_pfd)), int64(r % float(f_pfd))
 
     # auxiliary fractional part
-    mod2 = f_pfd_i
+    mod2 = f_pfd
 
     while mod2 > int64(ADF5356_MAX_MODULUS2):
         mod2 >>= 1
