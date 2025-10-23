@@ -397,6 +397,9 @@ class IIR(Module):
         # pipeline group profile pointer (SR)
         # for each pipeline stage, this is the profile currently being
         # processed
+        # FIXME: There introduces a phase offset for all operations
+        # Phase tracking DSP may need to account for this (and delay 1 cycle)
+        # The channel pointer is out-of-sync at pipeline_phase=0 otherwise
         profile = [Signal(w.profile, reset_less=True) for i in range(2)]
         self.sync += [
             If(pipeline_phase == 0,
@@ -457,29 +460,15 @@ class IIR(Module):
         en = Signal(2, reset_less=True)
 
         # Memory for values required to track the phase accumulator.
-        # Values are arranged as: [PREV_ACCU, T_REF, PREV_FTW, UNUSED]
+        # Arranged as the following:
+        # T_REF * (1 << w.profile) * o_channels
+        # [PREV_FTW, PREV_ACCU] * o_channels
         #
         # PREV_ACCU is the phase accumulator in the previous iteration.
         # T_REF is the fiducial timestamp.
         # PREV_FTW is the FTW in the previous iteration.
         # Offset 3 is unused, to avoid maintaining a separate counter.
-        self.specials.m_phase = Memory(32, 4 * o_channels)
-
-        self.reftime = [Record([
-                ("sysclks_fine", bits_for(sysclks_per_clk - 1)),
-                ("stb", 1)])
-                for i in range(o_channels)]
-        # Update coarse reference time from t_global upon reftime strobe
-        ref_stb_encoder = Encoder(o_channels)
-        reftime_w_port = self.m_phase.get_port(write_capable=True)
-        self.specials += reftime_w_port
-        self.submodules += ref_stb_encoder
-        self.comb += [
-                ref_stb_encoder.i.eq(Cat([ch.stb for ch in self.reftime])),
-                reftime_w_port.adr.eq(ref_stb_encoder.o << 2),
-                reftime_w_port.we.eq(~ref_stb_encoder.n),
-                reftime_w_port.dat_w.eq(t_global),
-        ]
+        self.specials.m_phase = Memory(32, ((1 << w.profile) + 2) * o_channels)
 
         m_phase = self.m_phase.get_port(write_capable=True, mode=READ_FIRST)
         self.specials += m_phase
@@ -501,7 +490,7 @@ class IIR(Module):
 
                     # Same as the above, but o_channels may not be a power of 2
                     # Then there can be an address of out of bound issue
-                    m_phase.adr.eq(Cat(Constant(1, bits_sign=(2, False)), t_current_step)),
+                    m_phase.adr.eq(0 | (t_current_step << 1) + ((1 << w.profile) * o_channels),),
                     m_phase.we.eq(t_current_step < o_channels),
                     m_phase.dat_w.eq(ddss[t_current_step][:2 * w.word]),
                 ),
@@ -525,7 +514,17 @@ class IIR(Module):
                     m_state.dat_w.eq(dsp.output),
                     m_state.we.eq((pipeline_phase == 0) & stages_active[2] & en[1]),
 
-                    m_phase.adr.eq(Cat(Mux(pipeline_phase == 3, 2, pipeline_phase), channel[0])),
+                    m_phase.adr.eq(Array([
+                        # read profile-specific fiducial time stamp
+                        # Using profile[0] will not work. See the FIXME above.
+                        Cat(profiles[channel[0]], channel[0]),
+                        # read FTW from the previous iteration
+                        0 | (channel[0] << 1) + ((1 << w.profile) * o_channels),
+                        # read tracked phase accumulator
+                        1 | (channel[0] << 1) + ((1 << w.profile) * o_channels),
+                        # write back phase accumulator
+                        1 | (channel[0] << 1) + ((1 << w.profile) * o_channels),
+                    ])[pipeline_phase]),
                     m_phase.dat_w.eq(next_accu_neg),
                     m_phase.we.eq((pipeline_phase == 3) & stages_active[0]),
                 )
@@ -780,25 +779,35 @@ class IIR(Module):
             raise ValueError("no such state", coeff)
         return signed(val, w.state)
 
-    def set_fiducial_timestamp(self, channel, val):
-        yield self.m_phase[channel << 2].eq(val)
+    def set_fiducial_timestamp(self, channel, profile, val):
+        w = self.widths
+        yield self.m_phase[profile | (channel << w.profile)].eq(val)
 
-    def get_fiducial_timestamp(self, channel):
-        val = yield self.m_phase[channel << 2]
+    def get_fiducial_timestamp(self, channel, profile):
+        w = self.widths
+        val = yield self.m_phase[profile | (channel << w.profile)]
         return val
 
     def set_prev_ftw(self, channel, val):
-        yield self.m_phase[1 | channel << 2].eq(val)
+        w = self.widths
+        yield self.m_phase[(channel << 1) +
+                    ((1 << w.profile) * self.o_channels)].eq(val)
 
     def get_prev_ftw(self, channel):
-        val = yield self.m_phase[1 | channel << 2]
+        w = self.widths
+        val = yield self.m_phase[(channel << 1) +
+                    ((1 << w.profile) * self.o_channels)]
         return val
 
     def set_phase_accumulator(self, channel, val):
-        yield self.m_phase[2 | channel << 2].eq(val)
+        w = self.widths
+        yield self.m_phase[1 | (channel << 1) +
+                    ((1 << w.profile) * self.o_channels)].eq(val)
 
     def get_phase_accumulator(self, channel):
-        val = yield self.m_phase[2 | channel << 2]
+        w = self.widths
+        val = yield self.m_phase[1 | (channel << 1) +
+                    ((1 << w.profile) * self.o_channels)]
         return val
 
     def fast_iter(self):
@@ -886,7 +895,7 @@ class IIR(Module):
             if en_pt:
                 prev_ftw = yield from self.get_prev_ftw(i)
                 accu_neg = yield from self.get_phase_accumulator(i)
-                fiducial_ts = yield from self.get_fiducial_timestamp(i)
+                fiducial_ts = yield from self.get_fiducial_timestamp(i, j)
                 t_global = yield self.t_global
                 logger.debug("dds[%d,%d] prev_ftw=%#x accu_neg=%#x fiducial_ts=%#x global_ts=%#x",
                         i, j, prev_ftw, accu_neg, fiducial_ts, t_global)
