@@ -336,7 +336,11 @@ class IIR(Module):
         #  1: compute
         #  2: write to output registers (DDS profiles, clip flags)
         stages_active = Signal(3)
-        self.t_global = t_global = Signal(32)
+        # scales by DDS number of bits assign to FTW in a single-tone register
+        #
+        # more higher order bits to track time would not contribute to phase
+        # offset calculation
+        self.t_global = t_global = Signal(2*w.word)
         fsm.act("IDLE",
                 self.done.eq(1),
                 t_current_step_clr.eq(1),
@@ -468,7 +472,7 @@ class IIR(Module):
         # T_REF is the fiducial timestamp.
         # PREV_FTW is the FTW in the previous iteration.
         # Offset 3 is unused, to avoid maintaining a separate counter.
-        self.specials.m_phase = Memory(32, ((1 << w.profile) + 2) * o_channels)
+        self.specials.m_phase = Memory(2*w.word, ((1 << w.profile) + 2) * o_channels)
 
         m_phase = self.m_phase.get_port(write_capable=True, mode=READ_FIRST)
         self.specials += m_phase
@@ -615,9 +619,9 @@ class IIR(Module):
             phase_dsp.augend_load.eq(1),
         ]
 
-        t_ref = Signal(32)
+        t_ref = Signal(2*w.word)
 
-        accu_neg = Signal(32)
+        accu_neg = Signal(2*w.word)
         self.comb += next_accu_neg.eq(m_phase.dat_r - accu_neg)
         self.sync += accu_neg.eq(next_accu_neg)
 
@@ -635,26 +639,26 @@ class IIR(Module):
                 ],
                 1: [
                     If(stages_active[0],
-                        phase_dsp.augend.eq(t_global[:16]),
-                        phase_dsp.addend.eq(m_phase.dat_r[:16]),
+                        phase_dsp.augend.eq(t_global[:w.word]),
+                        phase_dsp.addend.eq(m_phase.dat_r[:w.word]),
                     ),
                     If(stages_active[1],
                         phase_dsp.mcand_load.eq(1),  # pow
                         phase_dsp.accu_load.eq(1),
-                        phase_dsp.accu_imm.eq(phase_dsp.output[16:]),
+                        phase_dsp.accu_imm.eq(phase_dsp.output[w.word:]),
                     ),
                 ],
                 2: [
                     If(stages_active[0],
                         phase_dsp.mcand_load.eq(1),  # ftw0
-                        phase_dsp.augend.eq(t_global[16:]),
-                        phase_dsp.addend.eq(t_ref[16:]),
+                        phase_dsp.augend.eq(t_global[w.word:]),
+                        phase_dsp.addend.eq(t_ref[w.word:]),
                     ),
                 ],
                 3: [
                     If(stages_active[0],
-                        phase_dsp.augend.eq(t_global[:16]),
-                        phase_dsp.addend.eq(t_ref[:16]),
+                        phase_dsp.augend.eq(t_global[:w.word]),
+                        phase_dsp.addend.eq(t_ref[:w.word]),
                     ),
                     If(stages_active[1],
                         phase_dsp.accu_load.eq(~en_pts[channel[1]]),
