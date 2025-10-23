@@ -87,8 +87,8 @@ class SumAndScale(Module):
             is_first_stage = False
 
         # Finally, shift and saturate
-        scaled_sum = Signal((19, True))
-        self.sync += scaled_sum.eq(stage[0][15:])
+        scaled_sum = Signal((len(stage[0])-15, True))
+        self.comb += scaled_sum.eq(stage[0][15:])
 
         self.sync += [
             If(scaled_sum > 0x7FFF,
@@ -128,9 +128,13 @@ class DoubleDataRateDDS(Module):
             MultiReg(self.ptw, paccu.p, "dds200"),
         ]
         self.submodules += paccu
-        dds0 = ClockDomainsRenamer("dds200")(CosSinGen())
-    
-        self.ddss = [dds0] + [ClockDomainsRenamer("dds200")(CosSinGen(share_lut=dds0.lut)) for _ in range(1, n)]
+
+        self.ddss = []
+        for _ in range(n//2):
+            # LUTs are shared only in pairs
+            dds_even = ClockDomainsRenamer("dds200")(CosSinGen())
+            dds_odd = ClockDomainsRenamer("dds200")(CosSinGen(share_lut=dds_even.lut))
+            self.ddss += [dds_even, dds_odd]
 
         for idx, dds in enumerate(self.ddss):
             setattr(self.submodules, f"dds{idx}", dds)
@@ -298,9 +302,7 @@ class Songbird(Module, AutoCSR):
 
         counter = Signal()  # alternating sample loader, shared between Phy and DDS
 
-        # counter should be inverted if the sumandscale tree height is odd
-        invert_counter = log2_int(n_dds, False) % 2 == 1
-        self.comb += self.ltc2000.counter.eq(~counter if invert_counter else counter)
+        self.comb += self.ltc2000.counter.eq(counter)
         self.sync.dds200 += counter.eq(~counter)
 
         clear = Signal(n_dds)
