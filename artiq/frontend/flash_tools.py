@@ -4,6 +4,31 @@ import tempfile
 import struct
 
 
+def discover_bins(path, srcbuild=False):
+    if not os.path.exists(path):
+        raise FileNotFoundError("path does not exist")
+
+    if os.path.isfile(path):
+        if os.path.basename(path) == "boot.bin":
+            return {"boot": path}
+        raise ValueError("file is not a valid binary")
+
+    retrieved_bins = {}
+    bin_dict = {
+        "boot": ["boot"],
+        "gateware": ["gateware"],
+        "bootloader": ["bootloader"],
+        "firmware": ["runtime", "satman"],
+    }
+
+    for name, components in bin_dict.items():
+        try:
+            retrieved_bins[name] = fetch_bin(path, components, srcbuild)
+        except FileNotFoundError:
+            pass
+    return retrieved_bins
+
+
 def artifact_path(this_binary_dir, *path_filename, srcbuild=False):
     if srcbuild:
         # source tree - use path elements to locate file
