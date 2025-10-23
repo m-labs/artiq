@@ -12,7 +12,7 @@ from artiq import __version__ as artiq_version
 from artiq.master.databases import DeviceDB
 from artiq.coredevice.comm_kernel import CommKernel
 from artiq.coredevice.comm_mgmt import CommMgmt
-from artiq.frontend.flash_tools import bit2bin, fetch_bin
+from artiq.frontend.flash_tools import bit2bin, discover_bins
 
 
 def get_argparser():
@@ -97,10 +97,10 @@ def get_argparser():
     t_flash = tools.add_parser("flash",
                                help="flash the core device and reboot into the new system")
 
-    p_directory = t_flash.add_argument("directory",
-                                       metavar="DIRECTORY", type=str,
-                                       help="directory that contains the "
-                                            "binaries")
+    p_path = t_flash.add_argument("path",
+                                  metavar="PATH", type=str,
+                                  help="binary file or directory that "
+                                       "contains the binaries")
 
     p_srcbuild = t_flash.add_argument("--srcbuild",
                                       help="board binaries directory is laid "
@@ -169,36 +169,16 @@ def main():
             mgmt.config_erase()
 
     if args.tool == "flash":
-        retrieved_bins = []
-        bin_dict = {
-            "zynq":[
-                ["boot"]
-            ],
-            "riscv": [
-                ["gateware"],
-                ["bootloader"],
-                ["runtime", "satman"],
-            ],
-        }
+        retrieved_bins = discover_bins(args.path, args.srcbuild)
 
-        for bin_list in bin_dict.values():
-            try:
-                bins = []
-                for bin_name in bin_list:
-                    bins.append(fetch_bin(
-                        args.directory, bin_name, args.srcbuild))
-                retrieved_bins.append(bins)
-            except FileNotFoundError:
-                pass
-
-        if retrieved_bins is None:
+        if len(retrieved_bins) == 0:
             raise FileNotFoundError("neither risc-v nor zynq binaries were found")
 
-        if len(retrieved_bins) > 1:
+        if "boot" in retrieved_bins.keys() and len(retrieved_bins) > 1:
             raise ValueError("both risc-v and zynq binaries were found, "
                              "please clean up your build directory. ")
 
-        bins = retrieved_bins[0]
+        bins = retrieved_bins.values()
         mgmt.flash(bins)
 
     if args.tool == "reboot":
