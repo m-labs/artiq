@@ -570,8 +570,6 @@ def calculate_pll(f_vco: TFloat, f_pfd: TInt64):
     :param f_pfd: PFD frequency
     :return: (``n``, ``frac1``, ``(frac2_msb, frac2_lsb)``, ``(mod2_msb, mod2_lsb)``)
     """
-    f_pfd = int64(f_pfd)
-
     # integral part
     n, r = int32(f_vco // f_pfd), f_vco % f_pfd
 
