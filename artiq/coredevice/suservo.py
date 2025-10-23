@@ -564,3 +564,66 @@ class Channel:
             raise ValueError("Invalid SUServo y-value!")
         self.set_y_mu(profile, y_mu)
         return y_mu
+
+
+class ProtoRev8(urukul.ProtoRev8):
+    """
+    For use with suservo CPLD to get around polymorphic issues.
+    """
+
+
+class ProtoRev9(urukul.ProtoRev9):
+    """
+    For use with suservo CPLD to get around polymorphic issues.
+    """
+
+
+class CPLD(urukul.CPLD):
+    """
+    Needed to avoid polymorphic issues when using SUServo and regular Urukuls in the same experiment.
+    """
+    rb_len = 8
+
+    ProtoRev8 = ProtoRev8 # needed to avoid polymorphic issues 
+    ProtoRev9 = ProtoRev9 # needed to avoid polymorphic issues
+
+    def __init__(
+        self,
+        dmgr,
+        spi_device,
+        io_update_device=None,
+        dds_reset_device=None,
+        sync_device=None,
+        sync_sel=0,
+        clk_sel=0,
+        clk_div=0,
+        rf_sw=0,
+        refclk=125e6,
+        att=0x00000000,
+        sync_div=None,
+        proto_rev=0x08,
+        core_device="core",
+    ):
+        # Separate IO_UPDATE TTL output device used by SUServo core,
+        # if active, else by artiq.coredevice.suservo.AD9910
+        # :meth:`measure_io_update_alignment`.
+        # The urukul.CPLD driver utilises the CPLD CFG register
+        # option instead for pulsing IO_UPDATE of masked DDSs.
+        self.io_update_ttl = dmgr.get(io_update_device)
+        urukul.CPLD.__init__(
+            self,
+            dmgr,
+            spi_device,
+            io_update_device,
+            dds_reset_device,
+            sync_device,
+            sync_sel,
+            clk_sel,
+            clk_div,
+            rf_sw,
+            refclk,
+            att,
+            sync_div,
+            proto_rev,
+            core_device,
+        )
