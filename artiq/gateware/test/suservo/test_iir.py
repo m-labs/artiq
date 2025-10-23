@@ -25,7 +25,7 @@ def main():
         yield dut.t_global.eq(0xdeadbeef)
         for i in range(dut.o_channels):
             ch_tag = i & ((1 << 16) - 1)
-            yield from dut.set_fiducial_timestamp(i, ((0xf100 | ch_tag) << 16) | ((ch_tag << 8) | 0xf1))
+            yield from dut.set_fiducial_timestamp(i, i % 2, ((0xf100 | ch_tag) << 16) | ((ch_tag << 8) | 0xf1))
             yield from dut.set_prev_ftw(i, ((0xf200 | ch_tag) << 16) | (0xf200 | ch_tag))
             yield from dut.set_phase_accumulator(i, (0xf3 << 24) | (0xf3 << 16) | (0xf300 | ch_tag))
         for i, ch in enumerate(dut.adc):
