@@ -5,32 +5,21 @@ from artiq.gateware.rtio import rtlink
 
 class RTServoCtrl(Module):
     """Per channel RTIO control interface"""
-    def __init__(self, ctrl, ctrl_reftime):
+    def __init__(self, ctrl):
         self.rtlink = rtlink.Interface(
-            rtlink.OInterface(
-                data_width=max(len(ctrl.profile) + 3,
-                               len(ctrl_reftime.sysclks_fine)),
-                address_width=1)
-            )
+            rtlink.OInterface(len(ctrl.profile) + 3))
 
         # # #
 
-        sel_ref = self.rtlink.o.address
         self.comb += [
-                ctrl.stb.eq(self.rtlink.o.stb & ~sel_ref),
+                ctrl.stb.eq(self.rtlink.o.stb),
                 self.rtlink.o.busy.eq(0),
-                ctrl_reftime.stb.eq(self.rtlink.o.stb & sel_ref),
         ]
-        ctrl_cases = {
-            0: Cat(ctrl.en_out, ctrl.en_iir, ctrl.en_pt, ctrl.profile).eq(
-                            self.rtlink.o.data),
-            1: ctrl_reftime.sysclks_fine.eq(self.rtlink.o.data),
-        }
         self.sync.rio_phy += [
-                If(self.rtlink.o.stb, Case(sel_ref, {
-                    0: Cat(ctrl.en_out, ctrl.en_iir, ctrl.en_pt, ctrl.profile).eq(self.rtlink.o.data),
-                    1: ctrl_reftime.sysclks_fine.eq(self.rtlink.o.data),
-                }))
+                If(self.rtlink.o.stb,
+                    Cat(ctrl.en_out, ctrl.en_iir, ctrl.en_pt, ctrl.profile).eq(
+                            self.rtlink.o.data),
+                )
         ]
 
 
@@ -59,15 +48,16 @@ class RTServoMem(Module):
         as the memory address.
       - config_sel (1 bit)
       - state_sel (1 bit)
+      - phase_sel (1 bit)
       - we (1 bit)
 
-     destination    | config_sel | state_sel
-    ----------------|------------|----------
-     IIR coeff mem  |    0       |   0
-     IIR coeff mem  |    1       |   0
-     IIR state mem  |    0       |   1
-     config (write) |    1       |   1
-     status (read)  |    1       |   1
+     destination     | config_sel | state_sel | phase_sel
+    -----------------|------------|-----------|----------
+     IIR coeff mem   |    X       |   0       |     0
+     IIR state mem   |    0       |   1       |     0
+     config (write)  |    1       |   1       |     0
+     status (read)   |    1       |   1       |     0
+     Phase track mem |    X       |   X       |     1
 
     Values returned to the user on the Python side of the RTIO interface are
     32 bit, so we sign-extend all values from w.coeff to that width. This works
@@ -82,7 +72,10 @@ class RTServoMem(Module):
         m_state = servo.iir.m_state.get_port(write_capable=True,
                 # mode=READ_FIRST,
                 clock_domain="rio")
-        self.specials += m_state, m_coeff
+        m_phase = servo.iir.m_phase.get_port(write_capable=True,
+                mode=READ_FIRST,
+                we_granularity=w.word, clock_domain="rio")
+        self.specials += m_state, m_coeff, m_phase
 
         # just expose the w.coeff (18) MSBs of state
         assert w.state >= w.coeff
@@ -94,9 +87,9 @@ class RTServoMem(Module):
         assert w.word < w.coeff
         assert 8 + w.dly < w.coeff
 
-        # coeff, profile, channel, 2 mems, rw
+        # coeff, profile, channel, 3 mems, rw
         w_channel = bits_for(len(servo.iir.dds) - 1)
-        internal_address_width = 3 + w.profile + w_channel + 1 + 1
+        internal_address_width = 3 + w.profile + w_channel + 1 + 1 + 1
         rtlink_address_width = min(8, internal_address_width)
         overflow_address_width = internal_address_width - rtlink_address_width
         self.rtlink = rtlink.Interface(
@@ -122,12 +115,14 @@ class RTServoMem(Module):
 
         assert len(self.rtlink.o.address) + len(self.rtlink.o.data) - w.coeff == (
                 1 +  # we
+                1 +  # phase_sel
                 1 +  # state_sel
                 1 +  # high_coeff
                 len(m_coeff.adr))
         # ensure that we can fit config/status into the state address space
         assert len(self.rtlink.o.address) + len(self.rtlink.o.data) - w.coeff >= (
                 1 +  # we
+                1 +  # phase_sel
                 1 +  # state_sel
                 1 +  # config_sel
                 len(m_state.adr))
@@ -139,21 +134,33 @@ class RTServoMem(Module):
         coeff_data = Signal(w.coeff)
         self.comb += coeff_data.eq(self.rtlink.o.data[:w.coeff])
 
+        word_data = Signal(w.word)
+        self.comb += word_data.eq(self.rtlink.o.data[:w.word])
+
         we = internal_address[-1]
-        state_sel = internal_address[-2]
-        config_sel = internal_address[-3]
+        phase_sel = internal_address[-2]
+        state_sel = internal_address[-3]
+        config_sel = internal_address[-4]
+        # FIXME: naming
+        # It does not always refer to coefficients
         high_coeff = internal_address[0]
         self.comb += [
                 self.rtlink.o.busy.eq(0),
                 m_coeff.adr.eq(internal_address[1:]),
                 m_coeff.dat_w.eq(Cat(coeff_data, coeff_data)),
                 m_coeff.we[0].eq(self.rtlink.o.stb & ~high_coeff &
-                    we & ~state_sel),
+                    we & ~phase_sel & ~state_sel),
                 m_coeff.we[1].eq(self.rtlink.o.stb & high_coeff &
-                    we & ~state_sel),
+                    we & ~phase_sel & ~state_sel),
                 m_state.adr.eq(internal_address),
                 m_state.dat_w[w.state - w.coeff:].eq(self.rtlink.o.data),
-                m_state.we.eq(self.rtlink.o.stb & we & state_sel & ~config_sel),
+                m_state.we.eq(self.rtlink.o.stb & we & ~phase_sel & state_sel & ~config_sel),
+                m_phase.adr.eq(internal_address[1:]),
+                m_phase.dat_w.eq(Cat(word_data, word_data)),
+                m_phase.we[0].eq(self.rtlink.o.stb & ~high_coeff &
+                    we & phase_sel),
+                m_phase.we[1].eq(self.rtlink.o.stb & high_coeff &
+                    we & phase_sel)
         ]
         read = Signal()
         read_state = Signal()

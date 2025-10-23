@@ -601,7 +601,7 @@ class SUServo(_EEM):
         # a name for the adc return clock domain
         setattr(target.submodules, "suservo_eem{}".format(eems_sampler[0]), su)
 
-        ctrls = [rtservo.RTServoCtrl(ctrl, reftime) for ctrl, reftime in zip(su.iir.ctrl, su.iir.reftime)]
+        ctrls = [rtservo.RTServoCtrl(ctrl) for ctrl in su.iir.ctrl]
         target.submodules += ctrls
         target.rtio_channels.extend(
             rtio.Channel.from_phy(ctrl) for ctrl in ctrls)

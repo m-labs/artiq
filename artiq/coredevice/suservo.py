@@ -83,7 +83,8 @@ class SUServo:
         assert self.ref_period_mu == self.core.ref_multiplier
 
         coeff_depth = 10 + (len(cpld_devices) - 1).bit_length()
-        self.we = 1 << coeff_depth + 1
+        self.we = 1 << coeff_depth + 2
+        self.phase_sel = 1 << coeff_depth + 1
         self.state_sel = 1 << coeff_depth
         config_sel = 1 << coeff_depth - 1
         self.config_addr = self.state_sel | config_sel
@@ -289,14 +290,15 @@ class Channel:
                     en_out | (en_iir << 1) | (en_pt << 2) | (profile << 3))
 
     @kernel
-    def set_reference_time(self):
+    def set_reference_time(self, fiducial_ts, profile):
         """Set reference time for "coherent phase mode" (see :meth:`set`).
         This method does not advance the timeline.
         With en_pt=1 (see :meth:`set`), the tracked DDS output phase of
         this channel will refer to the current timeline position.
         """
         fine_ts = now_mu() & ((1 << FINE_TS_WIDTH) - 1)
-        rtio_output(self.channel << 8 | 1, self.dds.sysclk_per_mu * fine_ts)
+        base = self.servo.phase_sel | (self.servo_channel << 8) | (profile << 3)
+        self.servo.write(base, fiducial_ts)
 
     @kernel
     def set_dds_mu(self, profile, ftw, offs, pow_=0):
