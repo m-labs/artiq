@@ -159,7 +159,7 @@ class TRF372017:
         """
         if self.read(0x00) & 0x60 != 0x60:
             raise ValueError("TRF372017 chip id mismatch")
-        delay(10.0 * us)
+        delay(40.0 * us)
 
         for data in self.init_mmap:
             self.write(data)
@@ -219,14 +219,14 @@ class TRF372017:
         .. warning:: RF and LO outputs must be disabled during VCO calibration via :meth:`enable_mixer_rf_output` and :meth:`enable_lo_output`.
         """
         reg_0x02 = self.read(0x02)
-        delay(10.0 * us)
+        delay(40.0 * us)
         # The bit will reset automatically, no need to write the original value again - SLWS224E Table 16
         self.write(reg_0x02 | (1 << 31))
         delay_mu(self.vco_calibration_duration_mu)
 
         if self.read(0x00) & 0x1000 == 0x1000:
             raise ValueError("TRF372017 VCO calibration error")
-        delay(10.0 * us)
+        delay(40.0 * us)
 
     @kernel
     def enable_mixer_rf_output(self, output_enable):
@@ -235,7 +235,7 @@ class TRF372017:
         :param output_enable: Enable mixer RF output when set to True
         """
         reg_0x04 = self.read(0x04)
-        delay(10.0 * us)
+        delay(40.0 * us)
         if output_enable:
             reg_0x04 &= ~(1 << 14)
         else:
@@ -250,7 +250,7 @@ class TRF372017:
         :param output_enable: Enable LO output when set to True
         """
         reg_0x04 = self.read(0x04)
-        delay(10.0 * us)
+        delay(40.0 * us)
         if output_enable:
             reg_0x04 &= ~((1 << 12) | (1 << 13))
         else:
@@ -285,7 +285,7 @@ class TRF372017:
         :param cal_clk_sel: 4-bit VCO calibration clock factor
         """
         reg_0x01 = self.read(0x01)
-        delay(10.0 * us)
+        delay(40.0 * us)
         self.write(reg_0x01 & ~(0xF << 27) | cal_clk_sel << 27)
 
     @kernel
@@ -302,11 +302,11 @@ class TRF372017:
         :param n_tx_div_sel: 2-bit tx divider
         """
         reg_0x01 = self.read(0x01)
-        delay(10.0 * us)
+        delay(40.0 * us)
         self.write(reg_0x01 & ~(0x1FFF << 5) | r_div << 5)
 
         reg_0x02 = self.read(0x02)
-        delay(10.0 * us)
+        delay(40.0 * us)
         self.write(
             reg_0x02 & ~(0xFFFF << 5 | 0b11 << 21 | 0b1 << 23)
             | n_int << 5
@@ -315,11 +315,11 @@ class TRF372017:
         )
 
         reg_0x03 = self.read(0x03)
-        delay(10.0 * us)
+        delay(40.0 * us)
         self.write(reg_0x03 & ~(0x1FFFFFF << 5) | n_frac << 5)
 
         reg_0x06 = self.read(0x06)
-        delay(10.0 * us)
+        delay(40.0 * us)
         self.write(reg_0x06 & ~(0xF << 24) | tx_div_sel << 24)
 
     @portable

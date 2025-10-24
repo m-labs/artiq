@@ -86,19 +86,19 @@ class DAC34H84:
         self.write(0x02, 0x0080)
         if self.read(0x7F) != 0x5409:
             raise ValueError("DAC34H84 version mismatch")
-        delay(10.0 * us)
+        delay(40.0 * us)
         if self.read(0x00) != 0x049C:
             raise ValueError("DAC34H84 resets fail")
-        delay(10.0 * us)
+        delay(40.0 * us)
         if (self.read(0x06, DAC_SPI_DIV_TEMP) >> 8) > 85:
             raise ValueError("DAC34H84 overheats")
-        delay(10.0 * us)
+        delay(40.0 * us)
 
         for data in self.init_mmap:
             self.write(data >> 16, data & 0xFFFF)
 
         reg_0x18 = self.read(0x18)
-        delay(10.0 * us)
+        delay(40.0 * us)
         # Use PLL loop filter voltage to check lock status - Table 10, Step 34 SLAS751D section 7.5.2.4
         if not (0x2 <= reg_0x18 & 0b111 <= 0x5):
             raise ValueError("DAC34H84 PLL fail to lock")
@@ -133,7 +133,7 @@ class DAC34H84:
     def tune_fifo_offset(self):
         """Find and set an optimal FIFO offset with maximum safety margin."""
         reg_0x09 = self.read(0x09)
-        delay(10.0 * us)
+        delay(40.0 * us)
 
         DAC_FIFO_DEPTH = 8
         good = 0
@@ -147,7 +147,7 @@ class DAC34H84:
             # check FIFO pointer collision alarm
             if (self.read(0x05) >> 11) & 0b111 == 0:
                 good |= 1 << offset
-            delay(10.0 * us)
+            delay(40.0 * us)
 
         # If good offset is at both ends, shift the samples for easy mean calculation
         if good & 0x81 == 0x81:
@@ -177,7 +177,7 @@ class DAC34H84:
         :param enable: Enable internal mixer block and NCO mixer when set to True
         """
         reg = self.read(0x02)
-        delay(10.0 * us)
+        delay(40.0 * us)
         if en:
             self.write(0x02, reg | 1 << 6 | 1 << 4)
         else:
@@ -196,7 +196,7 @@ class DAC34H84:
         .. note:: Synchronising the NCO clears the phase-accumulator.
         """
         reg = self.read(0x1F)
-        delay(10.0 * us)
+        delay(30.0 * us)
         self.write(0x1F, reg & ~0x2)
         self.write(0x1F, reg | 0x2)
 
