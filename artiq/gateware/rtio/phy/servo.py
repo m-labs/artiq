@@ -126,6 +126,12 @@ class RTServoMem(Module):
                 1 +  # state_sel
                 1 +  # config_sel
                 len(m_state.adr))
+        assert len(self.rtlink.o.address) + len(self.rtlink.o.data) - w.coeff >= (
+                1 +  # we
+                1 +  # phase_sel
+                1 +  # state_sel
+                1 +  # config_sel
+                len(m_phase.adr))
 
         internal_address = Signal(internal_address_width)
         self.comb += internal_address.eq(Cat(self.rtlink.o.address,
