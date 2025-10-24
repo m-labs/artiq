@@ -90,57 +90,78 @@ class ServoSim(servo.Servo):
         # Parameters of ADC, IIR, and other interfaces do not matter
         # They only need to not obstruct the servo operations
         adc = 0
-        channel = 19
+        channel = 3
         main_profile = 0
         alt_profile = 1
 
-        yield self.iir.ctrl[channel].en_iir.eq(1)
-        yield self.iir.ctrl[channel].en_out.eq(1)
-        yield self.iir.ctrl[channel].en_pt.eq(1)
-        yield self.iir.ctrl[channel].profile.eq(main_profile)
+        def test_iterations():
+            yield self.iir.ctrl[channel].en_iir.eq(1)
+            yield self.iir.ctrl[channel].en_out.eq(1)
+            yield self.iir.ctrl[channel].en_pt.eq(1)
+            yield self.iir.ctrl[channel].profile.eq(main_profile)
 
-        Profile = namedtuple('Profile', ['ftw', 'pow'])
-        profiles = [Profile(ftw=0x28F5C29, pow=0x8000), Profile(ftw=0xadbeef, pow=0)]
-        coeffs = [ dict(pow=p.pow, offset=0, ftw0=(p.ftw & 0xffff), ftw1=(p.ftw >> 16),
-                a1=0, b0=0, b1=0, cfg=adc | (0 << 3)) for p in profiles ]
-        for ks in "pow offset ftw0 ftw1", "a1 b0 b1 cfg":
-            for profile_i, coeff in enumerate(coeffs):
-                for k in ks.split():
-                    yield from self.iir.set_coeff(channel, value=coeff[k],
-                            profile=profile_i, coeff=k)
+            Profile = namedtuple('Profile', ['ftw', 'pow', 'fiducial_ts'])
+            profiles = [Profile(ftw=0x28F5C29, pow=0x8000, fiducial_ts=0x1234), Profile(ftw=0xadbeef, pow=0, fiducial_ts=0x4321)]
+            coeffs = [ dict(pow=p.pow, offset=0, ftw0=(p.ftw & 0xffff), ftw1=(p.ftw >> 16),
+                    a1=0, b0=0, b1=0, cfg=adc | (0 << 3)) for p in profiles ]
+            for ks in "pow offset ftw0 ftw1", "a1 b0 b1 cfg":
+                for profile_i, coeff in enumerate(coeffs):
+                    for k in ks.split():
+                        yield from self.iir.set_coeff(channel, value=coeff[k],
+                                profile=profile_i, coeff=k)
+                yield
+            for i, profile in enumerate(profiles):
+                yield from self.iir.set_fiducial_timestamp(channel, i, profile.fiducial_ts)
+
+
+            phase_accu = 0      # Assume phase accumulator is cleared
+            t_elapsed = 0
+            t_update = self.iir.t_cycle * self.iir.sysclks_per_clk
+
+            duration = 10
+            # time offset that profiles are toggled
+            profile_applied = [ 1 if i >= 1 else 0 for i in range(duration) ]
+            # Applied profile needs 2 IO_UPDATE cycles to go through the pipeline
+            profile_processed = [0, 0] + profile_applied[:-2]
+
+            yield self.start.eq(1)
+            for iteration, profile_out in enumerate(profile_processed):
+                while not (yield self.dds_tb.io_update):
+                    yield
+                # HACK: According to the simulation of THIS TESTBENCH,
+                # iir_processing is always false during the IO_UPDATE pulse
+                assert (yield self.iir.processing) == 0
+                yield self.iir.ctrl[channel].profile.eq(profile_applied[iteration])
+                yield  # io_update
+
+                fiducial_ts = yield from self.iir.get_fiducial_timestamp(channel, profile_out)
+
+                # DDS TB records are updated after the IO_UPDATE pulse
+                ftw = yield self.dds_tb.ddss[channel].ftw
+                pow_ = yield self.dds_tb.ddss[channel].pow
+                expected_phase = ftw * (t_elapsed - fiducial_ts) + (profiles[profile_out].pow << 16)
+                adjusted_phase = expected_phase - phase_accu
+                adjusted_pow = (adjusted_phase >> 16) & 0xffff
+                print(hex(pow_), hex(adjusted_pow))
+                assert pow_ == adjusted_pow
+                # Expected phase accumulator value by the next IO_UPDATE
+                phase_accu += ftw * t_update
+                phase_accu &= 0xffffffff
+                t_elapsed += t_update
+
+        yield from test_iterations()
+        
+        # test reset
+        # disable the servo, and drain the pipeline
+        yield self.start.eq(0)
+        for _ in range(3*self.iir.t_cycle):
             yield
 
-        phase_accu = 0      # Assume phase accumulator is cleared
-        t_elapsed = 0
-        t_update = self.iir.t_cycle * self.iir.sysclks_per_clk
+        # reset tracked values
+        yield from self.iir.set_prev_ftw(channel, 0)
+        yield from self.iir.set_phase_accumulator(channel, 0)
 
-        duration = 10
-        # time offset that profiles are toggled
-        profile_applied = [ 1 if i >= 1 else 0 for i in range(duration) ]
-        # Applied profile needs 2 IO_UPDATE cycles to go through the pipeline
-        profile_processed = [0, 0] + profile_applied[:-2]
-
-        yield self.start.eq(1)
-        for iteration, profile_out in enumerate(profile_processed):
-            while not (yield self.dds_tb.io_update):
-                yield
-            # HACK: According to the simulation of THIS TESTBENCH,
-            # iir_processing is always false during the IO_UPDATE pulse
-            assert (yield self.iir.processing) == 0
-            yield self.iir.ctrl[channel].profile.eq(profile_applied[iteration])
-            yield  # io_update
-
-            # DDS TB records are updated after the IO_UPDATE pulse
-            ftw = yield self.dds_tb.ddss[channel].ftw
-            pow_ = yield self.dds_tb.ddss[channel].pow
-            expected_phase = ftw * t_elapsed + (profiles[profile_out].pow << 16)
-            adjusted_phase = expected_phase - phase_accu
-            adjusted_pow = (adjusted_phase >> 16) & 0xffff
-            assert pow_ == adjusted_pow
-            # Expected phase accumulator value by the next IO_UPDATE
-            phase_accu += ftw * t_update
-            phase_accu &= 0xffffffff
-            t_elapsed += t_update
+        yield from test_iterations()
 
 
 def main(test_func_name="test"):
