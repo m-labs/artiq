@@ -27,13 +27,17 @@ Installing and configuring OpenOCD
 .. warning::
   These instructions are not applicable to :ref:`Zynq devices <devices-table>`, which do not use the utility :mod:`~artiq.frontend.artiq_flash`. If your core device is a Zynq device, skip straight to :ref:`writing-flash`.
 
-ARTIQ supplies the utility :mod:`~artiq.frontend.artiq_flash`, which uses OpenOCD to write the binary images into an FPGA board's flash memory. For both Nix and MSYS2, OpenOCD are included with the installation by default. Note that in the case of Nix this is the package ``artiq.openocd-bscanspi`` and not ``pkgs.openocd``; the second is OpenOCD from the Nix package collection, which does not support ARTIQ/Sinara boards.
+ARTIQ supplies the utility :mod:`~artiq.frontend.artiq_flash`, which uses OpenOCD to write the binary images into an FPGA board's flash memory. With MSYS2, OpenOCD is included with the installation by default. For Nix, make sure to include the package ``artiq.openocd-bscanspi`` in your flake (in the :ref:`example custom flake <example-flake>`, you can simply uncomment the relevant line). Alternatively, you can use the ARTIQ main flake's development shell. Nix profile installations do not include OpenOCD.
 
-.. note::
+Note that this is **not** ``pkgs.openocd``; the latter is OpenOCD from the Nix package collection, which does not support ARTIQ/Sinara boards.
 
-    With Conda, install ``openocd`` as follows: ::
+.. tip::
 
-        $ conda install -c m-labs openocd
+  The development shell is an alternative, non-minimal ARTIQ environment which includes additional tools for working with ARTIQ, including OpenOCD. You can enter it with: ::
+
+  $ nix develop git+https://github.com/m-labs/artiq.git
+
+  However, unless you want the full development environment, it's usually preferable to use a lighter custom flake, such as the example in :doc:`installing`.
 
 Some additional steps are necessary to ensure that OpenOCD can communicate with the FPGA board:
 
@@ -53,6 +57,12 @@ On Linux
 
 Linux using Conda
 ^^^^^^^^^^^^^^^^^
+
+  .. note::
+
+    With Conda, install OpenOCD as follows: ::
+
+      $ conda install -c m-labs openocd
 
   If you are using a Conda environment ``artiq``, then execute the statements below. If you are using a different environment, you will have to replace ``artiq`` with the name of your environment::
 

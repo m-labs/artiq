@@ -26,6 +26,8 @@ Answer "Yes" to the questions about setting Nix configuration options (for more 
 
 This installation is however relatively limited. Without further instructions, Nix takes its cues from the main ARTIQ flake (the ``flake.nix`` file at the root of the repository linked in the command) and creates a dedicated Python environment for the ARTIQ commands alone. This means that other useful Python packages, which are not necessary to run ARTIQ but which you might want to use in experiments (pandas, matplotlib...), are not available.
 
+.. _example-flake:
+
 Flake custom environments
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -68,6 +70,7 @@ Modifying the environment and making additional packages visible to the ARTIQ co
               # ARTIQ and incorporated with an ARTIQ install anyway.
             ]))
             # List desired non-Python packages here
+            #artiq.openocd-bscanspi # needed if flashing board with artiq_flash
             # Additional NDSPs can be included:
             #artiq.korad_ka3005p
             #artiq.novatech409b
