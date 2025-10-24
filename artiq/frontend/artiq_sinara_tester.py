@@ -737,7 +737,7 @@ class SinaraTester(EnvExperiment):
             readback_word = att.get_att_mu()
             if test_word != readback_word:
                 print("Expected: ", test_word, ", readback:", readback_word)
-                raise ValueError
+                raise ValueError("Test and readback attenuator word mismatch")
 
     @kernel
     def init_phaser_mtdds_fpga(self, fpga):
