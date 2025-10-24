@@ -1,8 +1,10 @@
 from artiq.language.core import kernel, delay, delay_mu, portable
+from artiq.language.types import TFloat, TInt32, TTuple
 from artiq.language.units import us, ns
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 from artiq.coredevice import spi2 as spi
-from artiq.coredevice import urukul, sampler
+from artiq.coredevice import ad9910, urukul, sampler
+from artiq.gateware.suservo.pads import FINE_TS_WIDTH
 
 
 COEFF_WIDTH = 18
@@ -111,15 +113,20 @@ class SUServo:
             sampler.SPI_CONFIG | spi.SPI_END,
             16, 4, sampler.SPI_CS_PGIA)
 
+        io_update_delays = [ 0 for _ in self.cplds ]
         for i in range(len(self.cplds)):
             cpld = self.cplds[i]
             dds = self.ddses[i]
 
-            cpld.init(blind=True)
+            use_miso = cpld.proto_rev == urukul.STA_PROTO_REV_9
+
+            cpld.init(blind=not use_miso)
             prev_cpld_cfg = int64(cpld.cfg_reg)
-            cpld.cfg_mask_nu_all(0xF)
-            dds.init(blind=True)
+            dds.init(blind=not use_miso)
             cpld.cfg_write(prev_cpld_cfg)
+            io_update_delays[i] = dds.sync_data.io_update_delay
+
+        self.set_config(enable=0, write_delay=True, io_update_delays=io_update_delays)
 
     @kernel
     def write(self, addr, value):
@@ -151,7 +158,7 @@ class SUServo:
         return rtio_input_data(self.channel)
 
     @kernel
-    def set_config(self, enable):
+    def set_config(self, enable, write_delay=False, io_update_delays=[0]):
         """Set SU Servo configuration.
 
         This method advances the timeline by one servo memory access.
@@ -165,8 +172,18 @@ class SUServo:
             other RTIO activity.
             Disabling takes up to two servo cycles (~2.3 µs) to clear the
             processing pipeline.
+        
+        :param bool write_delay: Write enable for IO_UPDATE delays.
+
+        :param list io_update_delays: List of IO_UPDATE delays for each
+            Urukul. Requires enabling synchronization to configure.
         """
-        self.write(self.config_addr, enable)
+        value = enable
+        if write_delay:
+            value |= (1 << 1)
+            for i in range(len(io_update_delays)):
+                value |= (io_update_delays[i] << (i * FINE_TS_WIDTH + 2))
+        self.write(self.config_addr, value)
 
     @kernel
     def get_status(self):
@@ -243,6 +260,30 @@ class SUServo:
         val = self.get_adc_mu(channel)
         gain = (self.gains >> (channel*2)) & 0b11
         return adc_mu_to_volts(val, gain, self.corrected_fs)
+
+    @kernel
+    def reset_dds_phase_accumulator(self):
+        """Reset all DDS phase accumulators.
+
+        This method clears the phase accumulator by enabling autoclear, with
+        setting FTW of the DDS single-tone profile to 0.
+
+        SU-Servo is assumed to be disabled before reset takes place.
+        """
+        self.core.break_realtime()
+        num_of_urukuls = len(self.cplds)
+        for i in range(num_of_urukuls):
+            cpld = self.cplds[i]
+            dds = self.ddses[i]._inner_dds
+            cpld.cfg_mask_nu_all(0xf)
+            dds.set_cfr1(phase_autoclear=1)
+            dds.write64(ad9910._AD9910_REG_PROFILE0 + urukul.DEFAULT_PROFILE, 0, 0)
+            cpld.cfg_io_update_all(0xf)
+            cpld.cfg_io_update_all(0)
+            dds.set_cfr1(phase_autoclear=0)
+            cpld.cfg_io_update_all(0xf)
+            cpld.cfg_io_update_all(0)
+            cpld.cfg_mask_nu_all(0)
 
 
 class Channel:
@@ -564,3 +605,254 @@ class Channel:
             raise ValueError("Invalid SUServo y-value!")
         self.set_y_mu(profile, y_mu)
         return y_mu
+
+
+class _MaskedIOUpdate:
+    def __init__(self, core, cpld, dds, io_update):
+        self.cpld = cpld
+        self.dds = dds
+        self.core = core
+        self.io_update = io_update
+
+        # Synchronized SU-Servo uses the designated I/O update pin.
+        # When communicating with the DDS via slow SPI, MASK_NU must be set to
+        # perform serial transfer, then unset to propagate I/O update.
+        self.toggle_mask_nu = self.cpld.io_update is not None
+    
+    @kernel
+    def pulse_mu(self, duration):
+        """Unset MASK_NU, then pulse the IO Update TTL high for the specified
+        duration (in machine units). MASK_NU is restored to the previous value
+        after the I/O pulse.
+
+        The I/O update TTL supports fine timestamp.
+        The preamble CFG write advances the timestamp to a fine-timestamp
+        invariant position, then I/O update TTL pulses.
+
+        The time cursor is advanced to the end of the second CFG write,
+        incremented by the initial fine timestamp.
+
+        The timestamp delta is not varied by the fine timestamp."""
+        toggle_needed = bool((self.cpld.cfg_reg >> (urukul.ProtoRev9.CFG_MASK_NU + self.dds.selected_ch)) & 1)
+        if self.toggle_mask_nu and toggle_needed:
+            fine_ts = now_mu() & 7
+            delay_mu(8 - fine_ts)
+            self.cpld.cfg_mask_nu(self.dds.selected_ch, False)
+            delay_mu(fine_ts)
+
+        self.io_update.pulse_mu(duration)
+
+        if self.toggle_mask_nu and toggle_needed:
+            fine_ts = now_mu() & 7
+            delay_mu(8 - fine_ts)
+            self.cpld.cfg_mask_nu(self.dds.selected_ch, True)
+            delay_mu(fine_ts)
+
+    @kernel
+    def pulse(self, duration):
+        """Pulse the output high for the specified duration (in seconds).
+
+        See pulse_mu."""
+        self.pulse_mu(self.core.seconds_to_mu(duration))
+
+
+class SyncDataUser:
+    def __init__(self, core, sync_delay_seeds, io_update_delay):
+        self.core = core
+        self.sync_delay_seeds = sync_delay_seeds
+        self.io_update_delay = io_update_delay
+
+    @kernel
+    def init(self):
+        pass
+
+
+class SyncDataEeprom:
+    def __init__(self, dmgr, core, eeprom_str):
+        self.core = core
+
+        eeprom_device, eeprom_offset = eeprom_str.split(":")
+        self.eeprom_device = dmgr.get(eeprom_device)
+        self.eeprom_offset = int(eeprom_offset)
+
+        self.sync_delay_seeds = [0] * 4
+        self.io_update_delay = 0
+
+    @kernel
+    def init(self):
+        word = self.eeprom_device.read_i32(self.eeprom_offset)
+        for i in range(len(self.sync_delay_seeds)):
+            self.sync_delay_seeds[i] = (word >> (i * 5)) & 0x1F
+        io_update_delay = (word >> 20) & 0xFFF
+        if io_update_delay == 0xFFF:    # unprogrammed EEPROM
+            self.io_update_delay = 0
+        else:
+            self.io_update_delay = int32(io_update_delay)
+
+
+class SharedDDS:
+    """DDS configuration device for SU-Servo.
+
+    Shared DDS device controls all 4 DDSes on the same Urukul device. Control
+    of the 4 channels is multiplexed by selecting the corresponding MASK_NU
+    bit in prior to SPI transaction. IO_UPDATE is transferred by temporarily
+    disabling the corresponding MASK_NU bit.
+
+    :param cpld_device: Name of the Urukul CPLD this device is on.
+    :param pll_n: DDS PLL multiplier. The DDS sample clock is
+        ``f_ref / clk_div * pll_n`` where ``f_ref`` is the reference frequency and
+        ``clk_div`` is the reference clock divider (both set in the parent
+        Urukul CPLD instance).
+    :param pll_en: PLL enable bit, set to 0 to bypass PLL (default: 1).
+        Note that when bypassing the PLL the red front panel LED may remain on.
+    :param pll_cp: DDS PLL charge pump setting.
+    :param pll_vco: DDS PLL VCO range selection.
+    :param sync_delay_seed: ``SYNC_IN`` delay tuning starting value.
+        To stabilize the ``SYNC_IN`` delay tuning, run :meth:`tune_sync_delays` once
+        and set this to the delay tap number returned (default: -1 to signal no
+        synchronization and no tuning during :meth:`init`).
+        Can be a string of the form ``eeprom_device:byte_offset`` to read the
+        value from a I2C EEPROM, in which case ``io_update_delay`` must be set
+        to the same string value.
+    :param io_update_delay: ``IO_UPDATE`` pulse alignment delay.
+        To align ``IO_UPDATE`` to ``SYNC_CLK``,
+        run :meth:`tune_io_update_group_delay` and set this to the delay tap
+        number returned.
+        Can be a string of the form ``eeprom_device:byte_offset`` to read the
+        value from a I2C EEPROM, in which case ``sync_delay_seed`` must be set
+        to the same string value.
+    :param core_device: Core device name
+    """
+    def __init__(self, dmgr, cpld_device,
+                 pll_n=40, pll_cp=7, pll_vco=5, sync_delay_seed=[-1, -1, -1, -1],
+                 io_update_delay=0, pll_en=1, core_device="core"):
+        self.core = dmgr.get(core_device)
+        self.cpld = dmgr.get(cpld_device)
+        self._inner_dds = ad9910.AD9910(dmgr, 3, cpld_device, pll_n=pll_n, pll_cp=pll_cp, pll_vco=pll_vco, pll_en=pll_en)
+
+        self.selected_ch = 0
+        self._inner_dds.io_update = _MaskedIOUpdate(self.core, self._inner_dds.cpld, self, self._inner_dds.io_update)
+
+        if isinstance(sync_delay_seed, str) or isinstance(io_update_delay, str):
+            if sync_delay_seed != io_update_delay:
+                raise ValueError("When using EEPROM, sync_delay_seed must be "
+                                 "equal to io_update_delay")
+            self.sync_data = SyncDataEeprom(dmgr, self.core, sync_delay_seed)
+        else:
+            self.sync_data = SyncDataUser(self.core, sync_delay_seed,
+                                          io_update_delay)
+
+    @portable
+    def update_dds_sel(self, channel):
+        """Select a specific DDS channel to accept I/O update"""
+        self.cpld.cfg_mask_nu_all(1 << channel)
+        self.selected_ch = channel
+
+    @kernel
+    def init(self, blind=False):
+        """Initialize and configure the SU-Servo as a whole.
+
+        See the :meth:`~artiq.coredevice.ad9910.AD9910.init` method of
+        :class:`~artiq.coredevice.ad9910.AD9910` for AD9910 initialization.
+
+        :param blind: Do not read back DDS identity and do not wait for lock.
+            See :meth:`~artiq.coredevice.ad9910.AD9910.init`.
+        """
+        self.core.break_realtime()
+        self.sync_data.init()
+        for i in range(4):
+            self.core.break_realtime()
+            self.update_dds_sel(i)
+            self.core.break_realtime()
+            self._inner_dds.init(blind=blind, dds_channel_idx=i)
+
+            if self.sync_data.sync_delay_seeds != [-1, -1, -1, -1]:
+                self._inner_dds.tune_sync_delay(self.sync_data.sync_delay_seeds[i], dds_channel_idx=i)
+
+        # Disable MASK_NU to resume QSPI
+        self.cpld.cfg_mask_nu_all(0)
+
+    @kernel
+    def tune_sync_delays(self) -> TTuple([TInt32, TInt32, TInt32, TInt32]):
+        """Find a stable ``SYNC_IN`` delay.
+
+        This method first locates a set of ``SYNC_IN`` delay via
+        :meth:`~artiq.coredevice.ad9910.AD9910.tune_sync_delay` of
+        :class:`~artiq.coredevice.ad9910.AD9910`.
+
+        This method and :meth:`tune_io_update_group_delay` can be run in any
+        order.
+
+        :return: Tuple of optimal delays.
+        """
+        def get_delay(ch) -> TInt32:
+            self.core.break_realtime()
+            self.update_dds_sel(ch)
+            self.core.break_realtime()
+            dly, _ = self._inner_dds.tune_sync_delay(dds_channel_idx=ch)
+            return dly
+
+        return get_delay(0), get_delay(1), get_delay(2), get_delay(3)
+
+    @kernel
+    def tune_io_update_group_delay(self) -> TInt32:
+        """Find a stable ``IO_UPDATE`` delay alignment suitable for all DDS
+        channels.
+
+        Scan through increasing ``IO_UPDATE`` delays until a delay is found
+        that lets ``IO_UPDATE`` be registered in the next ``SYNC_CLK`` cycle.
+        Return an ``IO_UPDATE`` delay that does not coincide with any
+        ``SYNC_CLK`` edges.
+
+        This method assumes that the ``IO_UPDATE`` TTLOut device has one
+        machine unit resolution (SERDES).
+
+        This method and :meth:`tune_sync_delays` can be run in any order.
+
+        :return: ``IO_UPDATE`` delay to be passed to the constructor
+            :class:`~artiq.coredevice.urukul.CPLD` via the device database.
+        """
+        period = self._inner_dds.sysclk_per_mu * 4  # SYNC_CLK period
+        sync_clk_offset = [ 0 for _ in range(period) ]
+        repeat = 100
+        for channel in range(4):
+            self.update_dds_sel(channel)
+            for i in range(period):
+                t = 0
+                # check whether the sync edge is strictly between i, i+2
+                for j in range(repeat):
+                    t += self._inner_dds.measure_io_update_alignment(int64(i), i + 2)
+                if t != 0:  # no certain edge
+                    continue
+                # check left/right half: i,i+1 and i+1,i+2
+                t1 = [0, 0]
+                for j in range(repeat):
+                    t1[0] += self._inner_dds.measure_io_update_alignment(int64(i), i + 1)
+                    t1[1] += self._inner_dds.measure_io_update_alignment(int64(i + 1), i + 2)
+                if ((t1[0] == 0 and t1[1] == 0) or
+                        (t1[0] == repeat and t1[1] == repeat)):
+                    # edge is not close to i + 1, can't interpret result
+                    raise ValueError(
+                        "no clear IO_UPDATE-SYNC_CLK alignment edge found")
+                else:
+                    sync_clk_offset[(i + 1) % period] += 1
+                    break
+
+        # Find an offset that isn't aligned by SYNC_CLK
+        for i in range(period):
+            if sync_clk_offset[i] == 0:
+                return i
+
+        raise ValueError("IO_UPDATE-SYNC_CLK alignment edges are too broad")
+
+    @portable(flags={"fast-math"})
+    def frequency_to_ftw(self, frequency: TFloat) -> TInt32:
+        """Return the 32-bit frequency tuning word corresponding to the given
+        frequency."""
+        return self._inner_dds.frequency_to_ftw(frequency)
+
+    @portable(flags={"fast-math"})
+    def turns_to_pow(self, turns: TFloat) -> TInt32:
+        """Return the 16-bit phase offset word corresponding to the given phase
+        in turns."""
+        return self._inner_dds.turns_to_pow(turns)
