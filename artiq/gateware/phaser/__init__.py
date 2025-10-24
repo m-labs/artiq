@@ -96,7 +96,7 @@ class PhaserMTDDS(Module):
             self.submodules += decoder
 
             if decoder.source is not None:
-                rt_i = rtlink.IInterface(data_width=len(decoder.source.data))
+                rt_i = rtlink.IInterface(data_width=len(decoder.source.data), timestamped=False)
             else:
                 rt_i = None
             rt_interface = rtlink.Interface(
