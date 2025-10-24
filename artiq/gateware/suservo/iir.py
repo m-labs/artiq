@@ -295,6 +295,10 @@ class IIR(Module):
         # perform one IIR iteration, start with loading,
         # then processing, then shifting, end with done
         self.start = Signal()
+        # resets the tracked time stamp accumulator, asynchronous to IIR state
+        #
+        # The accumulator should be reset whenever the servo is disabled.
+        self.time_reset = Signal()
         # adc inputs being loaded into RAM (becoming x0)
         self.loading = Signal()
         # processing state data (extracting ftw0/ftw1/pow,
@@ -378,7 +382,8 @@ class IIR(Module):
                     t_current_step.eq(0)
                 ).Else(
                     t_current_step.eq(t_current_step + 1)
-                )
+                ),
+                If(self.time_reset, t_global.eq(0))
         ]
 
         # global pipeline phase (lower two bits of t_current_step)
