@@ -142,7 +142,7 @@ class DAC34H84:
 
             # clear alarm and let it run for a while
             self.write(0x05, 0x0000)
-            delay(10.00 * us)
+            delay(100.0 * us)
 
             # check FIFO pointer collision alarm
             if (self.read(0x05) >> 11) & 0b111 == 0:
