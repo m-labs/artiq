@@ -10,6 +10,7 @@ ARTIQ-9 (Unreleased)
    - 12Gbps CoaXPress grabber support on Kasli-SoC with CoaXPress-SFP adapter
      (and ZC706 with Hello-FPGA CXP 4R FMC card).
    - Songbird - a 4-tone, 16-bit DDS using a 2.5Gsps LTC2000 DAC.
+   - Phaser MTDDS - a new gateware variant for Phaser that supports DRTIO and 2 IQ channels with 26-tone each
    - Improved SDRAM memory controller and DMA cores puts Kasli DMA performance on par with
      other platforms.
    - Core device reflashing over the network through the new ``flash`` tool in ``artiq_coremgmt``.
