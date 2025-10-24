@@ -163,6 +163,7 @@ class RTServoMem(Module):
                     we & phase_sel)
         ]
         read = Signal()
+        read_phase = Signal()
         read_state = Signal()
         read_high = Signal()
         read_config = Signal()
@@ -172,6 +173,7 @@ class RTServoMem(Module):
                 ),
                 If(self.rtlink.o.stb,
                     read.eq(~we),
+                    read_phase.eq(phase_sel),
                     read_state.eq(state_sel),
                     read_high.eq(high_coeff),
                     read_config.eq(config_sel),
@@ -188,11 +190,16 @@ class RTServoMem(Module):
         self.comb += [
                 self.rtlink.i.stb.eq(read),
                 _eq_sign_extend(self.rtlink.i.data,
-                    Mux(read_state,
-                        Mux(read_config,
-                            status,
-                            m_state.dat_r[w.state - w.coeff:]),
+                    Mux(read_phase,
                         Mux(read_high,
-                            m_coeff.dat_r[w.coeff:],
-                            m_coeff.dat_r[:w.coeff])))
+                            m_phase.dat_r[w.word:],
+                            m_phase.dat_r[:w.word]),
+                        Mux(read_state,
+                            Mux(read_config,
+                                status,
+                                m_state.dat_r[w.state - w.coeff:]),
+                            Mux(read_high,
+                                m_coeff.dat_r[w.coeff:],
+                                m_coeff.dat_r[:w.coeff])))
+                )
         ]
