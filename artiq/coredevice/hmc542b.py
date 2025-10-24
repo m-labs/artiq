@@ -72,12 +72,12 @@ class HMC542B:
         self.bus.set_config_mu(ATT_SPI_CONFIG | spi.SPI_INPUT, 8, ATT_SPI_DIV, 1)
         self.bus.write(0)
         att_mu = self.bus.read() & 0xFF
-        delay(10.0 * us)
+        delay(40.0 * us)
 
         # shift it back
         self.bus.set_config_mu(ATT_SPI_CONFIG, 8, ATT_SPI_DIV, 1)
         self.bus.write(att_mu << 24)
-        delay(10.0 * us)
+        delay(40.0 * us)
         return att_mu
 
     @kernel

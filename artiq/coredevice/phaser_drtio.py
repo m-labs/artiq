@@ -87,10 +87,10 @@ class PhaserMTDDS:
         """
         if self.read(GW_VARIANT) != PHASER_GW_VARIANT_MTDDS:
             raise ValueError("PhaserMTDDS gateware variant mismatch")
-        delay(10.0 * us)
+        delay(40.0 * us)
         if self.read(SAMPLE_PER_CYCLE) != self.samples_per_cycle:
             raise ValueError("PhaserMTDDS samples per cycle (DDS bandwidth) mismatch")
-        delay(10.0 * us)
+        delay(40.0 * us)
 
         # Toggle reset and keep tx off
         self.set_dac_ctrl(txena=False, reset=True, sleep=False)
@@ -131,7 +131,7 @@ class PhaserMTDDS:
     @kernel
     def reset_attenuator(self, channel):
         reg = self.read(ATT_RESET_N)
-        delay(10.0 * us)
+        delay(40.0 * us)
         self.write(ATT_RESET_N, reg & ~(1 << channel))
         delay_mu(int64(self.core.ref_multiplier))
         self.write(ATT_RESET_N, reg | 1 << channel)
@@ -140,7 +140,7 @@ class PhaserMTDDS:
     @kernel
     def is_upconverter_variant(self) -> TBool:
         is_upconverter = self.read(HW_VARIANT) == 0
-        delay(10.0 * us)
+        delay(40.0 * us)
         return is_upconverter
 
     @kernel
@@ -150,13 +150,13 @@ class PhaserMTDDS:
         :param channel: Phaser channel number (0 or 1)
         """
         locked = (self.read(TRF_LOCK_DETECT) >> channel) & 0b1 == 0b1
-        delay(10.0 * us)
+        delay(40.0 * us)
         return locked
 
     @kernel
     def get_available_tones(self) -> TInt32:
         tones = self.read(AVAILABLE_TONES)
-        delay(10.0 * us)
+        delay(40.0 * us)
         return tones
 
     @kernel
@@ -167,7 +167,7 @@ class PhaserMTDDS:
         :param source: 2-bit source select register (set to 0 for test word, 1 for DDSs)
         """
         reg = self.read(DAC_SOURCE_SEL_ADDR)
-        delay(10.0 * us)
+        delay(40.0 * us)
         self.write(
             DAC_SOURCE_SEL_ADDR,
             (reg & ~(0b11 << (2 * channel))) | (source & 0b11) << (2 * channel),
@@ -221,7 +221,7 @@ class PhaserMTDDS:
         self.select_dac_source(1, 0)
 
         reg_0x01 = self.dac.read(0x01)
-        delay(10.0 * us)
+        delay(40.0 * us)
         # enable iotest & clear iotest_result
         self.dac.write(0x01, reg_0x01 | 0x8000)
         self.dac.write(0x04, 0x0000)
@@ -230,7 +230,7 @@ class PhaserMTDDS:
         delay(100.0 * us)
 
         iotest_error = self.dac.read(0x04)
-        delay(10.0 * us)
+        delay(40.0 * us)
         if iotest_error != 0:
             raise ValueError("DAC iotest failure")
 
