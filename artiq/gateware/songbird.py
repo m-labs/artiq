@@ -67,13 +67,28 @@ class SumAndScale(Module):
             # First, multiply (preserving full 32-bit result)
             self.sync += products[i].eq(self.inputs[i] * self.amplitudes[i])
 
-        # Then sum it all up
-        sum_all = Signal((34, True))
-        self.sync += sum_all.eq(sum(products))
+        # Then sum it all up in a pipelined adder tree
+        stage = products
+        is_first_stage = True
+        while len(stage) > 1:
+            next_stage = []
+            for i in range(0, len(stage) // 2):
+                # increase width to avoid overflow
+                s = Signal((len(stage[0]) + 1, True))
+                # First stage is combinatorial to save registers
+                if is_first_stage:
+                    self.comb += s.eq(stage[2*i] + stage[2*i+1])
+                else:
+                    self.sync += s.eq(stage[2*i] + stage[2*i+1])
+                next_stage.append(s)
+            if len(stage) % 2 == 1:
+                next_stage.append(stage[-1])
+            stage = next_stage
+            is_first_stage = False
 
         # Finally, shift and saturate
-        scaled_sum = Signal((19, True))
-        self.comb += scaled_sum.eq(sum_all[15:])
+        scaled_sum = Signal((len(stage[0])-15, True))
+        self.comb += scaled_sum.eq(stage[0][15:])
 
         self.sync += [
             If(scaled_sum > 0x7FFF,
@@ -113,9 +128,13 @@ class DoubleDataRateDDS(Module):
             MultiReg(self.ptw, paccu.p, "dds200"),
         ]
         self.submodules += paccu
-        dds0 = ClockDomainsRenamer("dds200")(CosSinGen())
-    
-        self.ddss = [ClockDomainsRenamer("dds200")(CosSinGen(share_lut=dds0.lut)) for _ in range(1, n)]
+
+        self.ddss = []
+        for _ in range(n//2):
+            # LUTs are shared only in pairs
+            dds_even = ClockDomainsRenamer("dds200")(CosSinGen())
+            dds_odd = ClockDomainsRenamer("dds200")(CosSinGen(share_lut=dds_even.lut))
+            self.ddss += [dds_even, dds_odd]
 
         for idx, dds in enumerate(self.ddss):
             setattr(self.submodules, f"dds{idx}", dds)
@@ -264,8 +283,8 @@ class DataSynth(Module, AutoCSR):
 Phy = namedtuple("Phy", "rtlink probes overrides name")
 
 class Songbird(Module, AutoCSR):
-    def __init__(self, platform, ltc2000_pads, clk_freq=125e6):
-        n_dds = 4
+    def __init__(self, platform, ltc2000_pads, clk_freq=125e6, dds_count=4):
+        n_dds = dds_count
         n_phases = 24
 
         self.submodules.dds_clock = DDSClocks(clk_freq)
@@ -282,6 +301,7 @@ class Songbird(Module, AutoCSR):
         self.submodules.ltc2000 = Ltc2000phy(self.dac_pads, clk_freq)
 
         counter = Signal()  # alternating sample loader, shared between Phy and DDS
+
         self.comb += self.ltc2000.counter.eq(counter)
         self.sync.dds200 += counter.eq(~counter)
 
@@ -389,17 +409,14 @@ class Ltc2000phy(Module, AutoCSR):
         dac_datb_se = Signal(16)
 
         self.specials += [
-            Instance("OSERDESE2",
-                p_DATA_WIDTH=6, p_TRISTATE_WIDTH=1,
-                p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="BUF",
-                p_SERDES_MODE="MASTER",
-
-                o_OQ=dac_clk_se,
-                i_OCE=1,
-                i_RST=self.reset,
-                i_CLK=ClockSignal("dds600"), i_CLKDIV=ClockSignal("dds200"),
-                i_D1=1, i_D2=0, i_D3=1, i_D4=0,
-                i_D5=1, i_D6=0,
+            # Use ODDR for low-jitter forwarded clock generation
+            Instance("ODDR",
+                p_DDR_CLK_EDGE="SAME_EDGE",
+                i_C=ClockSignal("dds600"),
+                i_R=self.reset,
+                i_CE=1,
+                i_D1=1, i_D2=0,
+                o_Q=dac_clk_se
             ),
             Instance("OBUFDS",
                 i_I=dac_clk_se,
@@ -447,4 +464,3 @@ class Ltc2000phy(Module, AutoCSR):
                     o_OB=pads.datb_n[i]
                 )
         ]
-
