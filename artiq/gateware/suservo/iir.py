@@ -276,6 +276,25 @@ class IIR(Module):
         self.specials.m_state = Memory(
                 width=w.state,  # y1,x0,x1
                 depth=((1 << w.profile) * o_channels) + (2 * i_channels))
+        # Memory for values required to track the phase accumulator.
+        # Arranged as the following:
+        # t_ref * (1 << w.profile) * o_channels
+        # [prev_ftw, prev_accu] * o_channels
+        #
+        # prev_accu is the phase accumulator in the previous iteration.
+        # t_ref is the fiducial timestamp.
+        # prev_ftw is the FTW in the previous iteration.
+        # Offset 3 is unused, to avoid maintaining a separate counter.
+        #
+        # m_phase[t_ref] of active profiles should only be accessed externally
+        # during ~processing.
+        # m_phase[prev_ftw] should only be accessed externally during
+        # ~processing.
+        # m_phase[prev_accu] should only be accessed externally during
+        # ~(processing | shifting).
+        self.specials.m_phase = Memory(
+                width=2*w.word, # t_ref, prev_ftw, prev_accu
+                depth=((1 << w.profile) + 2) * o_channels)
         # ctrl should only be updated synchronously
         self.ctrl = [Record([
                 ("profile", w.profile),
@@ -469,17 +488,6 @@ class IIR(Module):
         sel = Signal(max=i_channels, reset_less=True)
         # iir enable SR
         en = Signal(2, reset_less=True)
-
-        # Memory for values required to track the phase accumulator.
-        # Arranged as the following:
-        # T_REF * (1 << w.profile) * o_channels
-        # [PREV_FTW, PREV_ACCU] * o_channels
-        #
-        # PREV_ACCU is the phase accumulator in the previous iteration.
-        # T_REF is the fiducial timestamp.
-        # PREV_FTW is the FTW in the previous iteration.
-        # Offset 3 is unused, to avoid maintaining a separate counter.
-        self.specials.m_phase = Memory(2*w.word, ((1 << w.profile) + 2) * o_channels)
 
         m_phase = self.m_phase.get_port(write_capable=True, mode=READ_FIRST)
         self.specials += m_phase
