@@ -338,6 +338,8 @@ class Channel:
     @kernel
     def get_tracked_phase_accumulator(self):
         """Read the tracked phase accumulator in the servo.
+
+        :return: The internally tracked phase accumulator
         """
         addr = self.servo.phase_sel | ((4 * len(self.servo.cplds) * 32 + (self.servo_channel << 1) | 1) << 1)
         self.core.break_realtime()
@@ -358,6 +360,8 @@ class Channel:
     @kernel
     def get_tracked_ftw(self):
         """Read the tracked frequency tuning word (FTW) in the servo.
+
+        :return: The internally tracked FTW
         """
         addr = self.servo.phase_sel | ((4 * len(self.servo.cplds) * 32 + (self.servo_channel << 1) | 0) << 1)
         self.core.break_realtime()
