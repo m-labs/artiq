@@ -158,7 +158,7 @@ class Urukul(_EEM):
                 (7, eem, "dds_reset_sync_in", Misc("IOB=TRUE"))]
         if eem_aux is not None:
             ttls += [(0, eem_aux, "sync_clk"),
-                     (1, eem_aux, "sync_in"),
+                     (1, eem_aux, "sync_out"),
                      (2, eem_aux, "io_update_ret"),
                      (3, eem_aux, "nu_mosi3"),
                      (4, eem_aux, "sw0"),
@@ -245,7 +245,7 @@ class Urukul(_EEM):
         if dds_type == "ad9912":
             # DDS_RESET for AD9912 variant only
             target.specials += DifferentialOutput(0, pads.p, pads.n)
-        elif sync_gen_cls is not None:  # AD9910 variant and SYNC_IN from EEM
+        elif sync_gen_cls is not None:  # AD9910 variant and SYNC_IN to EEM
             sync_phy = sync_gen_cls(pad=pads.p, pad_n=pads.n, ftw_width=4)
             target.submodules += sync_phy
             target.rtio_channels.append(rtio.Channel.from_phy(sync_phy))
