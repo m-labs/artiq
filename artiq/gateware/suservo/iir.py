@@ -406,14 +406,14 @@ class IIR(Module):
         # pipeline group profile pointer (SR)
         # for each pipeline stage, this is the profile currently being
         # processed
-        # FIXME: There introduces a phase offset for all operations
-        # Phase tracking DSP may need to account for this (and delay 1 cycle)
-        # The channel pointer is out-of-sync at pipeline_phase=0 otherwise
-        profile = [Signal(w.profile, reset_less=True) for i in range(2)]
+        profile = [Signal(w.profile, reset_less=True) for i in range(3)]
+        profile_0_r = Signal(w.profile, reset_less=True)
+        self.comb += profile[0].eq(
+            Mux(pipeline_phase == 0, profiles[channel[0]], profile_0_r))
         self.sync += [
-            If(pipeline_phase == 0,
-                profile[0].eq(profiles[channel[0]]),
-                profile[1].eq(profile[0]),
+            profile_0_r.eq(profile[0]),
+            If(pipeline_phase == 3,
+                Cat(profile[1:]).eq(Cat(profile[:-1])),
             )
         ]
 
@@ -433,8 +433,9 @@ class IIR(Module):
 
         offset_clr = Signal()
         self.comb += [
-                m_coeff.adr.eq(Cat(pipeline_phase, profile[0],
-                    Mux(pipeline_phase == 0, channel[1], channel[0]))),
+                m_coeff.adr.eq(Cat(pipeline_phase, Mux(pipeline_phase == 0,
+                    Cat(profile[1], channel[1]),
+                    Cat(profile[0], channel[0])))),
                 dsp.augend[-w.coeff - 1:].eq(Mux(offset_clr, 0,
                     Cat(m_coeff.dat_r[:w.coeff], m_coeff.dat_r[w.coeff - 1])
                 )),
@@ -512,7 +513,7 @@ class IIR(Module):
                 If(self.processing,
                     m_state.adr.eq(Array([
                         # write back new y
-                        Cat(profile[1], channel[2]),
+                        Cat(profile[2], channel[2]),
                         # read old y
                         Cat(profile[0], channel[0]),
                         # read x0 (recent)
@@ -525,8 +526,7 @@ class IIR(Module):
 
                     m_phase.adr.eq(Array([
                         # read profile-specific fiducial time stamp
-                        # Using profile[0] will not work. See the FIXME above.
-                        Cat(profiles[channel[0]], channel[0]),
+                        Cat(profile[0], channel[0]),
                         # read FTW from the previous iteration
                         0 | (channel[0] << 1) + ((1 << w.profile) * o_channels),
                         # read tracked phase accumulator
