@@ -125,22 +125,20 @@ Once you have run ``nix develop`` you are in the ARTIQ development environment. 
 Building only standard binaries
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If you are working with original ARTIQ, and you only want to build a set of standard binaries (i.e. without changing the source code), you can also enter the development shell without cloning the repository, using ``nix develop`` as follows: ::
+If you are working with original ARTIQ, and you only want to build a set of standard binaries (i.e. without changing the source code), you can also enter the *boards* shell without cloning the repository, using ``nix develop`` as follows: ::
 
     $ nix develop git+https://github.com/m-labs/artiq.git\?ref=release-[number]#boards
 
 Leave off ``\?ref=release-[number]`` to prefer the current beta version instead of a numbered release.
 
 .. note::
-    Adding ``#boards`` makes use of the ARTIQ flake's provided ``artiq-boards-shell``, a lighter environment optimized for building firmware and flashing boards, which can also be accessed by running ``nix develop .#boards`` if you have already cloned the repository. Developers should be aware that in this shell the current copy of the ARTIQ sources is not added to your ``PYTHONPATH``. Run ``nix flake show`` and read ``flake.nix`` carefully to understand the different available shells.
+    With this command you are making use of the ARTIQ flake's provided ``artiq-boards-shell``, a lighter environment optimized for building firmware and flashing boards, which can also be accessed by running ``nix develop .#boards`` if you have already cloned the repository. Developers should be aware that in this shell the current copy of the ARTIQ sources is not added to your ``PYTHONPATH``, which is why the shell can be entered without a local repository. Run ``nix flake show`` and read ``flake.nix`` carefully to understand the different available shells.
 
 The parallel command does exist for ARTIQ-Zynq: ::
 
     $ nix develop git+https://git.m-labs.hk/m-labs/artiq-zynq\?ref=release-[number]
 
-but if you are building ARTIQ-Zynq without intention to change the source, it is not actually necessary to enter the development environment at all; Nix is capable of accessing the official flake directly to set up the build, eliminating the requirement for any particular environment.
-
-This is equally possible for original ARTIQ, but not as useful, as the development environment (specifically the ``#boards`` shell) is still the easiest way to access the necessary tools for flashing the board. On the other hand, Zynq boards can also be flashed by writing to the SD card directly, which requires no further special tools. As long as you have a functioning Nix/Vivado installation with flakes enabled, you can progress directly to the building instructions below.
+but if you are building ARTIQ-Zynq without intention to change the source, it is not actually necessary to enter the development environment at all; Nix is capable of accessing the official flake directly to set up a build, eliminating the requirement for any particular environment. For original ARTIQ, the development environment (specifically the ``#boards`` shell) is still the easiest way to access the necessary tools for flashing a board.
 
 .. _building:
 

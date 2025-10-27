@@ -27,17 +27,17 @@ Installing and configuring OpenOCD
 .. warning::
   These instructions are not applicable to :ref:`Zynq devices <devices-table>`, which do not use the utility :mod:`~artiq.frontend.artiq_flash`. If your core device is a Zynq device, skip straight to :ref:`writing-flash`.
 
-ARTIQ supplies the utility :mod:`~artiq.frontend.artiq_flash`, which uses OpenOCD to write the binary images into an FPGA board's flash memory. With MSYS2, OpenOCD is included with the installation by default. For Nix, make sure to include the package ``artiq.openocd-bscanspi`` in your flake (in the :ref:`example custom flake <example-flake>`, you can simply uncomment the relevant line). Alternatively, you can use the ARTIQ main flake's development shell. Nix profile installations do not include OpenOCD.
+ARTIQ supplies the utility :mod:`~artiq.frontend.artiq_flash`, which uses OpenOCD to write the binary images into an FPGA board's flash memory. With MSYS2, OpenOCD is included with the installation by default. For Nix, make sure to include the package ``artiq.openocd-bscanspi`` in your flake (in the :ref:`example custom flake <example-flake>`, you can simply uncomment the relevant line). Alternatively, you can use the ARTIQ main flake's board development shell. Nix profile installations do not include OpenOCD.
 
 Note that this is **not** ``pkgs.openocd``; the latter is OpenOCD from the Nix package collection, which does not support ARTIQ/Sinara boards.
 
 .. tip::
 
-  The development shell is an alternative, non-minimal ARTIQ environment which includes additional tools for working with ARTIQ, including OpenOCD. You can enter it with: ::
+  The board development shell is an alternative, non-minimal ARTIQ environment which includes additional tools for working with ARTIQ, including OpenOCD. You can enter it with: ::
 
-  $ nix develop git+https://github.com/m-labs/artiq.git
+  $ nix develop git+https://github.com/m-labs/artiq#boards
 
-  However, unless you want the full development environment, it's usually preferable to use a lighter custom flake, such as the example in :doc:`installing`.
+  However, unless you want more of these additional tools, it's usually preferable to use a lighter custom flake, such as the example in :doc:`installing`.
 
 Some additional steps are necessary to ensure that OpenOCD can communicate with the FPGA board:
 
