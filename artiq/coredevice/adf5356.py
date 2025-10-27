@@ -583,6 +583,8 @@ def calculate_pll(f_vco: float, f_pfd: int64) -> tuple[int32, int32, tuple[int32
     :param f_pfd: PFD frequency
     :return: (``n``, ``frac1``, ``(frac2_msb, frac2_lsb)``, ``(mod2_msb, mod2_lsb)``)
     """
+    f_pfd = int64(f_pfd)
+
     # integral part
     n, r = int32(f_vco // float(f_pfd)), f_vco % float(f_pfd)
 
