@@ -55,7 +55,7 @@ class DDSClocks(Module):
 
 
 class SumAndScale(Module):
-    def __init__(self, n_dds):
+    def __init__(self, n_dds, pipelined_adder=True):
         self.inputs = [Signal((16, True)) for _ in range(n_dds)]
         self.amplitudes = [Signal((16, True)) for _ in range(n_dds)]
         self.output = Signal((16, True))
@@ -67,24 +67,34 @@ class SumAndScale(Module):
             # First, multiply (preserving full 32-bit result)
             self.sync += products[i].eq(self.inputs[i] * self.amplitudes[i])
 
-        # Then sum it all up in a pipelined adder tree
-        stage = products
-        is_first_stage = True
-        while len(stage) > 1:
-            next_stage = []
-            for i in range(0, len(stage) // 2):
-                # increase width to avoid overflow
-                s = Signal((len(stage[0]) + 1, True))
-                # First stage is combinatorial to save registers
-                if is_first_stage:
-                    self.comb += s.eq(stage[2*i] + stage[2*i+1])
-                else:
-                    self.sync += s.eq(stage[2*i] + stage[2*i+1])
-                next_stage.append(s)
-            if len(stage) % 2 == 1:
-                next_stage.append(stage[-1])
-            stage = next_stage
-            is_first_stage = False
+        # Then sum it all up
+        if pipelined_adder:
+            stage = products
+            # pipelined adder for larger number of DDS
+            is_first_stage = True
+            while len(stage) > 1:
+                next_stage = []
+                if len(stage) % 2 == 1:
+                    # add the last odd product to 0 for consistent delay
+                    zero_signal = Signal(len(stage[0]))
+                    self.comb += zero_signal.eq(0)
+                    stage.append(zero_signal)
+                for i in range(0, len(stage) // 2):
+                    # increase width to avoid overflow
+                    s = Signal((len(stage[0]) + 1, True))
+                    # First stage is combinatorial to save registers
+                    # this lets us get one more tone, with timing still passing
+                    if is_first_stage:
+                        self.comb += s.eq(stage[2*i] + stage[2*i+1])
+                    else:
+                        self.sync += s.eq(stage[2*i] + stage[2*i+1])
+                    next_stage.append(s)
+                stage = next_stage
+                is_first_stage = False
+        else:
+            # simple one-stage adder
+            stage = [Signal(34)]
+            self.sync += stage[0].eq(sum(stage))
 
         # Finally, shift and saturate
         scaled_sum = Signal((len(stage[0])-15, True))
@@ -254,7 +264,7 @@ class SongbirdDDSModule(Module, AutoCSR):
         
         # 12 phases at 200/208.33 MHz => 2400/2500 MSPS
         self.submodules.dds = DoubleDataRateDDS(12, 32, 18)
-        self.sync += [
+        self.comb += [
             self.dds.ftw.eq(self.ftw),
             self.dds.ptw.eq(self.ptw),
             self.dds.clr.eq(self.clear)
@@ -267,7 +277,8 @@ class DataSynth(Module, AutoCSR):
         self.data_in = Array([[Signal(16, name=f"data_in_{i}_{j}") for i in range(n_phases)] for j in range(n_dds)])
         self.ios = []
 
-        self.summers = [ClockDomainsRenamer("dds200")(SumAndScale(n_dds)) for _ in range(n_phases)]
+        pipelined = n_dds > 4
+        self.summers = [ClockDomainsRenamer("dds200")(SumAndScale(n_dds, pipelined_adder=pipelined)) for _ in range(n_phases)]
         for idx, summer in enumerate(self.summers):
             setattr(self.submodules, f"summer{idx}", summer)
 
