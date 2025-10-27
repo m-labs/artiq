@@ -271,13 +271,14 @@ class SUServo:
         return adc_mu_to_volts(val, gain, self.corrected_fs)
 
     @kernel
-    def reset_dds_phase_accumulator(self):
-        """Reset all DDS phase accumulators.
+    def clear_dds_phase_accumulator(self):
+        """Clear all DDS phase accumulators.
 
-        This method clears the phase accumulator by enabling autoclear, with
-        setting FTW of the DDS single-tone profile to 0.
+        This method clears the phase accumulator by enabling autoclear, and
+        setting the FTW of all the DDS single-tone profiles to 0.
 
-        SU-Servo is assumed to be disabled before reset takes place.
+        SU-Servo is assumed to be disabled with its pipeline drained before
+        invoking this method.
         """
         self.core.break_realtime()
         num_of_urukuls = len(self.cplds)
