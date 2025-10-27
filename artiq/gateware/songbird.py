@@ -409,14 +409,17 @@ class Ltc2000phy(Module, AutoCSR):
         dac_datb_se = Signal(16)
 
         self.specials += [
-            # Use ODDR for low-jitter forwarded clock generation
-            Instance("ODDR",
-                p_DDR_CLK_EDGE="SAME_EDGE",
-                i_C=ClockSignal("dds600"),
-                i_R=self.reset,
-                i_CE=1,
-                i_D1=1, i_D2=0,
-                o_Q=dac_clk_se
+           Instance("OSERDESE2",
+                p_DATA_WIDTH=6, p_TRISTATE_WIDTH=1,
+                p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="BUF",
+                p_SERDES_MODE="MASTER",
+
+                o_OQ=dac_clk_se,
+                i_OCE=1,
+                i_RST=self.reset,
+                i_CLK=ClockSignal("dds600"), i_CLKDIV=ClockSignal("dds200"),
+                i_D1=1, i_D2=0, i_D3=1, i_D4=0,
+                i_D5=1, i_D6=0,
             ),
             Instance("OBUFDS",
                 i_I=dac_clk_se,
