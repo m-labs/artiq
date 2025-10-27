@@ -436,12 +436,13 @@ class IIR(Module):
                 m_coeff.adr.eq(Cat(pipeline_phase, Mux(pipeline_phase == 0,
                     Cat(profile[1], channel[1]),
                     Cat(profile[0], channel[0])))),
+                # offset
                 dsp.augend[-w.coeff - 1:].eq(Mux(offset_clr, 0,
                     Cat(m_coeff.dat_r[:w.coeff], m_coeff.dat_r[w.coeff - 1])
                 )),
                 dsp.mcand_load.eq(1),
-                dsp.mcand.eq(m_coeff.dat_r[w.coeff:]),
-                dsp.addend.eq(m_state.dat_r),
+                dsp.mcand.eq(m_coeff.dat_r[w.coeff:]),  # coeff
+                dsp.addend.eq(m_state.dat_r),           # state
                 Case(pipeline_phase, {
                     0: dsp.accu_clr.eq(1),
                     2: [
