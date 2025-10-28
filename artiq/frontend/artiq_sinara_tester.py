@@ -841,7 +841,7 @@ class SinaraTester(EnvExperiment):
             # Sync delays are already programmed during calibration
             self.write_suservo_io_update_delay(card_dev, delay_list)
             # Ensure that phase accumulator starts at a known value
-            card_dev.reset_dds_phase_accumulator()
+            card_dev.clear_dds_phase_accumulator()
 
         print("...done")
         print("Setting up SUServo channels...")
