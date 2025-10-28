@@ -506,7 +506,12 @@
           export LIBARTIQ_SUPPORT=`libartiq-support`
           export QT_PLUGIN_PATH=${qtPaths.QT_PLUGIN_PATH}
           export QML2_IMPORT_PATH=${qtPaths.QML2_IMPORT_PATH}
-          export PYTHONPATH=`git rev-parse --show-toplevel`:$PYTHONPATH
+          if ! (git rev-parse --show-toplevel > /dev/null 2>&1 && artiq_run --version > /dev/null 2>&1); then
+            echo "WARNING: Local ARTIQ repository not found, could not be added to PYTHONPATH."
+            echo "For remote development, use: nix develop git+https://github.com/m-labs/artiq#boards"
+          else
+            export PYTHONPATH=$(git rev-parse --show-toplevel):$PYTHONPATH
+          fi
         '';
       };
       # Lighter development shell optimized for building firmware and flashing boards.
