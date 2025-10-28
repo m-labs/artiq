@@ -10,8 +10,8 @@ from collections import defaultdict
 from sipyco import common_args
 
 from artiq import __version__ as artiq_version
+from artiq.flashing import artifact_path, discover_bins
 from artiq.remoting import SSHClient, LocalClient
-from artiq.frontend.flash_tools import artifact_path, discover_bins
 
 
 def get_argparser():
