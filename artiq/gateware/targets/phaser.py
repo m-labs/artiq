@@ -184,7 +184,7 @@ class MultiToneDDS(_SatelliteBase):
             [platform.request("trf_ctrl", i) for i in range(2)],
             platform.request("dac_data"),
             platform.request("dac_ctrl"),
-            dds_tones=int(dds_tones),
+            dds_tones=dds_tones,
             dds_sample_per_cycle=dds_sample_per_cycle,
             use_pipeline_adder=not no_pipelined_dds_adder,
         )
