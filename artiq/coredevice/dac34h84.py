@@ -196,7 +196,7 @@ class DAC34H84:
         .. note:: Synchronising the NCO clears the phase-accumulator.
         """
         reg = self.read(0x1F)
-        delay(30.0 * us)
+        delay(40.0 * us)
         self.write(0x1F, reg & ~0x2)
         self.write(0x1F, reg | 0x2)
 
