@@ -115,7 +115,7 @@ class DoubleDataRateDDS(Module):
         self.submodules += paccu
         dds0 = ClockDomainsRenamer("dds200")(CosSinGen())
     
-        self.ddss = [ClockDomainsRenamer("dds200")(CosSinGen(share_lut=dds0.lut)) for _ in range(1, n)]
+        self.ddss = [dds0] + [ClockDomainsRenamer("dds200")(CosSinGen(share_lut=dds0.lut)) for _ in range(1, n)]
 
         for idx, dds in enumerate(self.ddss):
             setattr(self.submodules, f"dds{idx}", dds)
