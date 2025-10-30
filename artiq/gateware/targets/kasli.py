@@ -32,6 +32,7 @@ from artiq.coredevice import jsondesc
 
 logger = logging.getLogger(__name__)
 
+DRTIO_EEM_PERIPHERALS = ["shuttler", "songbird", "phaser_drtio"]
 
 class SMAClkinForward(Module):
     def __init__(self, platform):
@@ -721,7 +722,7 @@ class GenericMaster(MasterBase):
         if hw_rev is None:
             hw_rev = description["hw_rev"]
         self.class_name_override = description["variant"]
-        has_drtio_over_eem = any(peripheral["type"] in ["shuttler", "songbird"] for peripheral in description["peripherals"])
+        has_drtio_over_eem = any(peripheral["type"] in DRTIO_EEM_PERIPHERALS for peripheral in description["peripherals"])
         MasterBase.__init__(self,
             hw_rev=hw_rev,
             rtio_clk_freq=description["rtio_frequency"],
@@ -777,7 +778,7 @@ class GenericSatellite(SatelliteBase):
         if hw_rev is None:
             hw_rev = description["hw_rev"]
         self.class_name_override = description["variant"]
-        has_drtio_over_eem = any(peripheral["type"] in ["shuttler", "songbird"] for peripheral in description["peripherals"])
+        has_drtio_over_eem = any(peripheral["type"] in DRTIO_EEM_PERIPHERALS for peripheral in description["peripherals"])
         SatelliteBase.__init__(self,
                                hw_rev=hw_rev,
                                rtio_clk_freq=description["rtio_frequency"],
@@ -852,18 +853,14 @@ def main():
     else:
         raise ValueError("Invalid DRTIO role")
 
-    has_coaxpress_sfp, has_drtio_eem = False, False
     for peripheral in description["peripherals"]:
         if peripheral["type"] == "coaxpress_sfp":
-            has_coaxpress_sfp = True
-        elif peripheral["type"] in ["shuttler", "songbird"]:
-            has_drtio_eem = True
-    if has_drtio_eem and (description["drtio_role"] == "standalone"):
-        raise ValueError("Shuttler and Songbird require DRTIO, please switch the role to master")
+            raise ValueError("Kasli doesn't support CoaXPress-SFP")
+        elif peripheral["type"] in DRTIO_EEM_PERIPHERALS and description["drtio_role"] == "standalone":
+            raise ValueError("{} requires DRTIO, please switch role to master or satellite".format(peripheral["type"]))
+
     if description["enable_wrpll"] and description["hw_rev"] in ["v1.0", "v1.1"]:
         raise ValueError("Kasli {} does not support WRPLL".format(description["hw_rev"])) 
-    if has_coaxpress_sfp:
-        raise ValueError("Kasli doe not support CoaXPress-SFP")
 
     soc = cls(description, gateware_identifier_str=args.gateware_identifier_str, **soc_kasli_argdict(args))
     args.variant = description["variant"]
