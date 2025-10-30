@@ -348,7 +348,8 @@ def main():
 
     for cmd, regions in cmds:
         if cmd == "write":
-            found_bins = discover_bins(binary_dir, args.srcbuild)
+            found_bins = (discover_bins(binary_dir, args.srcbuild)
+                          if binary_dir is not None else {})
             for region in regions:
                 if region == "storage":
                     path = args.storage
