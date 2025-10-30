@@ -290,7 +290,7 @@ class Channel:
                     en_out | (en_iir << 1) | (en_pt << 2) | (profile << 3))
 
     @kernel
-    def set_reference_time(self, profile, fiducial_ts):
+    def set_reference_time(self, profile, fiducial_mu):
         """Set reference time for "coherent phase mode" (see :meth:`set`).
         This method does not advance the timeline.
 
@@ -303,11 +303,11 @@ class Channel:
         will refer to this fiducial time stamp.
 
         :param profile: Profile number (0-31)
-        :param fiducial_ts: Fiducial time stamp
+        :param fiducial_mu: Fiducial time stamp in machine unit
         """
         addr = self.servo.phase_sel | (self.servo_channel << 6) | (profile << 1)
-        self.servo.write(addr, fiducial_ts & 0xffff)
-        self.servo.write(addr + 1, fiducial_ts >> 16)
+        self.servo.write(addr, fiducial_mu & 0xffff)
+        self.servo.write(addr + 1, fiducial_mu >> 16)
     
     @kernel
     def get_reference_time(self, profile):
