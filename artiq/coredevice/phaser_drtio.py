@@ -140,23 +140,22 @@ class PhaserMTDDS:
     @kernel
     def is_upconverter_variant(self) -> TBool:
         is_upconverter = self.read(HW_VARIANT) == 0
-        delay(40.0 * us)
         return is_upconverter
 
     @kernel
     def upconverter_pll_locked(self, channel) -> TBool:
         """Return True when the upconverter PLL locks and False when the PLL unlocks
 
+        This method consumes all slack.
+
         :param channel: Phaser channel number (0 or 1)
         """
         locked = (self.read(TRF_LOCK_DETECT) >> channel) & 0b1 == 0b1
-        delay(40.0 * us)
         return locked
 
     @kernel
     def get_available_tones(self) -> TInt32:
         tones = self.read(AVAILABLE_TONES)
-        delay(40.0 * us)
         return tones
 
     @kernel
@@ -317,8 +316,10 @@ class PhaserMTDDSChannel:
         """
         if self.fpga.get_available_tones() != self.tones:
             raise ValueError("PhaserMTDDS number of available tones mismatch")
+        delay(40.0 * us)
         if self.has_upconverter != self.fpga.is_upconverter_variant():
             raise ValueError("PhaserMTDDS hardware variant mismatch")
+        delay(40.0 * us)
 
         self.fpga.reset_attenuator(self.channel_index)
         delay(10.0 * us) # slack
@@ -332,10 +333,13 @@ class PhaserMTDDSChannel:
             # External LO doesn't use PLL, no need to check lock status
             if not (self.upconverter.use_external_lo or self.upconverter_pll_locked()):
                 raise ValueError("TRF372017 PLL fails to lock")
+            delay(40.0 * us)
 
     @kernel
     def upconverter_pll_locked(self) -> TBool:
         """Return True when upconverter PLL locks and False when the PLL unlocks
+
+        This method consumes all slack.
 
         See also :meth:`PhaserMTDDS.upconverter_pll_locked`
 
