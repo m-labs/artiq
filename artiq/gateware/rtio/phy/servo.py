@@ -1,6 +1,7 @@
 from migen import *
 
 from artiq.gateware.rtio import rtlink
+from artiq.gateware.suservo.pads import FINE_TS_WIDTH
 
 
 class RTServoCtrl(Module):
@@ -47,17 +48,24 @@ class RTServoMem(Module):
         location, which is two coefficients wide, with the remaining bits used
         as the memory address.
       - config_sel (1 bit)
-      - state_sel (1 bit)
+      - state_sel/word_sel (1 bit)
       - phase_sel (1 bit)
       - we (1 bit)
 
+
      destination     | config_sel | state_sel | phase_sel
     -----------------|------------|-----------|----------
-     IIR coeff mem   |    X       |   0       |     0
-     IIR state mem   |    0       |   1       |     0
-     config (write)  |    1       |   1       |     0
-     status (read)   |    1       |   1       |     0
-     Phase track mem |    X       |   X       |     1
+     IIR coeff mem   |     X      |     0     |     0
+     IIR state mem   |     0      |     1     |     0
+     config (write)  |     1      |     1     |     0
+     status (read)   |     1      |     1     |     0
+     phase track mem |     X      |     X     |     1
+
+     phase track mem |             |          | 
+       data source   | write width | word_sel | phase_sel
+    -----------------|-------------|----------|----------
+     RTIO Interface  |   w.word    |    0     |     1
+     internal accu.  |   w.word*2  |    1     |     1
 
     Values returned to the user on the Python side of the RTIO interface are
     32 bit, so we sign-extend all values from w.coeff to that width. This works
@@ -96,6 +104,7 @@ class RTServoMem(Module):
             rtlink.OInterface(
                 data_width=overflow_address_width + w.coeff,
                 address_width=rtlink_address_width,
+                fine_ts_width=FINE_TS_WIDTH,
                 enable_replace=False),
             rtlink.IInterface(
                 data_width=32,
@@ -145,7 +154,7 @@ class RTServoMem(Module):
 
         we = internal_address[-1]
         phase_sel = internal_address[-2]
-        state_sel = internal_address[-3]
+        word_sel = state_sel = internal_address[-3]
         config_sel = internal_address[-4]
         # FIXME: naming
         # It does not always refer to coefficients
@@ -162,11 +171,12 @@ class RTServoMem(Module):
                 m_state.dat_w[w.state - w.coeff:].eq(self.rtlink.o.data),
                 m_state.we.eq(self.rtlink.o.stb & we & ~phase_sel & state_sel & ~config_sel),
                 m_phase.adr.eq(internal_address[1:]),
-                m_phase.dat_w.eq(Cat(word_data, word_data)),
-                m_phase.we[0].eq(self.rtlink.o.stb & ~high_coeff &
-                    we & phase_sel),
-                m_phase.we[1].eq(self.rtlink.o.stb & high_coeff &
-                    we & phase_sel)
+                m_phase.dat_w.eq(
+                    Mux(word_sel,
+                        Cat(self.rtlink.o.fine_ts, servo.iir.t_running[FINE_TS_WIDTH:]),
+                        Cat(word_data, word_data))),
+                m_phase.we[0].eq(self.rtlink.o.stb & we & phase_sel & (~high_coeff | word_sel)),
+                m_phase.we[1].eq(self.rtlink.o.stb & we & phase_sel & (high_coeff | word_sel))
         ]
         read = Signal()
         read_phase = Signal()

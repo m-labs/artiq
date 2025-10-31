@@ -86,6 +86,7 @@ class SUServo:
         self.we = 1 << coeff_depth + 2
         self.phase_sel = 1 << coeff_depth + 1
         self.state_sel = 1 << coeff_depth
+        self.word_sel = 1 << coeff_depth
         config_sel = 1 << coeff_depth - 1
         self.config_addr = self.state_sel | config_sel
 
@@ -291,13 +292,12 @@ class Channel:
 
     @kernel
     def set_reference_time(self, profile, fiducial_mu):
-        """Set reference time for "coherent phase mode" (see :meth:`set`).
-        This method does not advance the timeline.
+        """Set reference time for "coherent phase mode" (see
+        :meth:`~artiq.coredevice.ad9910.AD9910.set`).
 
         Fiducial time stamp refers to the variable `T` in phase tracking mode
         equation. See :meth:`artiq.coredevice.ad9910.AD9910.set_phase_mode`.
-        Fiducial time stamp is defined as 0 when the DDSes are updated for
-        the first time since enabling the servo.
+        Fiducial time stamp is defined as 0 when the servo is first enabled.
 
         With en_pt=1 (see :meth:`set`), the DDS output phase of this channel
         will refer to this fiducial time stamp.
@@ -308,7 +308,29 @@ class Channel:
         addr = self.servo.phase_sel | (self.servo_channel << 6) | (profile << 1)
         self.servo.write(addr, fiducial_mu & 0xffff)
         self.servo.write(addr + 1, fiducial_mu >> 16)
-    
+
+    @kernel
+    def copy_reference_time(self, profile):
+        """Copy the reference time of the specified profile from the internal
+        time stamp accumulator in real time.
+
+        Fiducial time stamp refers to the variable `T` in phase tracking mode
+        equation. See :meth:`artiq.coredevice.ad9910.AD9910.set_phase_mode`.
+        Fiducial time stamp is defined as 0 when the servo is first enabled.
+
+        With en_pt=1 (see :meth:`set`), the DDS output phase of this channel
+        will refer to this copied fiducial time stamp.
+
+        The coarse part of the time stamp is sourced from the internal time
+        stamp accumulator of the servo. The accumulator only updates every
+        coarse RTIO cycle. The fine part of the time stamp is provided by the
+        corresponding part of the timeline cursor.
+
+        :param profile: Profile number (0-31)
+        """
+        addr = self.servo.phase_sel | self.servo.word_sel | (self.servo_channel << 6) | (profile << 1)
+        self.servo.write(addr, 0)
+
     @kernel
     def get_reference_time(self, profile):
         """Reads the fiducial time stamp of the profile.
