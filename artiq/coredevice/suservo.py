@@ -360,6 +360,8 @@ class Channel:
     @kernel
     def get_tracked_phase_accumulator(self):
         """Read the tracked phase accumulator in the servo.
+        Since it is a two-part read, there might be word tearing. This can be
+        avoided by disabling the servo, or setting FTW to 0.
 
         :return: The internally tracked phase accumulator
         """
