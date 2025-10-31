@@ -359,15 +359,23 @@ class IIR(Module):
         #  1: compute
         #  2: write to output registers (DDS profiles, clip flags)
         stages_active = Signal(3)
-        # scales by DDS number of bits assign to FTW in a single-tone register
+
+        # Internal time stamp accumulator
         #
-        # more higher order bits to track time would not contribute to phase
-        # offset calculation
-        self.t_global = t_global = Signal(2*w.word)
+        # Signal width scales by DDS number of bits assign to FTW in a
+        # single-tone register.
+        # More higher order bits to track time would not contribute to phase
+        # offset calculation.
+        self.t_running = t_running = Signal(2*w.word)
+        t_running_r = Signal.like(t_running)
+
+        # The time stamp which the phase tracking DSP process.
+        self.t_process = t_process = Signal.like(t_running)
         fsm.act("IDLE",
                 self.done.eq(1),
                 t_current_step_clr.eq(1),
                 If(self.start,
+                    NextValue(t_process, t_running),
                     NextState("LOAD")
                 )
         )
@@ -391,10 +399,17 @@ class IIR(Module):
         fsm.act("SHIFT",
                 self.shifting.eq(1),
                 If(t_current_step == max(o_channels, (i_channels * 2)) - 1,
-                    NextValue(t_global, t_global + sysclks_per_clk * t_cycle),  
                     NextState("IDLE")
                 )
         )
+
+        self.comb += [
+                If(self.time_reset,
+                    t_running.eq(0)
+                ).Else(
+                    t_running.eq(t_running_r + sysclks_per_clk)
+                )
+        ]
 
         self.sync += [
                 If(t_current_step_clr,
@@ -402,7 +417,7 @@ class IIR(Module):
                 ).Else(
                     t_current_step.eq(t_current_step + 1)
                 ),
-                If(self.time_reset, t_global.eq(0))
+                t_running_r.eq(t_running),
         ]
 
         # global pipeline phase (lower two bits of t_current_step)
@@ -653,7 +668,7 @@ class IIR(Module):
                 ],
                 1: [
                     If(stages_active[0],
-                        phase_dsp.augend.eq(t_global[:w.word]),
+                        phase_dsp.augend.eq(t_process[:w.word]),
                         phase_dsp.addend.eq(m_phase.dat_r[:w.word]),
                     ),
                     If(stages_active[1],
@@ -665,13 +680,13 @@ class IIR(Module):
                 2: [
                     If(stages_active[0],
                         phase_dsp.mcand_load.eq(1),  # ftw0
-                        phase_dsp.augend.eq(t_global[w.word:]),
+                        phase_dsp.augend.eq(t_process[w.word:]),
                         phase_dsp.addend.eq(t_ref[w.word:]),
                     ),
                 ],
                 3: [
                     If(stages_active[0],
-                        phase_dsp.augend.eq(t_global[:w.word]),
+                        phase_dsp.augend.eq(t_process[:w.word]),
                         phase_dsp.addend.eq(t_ref[:w.word]),
                     ),
                     If(stages_active[1],
@@ -914,12 +929,12 @@ class IIR(Module):
                 prev_ftw = yield from self.get_prev_ftw(i)
                 accu_neg = yield from self.get_phase_accumulator(i)
                 fiducial_ts = yield from self.get_fiducial_timestamp(i, j)
-                t_global = yield self.t_global
-                logger.debug("dds[%d,%d] prev_ftw=%#x accu_neg=%#x fiducial_ts=%#x global_ts=%#x",
-                        i, j, prev_ftw, accu_neg, fiducial_ts, t_global)
+                t_process = yield self.t_process
+                logger.debug("dds[%d,%d] prev_ftw=%#x accu_neg=%#x fiducial_ts=%#x process_ts=%#x",
+                        i, j, prev_ftw, accu_neg, fiducial_ts, t_process)
 
                 accu_neg -= prev_ftw * self.t_cycle * self.sysclks_per_clk
-                target_pow = ((ftw1 << 16) | ftw0) * (t_global - fiducial_ts)
+                target_pow = ((ftw1 << 16) | ftw0) * (t_process - fiducial_ts)
                 pow += ((target_pow + accu_neg) >> 16)
                 pow &= ((1 << 16) - 1)
 

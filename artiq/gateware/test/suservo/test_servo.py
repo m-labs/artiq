@@ -19,6 +19,8 @@ class ServoSim(servo.Servo):
         dds_p = servo.DDSParams(width=8 + 32 + 16 + 16,
                 channels=adc_p.channels, clk=1)
 
+        self.timing = servo.predict_timing(adc_p, iir_p, dds_p)
+
         self.submodules.adc_tb = test_adc.TB(adc_p)
         self.submodules.dds_tb = test_dds.TB(dds_p)
 
@@ -115,7 +117,8 @@ class ServoSim(servo.Servo):
 
 
             phase_accu = 0      # Assume phase accumulator is cleared
-            t_elapsed = 0
+            # First processing time stamp is the ADC processing time
+            t_elapsed = self.timing[0] * self.iir.sysclks_per_clk
             t_update = self.iir.t_cycle * self.iir.sysclks_per_clk
 
             duration = 10

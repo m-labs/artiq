@@ -22,7 +22,7 @@ def main():
     }
 
     def run(dut):
-        yield dut.t_global.eq(0xdeadbeef)
+        yield dut.t_running.eq(0xdeadbeef)
         for i in range(dut.o_channels):
             ch_tag = i & ((1 << 16) - 1)
             yield from dut.set_fiducial_timestamp(i, i % 2, ((0xf100 | ch_tag) << 16) | ((ch_tag << 8) | 0xf1))

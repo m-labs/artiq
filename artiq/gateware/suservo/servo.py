@@ -59,7 +59,6 @@ class Servo(Module):
         # current cycle is finished. Don't care while the first step (ADC)
         # is active.
         self.start = Signal()
-        start_r = Signal()
 
         # Counter for delay between end of ADC cycle and start of next one,
         # depending on the duration of the other steps.
@@ -68,9 +67,6 @@ class Servo(Module):
         cnt = Signal(max=t_restart)
         cnt_done = Signal()
         active = Signal(3)
-        # servo may fail to maintain the regular time interval due to ~start
-        # a reset should be issued to processes that rely on this property
-        needs_reset = Signal()
 
         # Indicates whether different steps (0: ADC, 1: IIR, 2: DDS) are
         # currently active (exposed for simulation only), with each bit being
@@ -99,16 +95,15 @@ class Servo(Module):
                 ),
                 If(self.adc.start & self.adc.done,
                     active[0].eq(1),
-                    cnt.eq(t_restart - 1),
-                ),
-                start_r.eq(self.start),
-                needs_reset.eq(~self.start & cnt_done),  # cannot start ADC on time
+                    cnt.eq(t_restart - 1)
+                )
         ]
         self.comb += [
                 cnt_done.eq(cnt == 0),
                 self.adc.start.eq(self.start & cnt_done),
                 self.iir.start.eq(active[0] & self.adc.done),
-                self.iir.time_reset.eq(needs_reset),
+                # assume servo has its pipeline drained when starting
+                self.iir.time_reset.eq(active == 0),
                 self.dds.start.eq(active[1] &
                     (self.iir.shifting | self.iir.done)),
                 self.done.eq(self.dds.done),
