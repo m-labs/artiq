@@ -302,6 +302,8 @@ class Channel:
         With en_pt=1 (see :meth:`set`), the DDS output phase of this channel
         will refer to this fiducial time stamp.
 
+        This method advances the timeline by two coarse RTIO cycles.
+
         :param profile: Profile number (0-31)
         :param fiducial_mu: Fiducial time stamp in machine unit
         """
@@ -326,6 +328,8 @@ class Channel:
         coarse RTIO cycle. The fine part of the time stamp is provided by the
         corresponding part of the timeline cursor.
 
+        This method advances the timeline by one coarse RTIO cycles.
+
         :param profile: Profile number (0-31)
         """
         addr = self.servo.phase_sel | self.servo.word_sel | (self.servo_channel << 6) | (profile << 1)
@@ -349,9 +353,16 @@ class Channel:
 
     @kernel
     def clear_tracked_phase_accumulator(self):
-        """Reset the tracked phase accumulator in the servo.
-        The tracked phase accumulator should be cleared before enabling the
-        servo.
+        """Clears the tracked phase accumulator of this channel.
+        The tracked phase accumulator is an internal register that tracks the
+        corresponding register of the corresponding DDS. To properly track the
+        accumulator of the DDS, both accumulator should be cleared before
+        enabling the servo.
+
+        This method advances the timeline by two coarse RTIO cycles.
+
+        .. seealso:: The accumulator of the DDS can be cleared by 
+            :meth:`~artiq.coredevice.suservo.SUServo.clear_dds_phase_accumulator`
         """
         addr = self.servo.phase_sel | ((4 * len(self.servo.cplds) * 32 + (self.servo_channel << 1) | 1) << 1)
         self.servo.write(addr, 0)
@@ -359,9 +370,13 @@ class Channel:
 
     @kernel
     def get_tracked_phase_accumulator(self):
-        """Read the tracked phase accumulator in the servo.
-        Since it is a two-part read, there might be word tearing. This can be
-        avoided by disabling the servo, or setting FTW to 0.
+        """Reads the tracked phase accumulator of this channel.
+        The tracked phase accumulator is an internal register that tracks the
+        corresponding register of the corresponding DDS. Both registers are
+        expected to update in real time.
+        Since this is a two-part read, there might be word tearing. Either 
+        disabling the servo, or setting the frequency tuning word (FTW) to 0,
+        will avoid this word tearing issue.
 
         :return: The internally tracked phase accumulator
         """
@@ -374,8 +389,10 @@ class Channel:
 
     @kernel
     def clear_tracked_ftw(self):
-        """Reset the tracked frequency tuning word (FTW) in the servo.
+        """Clears the tracked frequency tuning word (FTW) of this channel.
         The FTW on the DDS should be cleared before enabling the servo.
+
+        This method advances the timeline by two coarse RTIO cycles.
         """
         addr = self.servo.phase_sel | ((4 * len(self.servo.cplds) * 32 + (self.servo_channel << 1) | 0) << 1)
         self.servo.write(addr, 0)
@@ -383,7 +400,7 @@ class Channel:
 
     @kernel
     def get_tracked_ftw(self):
-        """Read the tracked frequency tuning word (FTW) in the servo.
+        """Reads the tracked frequency tuning word (FTW) of this channel.
 
         :return: The internally tracked FTW
         """
@@ -579,8 +596,8 @@ class Channel:
         """Retrieve profile data.
 
         Profile data is returned in the ``data`` argument in machine units
-        packed as: ``[ftw >> 16, b1, pow, adc | (delay << 8), offset, a1,
-        ftw & 0xffff, b0]``.
+        packed as: ``[pow, b1, ftw & 0xffff, adc | (delay << 8), offset, a1,
+        ftw >> 16, b0]``.
 
         .. seealso:: The individual fields are described in
             :meth:`set_iir_mu` and :meth:`set_dds_mu`.
