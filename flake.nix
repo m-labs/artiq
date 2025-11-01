@@ -366,7 +366,7 @@
     };
 
     artiq-frontend-dev-wrappers =
-      pkgs.runCommandNoCC "artiq-frontend-dev-wrappers" {}
+      pkgs.runCommand "artiq-frontend-dev-wrappers" {}
       ''
         mkdir -p $out/bin
         for program in ${self}/artiq/frontend/*.py; do
