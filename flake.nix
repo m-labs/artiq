@@ -54,9 +54,15 @@
     src-migen,
     src-misoc,
   }: let
+    pkgs' = import nixpkgs { system = "x86_64-linux"; };
+    rust-overlay-patched = pkgs'.applyPatches {
+      name = "rust-overlay-patched";
+      src = rust-overlay;
+      patches = [ ./fix-rust-overlay-unpack.diff ];
+    };
     pkgs = import nixpkgs {
       system = "x86_64-linux";
-      overlays = [(import rust-overlay)];
+      overlays = [(import rust-overlay-patched)];
     };
     pkgs-aarch64 = import nixpkgs {system = "aarch64-linux";};
 
