@@ -171,7 +171,7 @@
       nativeBuildInputs = [pkgs.qt6.wrapQtAppsHook];
       propagatedBuildInputs =
         [pkgs.llvm_20 pkgs.lld_20 sipyco.packages.x86_64-linux.sipyco pythonparser pkgs.qt6.qtsvg artiq-comtools.packages.x86_64-linux.artiq-comtools]
-        ++ (with pkgs.python3Packages; [llvmlite pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial levenshtein h5py pyqt6 qasync tqdm lmdb jsonschema platformdirs]);
+        ++ (with pkgs.python3Packages; [llvmlite pyqtgraph pygit2 numpy python-dateutil scipy prettytable pyserial levenshtein h5py pyqt6 qasync tqdm lmdb jsonschema platformdirs]);
 
       dontWrapQtApps = true;
       postFixup = ''
@@ -404,7 +404,7 @@
         buildInputs = with pkgs.python3Packages;
           [
             sphinx
-            sphinx_rtd_theme
+            sphinx-rtd-theme
             sphinxcontrib-tikz
             sphinx-argparse
             sphinxcontrib-wavedrom
@@ -433,7 +433,7 @@
         buildInputs = with pkgs.python3Packages;
           [
             sphinx
-            sphinx_rtd_theme
+            sphinx-rtd-theme
             sphinxcontrib-tikz
             sphinx-argparse
             sphinxcontrib-wavedrom
@@ -485,7 +485,7 @@
             python3Packages.sphinx-argparse
             python3Packages.sphinxcontrib-tikz
             python3Packages.sphinxcontrib-wavedrom
-            python3Packages.sphinx_rtd_theme
+            python3Packages.sphinx-rtd-theme
 
             (python3.withPackages (ps: [migen misoc microscope ps.packaging ps.paramiko] ++ artiq.propagatedBuildInputs))
           ]
