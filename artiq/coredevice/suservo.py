@@ -9,6 +9,7 @@ COEFF_WIDTH = 18
 Y_FULL_SCALE_MU = (1 << (COEFF_WIDTH - 1)) - 1
 T_CYCLE = (2*(8 + 64) + 2)*8*ns  # Must match gateware Servo.t_cycle.
 COEFF_SHIFT = 11
+FINE_TS_WIDTH = 3
 
 
 @portable
@@ -82,8 +83,10 @@ class SUServo:
         assert self.ref_period_mu == self.core.ref_multiplier
 
         coeff_depth = 10 + (len(cpld_devices) - 1).bit_length()
-        self.we = 1 << coeff_depth + 1
+        self.we = 1 << coeff_depth + 2
+        self.phase_sel = 1 << coeff_depth + 1
         self.state_sel = 1 << coeff_depth
+        self.word_sel = 1 << coeff_depth
         config_sel = 1 << coeff_depth - 1
         self.config_addr = self.state_sel | config_sel
 
@@ -268,7 +271,7 @@ class Channel:
         return [(channel, None)]
 
     @kernel
-    def set(self, en_out, en_iir=0, profile=0):
+    def set(self, en_out, en_iir=0, en_pt=0, profile=0):
         """Operate channel.
 
         This method does not advance the timeline. Output RF switch setting
@@ -281,10 +284,132 @@ class Channel:
 
         :param en_out: RF switch enable
         :param en_iir: IIR updates enable
+        :param en_pt: Phase tracking enable
         :param profile: Active profile (0-31)
         """
         rtio_output(self.channel << 8,
-                    en_out | (en_iir << 1) | (profile << 2))
+                    en_out | (en_iir << 1) | (en_pt << 2) | (profile << 3))
+
+    @kernel
+    def set_reference_time(self, profile, fiducial_mu):
+        """Set reference time for "coherent phase mode" (see
+        :meth:`~artiq.coredevice.ad9910.AD9910.set`).
+
+        Fiducial time stamp refers to the variable `T` in phase tracking mode
+        equation. See :meth:`artiq.coredevice.ad9910.AD9910.set_phase_mode`.
+        Fiducial time stamp is defined as 0 when the servo is first enabled.
+
+        With en_pt=1 (see :meth:`set`), the DDS output phase of this channel
+        will refer to this fiducial time stamp.
+
+        This method advances the timeline by two coarse RTIO cycles.
+
+        :param profile: Profile number (0-31)
+        :param fiducial_mu: Fiducial time stamp in machine unit
+        """
+        addr = self.servo.phase_sel | (self.servo_channel << 6) | (profile << 1)
+        self.servo.write(addr, fiducial_mu & 0xffff)
+        self.servo.write(addr + 1, fiducial_mu >> 16)
+
+    @kernel
+    def copy_reference_time(self, profile):
+        """Copy the reference time of the specified profile from the internal
+        time stamp accumulator in real time.
+
+        Fiducial time stamp refers to the variable `T` in phase tracking mode
+        equation. See :meth:`artiq.coredevice.ad9910.AD9910.set_phase_mode`.
+        Fiducial time stamp is defined as 0 when the servo is first enabled.
+
+        With en_pt=1 (see :meth:`set`), the DDS output phase of this channel
+        will refer to this copied fiducial time stamp.
+
+        The coarse part of the time stamp is sourced from the internal time
+        stamp accumulator of the servo. The accumulator only updates every
+        coarse RTIO cycle. The fine part of the time stamp is provided by the
+        corresponding part of the timeline cursor.
+
+        This method advances the timeline by one coarse RTIO cycles.
+
+        :param profile: Profile number (0-31)
+        """
+        addr = self.servo.phase_sel | self.servo.word_sel | (self.servo_channel << 6) | (profile << 1)
+        self.servo.write(addr, 0)
+
+    @kernel
+    def get_reference_time(self, profile):
+        """Reads the fiducial time stamp of the profile.
+        See :meth:`set_reference_time` regarding the role of fiducial time
+        stamp on phase tracking.
+
+        :param profile: Profile number (0-31)
+        :return: The fiducial time stamp of the profile
+        """
+        addr = self.servo.phase_sel | (self.servo_channel << 6) | (profile << 1)
+        self.core.break_realtime()
+        lo = self.servo.read(addr)
+        self.core.break_realtime()
+        hi = self.servo.read(addr + 1)
+        return (hi << 16) | (lo & 0xffff)
+
+    @kernel
+    def clear_tracked_phase_accumulator(self):
+        """Clears the tracked phase accumulator of this channel.
+        The tracked phase accumulator is an internal register that tracks the
+        corresponding register of the corresponding DDS. To properly track the
+        accumulator of the DDS, both accumulator should be cleared before
+        enabling the servo.
+
+        This method advances the timeline by two coarse RTIO cycles.
+
+        .. seealso:: The accumulator of the DDS can be cleared by 
+            :meth:`~artiq.coredevice.suservo.SUServo.clear_dds_phase_accumulator`
+        """
+        addr = self.servo.phase_sel | ((4 * len(self.servo.cplds) * 32 + (self.servo_channel << 1) | 1) << 1)
+        self.servo.write(addr, 0)
+        self.servo.write(addr + 1, 0)
+
+    @kernel
+    def get_tracked_phase_accumulator(self):
+        """Reads the tracked phase accumulator of this channel.
+        The tracked phase accumulator is an internal register that tracks the
+        corresponding register of the corresponding DDS. Both registers are
+        expected to update in real time.
+        Since this is a two-part read, there might be word tearing. Either 
+        disabling the servo, or setting the frequency tuning word (FTW) to 0,
+        will avoid this word tearing issue.
+
+        :return: The internally tracked phase accumulator
+        """
+        addr = self.servo.phase_sel | ((4 * len(self.servo.cplds) * 32 + (self.servo_channel << 1) | 1) << 1)
+        self.core.break_realtime()
+        lo = self.servo.read(addr)
+        self.core.break_realtime()
+        hi = self.servo.read(addr + 1)
+        return (hi << 16) | (lo & 0xffff)
+
+    @kernel
+    def clear_tracked_ftw(self):
+        """Clears the tracked frequency tuning word (FTW) of this channel.
+        The FTW on the DDS should be cleared before enabling the servo.
+
+        This method advances the timeline by two coarse RTIO cycles.
+        """
+        addr = self.servo.phase_sel | ((4 * len(self.servo.cplds) * 32 + (self.servo_channel << 1) | 0) << 1)
+        self.servo.write(addr, 0)
+        self.servo.write(addr + 1, 0)
+
+    @kernel
+    def get_tracked_ftw(self):
+        """Reads the tracked frequency tuning word (FTW) of this channel.
+
+        :return: The internally tracked FTW
+        """
+        addr = self.servo.phase_sel | ((4 * len(self.servo.cplds) * 32 + (self.servo_channel << 1) | 0) << 1)
+        self.core.break_realtime()
+        lo = self.servo.read(addr)
+        self.core.break_realtime()
+        hi = self.servo.read(addr + 1)
+        return (hi << 16) | (lo & 0xffff)
 
     @kernel
     def set_dds_mu(self, profile, ftw, offs, pow_=0):
@@ -298,10 +423,10 @@ class Channel:
         :param pow_: Phase offset word (16-bit)
         """
         base = (self.servo_channel << 8) | (profile << 3)
-        self.servo.write(base + 0, ftw >> 16)
-        self.servo.write(base + 6, (ftw & 0xffff))
+        self.servo.write(base + 6, ftw >> 16)
+        self.servo.write(base + 2, (ftw & 0xffff))
         self.set_dds_offset_mu(profile, offs)
-        self.servo.write(base + 2, pow_)
+        self.servo.write(base, pow_)
 
     @kernel
     def set_dds(self, profile, frequency, offset, phase=0.):
@@ -471,8 +596,8 @@ class Channel:
         """Retrieve profile data.
 
         Profile data is returned in the ``data`` argument in machine units
-        packed as: ``[ftw >> 16, b1, pow, adc | (delay << 8), offset, a1,
-        ftw & 0xffff, b0]``.
+        packed as: ``[pow, b1, ftw & 0xffff, adc | (delay << 8), offset, a1,
+        ftw >> 16, b0]``.
 
         .. seealso:: The individual fields are described in
             :meth:`set_iir_mu` and :meth:`set_dds_mu`.
