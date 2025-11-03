@@ -1,6 +1,7 @@
 from migen import *
 from misoc.cores.duc import complex
 
+from artiq.gateware.phaser.adc_phy import LTC2323PHY
 from artiq.gateware.phaser.dac_phy import DAC34H84PHY, DAC_DATA_WIDTH
 from artiq.gateware.phaser.dds import MultiToneDDS
 from artiq.gateware.phaser.register import RO, RW, AddressDecoder
@@ -21,9 +22,12 @@ class PhaserMTDDS(Module):
         trf_ctrl_pins,
         dac_data_pins,
         dac_ctrl_pins,
+        adc_pins,
+        adc_ctrl_pins,
         dds_tones,
         dds_sample_per_cycle,
         use_pipeline_adder,
+        sys_clk_freq,
         f_width=32,
         p_width=16,
         a_width=16,
@@ -37,6 +41,10 @@ class PhaserMTDDS(Module):
             [dac_phy.sinks_a, dac_phy.sinks_b],
             [dac_phy.sinks_c, dac_phy.sinks_d],
         ]
+
+        self.submodules.adc_phy = adc_phy = LTC2323PHY(
+            adc_pins, sys_clk_freq
+        )
 
         # 0: test_word -> PHY
         # 1: DDS -> PHY
@@ -58,6 +66,10 @@ class PhaserMTDDS(Module):
             (Cat(att_rstn_pins[0], att_rstn_pins[1]), RW),
             (Cat(trf_ctrl_pins[0].ps, trf_ctrl_pins[1].ps), RW),
             (Cat(trf_ctrl_pins[0].ld, trf_ctrl_pins[1].ld), RO),
+            (adc_phy.sources[0].data, RO),
+            (adc_phy.sources[1].data, RO),
+            (Cat(adc_ctrl_pins.gain0, adc_ctrl_pins.gain1), RW),
+            (Cat(adc_ctrl_pins.term_stat[0], adc_ctrl_pins.term_stat[1]), RO),
         ]
 
         reg_banks = [cfg_regs]
@@ -96,7 +108,9 @@ class PhaserMTDDS(Module):
             self.submodules += decoder
 
             if decoder.source is not None:
-                rt_i = rtlink.IInterface(data_width=len(decoder.source.data), timestamped=False)
+                rt_i = rtlink.IInterface(
+                    data_width=len(decoder.source.data), timestamped=False
+                )
             else:
                 rt_i = None
             rt_interface = rtlink.Interface(
