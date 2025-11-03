@@ -108,6 +108,10 @@ class SUServo:
         Leaves the servo disabled (see :meth:`set_config`), resets and
         configures all DDS.
 
+        On protocol revision 8 Urukuls, initialization is performed blindly
+        as there is no readback from the DDS or the CPLDs. Presence detection
+        via readback is performed on protocol revision 9 Urukuls.
+
         This method does not alter the profile configuration memory
         or the channel controls.
         """
