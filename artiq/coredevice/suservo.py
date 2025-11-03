@@ -108,9 +108,6 @@ class SUServo:
         Leaves the servo disabled (see :meth:`set_config`), resets and
         configures all DDS.
 
-        Urukul initialization is performed blindly as there is no readback from
-        the DDS or the CPLDs.
-
         This method does not alter the profile configuration memory
         or the channel controls.
         """
