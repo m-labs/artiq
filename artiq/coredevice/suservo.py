@@ -213,7 +213,8 @@ class SUServo:
         # State memory entries are 25 bits. Due to the pre-adder dynamic
         # range, X0/X1/OFFSET are only 24 bits. Finally, the RTIO interface
         # only returns the 18 MSBs (the width of the coefficient memory).
-        return self.read(self.state_sel | (adc << 1) | (1 << 8))
+        return self.read(self.state_sel
+                         | ((adc << 1) + (self.num_channels << PROFILE_WIDTH)))
 
     @kernel
     def set_pgia_mu(self, channel, gain):
