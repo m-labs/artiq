@@ -1,3 +1,5 @@
+from math import ceil, log2
+
 from artiq.language.core import kernel, delay, delay_mu, portable
 from artiq.language.units import us, ns
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
@@ -9,6 +11,7 @@ COEFF_WIDTH = 18
 Y_FULL_SCALE_MU = (1 << (COEFF_WIDTH - 1)) - 1
 T_CYCLE = (2*(8 + 64) + 2)*8*ns  # Must match gateware Servo.t_cycle.
 COEFF_SHIFT = 11
+PROFILE_WIDTH = 5
 
 
 @portable
@@ -62,7 +65,7 @@ class SUServo:
     """
     kernel_invariants = {"channel", "core", "pgia", "cplds", "ddses",
                          "ref_period_mu", "corrected_fs", "we", "state_sel",
-                         "config_addr"}
+                         "num_channels", "config_addr"}
 
     def __init__(self, dmgr, channel, pgia_device,
                  cpld_devices, dds_devices,
@@ -81,10 +84,15 @@ class SUServo:
         self.corrected_fs = sampler.Sampler.use_corrected_fs(sampler_hw_rev)
         assert self.ref_period_mu == self.core.ref_multiplier
 
+        self.num_channels = 4 * len(dds_devices)
+        channel_adr_width = ceil(log2(self.num_channels))
+        # (1 << 2) memory addresses for each channel profile
+        # Each memory slot addresses (1 << 1) coefficients through granularity
+        coeff_adr_width = PROFILE_WIDTH + channel_adr_width + 3
         coeff_depth = 10 + (len(cpld_devices) - 1).bit_length()
-        self.we = 1 << coeff_depth + 1
-        self.state_sel = 1 << coeff_depth
-        config_sel = 1 << coeff_depth - 1
+        self.we = 1 << coeff_adr_width + 1
+        self.state_sel = 1 << coeff_adr_width
+        config_sel = 1 << coeff_adr_width - 1
         self.config_addr = self.state_sel | config_sel
 
     @staticmethod
@@ -259,7 +267,7 @@ class Channel:
         self.channel = channel
         # This assumes the mem channel is right after the control channels
         # Make sure this is always the case in eem.py
-        self.servo_channel = (self.channel + 4 * len(self.servo.cplds) -
+        self.servo_channel = (self.channel + self.servo.num_channels -
                               self.servo.channel)
         self.dds = self.servo.ddses[self.servo_channel // 4]
 
