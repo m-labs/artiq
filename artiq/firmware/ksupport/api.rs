@@ -94,6 +94,7 @@ static mut API: &'static [(&'static str, *const ())] = &[
     //api!(exp2),
     //api!(exp10),
     api!(expm1),
+    api!(ldexp),
     api!(fabs),
     api!(floor),
     // api!(fmax),
