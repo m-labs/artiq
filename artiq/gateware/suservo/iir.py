@@ -573,11 +573,11 @@ class IIR(Module):
             yield self.m_state[profile | (channel << w.profile)].eq(val)
         elif coeff == "x0":
             assert profile is None
-            yield self.m_state[(channel << 1) |
+            yield self.m_state[(channel << 1) +
                     ((1 << w.profile) * self.o_channels)].eq(val)
         elif coeff == "x1":
             assert profile is None
-            yield self.m_state[1 | (channel << 1) |
+            yield self.m_state[1 | (channel << 1) +
                     ((1 << w.profile) * self.o_channels)].eq(val)
         else:
             raise ValueError("no such state", coeff)
@@ -588,10 +588,10 @@ class IIR(Module):
         if coeff == "y1":
             val = yield self.m_state[profile | (channel << w.profile)]
         elif coeff == "x0":
-            val = yield self.m_state[(channel << 1) |
+            val = yield self.m_state[(channel << 1) +
                     ((1 << w.profile) * self.o_channels)]
         elif coeff == "x1":
-            val = yield self.m_state[1 | (channel << 1) |
+            val = yield self.m_state[1 | (channel << 1) +
                     ((1 << w.profile) * self.o_channels)]
         else:
             raise ValueError("no such state", coeff)
