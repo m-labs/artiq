@@ -14,7 +14,8 @@ def predict_timing(adc_p, iir_p, dds_p):
        |4    |57  |16  |8  | .. |4    |57  |16  |8  | .. |4    |57  |16  |8  |...
     ---+-------------------+------------------------+------------------------+---
     IIR|                   |LOAD|PROC         |SHIFT|LOAD|PROC         |SHIFT|...
-       |                   |8   |16*N+9       |16   |8   |16*N+9       |16   |...
+       |                   |8   |16*N+9       |N, 16|8   |16*N+9       |N, 16|...
+       |                   |    |             |MAX  |    |             |MAX  |...
     ---+--------------------------------------+------------------------+---------
     DDS|                                      |CMD|PROF|WAIT|IO_UP|IDLE|CMD|PR...
        |                                      |16 |128 |1   |1    | .. |16 |  ...
@@ -37,12 +38,14 @@ def predict_timing(adc_p, iir_p, dds_p):
     return t_adc, t_iir, t_dds, t_cycle
 
 class Servo(Module):
-    def __init__(self, adc_pads, dds_pads, adc_p, iir_p, dds_p):
+    def __init__(self, adc_pads, dds_pads,
+            adc_p, iir_p, dds_p, sysclks_per_clk=8):
         t_adc, t_iir, t_dds, t_cycle = predict_timing(adc_p, iir_p, dds_p)
         assert t_iir + 2*adc_p.channels < t_cycle, "need shifting time"
 
         self.submodules.adc = ADC(adc_pads, adc_p)
-        self.submodules.iir = IIR(iir_p, adc_p.channels, dds_p.channels)
+        self.submodules.iir = IIR(
+            iir_p, adc_p.channels, dds_p.channels, t_cycle, sysclks_per_clk)
         self.submodules.dds = DDS(dds_pads, dds_p)
 
         # adc channels are reversed on Sampler
@@ -99,6 +102,8 @@ class Servo(Module):
                 cnt_done.eq(cnt == 0),
                 self.adc.start.eq(self.start & cnt_done),
                 self.iir.start.eq(active[0] & self.adc.done),
+                # assume servo has its pipeline drained when starting
+                self.iir.time_reset.eq(active == 0),
                 self.dds.start.eq(active[1] &
                     (self.iir.shifting | self.iir.done)),
                 self.done.eq(self.dds.done),
