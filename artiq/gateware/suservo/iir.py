@@ -181,6 +181,29 @@ class IIR(Module):
     in the upper half (i_channels addresses each). Each memory location is
     W.state bits wide.
 
+    Phase tracking memory
+    =====================
+
+    Each channel tracks the corresponding DDS phase accumulator. Besides
+    needing the current frewuency tuning word (FTW) in the profile memory,
+    tracking a DDS accumulator iteratively requires the reference time stamp
+    of the tone, and the FTW of the previous processing cycle. These extra
+    values are stored in a dual-port block RAM that can be accessed
+    externally.
+
+    Memory Layout
+    -------------
+
+    The phase tracking memory holds all reference time stamp for all profiles
+    of all channels in the lower half ((1 << W.profile) * o_channels
+    addresses) and the pairs of previous FTW and the accumulated phase in the
+    upper half (o_channels addresses each).
+
+    Each memory location is 2*W.word bits wide, and accessible per memory
+    location internally. External (RTIO) access is limited to a granularity of
+    W.word and selectable by an extra LSB at the memory address. The higher
+    order is accessible with LSB=1, and the lower order bits with LSB=0.
+
     Real-time control
     =================
 
@@ -276,16 +299,6 @@ class IIR(Module):
         self.specials.m_state = Memory(
                 width=w.state,  # y1,x0,x1
                 depth=((1 << w.profile) * o_channels) + (2 * i_channels))
-        # Memory for values required to track the phase accumulator.
-        # Arranged as the following:
-        # t_ref * (1 << w.profile) * o_channels
-        # [prev_ftw, prev_accu] * o_channels
-        #
-        # prev_accu is the phase accumulator in the previous iteration.
-        # t_ref is the fiducial timestamp.
-        # prev_ftw is the FTW in the previous iteration.
-        # Offset 3 is unused, to avoid maintaining a separate counter.
-        #
         # m_phase[t_ref] of active profiles should only be accessed externally
         # during ~processing.
         # m_phase[prev_ftw] should only be accessed externally during
