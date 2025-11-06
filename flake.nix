@@ -211,6 +211,16 @@
       '';
     };
 
+    # Stripped down version of ARTIQ for gateware/firmware builds
+    artiq-build = artiq.overridePythonAttrs (oa: {
+      nativeBuildInputs = [];
+      propagatedBuildInputs = [sipyco.packages.x86_64-linux.sipyco pkgs.python3Packages.jsonschema];
+      dontFixup = true;
+      dontCheckRuntimeDeps = true;
+      doInstallCheck = false;
+      doCheck = false;
+    });
+
     migen = pkgs.python3Packages.buildPythonPackage rec {
       name = "migen";
       src = src-migen;
@@ -278,7 +288,7 @@
         additionalCargoLock = "${rust}/lib/rustlib/src/rust/Cargo.lock";
         singleStep = true;
         nativeBuildInputs = [
-          (pkgs.python3.withPackages (ps: [migen misoc artiq ps.packaging]))
+          (pkgs.python3.withPackages (ps: [migen misoc artiq-build ps.packaging]))
           rust
           pkgs.llvm_20
           pkgs.lld_20
@@ -380,7 +390,7 @@
       '';
   in rec {
     packages.x86_64-linux = {
-      inherit pythonparser qasync artiq;
+      inherit pythonparser qasync artiq artiq-build;
       inherit migen misoc asyncserial microscope vivadoEnv vivado;
       openocd-bscanspi = openocd-bscanspi-f pkgs;
       artiq-board-kc705-nist_clock = makeArtiqBoardPackage {
