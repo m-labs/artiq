@@ -48,7 +48,7 @@ mod local_coremgmt {
             loop {
                 // Do this *before* acquiring the buffer, since that sets the log level
                 // to OFF.
-                let log_level = log::max_level();
+                let log_level = logger.buffer_log_level();
 
                 let mut buffer = io.until_ok(|| logger.buffer())?;
                 if buffer.is_empty() { continue }
@@ -74,21 +74,6 @@ mod local_coremgmt {
         Ok(())
     }
 
-    pub fn set_log_filter(_io: &Io, stream: &mut TcpStream, level: LevelFilter) -> Result<(), Error<SchedError>> {
-        info!("changing log level to {}", level);
-        log::set_max_level(level);
-        Reply::Success.write_to(stream)?;
-        Ok(())
-    }
-
-    pub fn set_uart_log_filter(_io: &Io, stream: &mut TcpStream, level: LevelFilter) -> Result<(), Error<SchedError>> {
-        info!("changing UART log level to {}", level);
-        BufferLogger::with(|logger|
-            logger.set_uart_log_level(level));
-        Reply::Success.write_to(stream)?;
-        Ok(())
-    }
-
     pub fn config_read(_io: &Io, stream: &mut TcpStream, key: &String) -> Result<(), Error<SchedError>>{
         config::read(key, |result| {
             match result {
@@ -102,14 +87,33 @@ mod local_coremgmt {
     pub fn config_write(io: &Io, stream: &mut TcpStream, key: &String, value: &Vec<u8>, restart_idle: &Urc<Cell<bool>>) -> Result<(), Error<SchedError>> {
         match config::write(key, value) {
             Ok(_) => {
-                if key == "idle_kernel" {
-                    io.until(|| !restart_idle.get())?;
-                    restart_idle.set(true);
+                match key.as_str() {
+                    "idle_kernel" => {
+                        io.until(|| !restart_idle.get())?;
+                        restart_idle.set(true);
+                    }
+                    "log_level" | "uart_log_level" => {
+                        let value_str = core::str::from_utf8(value)
+                            .map_err(Error::<SchedError>::from)?;
+                        let max_level = value_str.parse::<LevelFilter>()
+                            .map_err(|_| Error::<SchedError>::UnknownLogLevel)?;
+
+                        BufferLogger::with(|logger| {
+                            if key == "log_level" {
+                                logger.set_buffer_log_level(max_level);
+                                log::info!("changing log level to {}", max_level);
+                            } else {
+                                logger.set_uart_log_level(max_level);
+                                log::info!("changing UART log level to {}", max_level);
+                            }
+                        })
+                    }
+                    _ => {}
                 }
-                Reply::Success.write_to(stream)
+                Reply::Success.write_to(stream)?
             },
-            Err(_) => Reply::Error.write_to(stream)
-        }?;
+            Err(_) => Reply::Error.write_to(stream)?
+        };
         Ok(())
     }
 
@@ -192,7 +196,6 @@ mod local_coremgmt {
 #[cfg(has_drtio)]
 mod remote_coremgmt {
     use alloc::{string::String, vec::Vec};
-    use log::LevelFilter;
 
     use board_artiq::{drtioaux, drtioaux::Packet};
     use io::ProtoWrite;
@@ -293,58 +296,6 @@ mod remote_coremgmt {
                     error!("aux packet error ({})", e);
                     return Err(e.into());
                 }
-            }
-        }
-    }
-
-    pub fn set_log_filter(io: &Io, aux_mutex: &Mutex,
-        ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
-        routing_table: &RoutingTable, linkno: u8,
-        destination: u8, stream: &mut TcpStream, level: LevelFilter) -> Result<(), Error<SchedError>> {
-        let reply = drtio::aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno,
-            &Packet::CoreMgmtSetLogLevelRequest { destination, log_level: level as u8 }
-        );
-
-        match reply {
-            Ok(Packet::CoreMgmtReply { succeeded: true }) => {
-                Reply::Success.write_to(stream)?;
-                Ok(())
-            }
-            Ok(packet) => {
-                error!("received unexpected aux packet: {:?}", packet);
-                Reply::Error.write_to(stream)?;
-                Err(drtio::Error::UnexpectedReply.into())
-            }
-            Err(e) => {
-                error!("aux packet error ({})", e);
-                Reply::Error.write_to(stream)?;
-                Err(e.into())
-            }
-        }
-    }
-
-    pub fn set_uart_log_filter(io: &Io, aux_mutex: &Mutex,
-        ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
-        routing_table: &RoutingTable, linkno: u8,
-        destination: u8, stream: &mut TcpStream, level: LevelFilter) -> Result<(), Error<SchedError>> {
-        let reply = drtio::aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, linkno,
-            &Packet::CoreMgmtSetUartLogLevelRequest { destination, log_level: level as u8 }
-        );
-
-        match reply {
-            Ok(Packet::CoreMgmtReply { succeeded: true }) => {
-                Reply::Success.write_to(stream)?;
-                Ok(())
-            }
-            Ok(packet) => {
-                error!("received unexpected aux packet: {:?}", packet);
-                Reply::Error.write_to(stream)?;
-                Err(drtio::Error::UnexpectedReply.into())
-            }
-            Err(e) => {
-                error!("aux packet error ({})", e);
-                Reply::Error.write_to(stream)?;
-                Err(e.into())
             }
         }
     }
@@ -638,8 +589,6 @@ fn worker(io: &Io, stream: &mut TcpStream, restart_idle: &Urc<Cell<bool>>,
             Request::GetLog => process!(io, _aux_mutex, _ddma_mutex, _subkernel_mutex, _routing_table, stream, _destination, get_log),
             Request::ClearLog => process!(io, _aux_mutex, _ddma_mutex, _subkernel_mutex, _routing_table, stream, _destination, clear_log),
             Request::PullLog => process!(io, _aux_mutex, _ddma_mutex, _subkernel_mutex, _routing_table, stream, _destination, pull_log),
-            Request::SetLogFilter(level) => process!(io, _aux_mutex, _ddma_mutex, _subkernel_mutex, _routing_table, stream, _destination, set_log_filter, level),
-            Request::SetUartLogFilter(level) => process!(io, _aux_mutex, _ddma_mutex, _subkernel_mutex, _routing_table, stream, _destination, set_uart_log_filter, level),
             Request::ConfigRead { ref key } => process!(io, _aux_mutex, _ddma_mutex, _subkernel_mutex, _routing_table, stream, _destination, config_read, key),
             Request::ConfigWrite { ref key, ref value } => process!(io, _aux_mutex, _ddma_mutex, _subkernel_mutex, _routing_table, stream, _destination, config_write, key, value, restart_idle),
             Request::ConfigRemove { ref key } => process!(io, _aux_mutex, _ddma_mutex, _subkernel_mutex, _routing_table, stream, _destination, config_remove, key, restart_idle),

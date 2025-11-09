@@ -10,27 +10,11 @@ use logger_artiq::BufferLogger;
 use io::{Cursor, ProtoRead, ProtoWrite};
 use proto_artiq::drtioaux_proto::SAT_PAYLOAD_MAX_SIZE;
 
-
 pub fn clear_log() -> Result<(), ()> {
     BufferLogger::with(|logger| {
         let mut buffer = logger.buffer()?;
         Ok(buffer.clear())
     }).map_err(|()| error!("error on clearing log buffer"))
-}
-
-pub fn byte_to_level_filter(level_byte: u8) -> Result<LevelFilter, ()> {
-    Ok(match level_byte {
-        0 => LevelFilter::Off,
-        1 => LevelFilter::Error,
-        2 => LevelFilter::Warn,
-        3 => LevelFilter::Info,
-        4 => LevelFilter::Debug,
-        5 => LevelFilter::Trace,
-        lv => {
-            error!("unknown log level: {}", lv);
-            return Err(());
-        }
-    })
 }
 
 pub struct Manager {
@@ -97,6 +81,35 @@ impl Manager {
 
         let value = self.config_payload.read_bytes().unwrap();
 
+        if key == "log_level" || key == "uart_log_level" {
+            let value_str = match core::str::from_utf8(&value) {
+                Ok(s) => s,
+                Err(err) => {
+                    self.clear_config_data();
+                    error!("invalid UTF-8: {:?}", err);
+                    return drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false });
+                }
+            };
+            let max_level = match value_str.parse::<LevelFilter>() {
+                Ok(s) => s,
+                Err(err) => {
+                    self.clear_config_data();
+                    error!("unknown log level: {:?}", err);
+                    return drtioaux::send(0, &drtioaux::Packet::CoreMgmtReply { succeeded: false });
+                }
+            };
+
+            BufferLogger::with(|logger| {
+                if key == "log_level" {
+                    logger.set_buffer_log_level(max_level);
+                    log::info!("changing log level to {}", max_level);
+                } else {
+                    logger.set_uart_log_level(max_level);
+                    log::info!("changing UART log level to {}", max_level);
+                }
+            })
+        };
+        
         let succeeded = config::write(&key, &value).map_err(|err| {
             error!("error on writing config: {:?}", err);
         }).is_ok();

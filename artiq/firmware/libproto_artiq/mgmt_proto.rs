@@ -1,7 +1,5 @@
 use core::str::Utf8Error;
 use alloc::{vec::Vec, string::String};
-#[cfg(feature = "log")]
-use log;
 
 use io::{Read, ProtoRead, Write, ProtoWrite, Error as IoError, ReadStringError};
 
@@ -11,8 +9,8 @@ pub enum Error<T> {
     WrongMagic,
     #[fail(display = "unknown packet {:#02x}", _0)]
     UnknownPacket(u8),
-    #[fail(display = "unknown log level {}", _0)]
-    UnknownLogLevel(u8),
+    #[fail(display = "unknown log level")]
+    UnknownLogLevel,
     #[fail(display = "invalid UTF-8: {}", _0)]
     Utf8(Utf8Error),
     #[fail(display = "{}", _0)]
@@ -36,6 +34,12 @@ impl<T> From<ReadStringError<IoError<T>>> for Error<T> {
     }
 }
 
+impl<T> From<Utf8Error> for Error<T> {
+    fn from(value: Utf8Error) -> Error<T> {
+        Error::Utf8(value)
+    }
+}
+
 pub fn read_magic<R>(reader: &mut R) -> Result<(), Error<R::ReadError>>
     where R: Read + ?Sized
 {
@@ -55,10 +59,6 @@ pub enum Request {
     GetLog,
     ClearLog,
     PullLog,
-    #[cfg(feature = "log")]
-    SetLogFilter(log::LevelFilter),
-    #[cfg(feature = "log")]
-    SetUartLogFilter(log::LevelFilter),
 
     ConfigRead   { key: String },
     ConfigWrite  { key: String, value: Vec<u8> },
@@ -88,28 +88,10 @@ impl Request {
     pub fn read_from<R>(reader: &mut R) -> Result<Self, Error<R::ReadError>>
         where R: Read + ?Sized
     {
-        #[cfg(feature = "log")]
-        fn read_log_level_filter<T: Read + ?Sized>(reader: &mut T) ->
-                Result<log::LevelFilter, Error<T::ReadError>> {
-            Ok(match reader.read_u8()? {
-                0 => log::LevelFilter::Off,
-                1 => log::LevelFilter::Error,
-                2 => log::LevelFilter::Warn,
-                3 => log::LevelFilter::Info,
-                4 => log::LevelFilter::Debug,
-                5 => log::LevelFilter::Trace,
-                lv => return Err(Error::UnknownLogLevel(lv))
-            })
-        }
-
         Ok(match reader.read_u8()? {
             1  => Request::GetLog,
             2  => Request::ClearLog,
             7  => Request::PullLog,
-            #[cfg(feature = "log")]
-            3 => Request::SetLogFilter(read_log_level_filter(reader)?),
-            #[cfg(feature = "log")]
-            6 => Request::SetUartLogFilter(read_log_level_filter(reader)?),
 
             12 => Request::ConfigRead {
                 key: reader.read_string()?
