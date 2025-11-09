@@ -724,6 +724,9 @@ class CPLD:
 
     kernel_invariants = {"refclk", "bus", "core", "io_update", "clk_div", "proto_rev"}
 
+    ProtoRev8 = ProtoRev8 # needed for compatibility with SUServo devices
+    ProtoRev9 = ProtoRev9 # needed for compatibility with SUServo devices
+
     def __init__(self, dmgr, spi_device, io_update_device=None,
                  dds_reset_device=None, sync_device=None,
                  sync_sel=0, clk_sel=0, clk_div=0, rf_sw=0,
@@ -753,14 +756,14 @@ class CPLD:
 
         self.proto_rev = proto_rev
         if proto_rev == STA_PROTO_REV_8:
-            self.version = ProtoRev8(self)
+            self.version = self.ProtoRev8(self)
         elif proto_rev == STA_PROTO_REV_9:
-            self.version = ProtoRev9(self)
+            self.version = self.ProtoRev9(self)
         else:
             raise ValueError(f"Urukul unsupported proto_rev: {proto_rev}")
 
         if self.proto_rev == STA_PROTO_REV_8:
-            self.cfg_reg = int64(ProtoRev8.urukul_cfg(
+            self.cfg_reg = int64(self.ProtoRev8.urukul_cfg(
                 rf_sw=rf_sw,
                 led=0,
                 profile=DEFAULT_PROFILE,
@@ -773,7 +776,7 @@ class CPLD:
                 clk_div=clk_div,
             ))
         else:
-            self.cfg_reg = int64(ProtoRev9.urukul_cfg(
+            self.cfg_reg = int64(self.ProtoRev9.urukul_cfg(
                 rf_sw=rf_sw,
                 led=0,
                 profile=(DEFAULT_PROFILE << 9)
