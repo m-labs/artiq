@@ -398,8 +398,6 @@ extern "C-unwind" fn dma_retrieve(name: CSlice<u8>) -> DmaTrace {
 
 #[cfg(kernel_has_rtio_dma)]
 extern "C-unwind" fn dma_playback(timestamp: i64, ptr: i32, _uses_ddma: bool) {
-    assert!(ptr % 64 == 0);
-
     unsafe {
         csr::rtio_dma::base_address_write(ptr as u64);
         csr::rtio_dma::time_offset_write(timestamp as u64);
