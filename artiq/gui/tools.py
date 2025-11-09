@@ -164,3 +164,52 @@ async def get_save_file_name(parent, caption, dir, filter, suffix=None):
     dialog.open()
     return await fut
 
+
+class EditableMdiTabBar(QtWidgets.QTabBar):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self._editor = QtWidgets.QLineEdit(self)
+        self._editor.setWindowFlags(QtCore.Qt.WindowType.Popup)
+        self._editor.setFocusProxy(self)
+        self._editor.editingFinished.connect(self.handleEditingFinished)
+        self._editor.installEventFilter(self)
+
+    def eventFilter(self, widget, event):
+        if (
+            event.type() == QtCore.QEvent.Type.MouseButtonPress
+            and not self._editor.geometry().contains(event.globalPosition().toPoint())
+        ) or (
+            event.type() == QtCore.QEvent.Type.KeyPress
+            and event.key() == QtCore.Qt.Key.Key_Escape
+        ):
+            self._editor.hide()
+            return True
+
+        return super().eventFilter(widget, event)
+
+    def mouseDoubleClickEvent(self, event):
+        index = self.tabAt(event.pos())
+        if index >= 0:
+            self.editTab(index)
+
+    def editTab(self, index):
+        rect = self.tabRect(index)
+        self._editor.setFixedSize(rect.size())
+        self._editor.move(self.mapToGlobal(rect.topLeft()))
+        self._editor.setText(self.tabText(index))
+        if not self._editor.isVisible():
+            self._editor.show()
+
+    def handleEditingFinished(self):
+        index = self.currentIndex()
+        if index >= 0:
+            self._editor.hide()
+            self.set_tab_name(index, self._editor.text())
+
+    def set_tab_name(self, index, name):
+        self.setTabText(index, name)
+        tab_widget = self.parent()
+        mdi_area = tab_widget.widget(index)
+        mdi_area.setTabName(name)
+
+
