@@ -17,6 +17,10 @@ enum RepeaterState {
     Down,
     SendPing { ping_count: u16 },
     WaitPingReply { ping_count: u16, timeout: u64 },
+    DrainPingReply { timeout: u64 },
+    WaitTSCAck { timeout: u64 },
+    SetRoute { destination: u8 },
+    SetRank,
     Up,
     Failed
 }
@@ -76,26 +80,7 @@ impl Repeater {
                     if let Ok(Some(drtioaux::Packet::EchoReply)) = drtioaux::recv(self.auxno) {
                         info!("[REP#{}] remote replied after {} packets", self.repno, ping_count);
                         // clear the aux buffer
-                        let max_time = clock::get_ms() + 200;
-                        while clock::get_ms() < max_time {
-                            let _ = drtioaux::recv(self.auxno);
-                        }
-                        self.state = RepeaterState::Up;
-                        if let Err(e) = self.sync_tsc() {
-                            error!("[REP#{}] failed to sync TSC ({})", self.repno, e);
-                            self.state = RepeaterState::Failed;
-                            return;
-                        }
-                        if let Err(e) = self.load_routing_table(routing_table) {
-                            error!("[REP#{}] failed to load routing table ({})", self.repno, e);
-                            self.state = RepeaterState::Failed;
-                            return;
-                        }
-                        if let Err(e) = self.set_rank(rank + 1) {
-                            error!("[REP#{}] failed to set rank ({})", self.repno, e);
-                            self.state = RepeaterState::Failed;
-                            return;
-                        }
+                        self.state = RepeaterState::DrainPingReply { timeout: clock::get_ms() + 200 };
                     } else {
                         if clock::get_ms() > timeout {
                             if ping_count > 200 {
@@ -109,6 +94,53 @@ impl Repeater {
                 } else {
                     error!("[REP#{}] link RX went down during ping", self.repno);
                     self.state = RepeaterState::Down;
+                }
+            }
+            RepeaterState::DrainPingReply { timeout } => {
+                if !rep_link_rx_up(self.repno) {
+                    error!("[REP#{}] link RX went down during ping", self.repno);
+                    self.state = RepeaterState::Down;
+                }
+                let _ = drtioaux::recv(self.auxno);
+                if clock::get_ms() > timeout {
+                    let repno = self.repno as usize;
+                    unsafe {
+                        (csr::DRTIOREP[repno].set_time_write)(1);
+                        while (csr::DRTIOREP[repno].set_time_read)() == 1 {}
+                    }
+                    self.state = RepeaterState::WaitTSCAck { timeout: timeout + 10000 };
+                }
+            }
+            RepeaterState::WaitTSCAck { timeout } => {
+                match self.expect_tsc_ack(timeout) {
+                    Ok(true) => {
+                        self.state = RepeaterState::SetRoute { destination: 0 };
+                    },
+                    Ok(false) => (),
+                    Err(e) => {
+                        error!("[REP#{}] failed to sync TSC ({})", self.repno, e);
+                        self.state = RepeaterState::Failed;
+                    },
+                }
+            }
+            RepeaterState::SetRoute { destination } => {
+                if let Err(e) = self.set_path(destination, &routing_table.0[destination as usize]) {
+                    error!("[REP#{}] failed to load routing table ({})", self.repno, e);
+                    self.state = RepeaterState::Failed;
+                } else {
+                    self.state = if destination == 255 {
+                        RepeaterState::SetRank
+                    } else {
+                        RepeaterState::SetRoute { destination: destination + 1 }
+                    };
+                }
+            }
+            RepeaterState::SetRank => {
+                if let Err(e) = self.set_rank(rank + 1) {
+                    error!("[REP#{}] failed to set rank ({})", self.repno, e);
+                    self.state = RepeaterState::Failed;
+                } else {
+                    self.state = RepeaterState::Up;
                 }
             }
             RepeaterState::Up => {
@@ -241,39 +273,42 @@ impl Repeater {
         }
     }
 
-    pub fn set_path(&self, destination: u8, hops: &[u8; drtio_routing::MAX_HOPS]) -> Result<(), drtioaux::Error<!>> {
-        if self.state != RepeaterState::Up {
-            return Ok(());
+    fn expect_tsc_ack(&self, timeout: u64) -> Result<bool, drtioaux::Error<!>> {
+        if clock::get_ms() > timeout {
+            return Err(drtioaux::Error::TimedOut);
         }
 
-        drtioaux::send(self.auxno, &drtioaux::Packet::RoutingSetPath {
-            destination: destination,
-            hops: *hops
-        }).unwrap();
-        let reply = self.recv_aux_timeout(200)?;
-        if reply != drtioaux::Packet::RoutingAck {
-            return Err(drtioaux::Error::UnexpectedReply);
+        match drtioaux::recv(self.auxno) {
+            Ok(Some(drtioaux::Packet::TSCAck)) => Ok(true),
+            Ok(None) => Ok(false),
+            Ok(_) => Err(drtioaux::Error::UnexpectedReply),
+            Err(e) => Err(e),
         }
-        Ok(())
     }
 
-    pub fn load_routing_table(&self, routing_table: &drtio_routing::RoutingTable) -> Result<(), drtioaux::Error<!>> {
-        for i in 0..drtio_routing::DEST_COUNT {
-            self.set_path(i as u8, &routing_table.0[i])?;
+    pub fn set_path(&self, destination: u8, hops: &[u8; drtio_routing::MAX_HOPS]) -> Result<(), drtioaux::Error<!>> {
+        if let RepeaterState::SetRoute { .. } | RepeaterState::SetRank | RepeaterState::Up = self.state {
+            drtioaux::send(self.auxno, &drtioaux::Packet::RoutingSetPath {
+                destination: destination,
+                hops: *hops
+            }).unwrap();
+            let reply = self.recv_aux_timeout(200)?;
+            if reply != drtioaux::Packet::RoutingAck {
+                return Err(drtioaux::Error::UnexpectedReply);
+            }
         }
         Ok(())
     }
 
     pub fn set_rank(&self, rank: u8) -> Result<(), drtioaux::Error<!>> {
-        if self.state != RepeaterState::Up {
-            return Ok(());
-        }
-        drtioaux::send(self.auxno, &drtioaux::Packet::RoutingSetRank {
-            rank: rank
-        }).unwrap();
-        let reply = self.recv_aux_timeout(200)?;
-        if reply != drtioaux::Packet::RoutingAck {
-            return Err(drtioaux::Error::UnexpectedReply);
+        if let RepeaterState::SetRank | RepeaterState::Up = self.state {
+            drtioaux::send(self.auxno, &drtioaux::Packet::RoutingSetRank {
+                rank: rank
+            }).unwrap();
+            let reply = self.recv_aux_timeout(200)?;
+            if reply != drtioaux::Packet::RoutingAck {
+                return Err(drtioaux::Error::UnexpectedReply);
+            }
         }
         Ok(())
     }
