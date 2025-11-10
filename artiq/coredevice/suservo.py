@@ -640,13 +640,14 @@ class _MaskedIOUpdate:
         after the I/O pulse.
 
         The I/O update TTL supports fine timestamp.
-        The preamble CFG write advances the timestamp to a fine-timestamp
-        invariant position, then I/O update TTL pulses.
+        The preamble CFG write advances the time cursor to align with the
+        coarse RTIO clock, then issues I/O update TTL pulses.
 
         The time cursor is advanced to the end of the second CFG write,
         incremented by the initial fine timestamp.
 
-        The timestamp delta is not varied by the fine timestamp."""
+        The change of the time cursor is not varied by the initial fine
+        timestamp."""
         toggle_needed = bool((self.cpld.cfg_reg >> (urukul.ProtoRev9.CFG_MASK_NU + self.dds.selected_ch)) & 1)
         if self.toggle_mask_nu and toggle_needed:
             fine_ts = now_mu() & (self.core.ref_multiplier - 1)
