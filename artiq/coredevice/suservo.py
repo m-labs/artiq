@@ -65,8 +65,8 @@ class SUServo:
     :param core_device: Core device name
     """
     kernel_invariants = {"channel", "core", "pgia", "cplds", "ddses",
-                         "ref_period_mu", "corrected_fs", "we", "state_sel",
-                         "num_channels", "config_addr"}
+                         "ref_period_mu", "corrected_fs", "io_dly_width",
+                         "we", "state_sel", "num_channels", "config_addr"}
 
     def __init__(self, dmgr, channel, pgia_device,
                  cpld_devices, dds_devices,
