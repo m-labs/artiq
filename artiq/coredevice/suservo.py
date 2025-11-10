@@ -6,7 +6,6 @@ from artiq.language.units import us, ns
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 from artiq.coredevice import spi2 as spi
 from artiq.coredevice import ad9910, urukul, sampler
-from artiq.gateware.suservo.pads import FINE_TS_WIDTH
 
 
 COEFF_WIDTH = 18
@@ -85,6 +84,10 @@ class SUServo:
             self.core.coarse_ref_period)
         self.corrected_fs = sampler.Sampler.use_corrected_fs(sampler_hw_rev)
         assert self.ref_period_mu == self.core.ref_multiplier
+
+        io_dly_width = log2(self.core.ref_multiplier)
+        assert io_dly_width.is_integer()
+        self.io_dly_width = int(io_dly_width)
 
         self.num_channels = 4 * len(dds_devices)
         channel_adr_width = ceil(log2(self.num_channels))
@@ -191,7 +194,7 @@ class SUServo:
         if write_delay:
             value |= (1 << 1)
             for i in range(len(io_update_delays)):
-                value |= (io_update_delays[i] << (i * FINE_TS_WIDTH + 2))
+                value |= (io_update_delays[i] << (i * self.io_dly_width + 2))
         self.write(self.config_addr, value)
 
     @kernel
