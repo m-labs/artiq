@@ -649,16 +649,16 @@ class _MaskedIOUpdate:
         The timestamp delta is not varied by the fine timestamp."""
         toggle_needed = bool((self.cpld.cfg_reg >> (urukul.ProtoRev9.CFG_MASK_NU + self.dds.selected_ch)) & 1)
         if self.toggle_mask_nu and toggle_needed:
-            fine_ts = now_mu() & 7
-            delay_mu(8 - fine_ts)
+            fine_ts = now_mu() & (self.core.ref_multiplier - 1)
+            delay_mu(self.core.ref_multiplier - fine_ts)
             self.cpld.cfg_mask_nu(self.dds.selected_ch, False)
             delay_mu(fine_ts)
 
         self.io_update.pulse_mu(duration)
 
         if self.toggle_mask_nu and toggle_needed:
-            fine_ts = now_mu() & 7
-            delay_mu(8 - fine_ts)
+            fine_ts = now_mu() & (self.core.ref_multiplier - 1)
+            delay_mu(self.core.ref_multiplier - fine_ts)
             self.cpld.cfg_mask_nu(self.dds.selected_ch, True)
             delay_mu(fine_ts)
 
