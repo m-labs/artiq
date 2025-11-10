@@ -70,9 +70,6 @@ Breaking changes:
       + devarg overrides
 * ``artiq_coremgmt config`` can now read multiple times in the same command and read binary files
   from the core device config to host. Instead of ``read KEY``, use ``read -s KEY``.
-
-Breaking changes:
-
 * The variant for EFC and KC705 gateware builds must always be specified.
 * ``artiq_flash``: the syntax is different when operating on partial regions of the flash. See the example below.
   The new syntax also allows erasing partial regions. Backward compatibility is retained when erasing and 
@@ -82,6 +79,8 @@ Breaking changes:
 
   # Erase the storage flash region, flash the gateware and firmware but not bootloader and then restart the FPGA device
   artiq_flash erase=storage write=gateware,firmware start -d ./artiq_kasli/master/ --srcbuild
+
+* Experimental features have been removed.
 
 ARTIQ-8
 -------

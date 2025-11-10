@@ -162,7 +162,7 @@
       '';
     };
 
-    artiq-upstream = pkgs.python3Packages.buildPythonPackage rec {
+    artiq = pkgs.python3Packages.buildPythonPackage rec {
       pname = "artiq";
       version = artiqVersion;
       src = self;
@@ -210,12 +210,6 @@
         LIBARTIQ_SUPPORT=`libartiq-support` lit -v $TESTDIR/lit
       '';
     };
-
-    artiq =
-      artiq-upstream
-      // {
-        withExperimentalFeatures = features: artiq-upstream.overrideAttrs (oa: {patches = map (f: ./experimental-features/${f}.diff) features;});
-      };
 
     migen = pkgs.python3Packages.buildPythonPackage rec {
       name = "migen";
@@ -277,7 +271,6 @@
       target,
       variant,
       buildCommand ? "python -m artiq.gateware.targets.${target} ${variant}",
-      experimentalFeatures ? [],
     }:
       naerskLib.buildPackage {
         name = "artiq-board-${target}-${variant}";
@@ -285,7 +278,7 @@
         additionalCargoLock = "${rust}/lib/rustlib/src/rust/Cargo.lock";
         singleStep = true;
         nativeBuildInputs = [
-          (pkgs.python3.withPackages (ps: [migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ps.packaging]))
+          (pkgs.python3.withPackages (ps: [migen misoc artiq ps.packaging]))
           rust
           pkgs.llvm_20
           pkgs.lld_20
