@@ -860,13 +860,13 @@ class SharedDDS:
 
         raise ValueError("IO_UPDATE-SYNC_CLK alignment edges are too broad")
 
-    @portable(flags={"fast-math"})
+    @portable
     def frequency_to_ftw(self, frequency: TFloat) -> TInt32:
         """Return the 32-bit frequency tuning word corresponding to the given
         frequency."""
         return self._inner_dds.frequency_to_ftw(frequency)
 
-    @portable(flags={"fast-math"})
+    @portable
     def turns_to_pow(self, turns: TFloat) -> TInt32:
         """Return the 16-bit phase offset word corresponding to the given phase
         in turns."""
