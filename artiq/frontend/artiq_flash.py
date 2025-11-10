@@ -62,7 +62,7 @@ Prerequisites:
                         help="SSH host to jump through")
     parser.add_argument("-t", "--target", default="kasli",
                         help="target board, default: %(default)s, one of: "
-                             "kasli efc kc705")
+                             "kasli phaser efc1v0 efc1v1 kc705")
     parser.add_argument("-I", "--preinit-command", default=[], action="append",
                         help="add a pre-initialization OpenOCD command. "
                              "Useful for selecting a board when several are connected.")
