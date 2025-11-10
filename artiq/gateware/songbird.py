@@ -215,9 +215,7 @@ class SongbirdDDSModule(Module, AutoCSR):
 
             # count down from 2**shift-1 to 0
             If(self.shift_counter == 0,
-                Case(self.shift,
-                    { i: self.shift_counter.eq((1 << i) - 1) for i in range(2**len(self.shift)) } | { "default": self.shift_counter.eq(0) }
-                )
+                self.shift_counter.eq((1 << (self.shift + 1)) - 1)
             ).Else(
                 self.shift_counter.eq(self.shift_counter - 1)
             ),
