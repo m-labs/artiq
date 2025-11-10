@@ -307,7 +307,7 @@ class Channel:
         :param profile: Profile number (0-31)
         :param fiducial_mu: Fiducial time stamp in machine unit
         """
-        addr = self.servo.phase_sel | (self.servo_channel << 6) | (profile << 1)
+        addr = self.servo.phase_sel | (((self.servo_channel << PROFILE_WIDTH) | profile) << 1)
         self.servo.write(addr, fiducial_mu & 0xffff)
         self.servo.write(addr + 1, fiducial_mu >> 16)
 
@@ -332,7 +332,7 @@ class Channel:
 
         :param profile: Profile number (0-31)
         """
-        addr = self.servo.phase_sel | self.servo.word_sel | (self.servo_channel << 6) | (profile << 1)
+        addr = self.servo.phase_sel | self.servo.word_sel | (((self.servo_channel << PROFILE_WIDTH) | profile) << 1)
         self.servo.write(addr, 0)
 
     @kernel
@@ -344,7 +344,7 @@ class Channel:
         :param profile: Profile number (0-31)
         :return: The fiducial time stamp of the profile
         """
-        addr = self.servo.phase_sel | (self.servo_channel << 6) | (profile << 1)
+        addr = self.servo.phase_sel | (((self.servo_channel << PROFILE_WIDTH) | profile) << 1)
         self.core.break_realtime()
         lo = self.servo.read(addr)
         self.core.break_realtime()
@@ -364,7 +364,7 @@ class Channel:
         .. seealso:: The accumulator of the DDS can be cleared by 
             :meth:`~artiq.coredevice.suservo.SUServo.clear_dds_phase_accumulator`
         """
-        addr = self.servo.phase_sel | ((4 * len(self.servo.cplds) * 32 + (self.servo_channel << 1) | 1) << 1)
+        addr = self.servo.phase_sel | (((1 << PROFILE_WIDTH) * self.servo.num_channels + (self.servo_channel << 1) | 1) << 1)
         self.servo.write(addr, 0)
         self.servo.write(addr + 1, 0)
 
@@ -380,7 +380,7 @@ class Channel:
 
         :return: The internally tracked phase accumulator
         """
-        addr = self.servo.phase_sel | ((4 * len(self.servo.cplds) * 32 + (self.servo_channel << 1) | 1) << 1)
+        addr = self.servo.phase_sel | (((1 << PROFILE_WIDTH) * self.servo.num_channels + (self.servo_channel << 1) | 1) << 1)
         self.core.break_realtime()
         lo = self.servo.read(addr)
         self.core.break_realtime()
@@ -394,7 +394,7 @@ class Channel:
 
         This method advances the timeline by two coarse RTIO cycles.
         """
-        addr = self.servo.phase_sel | ((4 * len(self.servo.cplds) * 32 + (self.servo_channel << 1) | 0) << 1)
+        addr = self.servo.phase_sel | (((1 << PROFILE_WIDTH) * self.servo.num_channels + (self.servo_channel << 1) | 0) << 1)
         self.servo.write(addr, 0)
         self.servo.write(addr + 1, 0)
 
@@ -404,7 +404,7 @@ class Channel:
 
         :return: The internally tracked FTW
         """
-        addr = self.servo.phase_sel | ((4 * len(self.servo.cplds) * 32 + (self.servo_channel << 1) | 0) << 1)
+        addr = self.servo.phase_sel | (((1 << PROFILE_WIDTH) * self.servo.num_channels + (self.servo_channel << 1) | 0) << 1)
         self.core.break_realtime()
         lo = self.servo.read(addr)
         self.core.break_realtime()
@@ -422,7 +422,7 @@ class Channel:
         :param offs: IIR offset (17-bit signed)
         :param pow_: Phase offset word (16-bit)
         """
-        base = (self.servo_channel << 8) | (profile << 3)
+        base = ((self.servo_channel << PROFILE_WIDTH) | profile) << 3
         self.servo.write(base + 6, ftw >> 16)
         self.servo.write(base + 2, (ftw & 0xffff))
         self.set_dds_offset_mu(profile, offs)
@@ -456,7 +456,7 @@ class Channel:
         :param profile: Profile number (0-31)
         :param offs: IIR offset (17-bit signed)
         """
-        base = (self.servo_channel << 8) | (profile << 3)
+        base = ((self.servo_channel << PROFILE_WIDTH) | profile) << 3
         self.servo.write(base + 4, offs)
 
     @kernel
@@ -515,7 +515,7 @@ class Channel:
         :param dly: IIR update suppression time. In units of IIR cycles
             (~1.2 µs, 0-255).
         """
-        base = (self.servo_channel << 8) | (profile << 3)
+        base = ((self.servo_channel << PROFILE_WIDTH) | profile) << 3
         self.servo.write(base + 3, adc | (dly << 8))
         self.servo.write(base + 1, b1)
         self.servo.write(base + 5, a1)
@@ -607,7 +607,7 @@ class Channel:
         :param profile: Profile number (0-31)
         :param data: List of 8 integers to write the profile data into
         """
-        base = (self.servo_channel << 8) | (profile << 3)
+        base = ((self.servo_channel << PROFILE_WIDTH) | profile) << 3
         for i in range(len(data)):
             data[i] = self.servo.read(base + i)
             delay(4*us)
@@ -628,7 +628,7 @@ class Channel:
         :param profile: Profile number (0-31)
         :return: 17-bit unsigned Y0
         """
-        return self.servo.read(self.servo.state_sel | (self.servo_channel << 5) | profile)
+        return self.servo.read(self.servo.state_sel | (self.servo_channel << PROFILE_WIDTH) | profile)
 
     @kernel
     def get_y(self, profile):
@@ -666,7 +666,7 @@ class Channel:
         """
         # State memory is 25 bits wide and signed.
         # Reads interact with the 18 MSBs (coefficient memory width)
-        self.servo.write(self.servo.state_sel | (self.servo_channel << 5) | profile, y)
+        self.servo.write(self.servo.state_sel | (self.servo_channel << PROFILE_WIDTH) | profile, y)
 
     @kernel
     def set_y(self, profile, y):
