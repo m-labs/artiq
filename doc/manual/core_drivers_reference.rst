@@ -115,6 +115,12 @@ RF generation drivers
 .. automodule:: artiq.coredevice.phaser
     :members:
 
+:mod:`artiq.coredevice.phaser_drtio` module
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: artiq.coredevice.phaser_drtio
+    :members:
+
 :mod:`artiq.coredevice.songbird` module
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -160,6 +166,12 @@ DAC/ADC drivers
 .. automodule:: artiq.coredevice.shuttler
     :members:
 
+:mod:`artiq.coredevice.dac34h84` module
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: artiq.coredevice.dac34h84
+    :members:
+
 
 Miscellaneous
 -------------
@@ -182,4 +194,16 @@ Miscellaneous
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. automodule:: artiq.coredevice.cxp_grabber
+    :members:
+
+:mod:`artiq.coredevice.trf372017` module
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: artiq.coredevice.trf372017
+    :members:
+
+:mod:`artiq.coredevice.hmc542b` module
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. automodule:: artiq.coredevice.hmc542b
     :members:
