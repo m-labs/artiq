@@ -57,10 +57,18 @@ Return to the terminal where the master is running. You should see an output sim
 In other words, a worker created by the master has executed the experiment and carried out the print instruction. Congratulations!
 
 .. tip::
+    
+    In order to run the master and the clients on different PCs, please make sure your PC's and network's firewall do not block traffic on the ports used. 
 
-    In order to run the master and the clients on different PCs, start the master with a ``--bind`` flag: ::
+    First, start the master with a ``--bind`` flag: ::
 
-        $ artiq_master --bind [hostname or IP to bind to]
+        $ artiq_master --bind [master computer's hostname or IP to bind to]
+
+    On most Linux/Unix shells, including the Bash shell used in the default Windows MSYS2 ARTIQ installation, 
+    the asterisk \* must be escaped as \\\* to indicate all interfaces. 
+    Windows PowerShell and CMD allow using * directly without escaping. ::
+
+        $ artiq_master --bind \*
 
     and then use the option ``--server`` or ``-s`` for clients, as in: ::
 
@@ -319,3 +327,7 @@ Arguments to the individual tools (including ``-s`` and ``--bind``) can still be
     $ artiq_session -m=-g
 
 to start the session with Git integration. See also :mod:`~artiq.frontend.artiq_session`.
+
+.. note::
+
+    ``artiq_session`` does not support SSL, since it is only intended for simple single-machine setups.
