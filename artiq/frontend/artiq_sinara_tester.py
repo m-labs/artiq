@@ -750,13 +750,13 @@ class SinaraTester(EnvExperiment):
     @kernel
     def calibrate_suservo(self, channel) -> TTuple([TInt32, TInt32, TInt32, TInt32, TInt32]):
         self.core.break_realtime()
-        dly_seeds = channel.tune_sync_delays()
+        sync_delays = channel.tune_sync_delays()
         self.core.break_realtime()
         io_update_group_delay = channel.tune_io_update_group_delay()
         self.core.break_realtime()
         # Disable MASK_NU to resume QSPI
         channel.cpld.cfg_mask_nu_all(0)
-        return dly_seeds[0], dly_seeds[1], dly_seeds[2], dly_seeds[3], io_update_group_delay
+        return sync_delays[0], sync_delays[1], sync_delays[2], sync_delays[3], io_update_group_delay
 
     @kernel
     def write_suservo_io_update_delay(self, channel, delay_list):
@@ -829,11 +829,11 @@ class SinaraTester(EnvExperiment):
                 else:
                     eeprom = dds.sync_data.eeprom_device
                     offset = dds.sync_data.eeprom_offset
-                    *sync_delay_seeds, io_update_group_delay = self.calibrate_suservo(dds)
-                    print("{} Urukul{}\n\t{} {} {} {}\t{}".format(card_name, ddsi, *sync_delay_seeds, io_update_group_delay))
+                    *sync_delays, io_update_group_delay = self.calibrate_suservo(dds)
+                    print("{} Urukul{}\n\tSYNC_IN delay: {} {} {} {}\tIO_UPDATE delay = {}".format(card_name, ddsi, *sync_delays, io_update_group_delay))
                     eeprom_word = io_update_group_delay << 20
                     for i in range(4):
-                        eeprom_word |= sync_delay_seeds[i] << (i * 5)
+                        eeprom_word |= sync_delays[i] << (i * 5)
                     eeprom.write_i32(offset, eeprom_word)
 
                     delay_list.append(io_update_group_delay)
