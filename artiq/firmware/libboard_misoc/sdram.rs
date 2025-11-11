@@ -217,7 +217,7 @@ mod ddr {
             ddrphy::dly_sel_write(1 << (DQS_SIGNAL_COUNT - n - 1));
 
             ddrphy::rdly_dq_rst_write(1);
-            #[cfg(any(soc_platform = "kasli", soc_platform = "efc"))]
+            #[cfg(any(soc_platform = "kasli", soc_platform = "efc", soc_platform = "phaser"))]
             {
                 for _ in 0..3 {
                     ddrphy::rdly_dq_bitslip_write(1);
@@ -308,7 +308,7 @@ mod ddr {
             let mut max_seen_valid = 0;
 
             ddrphy::rdly_dq_rst_write(1);
-            #[cfg(any(soc_platform = "kasli", soc_platform = "efc"))]
+            #[cfg(any(soc_platform = "kasli", soc_platform = "efc", soc_platform = "phaser"))]
             {
                 for _ in 0..3 {
                     ddrphy::rdly_dq_bitslip_write(1);
@@ -371,7 +371,7 @@ mod ddr {
 
             // Set delay to the middle
             ddrphy::rdly_dq_rst_write(1);
-            #[cfg(any(soc_platform = "kasli", soc_platform = "efc"))]
+            #[cfg(any(soc_platform = "kasli", soc_platform = "efc", soc_platform = "phaser"))]
             {
                 for _ in 0..3 {
                     ddrphy::rdly_dq_bitslip_write(1);

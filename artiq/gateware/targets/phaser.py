@@ -5,7 +5,7 @@ import argparse
 from migen import *
 from migen.build.generic_platform import *
 
-from misoc.cores import gpio, spi2
+from misoc.cores import gpio 
 from misoc.targets.phaser import BaseSoC
 from misoc.integration.builder import builder_args, builder_argdict
 
@@ -17,10 +17,10 @@ from artiq.gateware.rtio.phy import spi2 as rtio_spi
 from artiq.gateware.drtio.transceiver import eem_serdes
 from artiq.gateware.drtio.rx_synchronizer import NoRXSynchronizer
 from artiq.gateware.drtio import *
+from artiq.gateware.phaser import PhaserMTDDS
 from artiq.build_soc import *
 
-
-class Satellite(BaseSoC, AMPSoC):
+class _SatelliteBase(BaseSoC, AMPSoC):
     mem_map = {
         "rtio":          0x20000000,
         "drtioaux":      0x50000000,
@@ -28,19 +28,29 @@ class Satellite(BaseSoC, AMPSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, gateware_identifier_str=None, **kwargs):
+    def __init__(
+        self,
+        gateware_identifier_str=None,
+        use_sma_clkin=False,
+        rtio_clk_freq=125e6,
+        **kwargs
+    ):
         BaseSoC.__init__(self,
             cpu_type="vexriscv",
             cpu_bus_width=64,
             sdram_controller_type="minicon",
             l2_size=128*1024,
             l2_line_size=64,
-            clk_freq=125e6,
+            clk_freq=rtio_clk_freq,
             **kwargs)
         AMPSoC.__init__(self)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
 
         platform = self.platform
+
+        self.comb += platform.request("clk_sel").eq(1 if use_sma_clkin else 0)
+        self.submodules.error_led = gpio.GPIOOut(self.platform.request("user_led", 5))
+        self.csr_devices.append("error_led")
 
         drtio_eem_io = [
             ("drtio_tx", 0,
@@ -93,7 +103,7 @@ class Satellite(BaseSoC, AMPSoC):
         fix_serdes_timing_path(platform)
 
         self.config["DRTIO_ROLE"] = "satellite"
-        self.config["RTIO_FREQUENCY"] = "125.0"
+        self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
         
         self.rtio_channels = []
         print("User LED at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
@@ -102,19 +112,27 @@ class Satellite(BaseSoC, AMPSoC):
             phy = ttl_simple.Output(user_led)
             self.submodules += phy
             self.rtio_channels.append(rtio.Channel.from_phy(phy))
+ 
 
-        error_led = self.platform.request("user_led", 5)
-        self.submodules.error_led = gpio.GPIOOut(Cat(error_led))
-        self.csr_devices.append("error_led")
-        self.config["HAS_ERROR_LED"] = None
+        spi_pins = [
+            platform.request("dac_spi"),
+            platform.request("trf_spi", 0),
+            platform.request("trf_spi", 1),
+            platform.request("att_spi", 0),
+            platform.request("att_spi", 1),
+        ]
 
+        for pin in spi_pins:
+            spimaster = rtio_spi.SPIMaster(pin)
+            self.submodules += spimaster
+            print("PHASER {} at RTIO channel 0x{:06x}".format(pin.name.upper(), len(self.rtio_channels)))
+            self.rtio_channels.append(rtio.Channel.from_phy(spimaster))
+
+    def add_rtio(self, rtio_channels, sed_lanes=8):
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
         self.rtio_channels.append(rtio.LogChannel())
 
-        self.add_rtio(self.rtio_channels)
-
-    def add_rtio(self, rtio_channels, sed_lanes=8):
         # Only add MonInj core if there is anything to monitor
         if any([len(c.probes) for c in rtio_channels]):
             self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
@@ -134,7 +152,7 @@ class Satellite(BaseSoC, AMPSoC):
         self.submodules.rtio_dma = rtio.DMA(self.get_native_sdram_if(), self.cpu_dw)
         self.csr_devices.append("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
-            [self.drtiosat.cri, self.rtio_dma.cri],
+            [self.drtiosat.cri, self.rtio_dma.cri, self.rtio.cri],
             [self.local_io.cri],
             enable_routing=True)
         self.csr_devices.append("cri_con")
@@ -145,19 +163,88 @@ class Satellite(BaseSoC, AMPSoC):
                                                 self.get_native_sdram_if(), cpu_dw=self.cpu_dw)
         self.csr_devices.append("rtio_analyzer")
 
+class MultiToneDDS(_SatelliteBase):
+    def __init__(
+        self,
+        dds_tones=16,
+        no_pipelined_dds_adder=False,
+        dds_bw_500mhz=False,
+        rtio_clk_freq=125e6,
+        **kwarg
+    ):
+        _SatelliteBase.__init__(self, rtio_clk_freq=rtio_clk_freq, **kwarg)
+        platform = self.platform
+
+        dds_bandwidth = 500e6 if dds_bw_500mhz else 250e6
+        dds_sample_per_cycle = int(dds_bandwidth / rtio_clk_freq)
+
+        self.submodules.phaser = phaser = PhaserMTDDS(
+            platform.request("hw_variant"),
+            [platform.request("att_rstn", i) for i in range(2)],
+            [platform.request("trf_ctrl", i) for i in range(2)],
+            platform.request("dac_data"),
+            platform.request("dac_ctrl"),
+            dds_tones=dds_tones,
+            dds_sample_per_cycle=dds_sample_per_cycle,
+            use_pipeline_adder=not no_pipelined_dds_adder,
+        )
+        print("PHASER PHYS at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
+        self.rtio_channels.extend(rtio.Channel.from_phy(phy) for phy in phaser.phys)
+
+        self.add_rtio(self.rtio_channels)
+
+VARIANTS = {"mtdds": MultiToneDDS}
+
 
 def main():
     parser = argparse.ArgumentParser(
-        description="ARTIQ device binary builder for Phaser")
+        description="ARTIQ device binary builder for Phaser"
+    )
     builder_args(parser)
     parser.set_defaults(output_dir="artiq_phaser")
-    parser.add_argument("-V", "--variant", default="phaser")
-    parser.add_argument("--gateware-identifier-str", default=None,
-                        help="Override ROM identifier")
+    parser.add_argument(
+        "--gateware-identifier-str", default=None, help="Override ROM identifier"
+    )
+    parser.add_argument(
+        "--use-sma-clkin",
+        action="store_true",
+        help="Set clock input to SMA (default is mmcx)",
+    )
+
+    subparsers = parser.add_subparsers(
+        dest="variant", help="Variant to build", required=True
+    )
+
+    parser_mtdds = subparsers.add_parser("mtdds", help="Build MuliToneDDS variant")
+    parser_mtdds.add_argument("--dds-tones", default=26, help="Number of DDS tones")
+    parser_mtdds.add_argument(
+        "--no-pipelined-dds-adder",
+        action="store_true",
+        help="Disable pipelined adder for DDS tones summing. Decrease latency but tightens timing requirement",
+    )
+    parser_mtdds.add_argument(
+        "--dds-bw-500mhz",
+        action="store_true",
+        help="Set DDS bandwidth to 500 MHz (default is 250 MHz)",
+    )
     args = parser.parse_args()
 
     argdict = dict()
-    soc = Satellite(**argdict)
+    argdict["gateware_identifier_str"] = args.gateware_identifier_str
+    argdict["use_sma_clkin"] = args.use_sma_clkin
+
+    variant = args.variant.lower()
+    if variant == "mtdds":
+        argdict["no_pipelined_dds_adder"] = args.no_pipelined_dds_adder
+        argdict["dds_tones"] = int(args.dds_tones)
+        argdict["dds_bw_500mhz"] = args.dds_bw_500mhz
+
+    try:
+        cls = VARIANTS[variant]
+    except KeyError:
+        raise SystemExit("Invalid variant")
+
+    soc = cls(**argdict)
     build_artiq_soc(soc, builder_argdict(args))
 
 
