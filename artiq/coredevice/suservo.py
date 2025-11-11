@@ -634,6 +634,13 @@ class _MaskedIOUpdate:
         self.toggle_mask_nu = self.cpld.io_update is not None
     
     @kernel
+    def aligned_write_cfg_mask_nu(self, state):
+        fine_ts = now_mu() & (self.core.ref_multiplier - 1)
+        delay_mu(self.core.ref_multiplier - fine_ts)
+        self.cpld.cfg_mask_nu(self.dds.selected_ch, state)
+        delay_mu(fine_ts)
+
+    @kernel
     def pulse_mu(self, duration):
         """Unset MASK_NU, then pulse the IO Update TTL high for the specified
         duration (in machine units). MASK_NU is restored to the previous value
@@ -650,25 +657,26 @@ class _MaskedIOUpdate:
         timestamp."""
         toggle_needed = bool((self.cpld.cfg_reg >> (urukul.ProtoRev9.CFG_MASK_NU + self.dds.selected_ch)) & 1)
         if self.toggle_mask_nu and toggle_needed:
-            fine_ts = now_mu() & (self.core.ref_multiplier - 1)
-            delay_mu(self.core.ref_multiplier - fine_ts)
-            self.cpld.cfg_mask_nu(self.dds.selected_ch, False)
-            delay_mu(fine_ts)
+            self.aligned_write_cfg_mask_nu(False)
 
         self.io_update.pulse_mu(duration)
 
         if self.toggle_mask_nu and toggle_needed:
-            fine_ts = now_mu() & (self.core.ref_multiplier - 1)
-            delay_mu(self.core.ref_multiplier - fine_ts)
-            self.cpld.cfg_mask_nu(self.dds.selected_ch, True)
-            delay_mu(fine_ts)
+            self.aligned_write_cfg_mask_nu(True)
 
     @kernel
     def pulse(self, duration):
         """Pulse the output high for the specified duration (in seconds).
 
         See pulse_mu."""
-        self.pulse_mu(self.core.seconds_to_mu(duration))
+        toggle_needed = bool((self.cpld.cfg_reg >> (urukul.ProtoRev9.CFG_MASK_NU + self.dds.selected_ch)) & 1)
+        if self.toggle_mask_nu and toggle_needed:
+            self.aligned_write_cfg_mask_nu(False)
+
+        self.io_update.pulse(duration)
+
+        if self.toggle_mask_nu and toggle_needed:
+            self.aligned_write_cfg_mask_nu(True)
 
 
 class SyncDataUser:
