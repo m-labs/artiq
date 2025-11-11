@@ -297,7 +297,8 @@ class Channel:
 
         Fiducial time stamp refers to the variable `T` in phase tracking mode
         equation. See :meth:`artiq.coredevice.ad9910.AD9910.set_phase_mode`.
-        Fiducial time stamp is defined as 0 when the servo is first enabled.
+        Fiducial time stamp is defined as 0 immediately after the servo has
+        been enabled.
 
         With en_pt=1 (see :meth:`set`), the DDS output phase of this channel
         will refer to this fiducial time stamp.
@@ -318,7 +319,8 @@ class Channel:
 
         Fiducial time stamp refers to the variable `T` in phase tracking mode
         equation. See :meth:`artiq.coredevice.ad9910.AD9910.set_phase_mode`.
-        Fiducial time stamp is defined as 0 when the servo is first enabled.
+        Fiducial time stamp is defined as 0 immediately after the servo has
+        been enabled.
 
         With en_pt=1 (see :meth:`set`), the DDS output phase of this channel
         will refer to this copied fiducial time stamp.
