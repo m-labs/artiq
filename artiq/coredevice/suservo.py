@@ -730,10 +730,11 @@ class SharedDDS:
         Note that when bypassing the PLL the red front panel LED may remain on.
     :param pll_cp: DDS PLL charge pump setting.
     :param pll_vco: DDS PLL VCO range selection.
-    :param sync_delay_seed: ``SYNC_IN`` delay tuning starting value.
+    :param sync_delay_seeds: ``SYNC_IN`` delay tuning starting value.
         To stabilize the ``SYNC_IN`` delay tuning, run :meth:`tune_sync_delays` once
-        and set this to the delay tap number returned (default: -1 to signal no
-        synchronization and no tuning during :meth:`init`).
+        and set this to the delay tap number returned
+        (default: [-1, -1, -1, -1] to signal no synchronization and no tuning
+        during :meth:`init`).
         Can be a string of the form ``eeprom_device:byte_offset`` to read the
         value from a I2C EEPROM, in which case ``io_update_delay`` must be set
         to the same string value.
@@ -742,12 +743,12 @@ class SharedDDS:
         run :meth:`tune_io_update_group_delay` and set this to the delay tap
         number returned.
         Can be a string of the form ``eeprom_device:byte_offset`` to read the
-        value from a I2C EEPROM, in which case ``sync_delay_seed`` must be set
+        value from a I2C EEPROM, in which case ``sync_delay_seeds`` must be set
         to the same string value.
     :param core_device: Core device name
     """
     def __init__(self, dmgr, cpld_device,
-                 pll_n=40, pll_cp=7, pll_vco=5, sync_delay_seed=[-1, -1, -1, -1],
+                 pll_n=40, pll_cp=7, pll_vco=5, sync_delay_seeds=[-1, -1, -1, -1],
                  io_update_delay=0, pll_en=1, core_device="core"):
         self.core = dmgr.get(core_device)
         self.cpld = dmgr.get(cpld_device)
@@ -756,13 +757,13 @@ class SharedDDS:
         self.selected_ch = 0
         self._inner_dds.io_update = _MaskedIOUpdate(self.core, self._inner_dds.cpld, self, self._inner_dds.io_update)
 
-        if isinstance(sync_delay_seed, str) or isinstance(io_update_delay, str):
-            if sync_delay_seed != io_update_delay:
-                raise ValueError("When using EEPROM, sync_delay_seed must be "
+        if isinstance(sync_delay_seeds, str) or isinstance(io_update_delay, str):
+            if sync_delay_seeds != io_update_delay:
+                raise ValueError("When using EEPROM, sync_delay_seeds must be "
                                  "equal to io_update_delay")
-            self.sync_data = SyncDataEeprom(dmgr, self.core, sync_delay_seed)
+            self.sync_data = SyncDataEeprom(dmgr, self.core, sync_delay_seeds)
         else:
-            self.sync_data = SyncDataUser(self.core, sync_delay_seed,
+            self.sync_data = SyncDataUser(self.core, sync_delay_seeds,
                                           io_update_delay)
 
     @portable

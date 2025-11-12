@@ -617,7 +617,7 @@ class PeripheralManager:
                     "arguments": {{
                         "pll_n": {pll_n},
                         "pll_en": {pll_en},
-                        "cpld_device": "{urukul_name}_cpld"{pll_vco}{sync_delay_seed}{io_update_delay}
+                        "cpld_device": "{urukul_name}_cpld"{pll_vco}{sync_delay_seeds}{io_update_delay}
                     }}
                 }}""",
                 urukul_name=urukul_name,
@@ -629,7 +629,7 @@ class PeripheralManager:
                 proto_rev=peripheral["proto_rev"],
                 pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "",
                 pll_n=peripheral["pll_n"],  pll_en=peripheral["pll_en"],
-                sync_delay_seed=",\n        \"sync_delay_seed\": \"eeprom_{}:{}\"".format(urukul_name, 64) if synchronization else "",
+                sync_delay_seeds=",\n        \"sync_delay_seeds\": \"eeprom_{}:{}\"".format(urukul_name, 64) if synchronization else "",
                 io_update_delay=",\n        \"io_update_delay\": \"eeprom_{}:{}\"".format(urukul_name, 64) if synchronization else "")
         return next(channel)
 
