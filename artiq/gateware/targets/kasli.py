@@ -864,6 +864,8 @@ def main():
         raise ValueError("Kasli {} does not support WRPLL".format(description["hw_rev"])) 
     if has_coaxpress_sfp:
         raise ValueError("Kasli doe not support CoaXPress-SFP")
+    if description["enable_acpki"]:
+        raise ValueError("Kasli does not support ACPKI")
 
     soc = cls(description, gateware_identifier_str=args.gateware_identifier_str, **soc_kasli_argdict(args))
     args.variant = description["variant"]
