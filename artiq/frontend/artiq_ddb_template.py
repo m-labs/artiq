@@ -499,10 +499,13 @@ class PeripheralManager:
         sampler_name = self.get_name("sampler")
         if peripheral.get("urukul1_ports") is not None:
             num_of_urukuls = 2
+            urukul_ports = [peripheral.get("urukul0_ports"), peripheral.get("urukul1_ports")]
         elif peripheral.get("urukul0_ports") is not None:
             num_of_urukuls = 1
+            urukul_ports = [peripheral.get("urukul0_ports")]
         else:
             num_of_urukuls = len(peripheral["urukul_ports"])
+            urukul_ports = peripheral.get("urukul_ports")
         urukul_names = [self.get_name("urukul") for _ in range(num_of_urukuls)]
         channel = count(0)
         num_of_channels = num_of_urukuls * 4
@@ -545,8 +548,49 @@ class PeripheralManager:
             }}""",
             sampler_name=sampler_name,
             sampler_channel=rtio_offset+next(channel))
+
+        destination = rtio_offset >> 16
+        # Indicates the I2C bus 0 on the same DRTIO destination as the Urukul
+        busno = destination << 16
+        for name, eems in zip(urukul_names, urukul_ports):
+            self.gen("""
+                device_db["eeprom_{urukul_name}"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.kasli_i2c",
+                    "class": "KasliEEPROM",
+                    "arguments": {{
+                        "port": "EEM{eem}",
+                        "busno": {busno},
+                        "sw0_device": "i2c_switch0{dest}",
+                        "sw1_device": "i2c_switch1{dest}"
+                    }}
+                }}""",
+                urukul_name=name,
+                eem=eems[0],
+                busno=busno,
+                dest="" if destination == 0 else "_{}".format(destination))
+
         pll_vco = peripheral.get("pll_vco")
+        synchronization = peripheral["synchronization"]
         for urukul_name in urukul_names:
+            if synchronization:
+                self.gen("""
+                    device_db["ttl_{urukul_name}_io_update"] = {{
+                        "type": "local",
+                        "module": "artiq.coredevice.ttl",
+                        "class": "TTLOut",
+                        "arguments": {{"channel": 0x{io_upd_channel:06x}}}
+                    }}
+                    device_db["ttl_{urukul_name}_sync"] = {{
+                        "type": "local",
+                        "module": "artiq.coredevice.ttl",
+                        "class": "TTLClockGen",
+                        "arguments": {{"channel": 0x{sync_channel:06x}, "acc_width": 4}}
+                    }}""",
+                    urukul_name=urukul_name,
+                    io_upd_channel=rtio_offset+next(channel),
+                    sync_channel=rtio_offset+next(channel))
+
             self.gen("""
                 device_db["spi_{urukul_name}"] = {{
                     "type": "local",
@@ -560,6 +604,7 @@ class PeripheralManager:
                     "class": "CPLD",
                     "arguments": {{
                         "spi_device": "spi_{urukul_name}",
+                        "sync_device": {sync_device},{io_upd}
                         "refclk": {refclk},
                         "clk_sel": {clk_sel},
                         "proto_rev": {proto_rev}
@@ -567,22 +612,25 @@ class PeripheralManager:
                 }}
                 device_db["{urukul_name}_dds"] = {{
                     "type": "local",
-                    "module": "artiq.coredevice.ad9910",
-                    "class": "AD9910",
+                    "module": "artiq.coredevice.suservo",
+                    "class": "SharedDDS",
                     "arguments": {{
                         "pll_n": {pll_n},
                         "pll_en": {pll_en},
-                        "chip_select": 3,
-                        "cpld_device": "{urukul_name}_cpld"{pll_vco}
+                        "cpld_device": "{urukul_name}_cpld"{pll_vco}{sync_delay_seeds}{io_update_delay}
                     }}
                 }}""",
                 urukul_name=urukul_name,
                 urukul_channel=rtio_offset+next(channel),
+                sync_device="\"ttl_{urukul_name}_sync\"".format(urukul_name=urukul_name) if synchronization else "None",
+                io_upd="\n        \"io_update_device\": \"ttl_{urukul_name}_io_update\",".format(urukul_name=urukul_name) if synchronization else "",
                 refclk=peripheral.get("refclk", self.primary_description["rtio_frequency"]),
                 clk_sel=peripheral["clk_sel"],
                 proto_rev=peripheral["proto_rev"],
                 pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "",
-                pll_n=peripheral["pll_n"],  pll_en=peripheral["pll_en"])
+                pll_n=peripheral["pll_n"],  pll_en=peripheral["pll_en"],
+                sync_delay_seeds=",\n        \"sync_delay_seeds\": \"eeprom_{}:{}\"".format(urukul_name, 64) if synchronization else "",
+                io_update_delay=",\n        \"io_update_delay\": \"eeprom_{}:{}\"".format(urukul_name, 64) if synchronization else "")
         return next(channel)
 
     def process_zotino(self, rtio_offset, peripheral):

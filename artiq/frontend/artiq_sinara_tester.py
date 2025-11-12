@@ -10,6 +10,7 @@ from artiq.experiment import *
 from artiq.coredevice.ad9910 import AD9910, SyncDataEeprom
 from artiq.coredevice.phaser import PHASER_GW_BASE, PHASER_GW_MIQRO
 from artiq.coredevice.shuttler import shuttler_volt_to_mu
+from artiq.coredevice.suservo import SyncDataEeprom as SUServoEeprom
 from artiq.master.databases import DeviceDB
 from artiq.master.worker_db import DeviceManager
 
@@ -148,8 +149,6 @@ class SinaraTester(EnvExperiment):
                 elif (module, cls) == ("artiq.coredevice.suservo", "SUServo"):
                     for cpld in desc["arguments"]["cpld_devices"]:
                         del self.urukul_cplds[cpld]
-                    for dds in desc["arguments"]["dds_devices"]:
-                        del self.urukuls[dds]
                 elif (module, cls) == ("artiq.coredevice.sampler", "Sampler"):
                     cnv_device = desc["arguments"]["cnv_device"]
                     del self.ttl_outs[cnv_device]
@@ -744,10 +743,29 @@ class SinaraTester(EnvExperiment):
             self.grabber_capture(card_dev, rois)
 
     @kernel
-    def setup_suservo(self, channel):
+    def init_suservo(self, card_dev):
         self.core.break_realtime()
-        channel.init()
-        delay(1*us)
+        card_dev.init()
+
+    @kernel
+    def calibrate_suservo(self, channel) -> TTuple([TInt32, TInt32, TInt32, TInt32, TInt32]):
+        self.core.break_realtime()
+        sync_delays = channel.tune_sync_delays()
+        self.core.break_realtime()
+        io_update_group_delay = channel.tune_io_update_group_delay()
+        self.core.break_realtime()
+        # Disable MASK_NU to resume QSPI
+        channel.cpld.cfg_mask_nu_all(0)
+        return sync_delays[0], sync_delays[1], sync_delays[2], sync_delays[3], io_update_group_delay
+
+    @kernel
+    def write_suservo_io_update_delay(self, channel, delay_list):
+        self.core.break_realtime()
+        channel.set_config(enable=0, write_delay=True, io_update_delays=delay_list)
+
+    @kernel
+    def setup_suservo_signal_path(self, channel):
+        self.core.break_realtime()
         # ADC PGIA gain 0
         for i in range(8):
             channel.set_pgia_mu(i, 0)
@@ -759,7 +777,6 @@ class SinaraTester(EnvExperiment):
         delay(1*us)
         # Servo is done and disabled
         assert channel.get_status() & 0xff == 2
-        delay(10*us)
 
     @kernel
     def setup_suservo_loop(self, channel, loop_nr):
@@ -801,9 +818,35 @@ class SinaraTester(EnvExperiment):
         print("Initializing modules...")
         for card_name, card_dev in self.suservos:
             print(card_name)
-            self.setup_suservo(card_dev)
+            self.init_suservo(card_dev)
+        print("Calibrating inter-device synchronization...")
+        for card_name, card_dev in self.suservos:
+            delay_list = []
+            for ddsi in range(len(card_dev.ddses)):
+                dds = card_dev.ddses[ddsi]
+                if not isinstance(dds.sync_data, SUServoEeprom):
+                    print("{} Urukul{}\n\tno EEPROM synchronization".format(card_name, ddsi))
+                else:
+                    eeprom = dds.sync_data.eeprom_device
+                    offset = dds.sync_data.eeprom_offset
+                    *sync_delays, io_update_group_delay = self.calibrate_suservo(dds)
+                    print("{} Urukul{}\n\tSYNC_IN delay: {} {} {} {}\tIO_UPDATE delay = {}".format(card_name, ddsi, *sync_delays, io_update_group_delay))
+                    eeprom_word = io_update_group_delay << 20
+                    for i in range(4):
+                        eeprom_word |= sync_delays[i] << (i * 5)
+                    eeprom.write_i32(offset, eeprom_word)
+
+                    delay_list.append(io_update_group_delay)
+            # Update IO_UPDATE delays
+            # Sync delays are already programmed during calibration
+            self.write_suservo_io_update_delay(card_dev, delay_list)
+            # Ensure that phase accumulator starts at a known value
+            card_dev.clear_dds_phase_accumulator()
+
         print("...done")
         print("Setting up SUServo channels...")
+        for _card_name, card_dev in self.suservos:
+            self.setup_suservo_signal_path(card_dev)
         print("ADC to DDS mapping:")
         for channels in chunker(self.suschannels, 8):
             for i, (channel_name, channel_dev) in enumerate(channels):

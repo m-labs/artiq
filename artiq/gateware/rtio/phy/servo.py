@@ -98,13 +98,21 @@ class RTServoMem(Module):
                 timestamped=False)
             )
 
+        dly_sinks = getattr(servo, "io_update_dlys", [ Signal() ])
+
+        # start, I/O update WE (if has I/O update), I/O update delay
+        # (FINE_TS_WIDTH bits per urukul, if available)
+        dly_sink_width = len(Cat(*dly_sinks))
+        config_data_width = 1 + (dly_sink_width + 1 if dly_sink_width else 0)
+        assert config_data_width <= len(self.rtlink.o.data)
+
         # # #
 
-        config = Signal(w.coeff, reset=0)
+        dly_we = self.rtlink.o.data[1]
+        dly_data = self.rtlink.o.data[2:] if hasattr(servo, "io_update_dlys") else 0
         status = Signal(w.coeff)
         pad = Signal(6)
         self.comb += [
-                Cat(servo.start).eq(config),
                 status.eq(Cat(servo.start, servo.done, pad,
                     [_.clip for _ in servo.iir.ctrl]))
         ]
@@ -161,7 +169,10 @@ class RTServoMem(Module):
         ]
         self.sync.rio_phy += [
                 If(self.rtlink.o.stb & we & state_sel & config_sel,
-                    config.eq(self.rtlink.o.data)
+                    servo.start.eq(self.rtlink.o.data[0]),
+                    If(dly_we,
+                        Cat(*dly_sinks).eq(dly_data)
+                    )
                 ),
                 If(read & read_config & read_state,
                     [_.clip.eq(0) for _ in servo.iir.ctrl]
