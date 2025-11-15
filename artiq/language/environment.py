@@ -258,6 +258,8 @@ class HasEnvironment:
     """Provides methods to manage the environment of an experiment (arguments,
     devices, datasets)."""
     def __init__(self, managers_or_parent, *args, **kwargs):
+        self.kernel_invariants = getattr(self, "kernel_invariants", set())
+
         self.children = []
         if isinstance(managers_or_parent, tuple):
             self.__device_mgr = managers_or_parent[0]
@@ -270,6 +272,7 @@ class HasEnvironment:
             self.__argument_mgr = managers_or_parent.__argument_mgr
             self.__scheduler_defaults = {}
             managers_or_parent.register_child(self)
+
 
         self.__in_build = True
         self.build(*args, **kwargs)
@@ -341,8 +344,7 @@ class HasEnvironment:
 
         The key is added to the instance's kernel invariants."""
         setattr(self, key, self.get_argument(key, processor, group, tooltip))
-        kernel_invariants = getattr(self, "kernel_invariants", set())
-        self.kernel_invariants = kernel_invariants | {key}
+        self.kernel_invariants.add(key)
 
     @contextmanager
     def interactive(self, title=""):
@@ -386,8 +388,7 @@ class HasEnvironment:
 
         The key is added to the instance's kernel invariants."""
         setattr(self, key, self.get_device(key))
-        kernel_invariants = getattr(self, "kernel_invariants", set())
-        self.kernel_invariants = kernel_invariants | {key}
+        self.kernel_invariants.add(key)
 
     @rpc(flags={"async"})
     def set_dataset(self, key, value, *,
