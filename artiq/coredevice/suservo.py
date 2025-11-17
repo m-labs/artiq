@@ -635,6 +635,13 @@ class _MaskedIOUpdate:
     
     @kernel
     def aligned_write_cfg_mask_nu(self, state):
+        """Write NU_MASK of CFG at a coarse RTIO clock cycle.
+
+        It aligns the time cursor to the next coarse time stamp, write NU_MASK
+        to the Urukul CFG, then restore the initial fine time stamp.
+
+        This method advances the time cursor by a CFG write duration, plus 1
+        RTIO clock cycle."""
         fine_ts = now_mu() & (self.core.ref_multiplier - 1)
         delay_mu(self.core.ref_multiplier - fine_ts)
         self.cpld.cfg_mask_nu(self.dds.selected_ch, state)
@@ -646,15 +653,18 @@ class _MaskedIOUpdate:
         duration (in machine units). MASK_NU is restored to the previous value
         after the I/O pulse.
 
-        The I/O update TTL supports fine timestamp.
-        The preamble CFG write advances the time cursor to align with the
-        coarse RTIO clock, then issues I/O update TTL pulses.
+        The I/O update TTL supports fine time stamp. Controlling I/O update
+        through TTL requires Urukul CFG writes, but CFG writes does not
+        support fine time stamps.
 
-        The time cursor is advanced to the end of the second CFG write,
-        incremented by the initial fine timestamp.
+        Hence, a pair of preamble and postamble CFG writes (with coarse clock
+        alignments) are issued to enable I/O updates from TTL temporarily.
+        ``aligned_write_cfg_mask_nu`` implements the preamble/postamble writes.
 
-        The change of the time cursor is not varied by the initial fine
-        timestamp."""
+        The time cursor is advanced by the sum of:
+        - 2 CFG writes (enable/disable MASK_NU)
+        - 2 coarse RTIO cycles (coarse clock alignment), and
+        - I/O update pulse duration"""
         toggle_needed = bool((self.cpld.cfg_reg >> (urukul.ProtoRev9.CFG_MASK_NU + self.dds.selected_ch)) & 1)
         if self.toggle_mask_nu and toggle_needed:
             self.aligned_write_cfg_mask_nu(False)
@@ -718,7 +728,7 @@ class SharedDDS:
 
     Shared DDS device controls all 4 DDSes on the same Urukul device. Control
     of the 4 channels is multiplexed by selecting the corresponding MASK_NU
-    bit in prior to SPI transaction. IO_UPDATE is transferred by temporarily
+    bit prior to SPI transaction. IO_UPDATE is transferred by temporarily
     disabling the corresponding MASK_NU bit.
 
     :param cpld_device: Name of the Urukul CPLD this device is on.
@@ -730,9 +740,9 @@ class SharedDDS:
         Note that when bypassing the PLL the red front panel LED may remain on.
     :param pll_cp: DDS PLL charge pump setting.
     :param pll_vco: DDS PLL VCO range selection.
-    :param sync_delay_seeds: ``SYNC_IN`` delay tuning starting value.
-        To stabilize the ``SYNC_IN`` delay tuning, run :meth:`tune_sync_delays` once
-        and set this to the delay tap number returned
+    :param sync_delay_seeds: ``SYNC_IN`` delays tuning starting value.
+        To stabilize the ``SYNC_IN`` delays tuning, run :meth:`tune_sync_delays`
+        once and set this to the delay tap number returned
         (default: [-1, -1, -1, -1] to signal no synchronization and no tuning
         during :meth:`init`).
         Can be a string of the form ``eeprom_device:byte_offset`` to read the
@@ -798,9 +808,9 @@ class SharedDDS:
 
     @kernel
     def tune_sync_delays(self) -> TTuple([TInt32, TInt32, TInt32, TInt32]):
-        """Find a stable ``SYNC_IN`` delay.
+        """Find a set of stable ``SYNC_IN`` delays.
 
-        This method first locates a set of ``SYNC_IN`` delay via
+        This method first locates a set of ``SYNC_IN`` delays via
         :meth:`~artiq.coredevice.ad9910.AD9910.tune_sync_delay` of
         :class:`~artiq.coredevice.ad9910.AD9910`.
 
