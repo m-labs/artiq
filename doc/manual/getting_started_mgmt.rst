@@ -305,6 +305,8 @@ Note that the client key and certificate *must* match the client certificate giv
 
     To operate additional controllers and NDSPs over SSL, see :ref:`ctlrs-ssl`.
 
+    To connect with multiple clients and/or controller managers, you may concatenate the client certificate files into a single ``.pem`` file and use that for all connections. See `Sipyco SSL document <https://github.com/m-labs/sipyco/blob/master/doc/index.rst#ssl-setup>`_.
+
 .. note::
 
     Some users may recognize that reusing the same private key between multiple machines is unusual and somewhat frowned upon by cryptographic standards. A private key *is* secret, and should be passed around only with significant care, which becomes more difficult the more often it has to be done. Using the same key also means clients can't be cryptographically distinguished from each other, i.e., two authorized clients might still impersonate *each other.*
