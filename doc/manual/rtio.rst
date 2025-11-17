@@ -319,7 +319,7 @@ For better utilization of resources and to maximize buffering capacity, *event s
 This will change where and when sequence errors occur in your kernels, and might cause them to vary from execution to execution of the same experiment. It will generally reduce or eliminate :class:`~artiq.coredevice.exceptions.RTIOUnderflow` exceptions caused by queueing stalls and significantly increase the threshold on sequence length before :ref:`DMA <getting-started-dma>` becomes necessary.
 
 .. note::
-  Event spreading can be particularly helpful in DRTIO satellites, as it is the space remaining in the *fullest* FIFO that is used as a metric for when the satellite can receive more data from the master. The setting is not system-wide and can and must be set independently for each core device in a system. In other words, to enable or disable event spreading in satellites, flash the satellite core configuration directly; this will have no effect on any other satellites or the master.
+  Event spreading can be particularly helpful in DRTIO satellites, as it is the space remaining in the *fullest* FIFO that is used as a metric for when the satellite can receive more data from the master. The setting is not system-wide and can and must be set independently for each carrier device in a system. In other words, to enable or disable event spreading in satellites, flash the satellite device configuration directly; this will have no effect on any other satellites or the master.
 
 Cursor and timestamps
 ---------------------
