@@ -95,9 +95,11 @@ class SUServo:
         # Each memory slot addresses (1 << 1) coefficients through granularity
         coeff_adr_width = PROFILE_WIDTH + channel_adr_width + 3
         coeff_depth = 10 + (len(cpld_devices) - 1).bit_length()
-        self.we = 1 << coeff_adr_width + 1
-        self.state_sel = 1 << coeff_adr_width
-        config_sel = 1 << coeff_adr_width - 1
+        self.we = 1 << coeff_depth + 2
+        self.phase_sel = 1 << coeff_depth + 1
+        self.state_sel = 1 << coeff_depth
+        self.word_sel = 1 << coeff_depth
+        config_sel = 1 << coeff_depth - 1
         self.config_addr = self.state_sel | config_sel
 
     @staticmethod
@@ -353,10 +355,10 @@ class Channel:
         :param pow_: Phase offset word (16-bit)
         """
         base = (self.servo_channel << 8) | (profile << 3)
-        self.servo.write(base + 0, ftw >> 16)
-        self.servo.write(base + 6, (ftw & 0xffff))
+        self.servo.write(base + 6, ftw >> 16)
+        self.servo.write(base + 2, (ftw & 0xffff))
         self.set_dds_offset_mu(profile, offs)
-        self.servo.write(base + 2, pow_)
+        self.servo.write(base, pow_)
 
     @kernel
     def set_dds(self, profile, frequency, offset, phase=0.):
