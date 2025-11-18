@@ -18,6 +18,8 @@ ARTIQ-9 (Unreleased)
      bytes and integer arrays, and slight improvements in other cases.
    - Urukul 1.6 support and new Urukul capabilities: Digital Ramp Generation (DRG) and individual
      per-channel control for PROFILE, IO_UPDATE, OSK, DRCTRL, DRHOLD, and ATT_EN.
+   - SU-Servo can now perform DDS synchronization for PROTO_REV 9 Urukuls.
+   - Gateware support for phase tracking mode on SU-Servo.
    - DRTIO repeater support across GT/EEM. This enables Shuttler support on DRTIO satellites.
    - Fastino monitoring with Moninj.
    - Zotino monitoring now displays the values in volts.
@@ -81,6 +83,7 @@ Breaking changes:
   artiq_flash erase=storage write=gateware,firmware start -d ./artiq_kasli/master/ --srcbuild
 
 * Experimental features have been removed.
+* SU-Servo coefficient memory have been remapped. Users should re-interpret the record written by Channel.get_profile_mu().
 
 ARTIQ-8
 -------
