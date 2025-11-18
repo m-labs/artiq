@@ -13,12 +13,12 @@ class RTServoCtrl(Module):
 
         self.comb += [
                 ctrl.stb.eq(self.rtlink.o.stb),
-                self.rtlink.o.busy.eq(0),
+                self.rtlink.o.busy.eq(0)
         ]
         self.sync.rio_phy += [
                 If(self.rtlink.o.stb,
                     Cat(ctrl.en_out, ctrl.en_iir, ctrl.en_pt, ctrl.profile).eq(
-                            self.rtlink.o.data),
+                            self.rtlink.o.data)
                 )
         ]
 
