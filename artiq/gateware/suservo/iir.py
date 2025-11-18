@@ -154,7 +154,7 @@ class IIR(Module):
     The profile data is stored sequentially for each channel.
     Each channel has 1 << W.profile profiles available.
     Each profile stores 8 values, each up to W.coeff bits wide, arranged as:
-        [FTW1, B1, POW, CFG, OFFSET, A1, FTW0, B0]
+        [POW, B1, FTW0, CFG, OFFSET, A1, FTW1, B0]
     The lower 8 bits of CFG hold the ADC input channel index SEL.
     The subsequent 8 bits hold the IIR activation delay DLY.
     The back memory is 2*W.coeff bits wide and each value pair
@@ -180,6 +180,29 @@ class IIR(Module):
     in the upper half (i_channels addresses each). Each memory location is
     W.state bits wide.
 
+    Phase tracking memory
+    =====================
+
+    Each channel tracks the corresponding DDS phase accumulator. Besides
+    needing the current frequency tuning word (FTW) in the profile memory,
+    tracking a DDS accumulator iteratively requires the reference time stamp
+    of the tone, and the FTW of the previous processing cycle. These extra
+    values are stored in a dual-port block RAM that can be accessed
+    externally.
+
+    Memory Layout
+    -------------
+
+    The phase tracking memory holds all reference time stamp for all profiles
+    of all channels in the lower half ((1 << W.profile) * o_channels
+    addresses) and the pairs of previous FTW and the accumulated phase in the
+    upper half (o_channels addresses each).
+
+    Each memory location is 2*W.word bits wide, and accessible per memory
+    location internally. External (RTIO) access is limited to a granularity of
+    W.word and selectable by an extra LSB at the memory address. The higher
+    order is accessible with LSB=1, and the lower order bits with LSB=0.
+
     Real-time control
     =================
 
@@ -188,6 +211,7 @@ class IIR(Module):
         * The active profile, PROFILE
         * Whether to perform IIR filter iterations, EN_IIR
         * The RF switch state enabling output from the channel, EN_OUT
+        * Whether to perform phase tracking, EN_PT
 
     Delayed IIR processing
     ======================
