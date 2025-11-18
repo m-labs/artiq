@@ -478,7 +478,7 @@ class Channel:
         :param offs: IIR offset (17-bit signed)
         :param pow_: Phase offset word (16-bit)
         """
-        base = (self.servo_channel << 8) | (profile << 3)
+        base = ((self.servo_channel << PROFILE_WIDTH) | profile) << 3
         self.servo.write(base + 6, ftw >> 16)
         self.servo.write(base + 2, (ftw & 0xffff))
         self.set_dds_offset_mu(profile, offs)
@@ -512,7 +512,7 @@ class Channel:
         :param profile: Profile number (0-31)
         :param offs: IIR offset (17-bit signed)
         """
-        base = (self.servo_channel << 8) | (profile << 3)
+        base = ((self.servo_channel << PROFILE_WIDTH) | profile) << 3
         self.servo.write(base + 4, offs)
 
     @kernel
@@ -571,7 +571,7 @@ class Channel:
         :param dly: IIR update suppression time. In units of IIR cycles
             (~1.2 µs, 0-255).
         """
-        base = (self.servo_channel << 8) | (profile << 3)
+        base = ((self.servo_channel << PROFILE_WIDTH) | profile) << 3
         self.servo.write(base + 3, adc | (dly << 8))
         self.servo.write(base + 1, b1)
         self.servo.write(base + 5, a1)
@@ -652,8 +652,8 @@ class Channel:
         """Retrieve profile data.
 
         Profile data is returned in the ``data`` argument in machine units
-        packed as: ``[ftw >> 16, b1, pow, adc | (delay << 8), offset, a1,
-        ftw & 0xffff, b0]``.
+        packed as: ``[pow, b1, ftw & 0xffff, adc | (delay << 8), offset, a1,
+        ftw >> 16, b0]``.
 
         .. seealso:: The individual fields are described in
             :meth:`set_iir_mu` and :meth:`set_dds_mu`.
@@ -663,7 +663,7 @@ class Channel:
         :param profile: Profile number (0-31)
         :param data: List of 8 integers to write the profile data into
         """
-        base = (self.servo_channel << 8) | (profile << 3)
+        base = ((self.servo_channel << PROFILE_WIDTH) | profile) << 3
         for i in range(len(data)):
             data[i] = self.servo.read(base + i)
             delay(4*us)
@@ -684,7 +684,7 @@ class Channel:
         :param profile: Profile number (0-31)
         :return: 17-bit unsigned Y0
         """
-        return self.servo.read(self.servo.state_sel | (self.servo_channel << 5) | profile)
+        return self.servo.read(self.servo.state_sel | (self.servo_channel << PROFILE_WIDTH) | profile)
 
     @kernel
     def get_y(self, profile):
@@ -722,7 +722,7 @@ class Channel:
         """
         # State memory is 25 bits wide and signed.
         # Reads interact with the 18 MSBs (coefficient memory width)
-        self.servo.write(self.servo.state_sel | (self.servo_channel << 5) | profile, y)
+        self.servo.write(self.servo.state_sel | (self.servo_channel << PROFILE_WIDTH) | profile, y)
 
     @kernel
     def set_y(self, profile, y):
