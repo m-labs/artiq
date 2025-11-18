@@ -96,7 +96,7 @@ class DSP(Module):
                     # but that won't infer P reg, so we just clear
                     # and round down
                     p.eq(0),
-                ),
+                )
         ]
 
         self.comb += self.output.eq(p[w.shift:])
@@ -755,7 +755,7 @@ class IIR(Module):
         or low part of the memory location.
         """
         w = self.widths
-        addr = "ftw1 b1 pow cfg offset a1 ftw0 b0".split().index(coeff)
+        addr = "pow b1 ftw0 cfg offset a1 ftw1 b0".split().index(coeff)
         coeff_addr = ((channel << w.profile + 2) | (profile << 2) |
                 (addr >> 1))
         mask = (1 << w.coeff) - 1
@@ -824,6 +824,37 @@ class IIR(Module):
             raise ValueError("no such state", coeff)
         return signed(val, w.state)
 
+    def set_fiducial_timestamp(self, channel, profile, val):
+        w = self.widths
+        yield self.m_phase[profile | (channel << w.profile)].eq(val)
+
+    def get_fiducial_timestamp(self, channel, profile):
+        w = self.widths
+        val = yield self.m_phase[profile | (channel << w.profile)]
+        return val
+
+    def set_prev_ftw(self, channel, val):
+        w = self.widths
+        yield self.m_phase[(channel << 1) +
+                    ((1 << w.profile) * self.o_channels)].eq(val)
+
+    def get_prev_ftw(self, channel):
+        w = self.widths
+        val = yield self.m_phase[(channel << 1) +
+                    ((1 << w.profile) * self.o_channels)]
+        return val
+
+    def set_phase_accumulator(self, channel, val):
+        w = self.widths
+        yield self.m_phase[1 | (channel << 1) +
+                    ((1 << w.profile) * self.o_channels)].eq(val)
+
+    def get_phase_accumulator(self, channel):
+        w = self.widths
+        val = yield self.m_phase[1 | (channel << 1) +
+                    ((1 << w.profile) * self.o_channels)]
+        return val
+
     def fast_iter(self):
         """Perform a single processing iteration."""
         assert (yield self.done)
@@ -866,6 +897,7 @@ class IIR(Module):
             j = yield self.ctrl[i].profile
             en_iir = yield self.ctrl[i].en_iir
             en_out = yield self.ctrl[i].en_out
+            en_pt = yield self.ctrl[i].en_pt
             dly_i = yield self._dlys[i]
             logger.debug("ctrl[%d] profile=%d en_iir=%d en_out=%d dly=%d",
                     i, j, en_iir, en_out, dly_i)
@@ -904,6 +936,19 @@ class IIR(Module):
             y0 = min(max(0, out), (1 << w.state - 1) - 1)
             logger.debug("dsp[%d,%d] p=%#x out=%#x y0=%#x",
                     i, j, p, out, y0)
+
+            if en_pt:
+                prev_ftw = yield from self.get_prev_ftw(i)
+                accu_neg = yield from self.get_phase_accumulator(i)
+                fiducial_ts = yield from self.get_fiducial_timestamp(i, j)
+                t_process = yield self.t_process
+                logger.debug("dds[%d,%d] prev_ftw=%#x accu_neg=%#x fiducial_ts=%#x process_ts=%#x",
+                        i, j, prev_ftw, accu_neg, fiducial_ts, t_process)
+
+                accu_neg -= prev_ftw * self.t_cycle * self.sysclks_per_clk
+                target_pow = ((ftw1 << 16) | ftw0) * (t_process - fiducial_ts)
+                pow += ((target_pow + accu_neg) >> 16)
+                pow &= ((1 << 16) - 1)
 
             if not en:
                 y0 = y1
