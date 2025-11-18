@@ -14,7 +14,7 @@ class SUServo(EnvExperiment):
 
     def p(self, d):
         mask = 1 << 18 - 1
-        for name, val in zip("ftw1 b1 pow cfg offset a1 ftw0 b0".split(), d):
+        for name, val in zip("pow b1 ftw0 cfg offset a1 ftw1 b0".split(), d):
             val = -(val & mask) + (val & ~mask)
             print("{}: {:#x} = {}".format(name, val, val))
 
