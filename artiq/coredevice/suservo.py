@@ -325,7 +325,7 @@ class Channel:
         return [(channel, None)]
 
     @kernel
-    def set(self, en_out, en_iir=0, profile=0):
+    def set(self, en_out, en_iir=0, en_pt=0, profile=0):
         """Operate channel.
 
         This method does not advance the timeline. Output RF switch setting
@@ -338,10 +338,12 @@ class Channel:
 
         :param en_out: RF switch enable
         :param en_iir: IIR updates enable
+        :param en_pt: Phase tracking enable
         :param profile: Active profile (0-31)
         """
         rtio_output(self.channel << 8,
-                    en_out | (en_iir << 1) | (profile << 2))
+                    en_out | (en_iir << 1) | (en_pt << 2) | (profile << 3))
+
     @kernel
     def set_reference_time(self, profile, fiducial_mu):
         """Set reference time for "coherent phase mode" (see
