@@ -21,6 +21,16 @@ IIRWidths = namedtuple("IIRWidths", [
 ])
 
 
+DSPWidth = namedtuple("DSPWidth", [
+    "padder",       # preadder parameter width (25)
+    "mplier",       # multiplier width (25). The preadder feeds into the multiplier
+    "mcand",        # multiplicand width (18)
+    "accu",         # accumulator width (48)
+    "output",       # output width
+    "shift",        # fixed point scaling coefficient for truncation
+])
+
+
 def signed(v, w):
     """Convert an unsigned integer ``v`` to it's signed value assuming ``w``
     bits"""
@@ -34,62 +44,82 @@ class DSP(Module):
     """Thin abstraction of DSP functionality used here, commonly present,
     and inferrable in FPGAs: multiplier with pre-adder and post-accumulator
     and pipeline registers at every stage."""
-    def __init__(self, w, signed_output=False):
-        self.state = Signal((w.state, True))
-        # NOTE:
-        # If offset is non-zero, care must be taken to ensure that the
-        # offset-state difference does not overflow the width of the ad factor
-        # which is also w.state.
-        self.offset = Signal((w.state, True))
-        self.coeff = Signal((w.coeff, True))
-        self.output = Signal((w.state, True))
+    def __init__(self, w, subtract_mode=False, clip=False, signed_output=False):
+        self.addend = Signal((w.padder, True))
+        self.augend = Signal((w.padder, True))
+        self.mcand = Signal((w.mcand, True))
+        self.output = Signal((w.output, True))
+        self.accu_imm = Signal((w.accu, True))
         self.accu_clr = Signal()
-        self.offset_load = Signal()
+        self.accu_load = Signal()
+        self.augend_load = Signal()
+        self.mcand_load = Signal()
         self.clip = Signal()
 
-        a = Signal((w.state, True), reset_less=True)
-        d = Signal((w.state, True), reset_less=True)
-        ad = Signal((w.state, True), reset_less=True)
-        b = Signal((w.coeff, True), reset_less=True)
+        a = Signal((w.padder, True), reset_less=True)
+        d = Signal((w.padder, True), reset_less=True)
+        # NOTE:
+        # ad factor width is the multiplier width. DSP architecture may force
+        # the multiplier width to be the same as the preadder width. With an
+        # non-zero augend, care must be taken to ensure that the augend-addend
+        # difference does not overflow the width of the ad factor
+        ad = Signal((w.mplier, True), reset_less=True)
+        b = Signal((w.mcand, True), reset_less=True)
         m = Signal((w.accu, True), reset_less=True)
         p = Signal((w.accu, True), reset_less=True)
 
+        # Equation: output = (((augend' +- addend')' * mcand')' + (output OR accu_imm))'
+        #
+        # Each prime denotes 1 cycle of delay.
+        # Augend and addend should be provided 4 cycles in advance;
+        # 3 cycles for mcand, 1 cycle for accu_imm.
         self.sync += [
-                a.eq(self.state),
-                If(self.offset_load,
-                    d.eq(self.offset)
+                a.eq(self.addend),
+                If(self.augend_load,
+                    d.eq(self.augend)
                 ),
-                ad.eq(d + a),
-                b.eq(self.coeff),
-                m.eq(ad*b),
+                ad.eq(d - a) if subtract_mode else ad.eq(d + a),
+                If(self.mcand_load,
+                    b.eq(self.mcand),
+                ),
+                m.eq(ad * b),
                 p.eq(p + m),
+                If(self.accu_load,
+                    # Purely loading an immediate into the accumulator in a
+                    # general sense will not infer the P reg.
+                    # This can be worked around by forcing m=0.
+                    p.eq(self.accu_imm + m),
+                ),
                 If(self.accu_clr,
                     # inject symmetric rouding constant
                     # p.eq(1 << (w.shift - 1))
                     # but that won't infer P reg, so we just clear
                     # and round down
                     p.eq(0),
-                )
+                ),
         ]
-        # Bit layout (LSB-MSB): w.shift | w.state - 1 | n_sign - 1 | 1 (sign)
-        n_sign = w.accu - w.state - w.shift + 1
-        assert n_sign > 1
 
-        # clipping
-        if signed_output:
-            self.comb += [
-                self.clip.eq(p[-n_sign:] != Replicate(p[-1], n_sign)),
-                self.output.eq(Mux(self.clip,
-                        Cat(Replicate(~p[-1], w.state - 1), p[-1]),
-                        p[w.shift:]))
-            ]
-        else:
-            self.comb += [
-                self.clip.eq(p[-n_sign:] != 0),
-                self.output.eq(Mux(self.clip,
-                        Replicate(~p[-1], w.state - 1),
-                        p[w.shift:]))
-            ]
+        self.comb += self.output.eq(p[w.shift:])
+        if clip:
+            # Bit layout (LSB-MSB): w.shift | w.state - 1 | n_sign - 1 | 1 (sign)
+            n_sign = w.accu - w.output - w.shift + 1
+            assert n_sign > 1
+
+            # clipping
+            if signed_output:
+                self.comb += [
+                    self.clip.eq(p[-n_sign:] != Replicate(p[-1], n_sign)),
+                    If(self.clip,
+                        self.output.eq(Cat(Replicate(~p[-1], w.output - 1), p[-1])),
+                    ),
+                ]
+            else:
+                self.comb += [
+                    self.clip.eq(p[-n_sign:] != 0),
+                    If(self.clip,
+                        self.output.eq(Replicate(~p[-1], w.output - 1)),
+                    ),
+                ]
 
 
 class IIR(Module):
