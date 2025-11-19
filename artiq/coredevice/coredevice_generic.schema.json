@@ -654,11 +654,13 @@
                         },
                         "tones": {
                             "type": "integer",
-                            "minimum": 1
+                            "minimum": 1,
+                            "default": 26
                         },
                         "dds_bandwidth": {
                             "type": "number",
-                            "enum": [250e6, 500e6]
+                            "enum": [250e6, 500e6],
+                            "default": 250e6
                         },
                         "drtio_destination": {
                             "type": "integer"
