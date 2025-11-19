@@ -210,8 +210,9 @@ class _Model(QtCore.QAbstractItemModel):
 
 class LogDock(QDockWidgetCloseDetect):
     def __init__(self, manager, name):
-        QDockWidgetCloseDetect.__init__(self, "Log")
+        QDockWidgetCloseDetect.__init__(self, "")
         self.setObjectName(name)
+        self.main_window = manager.main_window
 
         grid = LayoutWidget()
         self.setWidget(grid)
@@ -283,6 +284,81 @@ class LogDock(QDockWidgetCloseDetect):
 
         self.filter_freetext.returnPressed.connect(self.apply_text_filter)
         self.filter_level.currentIndexChanged.connect(self.apply_level_filter)
+
+        self.current_alert_color = None
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        QtCore.QTimer.singleShot(0, self._create_log_button)
+        QtCore.QTimer.singleShot(0, self._connect_to_tab_bar)
+
+    def _create_log_button(self):
+        # To make the tab style more managable we add button with text instead
+        # of the tab name
+        tabbar = self._find_tab_bar()
+        if tabbar is not None:
+            idx = self._tab_index(tabbar)
+            if idx is not None:
+                # Create a QLabel to serve as the tab's text.
+                label = QtWidgets.QLabel("Log")
+                label.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+                tabbar.setTabButton(idx,
+                                    QtWidgets.QTabBar.ButtonPosition.LeftSide,
+                                    label)
+
+    def _connect_to_tab_bar(self):
+        # Locate the QTabBar in the main window and connect its currentChanged
+        # signal so that when this tab is selected the alert is cleared.
+        tabbar = self._find_tab_bar()
+        if tabbar is not None:
+            tabbar.currentChanged.connect(self._on_tab_changed)
+
+    def _find_tab_bar(self):
+        # Search for a QTabBar among main_window’s children.
+        tabbars = self.main_window.findChildren(QtWidgets.QTabBar)
+        for tabbar in tabbars:
+            for i in range(tabbar.count()):
+                if tabbar.tabText(i) == self.windowTitle():
+                    return tabbar
+        return None
+
+    def _tab_index(self, tabbar):
+        for i in range(tabbar.count()):
+            if tabbar.tabText(i) == self.windowTitle():
+                return i
+        return None
+
+    def _on_tab_changed(self, index):
+        tabbar = self._find_tab_bar()
+        if tabbar is None:
+            return
+        my_index = self._tab_index(tabbar)
+        if my_index is not None and my_index == index:
+            self.clear_alert()
+
+    def set_alert(self, color):
+        # Change the tab's color.
+        self.current_alert_color = color
+        tabbar = self._find_tab_bar()
+        if tabbar is not None:
+            idx = self._tab_index(tabbar)
+            if idx is not None:
+                label = tabbar.tabButton(
+                        idx, QtWidgets.QTabBar.ButtonPosition.LeftSide)
+                if isinstance(label, QtWidgets.QLabel):
+                    label.setStyleSheet("background-color: %s;" % color)
+
+    def clear_alert(self):
+        # Revert the tab's color.
+        self.current_alert_color = None
+        tabbar = self._find_tab_bar()
+        if tabbar is not None:
+            idx = self._tab_index(tabbar)
+            if idx is not None:
+                label = tabbar.tabButton(
+                        idx, QtWidgets.QTabBar.ButtonPosition.LeftSide)
+                if isinstance(label, QtWidgets.QLabel):
+                    label.setStyleSheet("background-color: transparent;")
 
     def apply_text_filter(self):
         self.proxy_model.setFilterRegularExpression(self.filter_freetext.text())
@@ -379,6 +455,16 @@ class LogDockManager:
     def append_message(self, msg):
         for dock in self.docks.values():
             dock.model.append(msg)
+            if dock._find_tab_bar() is not None:
+                # Find our tab index and the currently selected tab index.
+                tabbar = dock._find_tab_bar()
+                my_index = dock._tab_index(tabbar)
+                if my_index is None or my_index != tabbar.currentIndex():
+                    if msg[0] >= logging.ERROR:
+                        dock.set_alert("red")
+                    elif msg[0] >= logging.WARNING:
+                        if dock.current_alert_color != "red":
+                            dock.set_alert("yellow")
 
     def create_new_dock(self, add_to_area=True):
         n = 0
