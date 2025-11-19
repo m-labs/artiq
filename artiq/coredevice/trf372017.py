@@ -6,7 +6,8 @@ from artiq.language.core import *
 from artiq.language.types import *
 from artiq.language.units import us, GHz, MHz
 
-TRF_MAX_VCO_FREQ = 4.8 * GHz
+TRF_MAX_MIXER_FREQ = 4.8 * GHz
+TRF_MIN_MIXER_FREQ = 300 * MHz
 TRF_MIN_VCO_FREQ = 2.4 * GHz
 TRF_MAX_N_FREQ = 375 * MHz
 TRF_MAX_PM_FREQ = 3 * GHz
@@ -38,17 +39,14 @@ def calculate_pll(
     :param f_mixer: Mixer frequency in Hz (300 MHz - 4800 MHz)
     :return: (``r_div``, ``pres_sel``, ``n_int``, ``n_frac``, ``pll_div_sel``, ``tx_div_sel``)
     """
-    if f_mixer > TRF_MAX_VCO_FREQ:
-        raise ValueError("Requested frequency too high")
+    if f_mixer > TRF_MAX_MIXER_FREQ or f_mixer < TRF_MIN_MIXER_FREQ:
+        raise ValueError("Requested frequency out of range")
 
     tx_div_sel = 0
     f_vco = f_mixer
     while f_vco < TRF_MIN_VCO_FREQ:
         f_vco *= 2
         tx_div_sel += 1
-
-    if (1 << tx_div_sel) > 8:
-        raise ValueError("Requested frequency too low")
 
     # SLWS224E Section 7.3.2.1 c prescaler settings :
     # - 23 <= NINT < 75 when prescaler = 4/5
