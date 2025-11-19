@@ -444,9 +444,8 @@ class PhaserDDS:
     def set_amplitude_mu(self, asf):
         """Set the DDS amplitude in machine units.
 
-        :param ftw: 15-bit DDS amplitude scale factor
+        :param ftw: 16-bit DDS amplitude scale factor
         """
-        # Although asf register is signed 16-bit, the signed bit is left unused.
         rtio_output(self.target_asf, asf)
 
     @portable(flags={"fast-math"})
@@ -461,7 +460,7 @@ class PhaserDDS:
 
     @portable(flags={"fast-math"})
     def amplitude_to_asf(self, amplitude) -> TInt32:
-        """Return the 15-bit amplitude scale factor corresponding to the given fractional amplitude."""
+        """Return the 16-bit amplitude scale factor corresponding to the given fractional amplitude."""
         return int32(round(amplitude * ((1 << 15) - 1)))
 
     @kernel
@@ -489,7 +488,7 @@ class PhaserDDS:
     def set_amplitude(self, amplitude):
         """Set the DDS amplitude in SI units.
 
-        :param amplitude: DDS amplitude (0.0 to 1.0)
+        :param amplitude: DDS amplitude (-1.0 to 1.0)
         """
         self.set_amplitude_mu(self.amplitude_to_asf(amplitude))
 
