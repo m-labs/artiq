@@ -329,7 +329,7 @@ class TRF372017:
         This method updates the VCO calibration duration which is used
         in :meth:`calibrate_vco` to advance the timeline.
 
-        Use this method when everytime r_div is changed.
+        Use this method every time r_div is changed.
 
         :param r_div: 13-bit reference divider
         :param cal_clk_sel: 4-bit VCO calibration clock factor
