@@ -35,9 +35,7 @@ class _DummyIQUpconverter:
 
 
 class PhaserMTDDS:
-    """Phaser FPGA configuration interface.
-
-    This class exposes the 4-channel, 16-bit, 1 GS/s DAC with integrated upconversion, quadrature modulation compensation and interpolation features.
+    """Phaser FPGA and DAC DAC34H84 configuration interface.
 
     :param sysclk: Sysclk frequency
     :param dac_device: DAC device name.
@@ -337,7 +335,7 @@ class PhaserMTDDSChannel:
 
     @kernel
     def upconverter_pll_locked(self) -> TBool:
-        """Return True when upconverter PLL locks and False when the PLL unlocks
+        """Returns whether the upconverter PLL is locked
 
         This method consumes all slack.
 
