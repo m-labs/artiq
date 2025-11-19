@@ -90,9 +90,6 @@ class DAC34H84:
         if self.read(0x00) != 0x049C:
             raise ValueError("DAC34H84 reset fail")
         delay(40.0 * us)
-        if (self.read(0x06, DAC_SPI_DIV_TEMP) >> 8) > 85:
-            raise ValueError("DAC34H84 overheats")
-        delay(40.0 * us)
 
         for data in self.init_mmap:
             self.write(data >> 16, data & 0xFFFF)
@@ -128,6 +125,14 @@ class DAC34H84:
             1,
         )
         self.bus.write(addr << 24 | value << 8)
+
+    @kernel
+    def read_temperature(self) -> TInt32:
+        """Return the current DAC temperature in Celsius.
+
+        This method consumes all slack.
+        """
+        return self.read(0x06, DAC_SPI_DIV_TEMP) >> 8
 
     @kernel
     def tune_fifo_offset(self):
