@@ -88,7 +88,7 @@ class DAC34H84:
             raise ValueError("DAC34H84 version mismatch")
         delay(40.0 * us)
         if self.read(0x00) != 0x049C:
-            raise ValueError("DAC34H84 resets fail")
+            raise ValueError("DAC34H84 reset fail")
         delay(40.0 * us)
         if (self.read(0x06, DAC_SPI_DIV_TEMP) >> 8) > 85:
             raise ValueError("DAC34H84 overheats")
