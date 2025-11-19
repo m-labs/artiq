@@ -19,6 +19,7 @@ ARTIQ-9 (Unreleased)
    - Urukul 1.6 support and new Urukul capabilities: Digital Ramp Generation (DRG) and individual
      per-channel control for PROFILE, IO_UPDATE, OSK, DRCTRL, DRHOLD, and ATT_EN.
    - SU-Servo can now perform DDS synchronization for PROTO_REV 9 Urukuls.
+   - Support variable numbers of Urukul cards on SU-Servo.
    - Gateware support for phase tracking mode on SU-Servo.
    - DRTIO repeater support across GT/EEM. This enables Shuttler support on DRTIO satellites.
    - Fastino monitoring with Moninj.
