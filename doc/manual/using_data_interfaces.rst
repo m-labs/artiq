@@ -245,6 +245,7 @@ It is possible to dump any Python object so that it appears alongside the wavefo
             delay(.2*us)
 
 Run this edited experiment. Fetch the analyzer data. Open the 'Add channels' pop-up again; ``test_trace`` should appear as an option now that the experiment has been run. Observe that every ``i`` is printed as a single-point event in a new waveform timeline.
+In GTKWave or similar waveform viewers, you may change the data display format to ASCII to see the log messages more clearly.
 
 Shortcuts
 ---------
