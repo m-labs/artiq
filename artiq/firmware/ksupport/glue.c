@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
+#include <errno.h>
 
 #include <link.h>
 #include <dlfcn.h>
@@ -87,6 +88,8 @@ int dl_iterate_phdr (int (*callback)(struct dl_phdr_info *, size_t, void *), voi
     retval = callback(&phdr_info, sizeof(phdr_info), data);
     return retval;
 }
+
+int errno;
 
 /* called by kernel */
 double round(double x);

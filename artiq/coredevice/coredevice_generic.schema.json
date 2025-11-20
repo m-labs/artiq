@@ -150,7 +150,7 @@
             "properties": {
                 "type": {
                     "type": "string",
-                    "enum": ["dio", "dio_spi", "urukul", "novogorny", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser", "hvamp", "shuttler", "songbird", "coaxpress_sfp"]
+                    "enum": ["dio", "dio_spi", "urukul", "novogorny", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser", "phaser_drtio", "hvamp", "shuttler", "songbird", "coaxpress_sfp"]
                 },
                 "board": {
                     "type": "string"
@@ -458,6 +458,10 @@
                         "proto_rev": {
                             "type": "integer",
                             "default": 9
+                        },
+                        "synchronization": {
+                            "type": "boolean",
+                            "default": false
                         }
                     },
                     "oneOf": [
@@ -626,6 +630,49 @@
                     "required": ["ports"]
                 }
             }, {
+                "title": "Phaser_DRTIO",
+                "if": {
+                    "properties": {
+                        "type": {
+                            "const": "phaser_drtio"
+                        }
+                    }
+                },
+                "then": {
+                    "properties": {
+                        "gateware_variant":{
+                            "type": "string",
+                            "enum": ["mtdds"]
+                        },
+                        "hardware_variant":{
+                            "type": "string",
+                            "enum": ["baseband", "upconverter"]
+                        },
+                        "ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 1,
+                            "maxItems": 2
+                        },
+                        "tones": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "default": 26
+                        },
+                        "dds_bandwidth": {
+                            "type": "number",
+                            "enum": [250e6, 500e6],
+                            "default": 250e6
+                        },
+                        "drtio_destination": {
+                            "type": "integer"
+                        }
+                    },
+                    "required": ["ports"]
+                    }
+                },  {
                 "title": "HVAmp",
                 "if": {
                     "properties": {
@@ -697,6 +744,12 @@
                         },
                         "drtio_destination": {
                             "type": "integer"
+                        },
+                        "dds_count": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 16,
+                            "default": 4
                         },
                         "hw_rev": {
                             "type": "string",

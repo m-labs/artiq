@@ -10,9 +10,10 @@ from artiq import __version__ as artiq_version
 from artiq.coredevice import jsondesc
 from artiq.coredevice.phaser import PHASER_GW_MIQRO, PHASER_GW_BASE
 
+DRTIO_EEM_PERIPHERALS = ["shuttler", "songbird", "phaser_drtio"]
 
 def get_cpu_target(description):
-    if description.get("type", None) in ["shuttler", "songbird"]:
+    if description.get("type", None) in DRTIO_EEM_PERIPHERALS:
         return "rv32g"
     if description["target"] == "kasli":
         if description["hw_rev"] in ("v1.0", "v1.1"):
@@ -499,10 +500,13 @@ class PeripheralManager:
         sampler_name = self.get_name("sampler")
         if peripheral.get("urukul1_ports") is not None:
             num_of_urukuls = 2
+            urukul_ports = [peripheral.get("urukul0_ports"), peripheral.get("urukul1_ports")]
         elif peripheral.get("urukul0_ports") is not None:
             num_of_urukuls = 1
+            urukul_ports = [peripheral.get("urukul0_ports")]
         else:
             num_of_urukuls = len(peripheral["urukul_ports"])
+            urukul_ports = peripheral.get("urukul_ports")
         urukul_names = [self.get_name("urukul") for _ in range(num_of_urukuls)]
         channel = count(0)
         num_of_channels = num_of_urukuls * 4
@@ -545,8 +549,49 @@ class PeripheralManager:
             }}""",
             sampler_name=sampler_name,
             sampler_channel=rtio_offset+next(channel))
+
+        destination = rtio_offset >> 16
+        # Indicates the I2C bus 0 on the same DRTIO destination as the Urukul
+        busno = destination << 16
+        for name, eems in zip(urukul_names, urukul_ports):
+            self.gen("""
+                device_db["eeprom_{urukul_name}"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.kasli_i2c",
+                    "class": "KasliEEPROM",
+                    "arguments": {{
+                        "port": "EEM{eem}",
+                        "busno": {busno},
+                        "sw0_device": "i2c_switch0{dest}",
+                        "sw1_device": "i2c_switch1{dest}"
+                    }}
+                }}""",
+                urukul_name=name,
+                eem=eems[0],
+                busno=busno,
+                dest="" if destination == 0 else "_{}".format(destination))
+
         pll_vco = peripheral.get("pll_vco")
+        synchronization = peripheral["synchronization"]
         for urukul_name in urukul_names:
+            if synchronization:
+                self.gen("""
+                    device_db["ttl_{urukul_name}_io_update"] = {{
+                        "type": "local",
+                        "module": "artiq.coredevice.ttl",
+                        "class": "TTLOut",
+                        "arguments": {{"channel": 0x{io_upd_channel:06x}}}
+                    }}
+                    device_db["ttl_{urukul_name}_sync"] = {{
+                        "type": "local",
+                        "module": "artiq.coredevice.ttl",
+                        "class": "TTLClockGen",
+                        "arguments": {{"channel": 0x{sync_channel:06x}, "acc_width": 4}}
+                    }}""",
+                    urukul_name=urukul_name,
+                    io_upd_channel=rtio_offset+next(channel),
+                    sync_channel=rtio_offset+next(channel))
+
             self.gen("""
                 device_db["spi_{urukul_name}"] = {{
                     "type": "local",
@@ -560,6 +605,7 @@ class PeripheralManager:
                     "class": "CPLD",
                     "arguments": {{
                         "spi_device": "spi_{urukul_name}",
+                        "sync_device": {sync_device},{io_upd}
                         "refclk": {refclk},
                         "clk_sel": {clk_sel},
                         "proto_rev": {proto_rev}
@@ -567,22 +613,25 @@ class PeripheralManager:
                 }}
                 device_db["{urukul_name}_dds"] = {{
                     "type": "local",
-                    "module": "artiq.coredevice.ad9910",
-                    "class": "AD9910",
+                    "module": "artiq.coredevice.suservo",
+                    "class": "SharedDDS",
                     "arguments": {{
                         "pll_n": {pll_n},
                         "pll_en": {pll_en},
-                        "chip_select": 3,
-                        "cpld_device": "{urukul_name}_cpld"{pll_vco}
+                        "cpld_device": "{urukul_name}_cpld"{pll_vco}{sync_delay_seeds}{io_update_delay}
                     }}
                 }}""",
                 urukul_name=urukul_name,
                 urukul_channel=rtio_offset+next(channel),
+                sync_device="\"ttl_{urukul_name}_sync\"".format(urukul_name=urukul_name) if synchronization else "None",
+                io_upd="\n        \"io_update_device\": \"ttl_{urukul_name}_io_update\",".format(urukul_name=urukul_name) if synchronization else "",
                 refclk=peripheral.get("refclk", self.primary_description["rtio_frequency"]),
                 clk_sel=peripheral["clk_sel"],
                 proto_rev=peripheral["proto_rev"],
                 pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "",
-                pll_n=peripheral["pll_n"],  pll_en=peripheral["pll_en"])
+                pll_n=peripheral["pll_n"],  pll_en=peripheral["pll_en"],
+                sync_delay_seeds=",\n        \"sync_delay_seeds\": \"eeprom_{}:{}\"".format(urukul_name, 64) if synchronization else "",
+                io_update_delay=",\n        \"io_update_delay\": \"eeprom_{}:{}\"".format(urukul_name, 64) if synchronization else "")
         return next(channel)
 
     def process_zotino(self, rtio_offset, peripheral):
@@ -668,6 +717,143 @@ class PeripheralManager:
             dac=dac,
             channel=rtio_offset)
         return n_channels
+
+    def process_phaser_drtio(self, peripheral):
+        phaser_name = self.get_name("phaser_drtio_" + peripheral["gateware_variant"])
+        rtio_offset = peripheral["drtio_destination"] << 16
+        rtio_offset += self.add_board_leds(
+            rtio_offset, board_name=phaser_name, num_leds=5
+        )
+
+        has_upconverter = peripheral["hardware_variant"] == "upconverter" 
+        channel = count(0)
+        device_class_names = [
+            "dac",
+            "iquc0",
+            "iquc1",
+            "att0",
+            "att1",
+        ]
+        for ch, device_name in enumerate(device_class_names):
+            spi_name = "{name}_spi{ch}".format(name=phaser_name, ch=ch)
+            self.gen(
+                """
+                device_db["{spi}"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.spi2",
+                    "class": "SPIMaster",
+                    "arguments": {{"channel": 0x{channel:06x}}},
+                }}""",
+                spi=spi_name,
+                channel=rtio_offset + next(channel),
+            )
+            if "dac" in device_name:
+                self.gen(
+                    """
+                    device_db["{name}_{device}"] = {{
+                        "type": "local",
+                        "module": "artiq.coredevice.dac34h84",
+                        "class": "DAC34H84",
+                        "arguments": {{
+                            "spi_device": "{spi}",
+                            "input_sample_rate": {input_sample_rate},
+                        }},
+                    }}""",
+                    name=phaser_name,
+                    device=device_name.lower(),
+                    spi=spi_name,
+                    input_sample_rate=peripheral["dds_bandwidth"],
+                )
+            elif "iquc" in device_name and has_upconverter:
+                self.gen(
+                    """
+                    device_db["{name}_{device}"] = {{
+                        "type": "local",
+                        "module": "artiq.coredevice.trf372017",
+                        "class": "TRF372017",
+                        "arguments": {{
+                            "spi_device": "{spi}",
+                            "refclk": {refclk},
+                            "use_external_lo": False,
+                        }},
+                    }}""",
+                    name=phaser_name,
+                    device=device_name.lower(),
+                    spi=spi_name,
+                    refclk=self.primary_description["rtio_frequency"],
+                )
+            elif "att" in device_name:
+                self.gen(
+                    """
+                    device_db["{name}_{device}"] = {{
+                        "type": "local",
+                        "module": "artiq.coredevice.hmc542b",
+                        "class": "HMC542B",
+                        "arguments": {{"spi_device": "{spi}"}},
+                    }}""",
+                    name=phaser_name,
+                    device=device_name.lower(),
+                    spi=spi_name,
+                )
+
+        if peripheral["gateware_variant"] == "mtdds":
+            tones = peripheral["tones"]
+            self.gen(
+                """
+                device_db["{name}_fpga"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.phaser_drtio",
+                    "class": "PhaserMTDDS",
+                    "arguments": {{
+                        "channel": 0x{channel:06x},
+                        "sysclk": {sysclk},
+                        "dac_device": "{name}_dac",
+                    }}
+                }}""",
+                name=phaser_name,
+                channel=rtio_offset + next(channel),
+                sysclk=self.primary_description["rtio_frequency"],
+            )
+            for ch in range(2):
+                self.gen(
+                    """
+                    device_db["{name}_channel{ch}"] = {{
+                        "type": "local",
+                        "module": "artiq.coredevice.phaser_drtio",
+                        "class": "PhaserMTDDSChannel",
+                        "arguments": {{
+                            "channel_index": {ch},
+                            "tones": {tones},
+                            "fpga_device": "{name}_fpga",
+                            "dac_device": "{name}_dac",
+                            "att_device": "{name}_att{ch}",
+                            "dds_device_prefix": "{name}_channel{ch}_dds"{iquc_device}
+                        }}
+                    }}""",
+                    name=phaser_name,
+                    ch=ch,
+                    tones=tones,
+                    iquc_device= ",\n        \"iquc_device\": \"{}_iquc{}\"".format(phaser_name, ch) if has_upconverter else "",
+                )
+                for n in range(tones):
+                    self.gen(
+                        """
+                        device_db["{name}_channel{ch}_dds{n}"] = {{
+                            "type": "local",
+                            "module": "artiq.coredevice.phaser_drtio",
+                            "class": "PhaserDDS",
+                            "arguments": {{
+                                "channel": 0x{channel:06x},
+                                "bandwidth": {bandwidth},
+                            }}
+                        }}""",
+                        name=phaser_name,
+                        ch=ch,
+                        n=n,
+                        channel=rtio_offset + next(channel),
+                        bandwidth=peripheral["dds_bandwidth"],
+                    )
+        return 0
 
     def process_hvamp(self, rtio_offset, peripheral):
         hvamp_name = self.get_name("hvamp")
@@ -762,6 +948,7 @@ class PeripheralManager:
         songbird_name = self.get_name("songbird")
         rtio_offset = songbird_peripheral["drtio_destination"] << 16
         rtio_offset += self.add_board_leds(rtio_offset, board_name=songbird_name)
+        dds_count = songbird_peripheral["dds_count"]
         
         channel = count(0)
         self.gen("""
@@ -787,7 +974,7 @@ class PeripheralManager:
 
         config_offset = 2  # then clear, trigger
 
-        for i in range(4):
+        for i in range(dds_count):
             self.gen("""
                 device_db["{name}_dds{ch}"] = {{
                     "type": "local",
@@ -839,8 +1026,7 @@ class PeripheralManager:
 
 
 def split_drtio_eem(peripherals):
-    # Shuttler is the only peripheral that uses DRTIO-over-EEM at this moment
-    drtio_eem_filter = lambda peripheral: peripheral["type"] in ["shuttler", "songbird"]
+    drtio_eem_filter = lambda peripheral: peripheral["type"] in DRTIO_EEM_PERIPHERALS
     return filterfalse(drtio_eem_filter, peripherals), \
         list(filter(drtio_eem_filter, peripherals))
 

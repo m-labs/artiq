@@ -10,8 +10,9 @@ from artiq.experiment import *
 from artiq.coredevice.ad9910 import AD9910, SyncDataEeprom
 from artiq.coredevice.phaser import PHASER_GW_BASE, PHASER_GW_MIQRO
 from artiq.coredevice.shuttler import shuttler_volt_to_mu
+from artiq.coredevice.suservo import SyncDataEeprom as SUServoEeprom
 from artiq.master.databases import DeviceDB
-from artiq.master.worker_db import DeviceManager
+from artiq.master.worker_db import DeviceManager, DeviceError
 
 
 if os.name == "nt":
@@ -56,6 +57,8 @@ class SinaraTester(EnvExperiment):
         self.zotinos = dict()
         self.fastinos = dict()
         self.phasers = dict()
+        self.phaser_drtio_mtdds_fpgas = dict()
+        self.phaser_drtio_mtddss = dict()
         self.grabbers = dict()
         self.mirny_cplds = dict()
         self.mirnies = dict()
@@ -93,6 +96,10 @@ class SinaraTester(EnvExperiment):
                     self.fastinos[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.phaser", "Phaser"):
                     self.phasers[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.phaser_drtio", "PhaserMTDDS"):
+                    self.phaser_drtio_mtdds_fpgas[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.phaser_drtio", "PhaserMTDDSChannel"):
+                    self.phaser_drtio_mtddss[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.grabber", "Grabber"):
                     self.grabbers[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.mirny", "Mirny"):
@@ -120,10 +127,20 @@ class SinaraTester(EnvExperiment):
                     })
                 elif (module, cls) == ("artiq.coredevice.songbird", "Songbird"):
                     songbird_name = name.replace("_config", "")
+                    n_dds = 0
+                    # try to find out how many DDS there are
+                    # hard limit on 16 (see schema)
+                    while n_dds < 16:
+                        try:
+                            self.get_device(f"{songbird_name}_dds{n_dds}")
+                            n_dds += 1
+                        except DeviceError:
+                            break
+
                     self.songbirds[songbird_name] = ({
                         "config": self.get_device(name),
                         "leds": [self.get_device(f"{songbird_name}_led{i}") for i in range(2)],
-                        "dds": [self.get_device(f"{songbird_name}_dds{i}") for i in range(4)],
+                        "dds": [self.get_device(f"{songbird_name}_dds{i}") for i in range(n_dds)],
                     })
                 elif (module, cls) == ("artiq.coredevice.cxp_grabber", "CXPGrabber"):
                     self.coaxpress_sfps[name] = self.get_device(name)
@@ -148,8 +165,6 @@ class SinaraTester(EnvExperiment):
                 elif (module, cls) == ("artiq.coredevice.suservo", "SUServo"):
                     for cpld in desc["arguments"]["cpld_devices"]:
                         del self.urukul_cplds[cpld]
-                    for dds in desc["arguments"]["dds_devices"]:
-                        del self.urukuls[dds]
                 elif (module, cls) == ("artiq.coredevice.sampler", "Sampler"):
                     cnv_device = desc["arguments"]["cnv_device"]
                     del self.ttl_outs[cnv_device]
@@ -171,6 +186,8 @@ class SinaraTester(EnvExperiment):
         self.zotinos = sorted(self.zotinos.items(), key=lambda x: x[1].bus.channel)
         self.fastinos = sorted(self.fastinos.items(), key=lambda x: x[1].channel)
         self.phasers = sorted(self.phasers.items(), key=lambda x: x[1].channel_base)
+        self.phaser_drtio_mtdds_fpgas = sorted(self.phaser_drtio_mtdds_fpgas.items(), key=lambda x: x[1].channel)
+        self.phaser_drtio_mtddss = sorted(self.phaser_drtio_mtddss.items(), key=lambda x: x[1].ddss[0].channel)
         self.grabbers = sorted(self.grabbers.items(), key=lambda x: x[1].channel_base)
         self.mirnies = sorted(self.mirnies.items(), key=lambda x: (x[1].cpld.bus.channel, x[1].channel))
         self.suservos = sorted(self.suservos.items(), key=lambda x: x[1].channel)
@@ -278,10 +295,10 @@ class SinaraTester(EnvExperiment):
         self.core.break_realtime()
         channel.init()
         self.core.break_realtime()
-        sync_delay_seed, _ = channel.tune_sync_delay()
+        sync_delay, _ = channel.tune_sync_delay()
         self.core.break_realtime()
         io_update_delay = channel.tune_io_update_delay()
-        return sync_delay_seed, io_update_delay
+        return sync_delay, io_update_delay
 
     @kernel
     def setup_urukul(self, channel, frequency):
@@ -327,9 +344,9 @@ class SinaraTester(EnvExperiment):
             else:
                 eeprom = channel_dev.sync_data.eeprom_device
                 offset = channel_dev.sync_data.eeprom_offset
-                sync_delay_seed, io_update_delay = self.calibrate_urukul(channel_dev)
-                print("{}\t{} {}".format(channel_name, sync_delay_seed, io_update_delay))
-                eeprom_word = (sync_delay_seed << 24) | (io_update_delay << 16)
+                sync_delay, io_update_delay = self.calibrate_urukul(channel_dev)
+                print("{}\tSYNC_IN delay = {}, IO_UPDATE delay = {}".format(channel_name, sync_delay, io_update_delay))
+                eeprom_word = (sync_delay << 24) | (io_update_delay << 16)
                 eeprom.write_i32(offset, eeprom_word)
         print("...done")
 
@@ -709,6 +726,89 @@ class SinaraTester(EnvExperiment):
             [card_dev for _, (__, card_dev) in enumerate(self.phasers)]
         )
 
+
+   
+    @kernel
+    def test_phaser_drtio_att(self, att):
+        self.core.break_realtime()
+        for i in range(8):
+            test_word = 1 << i
+            att.set_att_mu(test_word)
+            readback_word = att.get_att_mu()
+            if test_word != readback_word:
+                print("Expected: ", test_word, ", readback:", readback_word)
+                raise ValueError("Test and readback attenuator word mismatch")
+
+    @kernel
+    def init_phaser_mtdds_fpga(self, fpga):
+        self.core.break_realtime()
+        fpga.init()
+
+    @kernel
+    def init_phaser_mtdds_channel(self, channel):
+        self.core.break_realtime()
+        channel.init()
+
+    @kernel
+    def setup_phaser_mtdds_channel(self, channel, frequencies):
+        self.core.break_realtime()
+        channel.attenuator.set_att(6.0 * dB)
+
+        f_len = len(frequencies)
+        assert f_len <= channel.tones
+        for n in range(f_len):
+            # delay to prevent RTIO collision
+            channel.ddss[n].set_frequency(frequencies[n])
+            delay(20 * us)
+            channel.ddss[n].set_amplitude(1.0 / f_len)
+            delay(20 * us)
+            channel.ddss[n].enable_phase_accumulator(True)
+            delay(20 * us)
+
+    @kernel
+    def setup_phaser_mtdds_upconverter(self, channel, frequency):
+        self.core.break_realtime()
+        channel.upconverter.enable_mixer_rf_output(False)
+        channel.upconverter.set_mixer_frequency(frequency)
+        channel.upconverter.enable_mixer_rf_output(True)
+        delay(500 * us) # wait for PLL to locks
+        if not channel.upconverter_pll_locked():
+            raise ValueError("TRF372017 PLL fails to lock")
+
+    def test_phaser_drtio_mtddss(self):
+        print("*** Testing Phaser DRTIO MTDDSs")
+        for card_n, (card_name, card_dev) in enumerate(self.phaser_drtio_mtdds_fpgas):
+            print(f"{card_name}: initializing...")
+            self.init_phaser_mtdds_fpga(card_dev)
+        print("...done")
+            
+        for card_n, (card_name, card_dev) in enumerate(self.phaser_drtio_mtddss):
+            print(f"{card_name}: initializing...")
+            self.init_phaser_mtdds_channel(card_dev)
+            print(f"{card_name}: testing attenuator digital control...")
+            self.test_phaser_drtio_att(card_dev.attenuator)
+        print("...done")
+
+        print("All Phaser MTDDS channels active:")
+
+        for card_n, (card_name, card_dev) in enumerate(self.phaser_drtio_mtddss):
+            if card_dev.has_upconverter:
+                if card_dev.upconverter.use_external_lo:
+                    print(f"{card_name}: enabling upconverter without internal PLL, please provide external LO")
+                else:
+                    lo_freq = 2000 + 100 * card_n
+                    print(f"{card_name}: setting upconverter at {lo_freq} MHz ")
+                    self.setup_phaser_mtdds_upconverter(card_dev, lo_freq * MHz)
+
+            n_tones = card_dev.tones
+            base_freq = 10 + card_n
+            freqs = [(base_freq + i) * MHz for i in range(n_tones)]
+            print(f"{card_name}: outputing {n_tones} tones (" + " ".join([str(f/MHz) for f in freqs]) + ") MHz")
+            self.setup_phaser_mtdds_channel(card_dev, freqs)
+
+        print("Press ENTER when done.")
+        input()
+
     @kernel
     def grabber_capture(self, card_dev, rois):
         self.core.break_realtime()
@@ -744,10 +844,29 @@ class SinaraTester(EnvExperiment):
             self.grabber_capture(card_dev, rois)
 
     @kernel
-    def setup_suservo(self, channel):
+    def init_suservo(self, card_dev):
         self.core.break_realtime()
-        channel.init()
-        delay(1*us)
+        card_dev.init()
+
+    @kernel
+    def calibrate_suservo(self, channel) -> TTuple([TInt32, TInt32, TInt32, TInt32, TInt32]):
+        self.core.break_realtime()
+        sync_delays = channel.tune_sync_delays()
+        self.core.break_realtime()
+        io_update_group_delay = channel.tune_io_update_group_delay()
+        self.core.break_realtime()
+        # Disable MASK_NU to resume QSPI
+        channel.cpld.cfg_mask_nu_all(0)
+        return sync_delays[0], sync_delays[1], sync_delays[2], sync_delays[3], io_update_group_delay
+
+    @kernel
+    def write_suservo_io_update_delay(self, channel, delay_list):
+        self.core.break_realtime()
+        channel.set_config(enable=0, write_delay=True, io_update_delays=delay_list)
+
+    @kernel
+    def setup_suservo_signal_path(self, channel):
+        self.core.break_realtime()
         # ADC PGIA gain 0
         for i in range(8):
             channel.set_pgia_mu(i, 0)
@@ -759,7 +878,6 @@ class SinaraTester(EnvExperiment):
         delay(1*us)
         # Servo is done and disabled
         assert channel.get_status() & 0xff == 2
-        delay(10*us)
 
     @kernel
     def setup_suservo_loop(self, channel, loop_nr):
@@ -801,9 +919,35 @@ class SinaraTester(EnvExperiment):
         print("Initializing modules...")
         for card_name, card_dev in self.suservos:
             print(card_name)
-            self.setup_suservo(card_dev)
+            self.init_suservo(card_dev)
+        print("Calibrating inter-device synchronization...")
+        for card_name, card_dev in self.suservos:
+            delay_list = []
+            for ddsi in range(len(card_dev.ddses)):
+                dds = card_dev.ddses[ddsi]
+                if not isinstance(dds.sync_data, SUServoEeprom):
+                    print("{} Urukul{}\n\tno EEPROM synchronization".format(card_name, ddsi))
+                else:
+                    eeprom = dds.sync_data.eeprom_device
+                    offset = dds.sync_data.eeprom_offset
+                    *sync_delays, io_update_group_delay = self.calibrate_suservo(dds)
+                    print("{} Urukul{}\n\tSYNC_IN delay: {} {} {} {}\tIO_UPDATE delay = {}".format(card_name, ddsi, *sync_delays, io_update_group_delay))
+                    eeprom_word = io_update_group_delay << 20
+                    for i in range(4):
+                        eeprom_word |= sync_delays[i] << (i * 5)
+                    eeprom.write_i32(offset, eeprom_word)
+
+                    delay_list.append(io_update_group_delay)
+            # Update IO_UPDATE delays
+            # Sync delays are already programmed during calibration
+            self.write_suservo_io_update_delay(card_dev, delay_list)
+            # Ensure that phase accumulator starts at a known value
+            card_dev.clear_dds_phase_accumulator()
+
         print("...done")
         print("Setting up SUServo channels...")
+        for _card_name, card_dev in self.suservos:
+            self.setup_suservo_signal_path(card_dev)
         print("ADC to DDS mapping:")
         for channels in chunker(self.suschannels, 8):
             for i, (channel_name, channel_dev) in enumerate(channels):
@@ -949,14 +1093,16 @@ class SinaraTester(EnvExperiment):
     @kernel
     def setup_songbird_waveforms(self, card_n, config, ddss):
         self.core.break_realtime()
-        config.clear(0b1111)
+        n_dds = len(ddss)
+        config.clear((1 << n_dds) - 1)
         delay(1*ms)
         # Set some waveforms
         i = 1
+        ampl_offset = 0x8000 // n_dds
         for channel in ddss:
-            freq = (10.0*float(i) + float(card_n)) * MHz
+            freq = (25.0 + 50.0*float(card_n) + 15.0*float(i)) * MHz
             freq_mu = config.frequency_to_mu(freq)
-            channel.set_waveform(ampl_offset=0x2000, 
+            channel.set_waveform(ampl_offset=ampl_offset, 
                                  damp=0, 
                                  ddamp=0, 
                                  dddamp=0, 
@@ -965,8 +1111,8 @@ class SinaraTester(EnvExperiment):
                                  chirp=0,
                                  shift=0)
             i += 1
-        delay(1*ms)
-        config.trigger(0b1111)
+            delay(1*ms)
+        config.trigger((1 << n_dds) - 1)
         delay(1*ms)
         config.clear(0)
 
@@ -983,7 +1129,7 @@ class SinaraTester(EnvExperiment):
             print("...done")
             print("{} output active. Frequencies: {} MHz.".format(
                 card_name,
-                ", ".join([str(10*i + card_n) for i in range(1, 5)]))
+                ", ".join([str(25 + 15*(i + 1) + 50*card_n) for i in range(len(card_dev["dds"]))]))
                 )
         print("Check the outputs on an oscilloscope, using the FFT function. Press ENTER to continue.")
         input()

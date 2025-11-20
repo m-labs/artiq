@@ -54,9 +54,15 @@
     src-migen,
     src-misoc,
   }: let
+    pkgs' = import nixpkgs { system = "x86_64-linux"; };
+    rust-overlay-patched = pkgs'.applyPatches {
+      name = "rust-overlay-patched";
+      src = rust-overlay;
+      patches = [ ./fix-rust-overlay-unpack.diff ];
+    };
     pkgs = import nixpkgs {
       system = "x86_64-linux";
-      overlays = [(import rust-overlay)];
+      overlays = [(import rust-overlay-patched)];
     };
     pkgs-aarch64 = import nixpkgs {system = "aarch64-linux";};
 
@@ -156,7 +162,7 @@
       '';
     };
 
-    artiq-upstream = pkgs.python3Packages.buildPythonPackage rec {
+    artiq = pkgs.python3Packages.buildPythonPackage rec {
       pname = "artiq";
       version = artiqVersion;
       src = self;
@@ -171,7 +177,7 @@
       nativeBuildInputs = [pkgs.qt6.wrapQtAppsHook];
       propagatedBuildInputs =
         [pkgs.llvm_20 pkgs.lld_20 sipyco.packages.x86_64-linux.sipyco pythonparser pkgs.qt6.qtsvg artiq-comtools.packages.x86_64-linux.artiq-comtools]
-        ++ (with pkgs.python3Packages; [llvmlite pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial levenshtein h5py pyqt6 qasync tqdm lmdb jsonschema platformdirs]);
+        ++ (with pkgs.python3Packages; [llvmlite pyqtgraph pygit2 numpy python-dateutil scipy prettytable pyserial levenshtein h5py pyqt6 qasync tqdm lmdb jsonschema platformdirs]);
 
       dontWrapQtApps = true;
       postFixup = ''
@@ -205,11 +211,15 @@
       '';
     };
 
-    artiq =
-      artiq-upstream
-      // {
-        withExperimentalFeatures = features: artiq-upstream.overrideAttrs (oa: {patches = map (f: ./experimental-features/${f}.diff) features;});
-      };
+    # Stripped down version of ARTIQ for gateware/firmware builds
+    artiq-build = artiq.overridePythonAttrs (oa: {
+      nativeBuildInputs = [];
+      propagatedBuildInputs = [sipyco.packages.x86_64-linux.sipyco pkgs.python3Packages.jsonschema];
+      dontFixup = true;
+      dontCheckRuntimeDeps = true;
+      doInstallCheck = false;
+      doCheck = false;
+    });
 
     migen = pkgs.python3Packages.buildPythonPackage rec {
       name = "migen";
@@ -271,7 +281,6 @@
       target,
       variant,
       buildCommand ? "python -m artiq.gateware.targets.${target} ${variant}",
-      experimentalFeatures ? [],
     }:
       naerskLib.buildPackage {
         name = "artiq-board-${target}-${variant}";
@@ -279,7 +288,7 @@
         additionalCargoLock = "${rust}/lib/rustlib/src/rust/Cargo.lock";
         singleStep = true;
         nativeBuildInputs = [
-          (pkgs.python3.withPackages (ps: [migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ps.packaging]))
+          (pkgs.python3.withPackages (ps: [migen misoc artiq-build ps.packaging]))
           rust
           pkgs.llvm_20
           pkgs.lld_20
@@ -366,7 +375,7 @@
     };
 
     artiq-frontend-dev-wrappers =
-      pkgs.runCommandNoCC "artiq-frontend-dev-wrappers" {}
+      pkgs.runCommand "artiq-frontend-dev-wrappers" {}
       ''
         mkdir -p $out/bin
         for program in ${self}/artiq/frontend/*.py; do
@@ -381,7 +390,7 @@
       '';
   in rec {
     packages.x86_64-linux = {
-      inherit pythonparser qasync artiq;
+      inherit pythonparser qasync artiq artiq-build;
       inherit migen misoc asyncserial microscope vivadoEnv vivado;
       openocd-bscanspi = openocd-bscanspi-f pkgs;
       artiq-board-kc705-nist_clock = makeArtiqBoardPackage {
@@ -396,6 +405,10 @@
         target = "efc";
         variant = "songbird";
       };
+      artiq-board-phaser-mtdds = makeArtiqBoardPackage {
+        target = "phaser";
+        variant = "mtdds";
+      };
       inherit latex-artiq-manual;
       artiq-manual-html = pkgs.stdenvNoCC.mkDerivation rec {
         name = "artiq-manual-html-${version}";
@@ -404,7 +417,7 @@
         buildInputs = with pkgs.python3Packages;
           [
             sphinx
-            sphinx_rtd_theme
+            sphinx-rtd-theme
             sphinxcontrib-tikz
             sphinx-argparse
             sphinxcontrib-wavedrom
@@ -433,7 +446,7 @@
         buildInputs = with pkgs.python3Packages;
           [
             sphinx
-            sphinx_rtd_theme
+            sphinx-rtd-theme
             sphinxcontrib-tikz
             sphinx-argparse
             sphinxcontrib-wavedrom
@@ -485,7 +498,7 @@
             python3Packages.sphinx-argparse
             python3Packages.sphinxcontrib-tikz
             python3Packages.sphinxcontrib-wavedrom
-            python3Packages.sphinx_rtd_theme
+            python3Packages.sphinx-rtd-theme
 
             (python3.withPackages (ps: [migen misoc microscope ps.packaging ps.paramiko] ++ artiq.propagatedBuildInputs))
           ]
@@ -506,7 +519,13 @@
           export LIBARTIQ_SUPPORT=`libartiq-support`
           export QT_PLUGIN_PATH=${qtPaths.QT_PLUGIN_PATH}
           export QML2_IMPORT_PATH=${qtPaths.QML2_IMPORT_PATH}
-          export PYTHONPATH=`git rev-parse --show-toplevel`:$PYTHONPATH
+          artiq_root=$(git rev-parse --show-toplevel 2>/dev/null)
+          if [[ -z "$artiq_root" ]] || ! artiq_run --version > /dev/null 2>&1; then
+            echo "WARNING: Local ARTIQ repository not found, could not be added to PYTHONPATH."
+            echo "This development shell must be run from within the ARTIQ repository."
+          else
+            export PYTHONPATH="$artiq_root:$PYTHONPATH"
+          fi
         '';
       };
       # Lighter development shell optimized for building firmware and flashing boards.
@@ -532,7 +551,7 @@
     };
 
     hydraJobs = {
-      inherit (packages.x86_64-linux) artiq artiq-board-kc705-nist_clock artiq-board-efc-shuttler artiq-board-efc-songbird openocd-bscanspi;
+      inherit (packages.x86_64-linux) artiq artiq-board-kc705-nist_clock artiq-board-efc-shuttler artiq-board-efc-songbird artiq-board-phaser-mtdds openocd-bscanspi;
       gateware-sim = pkgs.stdenvNoCC.mkDerivation {
         name = "gateware-sim";
         buildInputs = [

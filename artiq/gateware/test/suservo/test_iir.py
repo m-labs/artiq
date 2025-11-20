@@ -22,11 +22,18 @@ def main():
     }
 
     def run(dut):
+        yield dut.t_running.eq(0xdeadbeef)
+        for i in range(dut.o_channels):
+            ch_tag = i & ((1 << 16) - 1)
+            yield from dut.set_fiducial_timestamp(i, i % 2, ((0xf100 | ch_tag) << 16) | ((ch_tag << 8) | 0xf1))
+            yield from dut.set_prev_ftw(i, ((0xf200 | ch_tag) << 16) | (0xf200 | ch_tag))
+            yield from dut.set_phase_accumulator(i, (0xf3 << 24) | (0xf3 << 16) | (0xf300 | ch_tag))
         for i, ch in enumerate(dut.adc):
             yield ch.eq(i)
         for i, ch in enumerate(dut.ctrl):
             yield ch.en_iir.eq(1)
             yield ch.en_out.eq(1)
+            yield ch.en_pt.eq(1)
             yield ch.profile.eq(i)
         for i in range(dut.i_channels):
             yield from dut.set_state(i, i << 8, coeff="x1")
@@ -51,7 +58,11 @@ def main():
             yield from dut.check_iter()
             yield
 
-    dut = iir.IIR(**param)
+    # assume t_cycle == t_iir, see predict_timing() in servo.py
+    servo_param = param
+    servo_param["t_cycle"] = servo_param["i_channels"] + 4*servo_param["o_channels"] + 8 + 1
+
+    dut = iir.IIR(**servo_param)
     run_simulation(dut, [run(dut)], vcd_name="iir.vcd")
 
 

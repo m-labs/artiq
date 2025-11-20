@@ -21,6 +21,16 @@ IIRWidths = namedtuple("IIRWidths", [
 ])
 
 
+DSPWidth = namedtuple("DSPWidth", [
+    "padder",       # preadder parameter width (25)
+    "mplier",       # multiplier width (25). The preadder feeds into the multiplier
+    "mcand",        # multiplicand width (18)
+    "accu",         # accumulator width (48)
+    "output",       # output width
+    "shift",        # fixed point scaling coefficient for truncation
+])
+
+
 def signed(v, w):
     """Convert an unsigned integer ``v`` to it's signed value assuming ``w``
     bits"""
@@ -34,35 +44,52 @@ class DSP(Module):
     """Thin abstraction of DSP functionality used here, commonly present,
     and inferrable in FPGAs: multiplier with pre-adder and post-accumulator
     and pipeline registers at every stage."""
-    def __init__(self, w, signed_output=False):
-        self.state = Signal((w.state, True))
-        # NOTE:
-        # If offset is non-zero, care must be taken to ensure that the
-        # offset-state difference does not overflow the width of the ad factor
-        # which is also w.state.
-        self.offset = Signal((w.state, True))
-        self.coeff = Signal((w.coeff, True))
-        self.output = Signal((w.state, True))
+    def __init__(self, w, subtract_mode=False, clip=False, signed_output=False):
+        self.addend = Signal((w.padder, True))
+        self.augend = Signal((w.padder, True))
+        self.mcand = Signal((w.mcand, True))
+        self.output = Signal((w.output, True))
+        self.accu_imm = Signal((w.accu, True))
         self.accu_clr = Signal()
-        self.offset_load = Signal()
+        self.accu_load = Signal()
+        self.augend_load = Signal()
+        self.mcand_load = Signal()
         self.clip = Signal()
 
-        a = Signal((w.state, True), reset_less=True)
-        d = Signal((w.state, True), reset_less=True)
-        ad = Signal((w.state, True), reset_less=True)
-        b = Signal((w.coeff, True), reset_less=True)
+        a = Signal((w.padder, True), reset_less=True)
+        d = Signal((w.padder, True), reset_less=True)
+        # NOTE:
+        # ad factor width is the multiplier width. DSP architecture may force
+        # the multiplier width to be the same as the preadder width. With an
+        # non-zero augend, care must be taken to ensure that the augend-addend
+        # difference does not overflow the width of the ad factor
+        ad = Signal((w.mplier, True), reset_less=True)
+        b = Signal((w.mcand, True), reset_less=True)
         m = Signal((w.accu, True), reset_less=True)
         p = Signal((w.accu, True), reset_less=True)
 
+        # Equation: output = (((augend' +- addend')' * mcand')' + (output OR accu_imm))'
+        #
+        # Each prime denotes 1 cycle of delay.
+        # Augend and addend should be provided 4 cycles in advance;
+        # 3 cycles for mcand, 1 cycle for accu_imm.
         self.sync += [
-                a.eq(self.state),
-                If(self.offset_load,
-                    d.eq(self.offset)
+                a.eq(self.addend),
+                If(self.augend_load,
+                    d.eq(self.augend)
                 ),
-                ad.eq(d + a),
-                b.eq(self.coeff),
-                m.eq(ad*b),
+                ad.eq(d - a) if subtract_mode else ad.eq(d + a),
+                If(self.mcand_load,
+                    b.eq(self.mcand),
+                ),
+                m.eq(ad * b),
                 p.eq(p + m),
+                If(self.accu_load,
+                    # Purely loading an immediate into the accumulator in a
+                    # general sense will not infer the P reg.
+                    # This can be worked around by forcing m=0.
+                    p.eq(self.accu_imm + m),
+                ),
                 If(self.accu_clr,
                     # inject symmetric rouding constant
                     # p.eq(1 << (w.shift - 1))
@@ -71,25 +98,28 @@ class DSP(Module):
                     p.eq(0),
                 )
         ]
-        # Bit layout (LSB-MSB): w.shift | w.state - 1 | n_sign - 1 | 1 (sign)
-        n_sign = w.accu - w.state - w.shift + 1
-        assert n_sign > 1
 
-        # clipping
-        if signed_output:
-            self.comb += [
-                self.clip.eq(p[-n_sign:] != Replicate(p[-1], n_sign)),
-                self.output.eq(Mux(self.clip,
-                        Cat(Replicate(~p[-1], w.state - 1), p[-1]),
-                        p[w.shift:]))
-            ]
-        else:
-            self.comb += [
-                self.clip.eq(p[-n_sign:] != 0),
-                self.output.eq(Mux(self.clip,
-                        Replicate(~p[-1], w.state - 1),
-                        p[w.shift:]))
-            ]
+        self.comb += self.output.eq(p[w.shift:])
+        if clip:
+            # Bit layout (LSB-MSB): w.shift | w.state - 1 | n_sign - 1 | 1 (sign)
+            n_sign = w.accu - w.output - w.shift + 1
+            assert n_sign > 1
+
+            # clipping
+            if signed_output:
+                self.comb += [
+                    self.clip.eq(p[-n_sign:] != Replicate(p[-1], n_sign)),
+                    If(self.clip,
+                        self.output.eq(Cat(Replicate(~p[-1], w.output - 1), p[-1])),
+                    ),
+                ]
+            else:
+                self.comb += [
+                    self.clip.eq(p[-n_sign:] != 0),
+                    If(self.clip,
+                        self.output.eq(Replicate(~p[-1], w.output - 1)),
+                    ),
+                ]
 
 
 class IIR(Module):
@@ -124,7 +154,7 @@ class IIR(Module):
     The profile data is stored sequentially for each channel.
     Each channel has 1 << W.profile profiles available.
     Each profile stores 8 values, each up to W.coeff bits wide, arranged as:
-        [FTW1, B1, POW, CFG, OFFSET, A1, FTW0, B0]
+        [POW, B1, FTW0, CFG, OFFSET, A1, FTW1, B0]
     The lower 8 bits of CFG hold the ADC input channel index SEL.
     The subsequent 8 bits hold the IIR activation delay DLY.
     The back memory is 2*W.coeff bits wide and each value pair
@@ -150,6 +180,29 @@ class IIR(Module):
     in the upper half (i_channels addresses each). Each memory location is
     W.state bits wide.
 
+    Phase tracking memory
+    =====================
+
+    Each channel tracks the corresponding DDS phase accumulator. Besides
+    needing the current frequency tuning word (FTW) in the profile memory,
+    tracking a DDS accumulator iteratively requires the reference time stamp
+    of the tone, and the FTW of the previous processing cycle. These extra
+    values are stored in a dual-port block RAM that can be accessed
+    externally.
+
+    Memory Layout
+    -------------
+
+    The phase tracking memory holds all reference time stamp for all profiles
+    of all channels in the lower half ((1 << W.profile) * o_channels
+    addresses) and the pairs of previous FTW and the accumulated phase in the
+    upper half (o_channels addresses each).
+
+    Each memory location is 2*W.word bits wide, and accessible per memory
+    location internally. External (RTIO) access is limited to a granularity of
+    W.word and selectable by an extra LSB at the memory address. The higher
+    order is accessible with LSB=1, and the lower order bits with LSB=0.
+
     Real-time control
     =================
 
@@ -158,6 +211,7 @@ class IIR(Module):
         * The active profile, PROFILE
         * Whether to perform IIR filter iterations, EN_IIR
         * The RF switch state enabling output from the channel, EN_OUT
+        * Whether to perform phase tracking, EN_PT
 
     Delayed IIR processing
     ======================
@@ -213,10 +267,21 @@ class IIR(Module):
     --/--: signal with a given bit width always includes a sign bit
     -->--: flow is to the right and down unless otherwise indicated
     """
-    def __init__(self, w, i_channels, o_channels):
+    def __init__(self, w, i_channels, o_channels, t_cycle, sysclks_per_clk=8):
         self.widths = w
         self.i_channels = i_channels
         self.o_channels = o_channels
+        self.t_cycle = t_cycle
+        # The number of DDS "sysclk" cycles in each RTIO clock cycle.
+        # Note that only 8 is supported. Other ratio can be supported in the
+        # condition that I/O update of the DDSes are aligned to its own sysclk
+        #
+        # Note that the rising edge of I/O update pulses should be synchronous
+        # to the corresponding DDS refclk (sysclk/4)
+        #
+        # Its purpose is to track all DDS phase accumulators w.r.t the sysclk
+        # on I/O update pulse
+        self.sysclks_per_clk = sysclks_per_clk
         for i, j in enumerate(w):
             assert j > 0, (i, j, w)
         assert w.word <= w.coeff  # same memory
@@ -233,11 +298,21 @@ class IIR(Module):
         self.specials.m_state = Memory(
                 width=w.state,  # y1,x0,x1
                 depth=((1 << w.profile) * o_channels) + (2 * i_channels))
+        # m_phase[t_ref] of active profiles should only be accessed externally
+        # during ~processing.
+        # m_phase[prev_ftw] should only be accessed externally during
+        # ~processing.
+        # m_phase[prev_accu] should only be accessed externally during
+        # ~(processing | shifting).
+        self.specials.m_phase = Memory(
+                width=2*w.word, # t_ref, prev_ftw, prev_accu
+                depth=((1 << w.profile) + 2) * o_channels)
         # ctrl should only be updated synchronously
         self.ctrl = [Record([
                 ("profile", w.profile),
                 ("en_out", 1),
                 ("en_iir", 1),
+                ("en_pt", 1),
                 ("clip", 1),
                 ("stb", 1)])
                 for i in range(o_channels)]
@@ -251,6 +326,10 @@ class IIR(Module):
         # perform one IIR iteration, start with loading,
         # then processing, then shifting, end with done
         self.start = Signal()
+        # resets the tracked time stamp accumulator, asynchronous to IIR state
+        #
+        # The accumulator should be reset whenever the servo is disabled.
+        self.time_reset = Signal()
         # adc inputs being loaded into RAM (becoming x0)
         self.loading = Signal()
         # processing state data (extracting ftw0/ftw1/pow,
@@ -267,6 +346,7 @@ class IIR(Module):
         profiles = Array([ch.profile for ch in self.ctrl])
         en_outs = Array([ch.en_out for ch in self.ctrl])
         en_iirs = Array([ch.en_iir for ch in self.ctrl])
+        en_pts = Array([ch.en_pt for ch in self.ctrl])
         clips = Array([ch.clip for ch in self.ctrl])
 
         # Main state machine sequencing the steps of each servo iteration. The
@@ -291,10 +371,23 @@ class IIR(Module):
         #  1: compute
         #  2: write to output registers (DDS profiles, clip flags)
         stages_active = Signal(3)
+
+        # Internal time stamp accumulator
+        #
+        # Signal width scales by DDS number of bits assign to FTW in a
+        # single-tone register.
+        # More higher order bits to track time would not contribute to phase
+        # offset calculation.
+        self.t_running = t_running = Signal(2*w.word)
+        t_running_r = Signal.like(t_running)
+
+        # The time stamp which the phase tracking DSP process.
+        self.t_process = t_process = Signal.like(t_running)
         fsm.act("IDLE",
                 self.done.eq(1),
                 t_current_step_clr.eq(1),
                 If(self.start,
+                    NextValue(t_process, t_running),
                     NextState("LOAD")
                 )
         )
@@ -317,17 +410,26 @@ class IIR(Module):
         )
         fsm.act("SHIFT",
                 self.shifting.eq(1),
-                If(t_current_step == (i_channels * 2) - 1,
+                If(t_current_step == max(o_channels, (i_channels * 2)) - 1,
                     NextState("IDLE")
                 )
         )
+
+        self.comb += [
+                If(self.time_reset,
+                    t_running.eq(0)
+                ).Else(
+                    t_running.eq(t_running_r + sysclks_per_clk)
+                )
+        ]
 
         self.sync += [
                 If(t_current_step_clr,
                     t_current_step.eq(0)
                 ).Else(
                     t_current_step.eq(t_current_step + 1)
-                )
+                ),
+                t_running_r.eq(t_running),
         ]
 
         # global pipeline phase (lower two bits of t_current_step)
@@ -350,11 +452,14 @@ class IIR(Module):
         # pipeline group profile pointer (SR)
         # for each pipeline stage, this is the profile currently being
         # processed
-        profile = [Signal(w.profile, reset_less=True) for i in range(2)]
+        profile = [Signal(w.profile, reset_less=True) for i in range(3)]
+        profile_0_r = Signal(w.profile, reset_less=True)
+        self.comb += profile[0].eq(
+            Mux(pipeline_phase == 0, profiles[channel[0]], profile_0_r))
         self.sync += [
-            If(pipeline_phase == 0,
-                profile[0].eq(profiles[channel[0]]),
-                profile[1].eq(profile[0]),
+            profile_0_r.eq(profile[0]),
+            If(pipeline_phase == 3,
+                Cat(profile[1:]).eq(Cat(profile[:-1])),
             )
         ]
 
@@ -366,25 +471,31 @@ class IIR(Module):
         # Hook up main IIR filter.
         #
 
-        dsp = DSP(w)
+        dsp_w = DSPWidth(
+            padder=w.state, mplier=w.state, mcand=w.coeff,
+            accu=w.accu, output=w.state, shift=w.shift)
+        dsp = DSP(dsp_w, clip=True)
         self.submodules += dsp
 
         offset_clr = Signal()
         self.comb += [
-                m_coeff.adr.eq(Cat(pipeline_phase, profile[0],
-                    Mux(pipeline_phase == 0, channel[1], channel[0]))),
-                dsp.offset[-w.coeff - 1:].eq(Mux(offset_clr, 0,
+                m_coeff.adr.eq(Cat(pipeline_phase, Mux(pipeline_phase == 0,
+                    Cat(profile[1], channel[1]),
+                    Cat(profile[0], channel[0])))),
+                # offset
+                dsp.augend[-w.coeff - 1:].eq(Mux(offset_clr, 0,
                     Cat(m_coeff.dat_r[:w.coeff], m_coeff.dat_r[w.coeff - 1])
                 )),
-                dsp.coeff.eq(m_coeff.dat_r[w.coeff:]),
-                dsp.state.eq(m_state.dat_r),
+                dsp.mcand_load.eq(1),
+                dsp.mcand.eq(m_coeff.dat_r[w.coeff:]),  # coeff
+                dsp.addend.eq(m_state.dat_r),           # state
                 Case(pipeline_phase, {
                     0: dsp.accu_clr.eq(1),
                     2: [
                         offset_clr.eq(1),
-                        dsp.offset_load.eq(1)
+                        dsp.augend_load.eq(1)
                     ],
-                    3: dsp.offset_load.eq(1)
+                    3: dsp.augend_load.eq(1)
                 })
         ]
 
@@ -405,13 +516,29 @@ class IIR(Module):
         # iir enable SR
         en = Signal(2, reset_less=True)
 
+        m_phase = self.m_phase.get_port(write_capable=True, mode=READ_FIRST)
+        self.specials += m_phase
+
+        # muxing
+        ddss = Array(self.dds)
+        next_accu_neg = Signal(32)
+
         self.comb += [
                 sel_profile.eq(m_coeff.dat_r[w.coeff:]),
                 dly_profile.eq(m_coeff.dat_r[w.coeff + 8:]),
                 If(self.shifting,
+                    # There can be more steps than necessary to shift
+                    # This only causes truncation of address, and can only
+                    # cause rewrites of the same entry by the same value
                     m_state.adr.eq(t_current_step + ((1 << w.profile) * o_channels)),
                     m_state.dat_w.eq(m_state.dat_r),
-                    m_state.we.eq(t_current_step[0])
+                    m_state.we.eq(t_current_step[0]),
+
+                    # Same as the above, but o_channels may not be a power of 2
+                    # Then there can be an address of out of bound issue
+                    m_phase.adr.eq(0 | (t_current_step << 1) + ((1 << w.profile) * o_channels),),
+                    m_phase.we.eq(t_current_step < o_channels),
+                    m_phase.dat_w.eq(ddss[t_current_step][:2 * w.word]),
                 ),
                 If(self.loading,
                     m_state.adr.eq((t_current_step << 1) + ((1 << w.profile) * o_channels)),
@@ -422,7 +549,7 @@ class IIR(Module):
                 If(self.processing,
                     m_state.adr.eq(Array([
                         # write back new y
-                        Cat(profile[1], channel[2]),
+                        Cat(profile[2], channel[2]),
                         # read old y
                         Cat(profile[0], channel[0]),
                         # read x0 (recent)
@@ -432,6 +559,19 @@ class IIR(Module):
                     ])[pipeline_phase]),
                     m_state.dat_w.eq(dsp.output),
                     m_state.we.eq((pipeline_phase == 0) & stages_active[2] & en[1]),
+
+                    m_phase.adr.eq(Array([
+                        # read profile-specific fiducial time stamp
+                        Cat(profile[0], channel[0]),
+                        # read FTW from the previous iteration
+                        0 | (channel[0] << 1) + ((1 << w.profile) * o_channels),
+                        # read tracked phase accumulator
+                        1 | (channel[0] << 1) + ((1 << w.profile) * o_channels),
+                        # write back phase accumulator
+                        1 | (channel[0] << 1) + ((1 << w.profile) * o_channels),
+                    ])[pipeline_phase]),
+                    m_phase.dat_w.eq(next_accu_neg),
+                    m_phase.we.eq((pipeline_phase == 3) & stages_active[0]),
                 )
         ]
 
@@ -484,25 +624,111 @@ class IIR(Module):
             }),
         ]
 
+        # The DSP calculates this on EN_PT:
+        # POW_TOTAL = POW + (t - t_ref) * FTW - ACCU
         #
-        # Update DDS profile with FTW/POW/ASF
-        # Stage 0 loads the POW, stage 1 the FTW, and stage 2 writes
-        # the ASF computed by the IIR filter.
+        # The POW adjustment calculation will be unused if ~EN_PT
+        # i.e. POW_TOTAL = POW
         #
+        # It decomposes into 4 steps:
+        # P0 = ((t[:16] - t_ref[:16]) * FTW[:16]) - ACCU
+        # P1 = ((t[16:] - t_ref[16:]) * FTW[:16]) + P0[16:]
+        # P2 = ((t[:16] - t_ref[:16]) * FTW[16:]) + P1
+        # POW_TOTAL = (1 - 0) * POW + (P2 or 0)
+        #
+        # Each input corresponds to the augend, addend, mcand variables and
+        # the accumulator input respectively.
+        #
+        # Pipeline table:
+        #
+        # | Signals \ Pipeline phase (stage) |    1 (0)   |    2 (0)   |    3 (0)   |   0 (1)  |   1 (1)  | 2 (1) |  3 (1)  |   0 (2)   |
+        # |:--------------------------------:|:----------:|:----------:|:----------:|:--------:|:--------:|:-----:|:-------:|:---------:|
+        # |              Augend              |   t[:16]   |   t[16:]   |   t[:16]   |     1    |    ---   |  ---  |   ---   |    ---    |
+        # |              Addend              | t_ref[:16] | t_ref[16:] | t_ref[:16] |     0    |    ---   |  ---  |   ---   |    ---    |
+        # |           Multiplicand           |     ---    |  FTW[:16]  |  FTW[:16]  | FTW[16:] |    POW   |  ---  |   ---   |    ---    |
+        # |            Accumulator           |     ---    |     ---    |     ---    |   -ACCU  | P0 >> 16 |   P1  | P2 OR 0 |    ---    |
+        # |              Output              |     ---    |     ---    |     ---    |    ---   |    P0    |   P1  |    P2   | POW_TOTAL |
 
-        # muxing
-        ddss = Array(self.dds)
+        phase_dsp_w = DSPWidth(
+            padder=w.word+1, mplier=w.word+2, mcand=w.word+1,
+            accu=w.accu, output=w.accu, shift=0)
+        phase_dsp = DSP(phase_dsp_w, subtract_mode=True)
+        self.submodules += phase_dsp
+
+        self.comb += [
+            phase_dsp.mcand.eq(m_coeff.dat_r[:16]),
+            phase_dsp.augend_load.eq(1),
+        ]
+
+        t_ref = Signal(2*w.word)
+
+        accu_neg = Signal(2*w.word)
+        self.comb += next_accu_neg.eq(m_phase.dat_r - accu_neg)
+        self.sync += accu_neg.eq(next_accu_neg)
+
+        # pipeline time multiplexed DSP access
+        self.comb += [
+            Case(pipeline_phase, {
+                0: [
+                    If(stages_active[1],
+                        phase_dsp.augend.eq(1),
+                        phase_dsp.addend.eq(0),
+                        phase_dsp.mcand_load.eq(1),  # ftw1
+                        phase_dsp.accu_load.eq(1),  # phase accumulator (-ve)
+                        phase_dsp.accu_imm.eq(accu_neg),
+                    ),
+                ],
+                1: [
+                    If(stages_active[0],
+                        phase_dsp.augend.eq(t_process[:w.word]),
+                        phase_dsp.addend.eq(m_phase.dat_r[:w.word]),
+                    ),
+                    If(stages_active[1],
+                        phase_dsp.mcand_load.eq(1),  # pow
+                        phase_dsp.accu_load.eq(1),
+                        phase_dsp.accu_imm.eq(phase_dsp.output[w.word:]),
+                    ),
+                ],
+                2: [
+                    If(stages_active[0],
+                        phase_dsp.mcand_load.eq(1),  # ftw0
+                        phase_dsp.augend.eq(t_process[w.word:]),
+                        phase_dsp.addend.eq(t_ref[w.word:]),
+                    ),
+                ],
+                3: [
+                    If(stages_active[0],
+                        phase_dsp.augend.eq(t_process[:w.word]),
+                        phase_dsp.addend.eq(t_ref[:w.word]),
+                    ),
+                    If(stages_active[1],
+                        phase_dsp.accu_load.eq(~en_pts[channel[1]]),
+                        phase_dsp.accu_imm.eq(0),
+                    ),
+                ],
+            })
+        ]
+
+        #
+        # Update DDS profile with FTW/POW/ASF.
+        # Stage 1 loads the FTW.
+        # Stage 2 writes the ASF computed by the IIR filter, and the computed
+        # POW from the phase tracking DSP.
+        #
 
         self.sync += [
             Case(pipeline_phase, {
                 0: [
                     If(stages_active[1],
-                        ddss[channel[1]][:w.word].eq(m_coeff.dat_r),  # ftw0
+                        ddss[channel[1]][w.word:2 * w.word].eq(m_coeff.dat_r),  # ftw1
+                    ),
+                    If(stages_active[2],
+                        ddss[channel[2]][2*w.word:3*w.word].eq(phase_dsp.output),  # pow
                     ),
                 ],
                 1: [
-                    If(stages_active[1],
-                        ddss[channel[1]][w.word:2 * w.word].eq(m_coeff.dat_r),  # ftw1
+                    If(stages_active[0],
+                        t_ref.eq(m_phase.dat_r),
                     ),
                     If(stages_active[2],
                         ddss[channel[2]][3*w.word:].eq(  # asf
@@ -511,7 +737,8 @@ class IIR(Module):
                 ],
                 2: [
                     If(stages_active[0],
-                        ddss[channel[0]][2*w.word:3*w.word].eq(m_coeff.dat_r),  # pow
+                        ddss[channel[0]][:w.word].eq(m_coeff.dat_r),  # ftw0
+                        accu_neg.eq(m_phase.dat_r * t_cycle * sysclks_per_clk),
                     ),
                 ],
                 3: [
@@ -528,7 +755,7 @@ class IIR(Module):
         or low part of the memory location.
         """
         w = self.widths
-        addr = "ftw1 b1 pow cfg offset a1 ftw0 b0".split().index(coeff)
+        addr = "pow b1 ftw0 cfg offset a1 ftw1 b0".split().index(coeff)
         coeff_addr = ((channel << w.profile + 2) | (profile << 2) |
                 (addr >> 1))
         mask = (1 << w.coeff) - 1
@@ -573,11 +800,11 @@ class IIR(Module):
             yield self.m_state[profile | (channel << w.profile)].eq(val)
         elif coeff == "x0":
             assert profile is None
-            yield self.m_state[(channel << 1) |
+            yield self.m_state[(channel << 1) +
                     ((1 << w.profile) * self.o_channels)].eq(val)
         elif coeff == "x1":
             assert profile is None
-            yield self.m_state[1 | (channel << 1) |
+            yield self.m_state[1 | (channel << 1) +
                     ((1 << w.profile) * self.o_channels)].eq(val)
         else:
             raise ValueError("no such state", coeff)
@@ -588,14 +815,45 @@ class IIR(Module):
         if coeff == "y1":
             val = yield self.m_state[profile | (channel << w.profile)]
         elif coeff == "x0":
-            val = yield self.m_state[(channel << 1) |
+            val = yield self.m_state[(channel << 1) +
                     ((1 << w.profile) * self.o_channels)]
         elif coeff == "x1":
-            val = yield self.m_state[1 | (channel << 1) |
+            val = yield self.m_state[1 | (channel << 1) +
                     ((1 << w.profile) * self.o_channels)]
         else:
             raise ValueError("no such state", coeff)
         return signed(val, w.state)
+
+    def set_fiducial_timestamp(self, channel, profile, val):
+        w = self.widths
+        yield self.m_phase[profile | (channel << w.profile)].eq(val)
+
+    def get_fiducial_timestamp(self, channel, profile):
+        w = self.widths
+        val = yield self.m_phase[profile | (channel << w.profile)]
+        return val
+
+    def set_prev_ftw(self, channel, val):
+        w = self.widths
+        yield self.m_phase[(channel << 1) +
+                    ((1 << w.profile) * self.o_channels)].eq(val)
+
+    def get_prev_ftw(self, channel):
+        w = self.widths
+        val = yield self.m_phase[(channel << 1) +
+                    ((1 << w.profile) * self.o_channels)]
+        return val
+
+    def set_phase_accumulator(self, channel, val):
+        w = self.widths
+        yield self.m_phase[1 | (channel << 1) +
+                    ((1 << w.profile) * self.o_channels)].eq(val)
+
+    def get_phase_accumulator(self, channel):
+        w = self.widths
+        val = yield self.m_phase[1 | (channel << 1) +
+                    ((1 << w.profile) * self.o_channels)]
+        return val
 
     def fast_iter(self):
         """Perform a single processing iteration."""
@@ -639,6 +897,7 @@ class IIR(Module):
             j = yield self.ctrl[i].profile
             en_iir = yield self.ctrl[i].en_iir
             en_out = yield self.ctrl[i].en_out
+            en_pt = yield self.ctrl[i].en_pt
             dly_i = yield self._dlys[i]
             logger.debug("ctrl[%d] profile=%d en_iir=%d en_out=%d dly=%d",
                     i, j, en_iir, en_out, dly_i)
@@ -677,6 +936,19 @@ class IIR(Module):
             y0 = min(max(0, out), (1 << w.state - 1) - 1)
             logger.debug("dsp[%d,%d] p=%#x out=%#x y0=%#x",
                     i, j, p, out, y0)
+
+            if en_pt:
+                prev_ftw = yield from self.get_prev_ftw(i)
+                accu_neg = yield from self.get_phase_accumulator(i)
+                fiducial_ts = yield from self.get_fiducial_timestamp(i, j)
+                t_process = yield self.t_process
+                logger.debug("dds[%d,%d] prev_ftw=%#x accu_neg=%#x fiducial_ts=%#x process_ts=%#x",
+                        i, j, prev_ftw, accu_neg, fiducial_ts, t_process)
+
+                accu_neg -= prev_ftw * self.t_cycle * self.sysclks_per_clk
+                target_pow = ((ftw1 << 16) | ftw0) * (t_process - fiducial_ts)
+                pow += ((target_pow + accu_neg) >> 16)
+                pow &= ((1 << 16) - 1)
 
             if not en:
                 y0 = y1

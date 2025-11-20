@@ -317,7 +317,7 @@ class EfcShuttler(_SatelliteBase):
 
 
 class EfcSongbird(_SatelliteBase):
-    def __init__(self, **kwargs):
+    def __init__(self, dds_count=4, **kwargs):
         _SatelliteBase.__init__(self, **kwargs)
 
         platform = self.platform
@@ -329,7 +329,7 @@ class EfcSongbird(_SatelliteBase):
         print("Songbird LTC2000 DAC SPI at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
         self.rtio_channels.append(rtio.Channel.from_phy(ltc2000_spi_phy))
 
-        self.submodules.songbird = Songbird(self.platform, ltc2000_pads, rtio_clk_freq)
+        self.submodules.songbird = Songbird(self.platform, ltc2000_pads, rtio_clk_freq, dds_count)
 
         platform.add_false_path_constraints(self.crg.cd_sys.clk, self.songbird.dds_clock.cd_dds200.clk)
 
@@ -359,7 +359,8 @@ def main():
     parser_shuttler.add_argument("--afe-hw-rev", choices=["v1.0", "v1.1", "v1.2", "v1.3"],
                                  default="v1.3", help="AFE hardware revision")
 
-    subparsers.add_parser("songbird", help="Build Songbird variant")
+    parser_songbird = subparsers.add_parser("songbird", help="Build Songbird variant")
+    parser_songbird.add_argument("--dds-count", default=4, help="Songbird DDS count")
 
     args = parser.parse_args()
 
@@ -368,6 +369,8 @@ def main():
     argdict["efc_hw_rev"] = args.efc_hw_rev
     if args.variant == "shuttler":
         argdict["afe_hw_rev"] = args.afe_hw_rev
+    if args.variant == "songbird":
+        argdict["dds_count"] = int(args.dds_count)
     argdict["rtio_clk_freq"] = 100e6 if args.rtio100mhz else 125e6
     variant = args.variant.lower()
 

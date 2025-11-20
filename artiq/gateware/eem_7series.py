@@ -82,9 +82,15 @@ def peripheral_suservo(module, peripheral, **kwargs):
             if len(peripheral["urukul1_ports"]) != 2:
                 raise ValueError("wrong number of Urukul #1 ports")
             urukul_ports.append(peripheral["urukul1_ports"])
+    if peripheral["synchronization"]:
+        sync_gen_cls = ttl_simple.ClockGen
+    else:
+        sync_gen_cls = None
+    use_miso = peripheral["proto_rev"] == 9
+
     eem.SUServo.add_std(module,
         peripheral["sampler_ports"],
-        urukul_ports, **kwargs)
+        urukul_ports, sync_gen_cls=sync_gen_cls, use_miso=use_miso, **kwargs)
 
 
 def peripheral_zotino(module, peripheral, **kwargs):
@@ -167,6 +173,7 @@ peripheral_processors = {
     "mirny": peripheral_mirny,
     "fastino": peripheral_fastino,
     "phaser": peripheral_phaser,
+    "phaser_drtio": peripheral_drtio_over_eem,
     "hvamp": peripheral_hvamp,
     "shuttler": peripheral_drtio_over_eem,
     "songbird": peripheral_drtio_over_eem,

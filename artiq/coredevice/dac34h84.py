@@ -1,277 +1,290 @@
+from numpy import int32, int64
+
+from artiq.coredevice import spi2 as spi
+from artiq.coredevice.dac34h84_reg import DAC34H84 as DAC34H84Reg
+from artiq.language.core import *
+from artiq.language.types import *
+from artiq.language.units import us, GHz
+
+
+DAC_SPI_DIV = 20  # min 100 ns - SLAS751D Section 6.8
+DAC_SPI_DIV_TEMP = (
+    200  # min 1 us when reading DAC temperature register - SLAS751D Section 6.8
+)
+DAC_SPI_CONFIG = (
+    0 * spi.SPI_OFFLINE
+    | 1 * spi.SPI_END
+    | 0 * spi.SPI_INPUT
+    | 0 * spi.SPI_CS_POLARITY
+    | 0 * spi.SPI_CLK_POLARITY
+    | 0 * spi.SPI_CLK_PHASE
+    | 0 * spi.SPI_LSB_FIRST
+    | 0 * spi.SPI_HALF_DUPLEX
+)
+
+
 class DAC34H84:
-    """DAC34H84 settings and register map.
+    """DAC DAC34H84 driver
 
-    For possible values, documentation, and explanation, see the DAC datasheet
-    at https://www.ti.com/lit/pdf/slas751
+    :param spi_device: SPI bus device name.
+    :param input_sample_rate: DAC input sample rate
+    :param core_device: Core device name (default: "core").
     """
-    qmc_corr_ena = 0  # msb ab
-    qmc_offset_ena = 0  # msb ab
-    invsinc_ena = 0  # msb ab
-    interpolation = 1  # 2x
-    fifo_ena = 1
-    alarm_out_ena = 1
-    alarm_out_pol = 1
-    clkdiv_sync_ena = 1
 
-    iotest_ena = 0
-    cnt64_ena = 0
-    oddeven_parity = 0  # even
-    single_parity_ena = 1
-    dual_parity_ena = 0
-    rev_interface = 0
-    dac_complement = 0b0000  # msb A
-    alarm_fifo = 0b111  # msb 2-away
+    kernel_invariants = {"core", "bus", "f_dac", "input_sample_rate", "init_mmap"}
 
-    dacclkgone_ena = 1
-    dataclkgone_ena = 1
-    collisiongone_ena = 1
-    sif4_ena = 1
-    mixer_ena = 0
-    mixer_gain = 1
-    nco_ena = 0
-    revbus = 0
-    twos = 1
+    def __init__(
+        self,
+        dmgr,
+        spi_device,
+        input_sample_rate,
+        core_device="core",
+    ):
+        self.core = dmgr.get(core_device)
+        self.bus = dmgr.get(spi_device)
 
-    coarse_dac = 9  # 18.75 mA, 0-15
-    sif_txenable = 0
+        self.f_dac = 1.0 * GHz
+        self.input_sample_rate = input_sample_rate
+        settings = {
+            # Target 1 GSPS for all channels, set VCO = 4 GHz and per-scaler = 4
+            "pll_p": 0b100,
+            "pll_vco": 0x3F,
+        }
+        # f_ostr must be f_daclk/(k*8*interpolation) where k is integer - SLAS751D Section 6.8
+        # f_pdf = f_ostr when PLL is enable - SLAA584 Figure 28
+        if input_sample_rate == 500e6:
+            # f_data = 500 MSPS (non-interleaved), 2x to reach 1 GSPS
+            settings["interpolation"] = 1
 
-    mask_alarm_from_zerochk = 0
-    mask_alarm_fifo_collision = 0
-    mask_alarm_fifo_1away = 0
-    mask_alarm_fifo_2away = 0
-    mask_alarm_dacclk_gone = 0
-    mask_alarm_dataclk_gone = 0
-    mask_alarm_output_gone = 0
-    mask_alarm_from_iotest = 0
-    mask_alarm_from_pll = 0
-    mask_alarm_parity = 0b0000  # msb a
+            # f_ostr = f_pdf = 62.5 MHz when n divider is 2
+            settings["pll_n"] = 0b0001
+            # VCO @ 4 GHz when m divider is 16 and no need for m doubling
+            settings["pll_m"] = 16
+            settings["pll_m2"] = 0
 
-    qmc_offseta = 0  # 12b
-    fifo_offset = 2  # 0-7
-    qmc_offsetb = 0  # 12b
+        elif input_sample_rate == 250e6:
+            # f_data = 250 MSPS (non-interleaved), 4x to reach 1 GSPS
+            settings["interpolation"] = 2
 
-    qmc_offsetc = 0  # 12b
+            # f_ostr = f_pdf = 31.25 MHz when n divider is 4
+            settings["pll_n"] = 0b0011
+            # VCO @ 4 GHz when m divider is 32 and no need for m doubling
+            settings["pll_m"] = 32
+            settings["pll_m2"] = 0
+        else:
+            raise ValueError("Invalid DAC sample rate")
 
-    qmc_offsetd = 0  # 12b
+        self.init_mmap = DAC34H84Reg(settings).get_mmap()
 
-    qmc_gaina = 0  # 11b
+    @kernel
+    def init(self):
+        """Initialize the DAC.
 
-    cmix_fs8 = 0
-    cmix_fs4 = 0
-    cmix_fs2 = 0
-    cmix_nfs4 = 0
-    qmc_gainb = 0  # 11b
+        Sets up SPI mode, confirms chip presence, configures the PLL, and sets up FIFO offset.
+        """
+        # set sif4_enable to enter 4-wire SPI mode
+        self.write(0x02, 0x0080)
+        if self.read(0x7F) != 0x5409:
+            raise ValueError("DAC34H84 version mismatch")
+        delay(40.0 * us)
+        if self.read(0x00) != 0x049C:
+            raise ValueError("DAC34H84 reset fail")
+        delay(40.0 * us)
 
-    qmc_gainc = 0  # 11b
+        for data in self.init_mmap:
+            self.write(data >> 16, data & 0xFFFF)
 
-    output_delayab = 0b00
-    output_delaycd = 0b00
-    qmc_gaind = 0  # 11b
+        reg_0x18 = self.read(0x18)
+        delay(40.0 * us)
+        # Use PLL loop filter voltage to check lock status - Table 10, Step 34 SLAS751D section 7.5.2.4
+        if not (0x2 <= reg_0x18 & 0b111 <= 0x5):
+            raise ValueError("DAC34H84 PLL fail to lock")
 
-    qmc_phaseab = 0  # 12b
+        # Disable PLL N-dividers sync - Table 10, Step 41 SLAS751D section 7.5.2.4
+        self.write(0x18, reg_0x18 & ~0x0800)
 
-    qmc_phasecd = 0  # 12b
+        self.tune_fifo_offset()
 
-    phase_offsetab = 0  # 16b
-    phase_offsetcd = 0  # 16b
-    phase_addab_lsb = 0  # 16b
-    phase_addab_msb = 0  # 16b
-    phase_addcd_lsb = 0  # 16b
-    phase_addcd_msb = 0  # 16b
+    @kernel
+    def read(self, addr, div=DAC_SPI_DIV) -> TInt32:
+        self.bus.set_config_mu(
+            DAC_SPI_CONFIG | spi.SPI_INPUT,
+            24,
+            div,
+            1,
+        )
+        self.bus.write((addr | 0x80) << 24)
+        return self.bus.read()
 
-    pll_reset = 0
-    pll_ndivsync_ena = 1
-    pll_ena = 1
-    pll_cp = 0b01  # single charge pump
-    pll_p = 0b100  # p=4
+    @kernel
+    def write(self, addr, value, div=DAC_SPI_DIV):
+        self.bus.set_config_mu(
+            DAC_SPI_CONFIG,
+            24,
+            div,
+            1,
+        )
+        self.bus.write(addr << 24 | value << 8)
 
-    pll_m2 = 1  # x2
-    pll_m = 8  # m = 8
-    pll_n = 0b0001  # n = 2
-    pll_vcotune = 0b01
+    @kernel
+    def read_temperature(self) -> TInt32:
+        """Return the current DAC temperature in Celsius.
 
-    pll_vco = 0x3f  # 4 GHz
-    bias_sleep = 0
-    tsense_sleep = 0
-    pll_sleep = 0
-    clkrecv_sleep = 0
-    dac_sleep = 0b0000  # msb a
+        This method consumes all slack.
+        """
+        return self.read(0x06, DAC_SPI_DIV_TEMP) >> 8
 
-    extref_ena = 0
-    fuse_sleep = 1
-    atest = 0b00000  # atest mode
+    @kernel
+    def tune_fifo_offset(self):
+        """Find and set an optimal FIFO offset with maximum safety margin."""
+        reg_0x09 = self.read(0x09)
+        delay(40.0 * us)
 
-    syncsel_qmcoffsetab = 0b1001  # sif_sync and register write
-    syncsel_qmcoffsetcd = 0b1001  # sif_sync and register write
-    syncsel_qmccorrab = 0b1001  # sif_sync and register write
-    syncsel_qmccorrcd = 0b1001  # sif_sync and register write
+        DAC_FIFO_DEPTH = 8
+        good = 0
+        for offset in range(DAC_FIFO_DEPTH):
+            self.write(0x09, (reg_0x09 & 0x1FFF) | ((offset & 0b111) << 13))
 
-    syncsel_mixerab = 0b1001  # sif_sync and register write
-    syncsel_mixercd = 0b1001  # sif_sync and register write
-    syncsel_nco = 0b1000  # sif_sync
-    syncsel_fifo_input = 0b10  # external lvds istr
-    sif_sync = 0
+            # clear alarm and let it run for a while
+            self.write(0x05, 0x0000)
+            delay(100.0 * us)
 
-    syncsel_fifoin = 0b0010  # istr
-    syncsel_fifoout = 0b0100  # ostr
-    clkdiv_sync_sel = 0  # ostr
+            # check FIFO pointer collision alarm
+            if (self.read(0x05) >> 11) & 0b111 == 0:
+                good |= 1 << offset
+            delay(40.0 * us)
 
-    path_a_sel = 0
-    path_b_sel = 1
-    path_c_sel = 2
-    path_d_sel = 3
-    # swap dac pairs (CDAB) for layout
-    # swap I-Q dacs for spectral inversion
-    dac_a_sel = 3
-    dac_b_sel = 2
-    dac_c_sel = 1
-    dac_d_sel = 0
+        # If good offset is at both ends, shift the samples for easy mean calculation
+        if good & 0x81 == 0x81:
+            good_2x = good << DAC_FIFO_DEPTH | good
+            good = (good_2x >> (DAC_FIFO_DEPTH // 2)) & ((1 << DAC_FIFO_DEPTH) - 1)
+            shift = 4
+        else:
+            shift = 0
+        # calculate mean
+        sum = 0
+        count = 0
+        for offset in range(DAC_FIFO_DEPTH):
+            if good & (1 << offset):
+                sum += offset
+                count += 1
+        if count == 0:
+            raise ValueError("no good FIFO offset")
+        best = ((sum // count) + shift) % 8
+        self.write(0x09, (reg_0x09 & 0x1FFF) | ((best & 0b111) << 13))
+        # clear alarm in case the last offset tested caused pointer collision
+        self.write(0x05, 0x0000)
 
-    dac_sleep_en = 0b1111  # msb a
-    clkrecv_sleep_en = 1
-    pll_sleep_en = 1
-    lvds_data_sleep_en = 1
-    lvds_control_sleep_en = 1
-    temp_sense_sleep_en = 1
-    bias_sleep_en = 1
+    @kernel
+    def enable_mixer(self, enable):
+        """Enable DAC internal mixer block and NCO mixer.
 
-    data_dly = 2
-    clk_dly = 0
+        :param enable: Enable internal mixer block and NCO mixer when set to True
+        """
+        reg = self.read(0x02)
+        delay(40.0 * us)
+        if en:
+            self.write(0x02, reg | 1 << 6 | 1 << 4)
+        else:
+            self.write(0x02, reg & ~(1 << 4) & ~(1 << 6))
 
-    ostrtodig_sel = 0
-    ramp_ena = 0
-    sifdac_ena = 0
+    @kernel
+    def sync(self):
+        """Trigger DAC synchronisation for both output channels.
 
-    grp_delaya = 0x00
-    grp_delayb = 0x00
+        The DAC ``sif_sync`` is de-asserted, then asserted. The synchronisation is
+        triggered on assertion.
 
-    grp_delayc = 0x00
-    grp_delayd = 0x00
+        By default, the fine-mixer (NCO) and QMC are synchronised. This
+        includes applying the latest register settings.
 
-    sifdac = 0
+        .. note:: Synchronising the NCO clears the phase-accumulator.
+        """
+        reg = self.read(0x1F)
+        delay(40.0 * us)
+        self.write(0x1F, reg & ~0x2)
+        self.write(0x1F, reg | 0x2)
 
-    def __init__(self, updates=None):
-        if updates is None:
-            return
-        for key, value in updates.items():
-            if not hasattr(self, key):
-                raise KeyError("invalid setting", key)
-            setattr(self, key, value)
+    @kernel
+    def stage_nco_mixer_frequency_mu(self, channel, ftw):
+        """Stage the DAC NCO mixer frequency in machine units.
 
-    def get_mmap(self):
-        mmap = []
-        mmap.append(
-            (0x00 << 16) |
-            (self.qmc_offset_ena << 14) | (self.qmc_corr_ena << 12) |
-            (self.interpolation << 8) | (self.fifo_ena << 7) |
-            (self.alarm_out_ena << 4) | (self.alarm_out_pol << 3) |
-            (self.clkdiv_sync_ena << 2) | (self.invsinc_ena << 0))
-        mmap.append(
-            (0x01 << 16) |
-            (self.iotest_ena << 15) | (self.cnt64_ena << 12) |
-            (self.oddeven_parity << 11) | (self.single_parity_ena << 10) |
-            (self.dual_parity_ena << 9) | (self.rev_interface << 8) |
-            (self.dac_complement << 4) | (self.alarm_fifo << 1))
-        mmap.append(
-            (0x02 << 16) |
-            (self.dacclkgone_ena << 14) | (self.dataclkgone_ena << 13) |
-            (self.collisiongone_ena << 12) | (self.sif4_ena << 7) |
-            (self.mixer_ena << 6) | (self.mixer_gain << 5) |
-            (self.nco_ena << 4) | (self.revbus << 3) | (self.twos << 1))
-        mmap.append((0x03 << 16) | (self.coarse_dac << 12) |
-                    (self.sif_txenable << 0))
-        mmap.append(
-            (0x07 << 16) |
-            (self.mask_alarm_from_zerochk << 15) | (1 << 14) |
-            (self.mask_alarm_fifo_collision << 13) |
-            (self.mask_alarm_fifo_1away << 12) |
-            (self.mask_alarm_fifo_2away << 11) |
-            (self.mask_alarm_dacclk_gone << 10) |
-            (self.mask_alarm_dataclk_gone << 9) |
-            (self.mask_alarm_output_gone << 8) |
-            (self.mask_alarm_from_iotest << 7) | (1 << 6) |
-            (self.mask_alarm_from_pll << 5) | (self.mask_alarm_parity << 1))
-        mmap.append(
-            (0x08 << 16) | (self.qmc_offseta << 0))
-        mmap.append(
-            (0x09 << 16) | (self.fifo_offset << 13) | (self.qmc_offsetb << 0))
-        mmap.append((0x0a << 16) | (self.qmc_offsetc << 0))
-        mmap.append((0x0b << 16) | (self.qmc_offsetd << 0))
-        mmap.append((0x0c << 16) | (self.qmc_gaina << 0))
-        mmap.append(
-            (0x0d << 16) |
-            (self.cmix_fs8 << 15) | (self.cmix_fs4 << 14) |
-            (self.cmix_fs2 << 13) | (self.cmix_nfs4 << 12) |
-            (self.qmc_gainb << 0))
-        mmap.append((0x0e << 16) | (self.qmc_gainc << 0))
-        mmap.append(
-            (0x0f << 16) |
-            (self.output_delayab << 14) | (self.output_delaycd << 12) |
-            (self.qmc_gaind << 0))
-        mmap.append((0x10 << 16) | (self.qmc_phaseab << 0))
-        mmap.append((0x11 << 16) | (self.qmc_phasecd << 0))
-        mmap.append((0x12 << 16) | (self.phase_offsetab << 0))
-        mmap.append((0x13 << 16) | (self.phase_offsetcd << 0))
-        mmap.append((0x14 << 16) | (self.phase_addab_lsb << 0))
-        mmap.append((0x15 << 16) | (self.phase_addab_msb << 0))
-        mmap.append((0x16 << 16) | (self.phase_addcd_lsb << 0))
-        mmap.append((0x17 << 16) | (self.phase_addcd_msb << 0))
-        mmap.append(
-            (0x18 << 16) |
-            (0b001 << 13) | (self.pll_reset << 12) |
-            (self.pll_ndivsync_ena << 11) | (self.pll_ena << 10) |
-            (self.pll_cp << 6) | (self.pll_p << 3))
-        mmap.append(
-            (0x19 << 16) |
-            (self.pll_m2 << 15) | (self.pll_m << 8) | (self.pll_n << 4) |
-            (self.pll_vcotune << 2))
-        mmap.append(
-            (0x1a << 16) |
-            (self.pll_vco << 10) | (self.bias_sleep << 7) |
-            (self.tsense_sleep << 6) |
-            (self.pll_sleep << 5) | (self.clkrecv_sleep << 4) |
-            (self.dac_sleep << 0))
-        mmap.append(
-            (0x1b << 16) |
-            (self.extref_ena << 15) | (self.fuse_sleep << 11) |
-            (self.atest << 0))
-        mmap.append(
-            (0x1e << 16) |
-            (self.syncsel_qmcoffsetab << 12) |
-            (self.syncsel_qmcoffsetcd << 8) |
-            (self.syncsel_qmccorrab << 4) |
-            (self.syncsel_qmccorrcd << 0))
-        mmap.append(
-            (0x1f << 16) |
-            (self.syncsel_mixerab << 12) | (self.syncsel_mixercd << 8) |
-            (self.syncsel_nco << 4) | (self.syncsel_fifo_input << 2) |
-            (self.sif_sync << 1))
-        mmap.append(
-            (0x20 << 16) |
-            (self.syncsel_fifoin << 12) | (self.syncsel_fifoout << 8) |
-            (self.clkdiv_sync_sel << 0))
-        mmap.append(
-            (0x22 << 16) |
-            (self.path_a_sel << 14) | (self.path_b_sel << 12) |
-            (self.path_c_sel << 10) | (self.path_d_sel << 8) |
-            (self.dac_a_sel << 6) | (self.dac_b_sel << 4) |
-            (self.dac_c_sel << 2) | (self.dac_d_sel << 0))
-        mmap.append(
-            (0x23 << 16) |
-            (self.dac_sleep_en << 12) | (self.clkrecv_sleep_en << 11) |
-            (self.pll_sleep_en << 10) | (self.lvds_data_sleep_en << 9) |
-            (self.lvds_control_sleep_en << 8) |
-            (self.temp_sense_sleep_en << 7) | (1 << 6) |
-            (self.bias_sleep_en << 5) | (0x1f << 0))
-        mmap.append(
-            (0x24 << 16) | (self.data_dly << 13) | (self.clk_dly << 10))
-        mmap.append(
-            (0x2d << 16) |
-            (self.ostrtodig_sel << 14) | (self.ramp_ena << 13) |
-            (0x002 << 1) | (self.sifdac_ena << 0))
-        mmap.append(
-            (0x2e << 16) | (self.grp_delaya << 8) | (self.grp_delayb << 0))
-        mmap.append(
-            (0x2f << 16) | (self.grp_delayc << 8) | (self.grp_delayd << 0))
-        mmap.append((0x30 << 16) | self.sifdac)
-        return mmap
+        Before using NCO mixer, the mixer must be enabled via :meth:`enable_mixer`.
+        The settings is only applied after triggering DAC synchronisation via :meth:`sync`.
+
+        .. warning:: A new NCO settings without synchronisation will result in a malformed channel output.
+
+        :param channel: NCO channel number (0 or 1)
+        :param ftw: 32-bit NCO frequency tuning word
+        """
+        if channel == 0:
+            self.write(0x14, ftw & 0xFFFF)
+            self.write(0x15, (ftw >> 16) & 0xFFFF)
+        elif channel == 1:
+            self.write(0x16, ftw & 0xFFFF)
+            self.write(0x17, (ftw >> 16) & 0xFFFF)
+        else:
+            raise ValueError("Invalid channel number")
+
+    @kernel
+    def stage_nco_mixer_phase_offset_mu(self, channel, pow):
+        """Stage the DAC NCO mixer phase offset in machine units.
+
+        Before using NCO mixer, the mixer must be enabled via :meth:`enable_mixer`.
+        The settings is only applied after triggering DAC synchronisation via :meth:`sync`.
+
+        .. warning:: A new NCO settings without synchronisation will result in a malformed channel output.
+
+        :param channel: NCO channel number (0 or 1)
+        :param ftw: 16-bit NCO phase offset word
+        """
+        if channel == 0:
+            self.write(0x12, pow)
+        elif channel == 1:
+            self.write(0x13, pow)
+        else:
+            raise ValueError("Invalid channel number")
+
+    @portable(flags={"fast-math"})
+    def frequency_to_ftw(self, frequency) -> TInt32:
+        """Return the 32-bit frequency tuning word corresponding to the given frequency in Hz.
+
+        :param frequency: Frequency in Hz
+        """
+        return int32(round((int64(1) << 32) * (frequency / (self.f_dac))))
+
+    @portable(flags={"fast-math"})
+    def turns_to_pow(self, turns) -> TInt32:
+        """Return the 16-bit phase offset word corresponding to the given phase in turns.
+
+        :param turns: Phase offset in turns (0.0 to 1.0)
+        """
+        return int32(round(turns * (1 << 16)))
+
+    @kernel
+    def stage_nco_mixer_frequency(self, channel, frequency):
+        """Stage the DAC NCO mixer frequency in SI units.
+
+        Before using NCO mixer, the mixer must be enabled via :meth:`enable_mixer`.
+        The settings is only applied after triggering DAC synchronisation via :meth:`sync`.
+
+        .. warning:: A new NCO settings without synchronisation will in a malformed channel output.
+
+        :param channel: NCO channel number (0 or 1)
+        :param frequency: NCO frequency in Hz (-500 MHz to +500 MHz)
+        """
+        self.stage_nco_mixer_frequency_mu(channel, self.frequency_to_ftw(frequency))
+
+    @kernel
+    def stage_nco_mixer_phase_offset(self, channel, phase):
+        """Stage the DAC NCO mixer phase offset in SI units.
+
+        Before using NCO mixer, the mixer must be enabled via :meth:`enable_mixer`.
+        The settings is only applied after triggering DAC synchronisation via :meth:`sync`.
+
+        .. warning:: A new NCO settings without synchronisation will in a malformed channel output.
+
+        :param channel: NCO channel number (0 or 1)
+        :param phase: NCO phase offset in turns (0.0 to 1.0)
+        """
+        self.stage_nco_mixer_phase_offset_mu(channel, self.turns_to_pow(phase))
