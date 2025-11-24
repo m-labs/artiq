@@ -91,7 +91,7 @@ It is quite obvious that a RTIO output event can only be scheduled for a timesta
 Input channels and events
 -------------------------
 
-Input channels channels detect input events, timestamp them, and place them in a buffer for the experiment to read out. The following example counts the rising edges occurring during a precisely timed 500 ns interval. If more than 20 rising edges are received, it outputs a pulse: ::
+Input channels detect input events, timestamp them, and place them in a buffer for the experiment to read out. The following example counts the rising edges occurring during a precisely timed 500 ns interval. If more than 20 rising edges are received, it outputs a pulse: ::
 
   input.gate_rising(500*ns)
   if input.count(now_mu()) > 20:
