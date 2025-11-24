@@ -71,11 +71,9 @@ In other words, a worker created by the master has executed the experiment and c
         $ artiq_dashboard -s [hostname or IP of the master]
 
     Both IPv4 and IPv6 are supported. See also the individual references :mod:`~artiq.frontend.artiq_master`, :mod:`~artiq.frontend.artiq_dashboard`, and :mod:`~artiq.frontend.artiq_client` for more details.
-
-.. tip::
         
     In order to run the master and the clients on different PCs, 
-    please make sure your PCs' and network's firewalls do not block traffic on the ports used. 
+    please make sure your PCs' and network's **firewalls** do not block traffic on the ports used. 
     They are likely to be blocked by default.
 
 You may also notice that the master has created some other organizational files in its home directory, notably a folder ``results``, where a HDF5 record is preserved of every experiment that is submitted and run. The files in ``results`` will be discussed in greater detail in :doc:`using_data_interfaces`.
