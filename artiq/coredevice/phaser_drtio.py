@@ -7,7 +7,7 @@ from artiq.language.units import us
 
 PHASER_GW_VARIANT_MTDDS = 1
 
-[
+PHASER_REG_MAP = [
     HW_VARIANT,
     GW_VARIANT,
     SAMPLE_PER_CYCLE,
@@ -22,7 +22,9 @@ PHASER_GW_VARIANT_MTDDS = 1
     ATT_RESET_N,
     TRF_PS,
     TRF_LOCK_DETECT,
-] = range(14)
+    ADC_DATA,
+    ADC_GAIN,
+] = range(16)
 
 
 class _DummyIQUpconverter:
@@ -71,7 +73,11 @@ class PhaserMTDDS:
         self.samples_per_cycle = int(self.dac.input_sample_rate / sysclk)
 
         self.target_write = self.channel << 8
-        self.target_read = self.channel << 8 | 1 << 4
+        self.target_read = (
+            self.channel << 8 | 1 << (len(PHASER_REG_MAP) - 1).bit_length()
+        )
+
+        self.gain_mus = [0b00, 0b00]
 
     @staticmethod
     def get_rtio_channels(channel_base, **kwargs):
@@ -237,6 +243,64 @@ class PhaserMTDDS:
         # stop writing test words to DAC
         self.select_dac_source(0, 1)
         self.select_dac_source(1, 1)
+
+    @kernel
+    def set_pgia(self, adc_channel, gain):
+        """Set instrumentation amplifier gain of an ADC channel.
+
+        :param adc_channel: Phaser ADC channel number (0 or 1)
+        :param gain: Amplifier gain (1, 10, 100 or 1000)
+        """
+        if gain == 1:
+            gain_mu = 0b00
+        elif gain == 10:
+            gain_mu = 0b01
+        elif gain == 100:
+            gain_mu = 0b10
+        elif gain == 1000:
+            gain_mu = 0b11
+        else:
+            raise ValueError("Invalid gain")
+        self.gain_mus[adc_channel] = gain_mu
+        reg = self.read(ADC_GAIN)
+        delay(40.0 * us)
+        self.write(
+            ADC_GAIN,
+            (reg & ~(0b11 << (2 * adc_channel)))
+            | (gain_mu & 0b11) << (2 * adc_channel),
+        )
+
+    @portable(flags={"fast-math"})
+    def adc_mu_to_volt(self, data, gain) -> TFloat:
+        if data & (1 << 15) != 0:
+            data = data - (1 << 16)
+        return (4.096 * data / 0x7FFF) * (5 / 2) / (10 ** (gain))
+
+    @kernel
+    def get_adc_mu(self, channel) -> TInt32:
+        """Return the latest ADC reading in machine units.
+
+        This method consumes all slack.
+
+        :param channel: Phaser ADC channel number (0 or 1)
+        :return: 16-bit signed ADC sample in machine unit
+        """
+        data = self.read(ADC_DATA)
+        if channel == 0:
+            return data & 0xFFFF
+        else:
+            return (data >> 16) & 0xFFFF
+
+    @kernel
+    def get_adc(self, channel) -> TFloat:
+        """Return the latest ADC reading in SI units.
+
+        This method consumes all slack.
+
+        :param channel: Phaser ADC channel number (0 or 1)
+        :return: ADC sample in Volt
+        """
+        return self.adc_mu_to_volt(self.get_adc_mu(channel), self.gain_mus[channel])
 
 
 class PhaserMTDDSChannel:
