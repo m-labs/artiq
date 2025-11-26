@@ -53,6 +53,10 @@
             "type": "boolean",
             "default": false
         },
+        "enable_acpki": {
+            "type": "boolean",
+            "default": false
+        },
         "core_addr": {
             "type": "string",
             "format": "ipv4",
