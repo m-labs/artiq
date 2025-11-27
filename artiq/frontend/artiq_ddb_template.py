@@ -827,6 +827,7 @@ class PeripheralManager:
                             "fpga_device": "{name}_fpga",
                             "dac_device": "{name}_dac",
                             "att_device": "{name}_att{ch}",
+                            "servo_device": "{name}_channel{ch}_servo",
                             "dds_device_prefix": "{name}_channel{ch}_dds"{iquc_device}
                         }}
                     }}""",
@@ -853,6 +854,20 @@ class PeripheralManager:
                         channel=rtio_offset + next(channel),
                         bandwidth=peripheral["dds_bandwidth"],
                     )
+                self.gen(
+                    """
+                    device_db["{name}_channel{ch}_servo"] = {{
+                        "type": "local",
+                        "module": "artiq.coredevice.phaser_drtio",
+                        "class": "PhaserServo",
+                        "arguments": {{
+                            "channel": 0x{channel:06x},
+                        }}
+                    }}""",
+                    name=phaser_name,
+                    ch=ch,
+                    channel=rtio_offset + next(channel),
+                )
         return 0
 
     def process_hvamp(self, rtio_offset, peripheral):
