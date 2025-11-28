@@ -231,6 +231,34 @@ Eventually, you should be able to see the up-and-down 'square wave' pattern of t
 
     File options in the top left allow for saving and exporting RTIO traces and channel lists (including to VCD), as well as opening them from saved files.
 
+:mod:`artiq.frontend.artiq_coreanalyzer` provides a number of options for processing raw analyzer data before it is displayed. 
+The `--vcd-uniform-interval` or `-u` option is useful when RTIO events are sparse and widely spaced in time. For example: ::
+
+    def run(self):
+        self.core.reset()
+        for i in range(5):
+            delay(1 * us)  # microsecond
+            self.led1.on()
+            delay(10 * ms) # millisecond
+            self.led1.off()
+
+Without ``-u``, the 1 µs delay of LED off would be nearly invisible in the waveform compared to the 10 ms of LED on. 
+With ``-u``, the trace squeezes the 10 ms into one interval and adds two additional traces, showing the RTIO event interval (in SI seconds) and the timestamp (in machine units).
+In ``-u`` mode, the VCD viewer's timing axis is not accurate, but the waveform shape is easier to see, as in this diagram: 
+
+.. wavedrom::
+    
+    {
+        signal: [
+            {name: 'led1_with_-u', wave: '1...0...1...0...'},
+            {name: 'timestamp', wave: '4...5...4...5...', data: ["510001000", "520001000", "520002000", "530002000"]},
+            {name: 'interval', wave: '4...5...4...5...', data: ["0.01", "1e-6", "0.01", "1e-6"]}
+        ]
+    }
+
+In GTKWave, please use BitsToReal to convert the interval trace to floating‑point SI seconds, and Decimal to convert the timestamp trace to machine units.
+
+
 RTIO logging
 ^^^^^^^^^^^^
 
