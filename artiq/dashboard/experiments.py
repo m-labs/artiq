@@ -681,21 +681,30 @@ class ExperimentManager:
     def open_experiment(self, expurl):
         if expurl in self.open_experiments:
             dock = self.open_experiments[expurl]
+            mdi_area = dock.mdiArea()
+            if mdi_area is not None:
+                tab_widget = self.main_window.centralWidget()
+                tab_widget.setCurrentWidget(mdi_area)
+                mdi_area.setActiveSubWindow(dock)
+
             if dock.isMinimized():
                 dock.showNormal()
-            self.main_window.centralWidget().setActiveSubWindow(dock)
             return dock
         try:
             dock = _ExperimentDock(self, expurl)
-        except:
-            logger.warning("Failed to create experiment dock for %s, "
-                           "attempting to reset arguments", expurl,
-                           exc_info=True)
+        except Exception:
+            logger.warning(
+                "Failed to create experiment dock for %s, attempting to reset arguments",
+                expurl,
+                exc_info=True,
+            )
             del self.submission_arguments[expurl]
             dock = _ExperimentDock(self, expurl)
         self.open_experiments[expurl] = dock
         dock.setAttribute(QtCore.Qt.WidgetAttribute.WA_DeleteOnClose)
-        self.main_window.centralWidget().addSubWindow(dock)
+        mdi_area = self.main_window.centralWidget().currentWidget()
+        if mdi_area is not None:
+            mdi_area.addSubWindow(dock)
         colors = self.get_colors(expurl)
         if colors:
             if "title_bar" in colors:
@@ -707,10 +716,12 @@ class ExperimentManager:
         if expurl in self.dock_states:
             try:
                 dock.restore_state(self.dock_states[expurl])
-            except:
-                logger.warning("Failed to restore dock state when opening "
-                               "experiment %s", expurl,
-                               exc_info=True)
+            except Exception:
+                logger.warning(
+                    "Failed to restore dock state when opening experiment %s",
+                    expurl,
+                    exc_info=True,
+                )
         return dock
 
     def on_dock_closed(self, expurl):
@@ -812,14 +823,21 @@ class ExperimentManager:
     def save_state(self):
         for expurl, dock in self.open_experiments.items():
             self.dock_states[expurl] = dock.save_state()
+
+        mdi_experiment = {}
+        for index in range(self.main_window.centralWidget().count()):
+            mdi_area = self.main_window.centralWidget().widget(index)
+            mdi_experiment[index] = []
+            for experiment in mdi_area.subWindowList():
+                mdi_experiment[index].append(experiment.expurl)
         return {
             "scheduling": dict(self.submission_scheduling),
             "options": dict(self.submission_options),
             "arguments": dict(self.submission_arguments),
             "docks": dict(self.dock_states),
             "argument_uis": dict(self.argument_ui_names),
-            "open_docks": set(self.open_experiments.keys()),
-            "colors": dict(self.colors)
+            "colors": dict(self.colors),
+            "mdi_experiment": mdi_experiment
         }
 
     def restore_state(self, state):
@@ -831,8 +849,12 @@ class ExperimentManager:
         self.submission_arguments.update(state["arguments"])
         self.argument_ui_names.update(state.get("argument_uis", {}))
         self.colors.update(state.get("colors", {}))
-        for expurl in state["open_docks"]:
-            self.open_experiment(expurl)
+        mdi_experiment = state.get("mdi_experiment", {})
+        for index, mdi in mdi_experiment.items():
+            mdi_area = self.main_window.centralWidget().widget(index)
+            self.main_window.centralWidget().setCurrentWidget(mdi_area)
+            for expurl in mdi:
+                self.open_experiment(expurl)
 
     def show_quick_open(self):
         if self.is_quick_open_shown:
