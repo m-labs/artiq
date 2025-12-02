@@ -1,5 +1,7 @@
 import os, sys, tempfile, subprocess, io
 from functools import wraps
+from math import floor, ceil
+import numpy as np
 from numpy import int32, int64, uint32, uint64, float64, bool_, str_, ndarray
 from types import GenericAlias, ModuleType, SimpleNamespace
 from typing import _GenericAlias, Generic, Literal, TypeVar
@@ -41,7 +43,13 @@ nac3_builtins = {
     "Exception": Exception,
     "range": range,
     "round": round,
+    "round64": round64,
+    "floor": floor,
+    "floor64": floor64,
+    "ceil": ceil,
+    "ceil64": ceil64,
     "len": len,
+    "some": Some,
     "staticmethod": staticmethod,
 
     "types": {
@@ -65,6 +73,28 @@ nac3_builtins = {
         "bool_": bool_,
         "str_": str_,
         "ndarray": ndarray,
+        "empty": np.empty,
+        "zeros": np.zeros,
+        "ones": np.ones,
+        "full": np.full,
+        "array": np.array,
+        "shape": np.shape,
+        "broadcast_to": np.broadcast_to,
+        "reshape": np.reshape,
+        "min": np.min,
+        "minimum": np.minimum,
+        "max": np.max,
+        "maximum": np.maximum,
+        "isnan": np.isnan,
+        "isinf": np.isinf,
+        "arctan2": np.arctan2,
+        "copysign": np.copysign,
+        "fmax": np.fmax,
+        "fmin": np.fmin,
+        "ldexp": np.ldexp,
+        "hypot": np.hypot,
+        "nextafter": np.nextafter,
+        "dot": np.dot,
     },
 
     "artiq": {
