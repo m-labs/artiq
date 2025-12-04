@@ -37,6 +37,7 @@ console_scripts = [
     "aqctl_coreanalyzer_proxy = artiq.frontend.aqctl_coreanalyzer_proxy:main",
     "aqctl_corelog = artiq.frontend.aqctl_corelog:main",
     "aqctl_moninj_proxy = artiq.frontend.aqctl_moninj_proxy:main",
+    "aqctl_awg = artiq.frontend.aqctl_awg:main",
     "afws_client = artiq.frontend.afws_client:main",
 ]
 

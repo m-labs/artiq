@@ -176,7 +176,7 @@
 
       nativeBuildInputs = [pkgs.qt6.wrapQtAppsHook];
       propagatedBuildInputs =
-        [pkgs.llvm_20 pkgs.lld_20 sipyco.packages.x86_64-linux.sipyco pythonparser pkgs.qt6.qtsvg artiq-comtools.packages.x86_64-linux.artiq-comtools]
+        [pkgs.llvm_20 pkgs.lld_20 sipyco.packages.x86_64-linux.sipyco pythonparser spcm pkgs.qt6.qtsvg artiq-comtools.packages.x86_64-linux.artiq-comtools]
         ++ (with pkgs.python3Packages; [llvmlite pyqtgraph pygit2 numpy python-dateutil scipy prettytable pyserial levenshtein h5py pyqt6 qasync tqdm lmdb jsonschema platformdirs]);
 
       dontWrapQtApps = true;
@@ -241,6 +241,21 @@
       pyproject = true;
       build-system = [pkgs.python3Packages.setuptools];
       propagatedBuildInputs = [pkgs.python3Packages.pyserial];
+    };
+
+    # Spectrum Instrumentation SPCM library for AWG devices
+    spcm = pkgs.python3Packages.buildPythonPackage rec {
+      pname = "spcm";
+      version = "1.11.0";
+      src = pkgs.fetchPypi {
+        inherit pname version;
+        sha256 = "sha256-YpGQv6WMdA6n8Icjupu9FzR9a/beMpQIqGc/OA6TiYo=";
+      };
+      pyproject = true;
+      build-system = [pkgs.python3Packages.setuptools];
+      propagatedBuildInputs = with pkgs.python3Packages; [numpy];
+      # Skip tests as they require hardware
+      doCheck = false;
     };
 
     misoc = pkgs.python3Packages.buildPythonPackage {
@@ -390,7 +405,7 @@
       '';
   in rec {
     packages.x86_64-linux = {
-      inherit pythonparser qasync artiq artiq-build;
+      inherit pythonparser qasync artiq artiq-build spcm;
       inherit migen misoc asyncserial microscope vivadoEnv vivado;
       openocd-bscanspi = openocd-bscanspi-f pkgs;
       artiq-board-kc705-nist_clock = makeArtiqBoardPackage {
@@ -500,7 +515,7 @@
             python3Packages.sphinxcontrib-wavedrom
             python3Packages.sphinx-rtd-theme
 
-            (python3.withPackages (ps: [migen misoc microscope ps.packaging ps.paramiko] ++ artiq.propagatedBuildInputs))
+            (python3.withPackages (ps: [migen misoc microscope spcm ps.packaging ps.paramiko] ++ artiq.propagatedBuildInputs))
           ]
           ++ [
             rust
