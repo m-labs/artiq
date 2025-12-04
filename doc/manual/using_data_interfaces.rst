@@ -231,6 +231,32 @@ Eventually, you should be able to see the up-and-down 'square wave' pattern of t
 
     File options in the top left allow for saving and exporting RTIO traces and channel lists (including to VCD), as well as opening them from saved files.
 
+:mod:`artiq.frontend.artiq_coreanalyzer` provides a number of options for processing raw analyzer data before it is displayed. The ``--vcd-uniform-interval`` or ``-u`` option is useful when RTIO events are sparse and widely spaced in time. For example: ::
+
+    def run(self):
+        self.core.reset()
+        for i in range(5):
+            delay(1 * us)  # microsecond
+            self.led1.on()
+            delay(10 * ms) # millisecond
+            self.led1.off()
+
+Without ``-u``, the 1 µs delay before LED on signal would be nearly invisible in the waveform compared to the 10 ms delay before LED off signal. With ``-u``, the RTIO analyzer squeezes the 10 ms (and all other events) into one interval and adds two additional traces, showing the RTIO event interval (in SI seconds) and the timestamp (in machine units). In ``-u`` mode, the VCD viewer's timing axis is not accurate, but the waveform shape is easier to see, as in this diagram: 
+
+.. wavedrom::
+    
+    {
+        signal: [
+            {name: 'led_with_-u', wave: '1..0..1..0..'},
+            {name: 'timestamp', wave: '4..5..4..5..', data: ["510001000", "520001000", "520002000", "530002000"]},
+            {name: 'interval', wave: '4..5..4..5..', data: ["0.01", "1e-6", "0.01", "1e-6"]}
+        ],
+    }
+
+.. tip::
+    In GTKWave, please use BitsToReal to convert the interval trace to floating‑point SI seconds, and Decimal to convert the timestamp trace to machine units.
+
+
 RTIO logging
 ^^^^^^^^^^^^
 
@@ -245,6 +271,7 @@ It is possible to dump any Python object so that it appears alongside the wavefo
             delay(.2*us)
 
 Run this edited experiment. Fetch the analyzer data. Open the 'Add channels' pop-up again; ``test_trace`` should appear as an option now that the experiment has been run. Observe that every ``i`` is printed as a single-point event in a new waveform timeline.
+In GTKWave or similar waveform viewers, you may change the data display format to ASCII to see the log messages more clearly.
 
 Shortcuts
 ---------
