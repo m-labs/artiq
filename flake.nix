@@ -133,13 +133,12 @@
         sha256 = "sha256-oXzwilhJ1PhodQpOZjnV9gFuoDy/zXWva9LhhK3T00g=";
       };
       pyproject = true;
-      build-system = [pkgs.python3Packages.setuptools];
+      build-system = [pkgs.python3Packages.poetry-core];
       postPatch = ''
         rm qasync/_windows.py # Ignoring it is not taking effect and it will not be used on Linux
       '';
-      buildInputs = [pkgs.python3Packages.poetry-core];
       propagatedBuildInputs = [pkgs.python3Packages.pyqt6];
-      checkInputs = [pkgs.python3Packages.pytestCheckHook];
+      nativeCheckInputs = [pkgs.python3Packages.pytestCheckHook];
       pythonImportsCheck = ["qasync"];
       disabledTestPaths = ["tests/test_qeventloop.py"];
     };
@@ -243,6 +242,30 @@
       propagatedBuildInputs = [pkgs.python3Packages.pyserial];
     };
 
+    # Spectrum Instrumentation low-level driver wrapper
+    spcm-core = pkgs.python3Packages.buildPythonPackage rec {
+      pname = "spcm-core";
+      version = "1.0.7";
+      src = pkgs.fetchPypi {
+        pname = "spcm_core";
+        inherit version;
+        sha256 = "sha256-UY9JzMs11McK1iRIhJKm+6Jrn1C9GHH1HvVCecnWE04=";
+      };
+      pyproject = true;
+      build-system = with pkgs.python3Packages; [setuptools versioneer];
+      propagatedBuildInputs = with pkgs.python3Packages; [numpy];
+      # Patch to load driver from system path
+      postPatch = ''
+        substituteInPlace src/spcm_core/pyspcm.py \
+          --replace 'spcmDll = cdll.LoadLibrary ("libspcm_linux.so")' \
+                    'spcmDll = cdll.LoadLibrary ("/usr/lib/x86_64-linux-gnu/libspcm_linux.so")'
+      '';
+      # Skip tests as they require hardware
+      doCheck = false;
+      # Skip runtime dependency check as it requires the Spectrum driver
+      dontCheckRuntimeDeps = true;
+    };
+
     # Spectrum Instrumentation SPCM library for AWG devices
     spcm = pkgs.python3Packages.buildPythonPackage rec {
       pname = "spcm";
@@ -252,8 +275,8 @@
         sha256 = "sha256-YpGQv6WMdA6n8Icjupu9FzR9a/beMpQIqGc/OA6TiYo=";
       };
       pyproject = true;
-      build-system = [pkgs.python3Packages.setuptools];
-      propagatedBuildInputs = with pkgs.python3Packages; [numpy];
+      build-system = with pkgs.python3Packages; [setuptools versioneer];
+      propagatedBuildInputs = with pkgs.python3Packages; [numpy pint spcm-core];
       # Skip tests as they require hardware
       doCheck = false;
     };
