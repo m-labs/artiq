@@ -82,6 +82,7 @@ class DMAReader(Module, AutoCSR):
         # All numbers in bytes
         self.base_address = CSRStorage(aw + data_alignment,
                                        alignment_bits=data_alignment)
+        self.base_skip = Signal(data_alignment)
 
         # # #
 
@@ -90,7 +91,8 @@ class DMAReader(Module, AutoCSR):
         self.sync += [
             enable_r.eq(enable),
             If(enable & ~enable_r,
-                address.address.eq(self.base_address.storage),
+                address.address.eq(self.base_address.storage[:-data_alignment]),
+                self.base_skip.eq(self.base_address.storage[-data_alignment:]),
                 address.eop.eq(0),
                 address.stb.eq(1),
             ),
@@ -180,7 +182,7 @@ record_layout = [
 
 
 class RecordConverter(Module):
-    def __init__(self, stream_slicer):
+    def __init__(self, stream_slicer, base_skip):
         self.source = stream.Endpoint(record_layout)
         self.end_marker_found = Signal()
         self.flush = Signal()
@@ -197,9 +199,15 @@ class RecordConverter(Module):
                  for i in range(1, 512//8+1)}),
         ]
 
-        fsm = FSM(reset_state="FLOWING")
+        fsm = FSM(reset_state="START")
         self.submodules += fsm
 
+        fsm.act("START",
+            If(stream_slicer.source_stb,
+                stream_slicer.source_consume.eq(base_skip),
+                NextState("FLOWING")
+            )
+        )
         fsm.act("FLOWING",
             If(stream_slicer.source_stb,
                 If(record_raw.length == 0,
@@ -227,15 +235,15 @@ class RecordConverter(Module):
         fsm.act("SEND_EOP",
             self.source.eop.eq(1),
             self.source.stb.eq(1),
-            If(self.source.ack, NextState("FLOWING"))
+            If(self.source.ack, NextState("START"))
         )
 
 
 class RecordSlicer(Module):
-    def __init__(self, in_size):
+    def __init__(self, in_size, base_skip):
         self.submodules.raw_slicer = ResetInserter()(RawSlicer(
             in_size//8, layout_len(record_layout)//8, 8))
-        self.submodules.record_converter = RecordConverter(self.raw_slicer)
+        self.submodules.record_converter = RecordConverter(self.raw_slicer, base_skip)
 
         self.end_marker_found = self.record_converter.end_marker_found
         self.flush = self.record_converter.flush
@@ -359,7 +367,7 @@ class DMA(Module):
         self.submodules.dma = DMAReader(membus, flow_enable, cpu_dw)
         self.submodules.fifo = stream.SyncFIFO(
             [("data", len(membus.dat_w))], 128, True, lo_wm=64)
-        self.submodules.slicer = RecordSlicer(len(membus.dat_w))
+        self.submodules.slicer = RecordSlicer(len(membus.dat_w), self.dma.base_skip)
         self.submodules.time_offset = TimeOffset()
         self.submodules.cri_master = CRIMaster()
         self.cri = self.cri_master.cri
