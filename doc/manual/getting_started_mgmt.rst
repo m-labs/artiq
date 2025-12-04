@@ -60,7 +60,7 @@ In other words, a worker created by the master has executed the experiment and c
 
     In order to run the master and the clients on different PCs, start the master with a ``--bind`` flag: ::
 
-        $ artiq_master --bind [hostname or IP to bind to]
+        $ artiq_master --bind [master computer's hostname or IP to bind to]
 
     and then use the option ``--server`` or ``-s`` for clients, as in: ::
 
@@ -68,6 +68,9 @@ In other words, a worker created by the master has executed the experiment and c
         $ artiq_dashboard -s [hostname or IP of the master]
 
     Both IPv4 and IPv6 are supported. See also the individual references :mod:`~artiq.frontend.artiq_master`, :mod:`~artiq.frontend.artiq_dashboard`, and :mod:`~artiq.frontend.artiq_client` for more details.
+        
+.. warning::
+    When running the management system across multiple machines, please ensure that your PCs' and network's **firewalls** do not block traffic on the ports used. They are likely to be blocked by default.
 
 You may also notice that the master has created some other organizational files in its home directory, notably a folder ``results``, where a HDF5 record is preserved of every experiment that is submitted and run. The files in ``results`` will be discussed in greater detail in :doc:`using_data_interfaces`.
 
@@ -291,17 +294,21 @@ Conversely, clients (:mod:`~artiq.frontend.artiq_client` or :mod:`~artiq.fronten
     $ artiq_dashboard --ssl <client.pem> <client.key> <master.pem>
     $ artiq_ctlmgr --ssl <client.pem> <client.key> <master.pem>
 
-Note that the client key and certificate *must* match the client certificate given to the master, or they will not be recognized as legitimate. Multiple parallel clients may simply share the same key and certificate.
+Note that the client key and certificate *must* match the client certificate given to the master, or they will not be recognized as legitimate. 
 
 .. note::
 
     To operate additional controllers and NDSPs over SSL, see :ref:`ctlrs-ssl`.
 
-.. note::
+    To connect with multiple clients and/or controller managers or other SSL capable applications, 
+    you may concatenate their certificate files into a single ``.pem`` file and use that for all connections. 
+    See `Sipyco SSL document <https://github.com/m-labs/sipyco/blob/master/doc/index.rst#ssl-setup>`_.
 
-    Some users may recognize that reusing the same private key between multiple machines is unusual and somewhat frowned upon by cryptographic standards. A private key *is* secret, and should be passed around only with significant care, which becomes more difficult the more often it has to be done. Using the same key also means clients can't be cryptographically distinguished from each other, i.e., two authorized clients might still impersonate *each other.*
+.. .. note--
 
-    In practice, in ARTIQ, all clients are equal, so there's no benefit to be gained by impersonation. Accordingly, the management overhead (and opportunities for error) of generating additional certificates and keys can be avoided, and reusing a single key is acceptable.
+..     Some users may recognize that reusing the same private key between multiple machines is unusual and somewhat frowned upon by cryptographic standards. A private key *is* secret, and should be passed around only with significant care, which becomes more difficult the more often it has to be done. Using the same key also means clients can't be cryptographically distinguished from each other, i.e., two authorized clients might still impersonate *each other.*
+
+..     In practice, in ARTIQ, all clients are equal, so there's no benefit to be gained by impersonation. Accordingly, the management overhead (and opportunities for error) of generating additional certificates and keys can be avoided, and reusing a single key is acceptable.
 
 .. .. tip -- untested
 
@@ -319,3 +326,7 @@ Arguments to the individual tools (including ``-s`` and ``--bind``) can still be
     $ artiq_session -m=-g
 
 to start the session with Git integration. See also :mod:`~artiq.frontend.artiq_session`.
+
+.. note::
+
+    ``artiq_session`` does not support SSL, since it is only intended for simple single-machine setups.
