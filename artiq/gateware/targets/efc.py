@@ -117,12 +117,6 @@ shuttler_io = [
         Subsignal('mosi', Pins('fmc0:LA00_CC_N')),
         Subsignal('cs_n', Pins('fmc0:LA02_P fmc0:LA01_CC_N')),
         IOStandard("LVCMOS18")),
-    ('afe_adc_spi', 0,
-        Subsignal('clk', Pins('fmc0:LA29_P')),
-        Subsignal('mosi', Pins('fmc0:LA29_N')),
-        Subsignal('miso', Pins('fmc0:LA30_N')),
-        Subsignal('cs_n', Pins('fmc0:LA28_P')),
-        IOStandard("LVCMOS18")),
     ('afe_adc_error_n', 0, Pins('fmc0:LA28_N'), IOStandard("LVCMOS18")),
 ]
 
