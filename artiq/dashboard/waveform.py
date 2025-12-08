@@ -427,7 +427,10 @@ class _WaveformView(QtWidgets.QWidget):
         self._ref_axis.setMenuEnabled(False)
         self._top = pg.AxisItem("top")
         self._top.setScale(1e-12)
-        self._top.setLabel(units="s")
+        if parent._uniform_interval:
+            self._top.setLabel(text= "uniform interval (1ps/action)", units="s")
+        else:
+            self._top.setLabel(units="s")
         self._ref_axis.setAxisItems({"top": self._top})
         layout.addWidget(self._ref_axis)
 
@@ -621,6 +624,7 @@ class _CursorTimeControl(QtWidgets.QLineEdit):
         self._text = ""
         self._value = 0
         self._timescale = 1
+        self._uniform_interval = parent._uniform_interval if (parent is not None and parent._uniform_interval is not None) else False
         self.setDisplayValue(0)
         self.textChanged.connect(self._onTextChange)
         self.returnPressed.connect(self._onReturnPress)
@@ -633,10 +637,14 @@ class _CursorTimeControl(QtWidgets.QLineEdit):
 
     def setDisplayValue(self, value):
         self._value = value
-        self._text = pg.siFormat(value * 1e-12 * self._timescale,
-                                 suffix="s",
-                                 allowUnicode=False,
-                                 precision=15)
+        if self._uniform_interval:
+            self._text = pg.siFormat(value * 1e-12 * self._timescale,
+                                    suffix="actions",
+                                    precision=15)
+        else:
+            self._text = pg.siFormat(value * 1e-12 * self._timescale,
+                                    suffix="s",
+                                    precision=15)
         self.setText(self._text)
 
     def _setValueFromText(self, text):
@@ -716,13 +724,11 @@ class WaveformDock(QtWidgets.QDockWidget):
 
         self._ddb = None
         self._dump = None
+        self._uniform_interval = False
 
-        self._waveform_data = {
-            "timescale": 1,
-            "stopped_x": None,
-            "logs": dict(),
-            "data": dict(),
-        }
+        self._waveform_data = self._new_waveform_data()
+        self._waveform_data_non_uniform_interval = self._new_waveform_data()
+        self._waveform_data_uniform_interval = self._new_waveform_data()
 
         self._current_dir = os.getcwd()
 
@@ -749,6 +755,12 @@ class WaveformDock(QtWidgets.QDockWidget):
             lambda: asyncio.ensure_future(exc_to_warning(self.proxy_client.trigger_proxy_task())))
         grid.addWidget(self._request_dump_btn, 0, 1)
 
+        # add uniform interval option checkbox
+        self._uniform_interval_checkbox = QtWidgets.QCheckBox("Uniform Interval")
+        self._uniform_interval_checkbox.setToolTip("Display waveforms with uniform time intervals, equivalent to -u option in comm_analyzer")
+        self._uniform_interval_checkbox.checkStateChanged.connect(self._update_uniform_interval)
+        grid.addWidget(self._uniform_interval_checkbox, 0, 2)
+
         self._add_channel_dialog = _AddChannelDialog(self, self._channel_model)
         self._add_channel_dialog.accepted.connect(self._add_channels)
 
@@ -758,7 +770,7 @@ class WaveformDock(QtWidgets.QDockWidget):
             QtWidgets.QApplication.style().standardIcon(
                 QtWidgets.QStyle.StandardPixmap.SP_FileDialogListView))
         self._add_btn.clicked.connect(self._add_channel_dialog.open)
-        grid.addWidget(self._add_btn, 0, 2)
+        grid.addWidget(self._add_btn, 0, 3)
 
         self._file_menu = QtWidgets.QMenu()
         self._add_async_action("Open trace...", self.load_trace)
@@ -778,12 +790,20 @@ class WaveformDock(QtWidgets.QDockWidget):
             QtWidgets.QApplication.style().standardIcon(
                 QtWidgets.QStyle.StandardPixmap.SP_TitleBarMaxButton))
         self._reset_zoom_btn.clicked.connect(self._waveform_view.resetZoom)
-        grid.addWidget(self._reset_zoom_btn, 0, 3)
+        grid.addWidget(self._reset_zoom_btn, 0, 4)
 
         self._cursor_control = _CursorTimeControl(self)
         self._waveform_view.cursorMove.connect(self._cursor_control.setDisplayValue)
         self._cursor_control.submit.connect(self._waveform_view.onCursorMove)
-        grid.addWidget(self._cursor_control, 0, 4, colspan=6)
+        grid.addWidget(self._cursor_control, 0, 5, colspan=6)
+
+    def _new_waveform_data(self):
+        return {
+                "timescale": 1,
+                "stopped_x": None,
+                "logs": dict(),
+                "data": dict(),
+                }
 
     def _add_async_action(self, label, coro):
         action = QtGui.QAction(label, self)
@@ -802,8 +822,20 @@ class WaveformDock(QtWidgets.QDockWidget):
     def on_dump_receive(self, dump):
         self._dump = dump
         decoded_dump = comm_analyzer.decode_dump(dump)
-        waveform_data = comm_analyzer.decoded_dump_to_waveform_data(self._ddb, decoded_dump)
-        self._waveform_data.update(waveform_data)
+        # store uniform interval and non uniform interval waveforms separately to avoid repeated conversion
+        waveform_data_non_uniform = comm_analyzer.decoded_dump_to_waveform_data(self._ddb, decoded_dump, False)
+        self._waveform_data_non_uniform_interval.update(waveform_data_non_uniform)
+        waveform_data_uniform = comm_analyzer.decoded_dump_to_waveform_data(self._ddb, decoded_dump, True)
+        self._waveform_data_uniform_interval.update(waveform_data_uniform)
+        self.reload_waveform()
+
+    def reload_waveform(self, uniform_interval=None):
+        if uniform_interval is None:
+            uniform_interval = self._uniform_interval
+        if uniform_interval:
+            self._waveform_data = self._waveform_data_uniform_interval
+        else:
+            self._waveform_data = self._waveform_data_non_uniform_interval
         self._channel_model.update(self._waveform_data['logs'])
         self._waveform_model.update_all(self._waveform_data['data'])
         self._waveform_view.setStoppedX(self._waveform_data['stopped_x'])
@@ -903,6 +935,10 @@ class WaveformDock(QtWidgets.QDockWidget):
 
     def _process_ddb(self):
         channel_list = comm_analyzer.get_channel_list(self._ddb)
+        if not self._uniform_interval:
+            # remove timestamp and time interval channels if
+            channel_list = {k: v for k, v in channel_list.items()
+                            if k != "interval" and k != "timestamp"}
         self._channel_model.clear()
         self._channel_model.update(channel_list)
         desc = self._ddb.get("core_analyzer")
@@ -925,3 +961,28 @@ class WaveformDock(QtWidgets.QDockWidget):
     async def stop(self):
         if self.proxy_client is not None:
             await self.proxy_client.close()
+
+    def _update_uniform_interval(self):
+        self._uniform_interval = self._uniform_interval_checkbox.isChecked()
+
+        # update channel model
+        channel_list = comm_analyzer.get_channel_list(self._ddb)
+        if not self._uniform_interval:
+            # remove timestamp and time interval channels
+            channel_list = {k: v for k, v in channel_list.items()
+                            if k != "interval" and k != "timestamp"}
+        self._channel_model.clear()
+        self._channel_model.update(channel_list)
+
+        # change us to num_of_actions label
+        if self._uniform_interval:
+            self._waveform_view._top.setLabel(text= "action index", units="actions")
+        else:
+            self._waveform_view._top.setLabel(units="s")
+
+        # update cursor display
+        self._cursor_control._uniform_interval = self._uniform_interval
+        self._cursor_control.setDisplayValue(0)
+        
+        # reload waveform data
+        self.reload_waveform()
