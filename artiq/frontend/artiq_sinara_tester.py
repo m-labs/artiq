@@ -775,6 +775,39 @@ class SinaraTester(EnvExperiment):
         if not channel.upconverter_pll_locked():
             raise ValueError("TRF372017 PLL fails to lock")
 
+    @kernel
+    def setup_phaser_servo_channel(self, channel, adc_channel):
+        self.core.break_realtime()
+
+        # disable all DDS
+        for dds in channel.ddss:
+            dds.enable_phase_accumulator(False)
+            delay(20 * us)
+
+        channel.fpga.set_pgia(adc_channel, 1)
+
+        # P servo loop setup
+        channel.servo.select_iir_source(adc_channel)
+        delay(20 * us)
+        channel.servo.set_y1(0, 0.0)  # clear integrator
+        delay(20 * us)
+        channel.servo.set_iir(0, -0.3, kp=-1.0)  # 3V as setpoint, P = -1
+        delay(20 * us)
+        channel.servo.set_active_profile(0)
+        delay(20 * us)
+        channel.servo.enable_iir(True)
+        delay(20 * us)
+
+        # DDS setup
+        channel.attenuator.set_att(10.0 * dB)
+        channel.select_dac_source(2)
+        channel.ddss[0].set_frequency(10 * MHz)
+        delay(20 * us)
+        channel.ddss[0].set_amplitude(1.0)
+        delay(20 * us)
+        channel.ddss[0].enable_phase_accumulator(True)
+        delay(20 * us)
+
     def test_phaser_drtio_mtddss(self):
         print("*** Testing Phaser DRTIO MTDDSs")
         for card_n, (card_name, card_dev) in enumerate(self.phaser_drtio_mtdds_fpgas):
@@ -791,6 +824,7 @@ class SinaraTester(EnvExperiment):
 
         print("All Phaser MTDDS channels active:")
 
+        print("Testing all DDSs...")
         for card_n, (card_name, card_dev) in enumerate(self.phaser_drtio_mtddss):
             if card_dev.has_upconverter:
                 if card_dev.upconverter.use_external_lo:
@@ -808,6 +842,26 @@ class SinaraTester(EnvExperiment):
 
         print("Press ENTER when done.")
         input()
+        
+        print("Testing all servos...")
+        for card_n, (card_name, card_dev) in enumerate(self.phaser_drtio_mtddss):
+            if card_dev.has_upconverter:
+                if card_dev.upconverter.use_external_lo:
+                    print(
+                        f"{card_name}: enabling upconverter without internal PLL, please provide external LO"
+                    )
+                else:
+                    lo_freq = 300
+                    print(f"{card_name}: setting upconverter at {lo_freq} MHz ")
+                    self.setup_phaser_mtdds_upconverter(card_dev, lo_freq * MHz)
+
+            adc_channel = card_dev.channel_index
+            print(f"{card_name}: outputing 10 MHz, amplitude controled by ADC{adc_channel} (output RMS voltage @ 0 V = 2x output RMS voltage @ 1.5V)")
+            self.setup_phaser_servo_channel(card_dev, adc_channel)
+
+        print("Press ENTER when done.")
+        input()
+
 
     @kernel
     def grabber_capture(self, card_dev, rois):
