@@ -3,7 +3,7 @@ from numpy import int32, int64
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 from artiq.language.core import *
 from artiq.language.types import *
-from artiq.language.units import us
+from artiq.language.units import us, ns
 
 PHASER_GW_VARIANT_MTDDS = 1
 
@@ -25,6 +25,14 @@ PHASER_REG_MAP = [
     ADC_DATA,
     ADC_GAIN,
 ] = range(16)
+
+PHASER_SERVO_PROFILES = 4
+PHASER_SERVO_REG_MAP = [
+    SERVO_ADC_SOURCE_SEL,
+    SERVO_PROFILE_SEL,
+    SERVO_ENABLE,
+    SERVO_CLIPPED,
+] = range(4)
 
 
 class _DummyIQUpconverter:
@@ -335,6 +343,7 @@ class PhaserMTDDSChannel:
 
     * :attr:`attenuator`: A :class:`HMC542B<artiq.coredevice.hmc542b.HMC542B>`.
     * :attr:`upconverter`: A :class:`TRF372017<artiq.coredevice.trf372017.TRF372017>` if ``iquc_device`` is provided.
+    * :attr:`servo`: A :class:`PhaserServo`.
     * :attr:`ddss`: List of :class:`PhaserDDS`.
 
     """
@@ -346,6 +355,7 @@ class PhaserMTDDSChannel:
         "fpga",
         "dac",
         "attenuator",
+        "servo",
         "has_upconverter",
         "upconverter",
         "ddss",
@@ -359,6 +369,7 @@ class PhaserMTDDSChannel:
         fpga_device,
         dac_device,
         att_device,
+        servo_device,
         dds_device_prefix,
         iquc_device=None,
         core_device="core",
@@ -370,6 +381,7 @@ class PhaserMTDDSChannel:
         self.fpga = dmgr.get(fpga_device)
         self.dac = dmgr.get(dac_device)
         self.attenuator = dmgr.get(att_device)
+        self.servo = dmgr.get(servo_device)
 
         if iquc_device is None:
             self.upconverter = _DummyIQUpconverter()
@@ -583,3 +595,249 @@ class PhaserDDS:
         :param enable: Enable the DDS phase accmulator if True
         """
         rtio_output(self.target_clear, 0 if enable else 1)
+
+
+class PhaserServo:
+    """Phaser Servo driver
+
+    :param core_device: Core device name (default: "core").
+    """
+
+    kernel_invariants = {
+        "core",
+        "channel",
+        "addr_offset",
+        "target_write",
+        "target_read",
+    }
+
+    def __init__(self, dmgr, channel, core_device="core"):
+        self.channel = channel
+        self.core = dmgr.get(core_device)
+
+        self.addr_offset = len(PHASER_SERVO_REG_MAP)
+        self.target_write = self.channel << 8
+        self.target_read = (
+            self.channel << 8
+            | 1 << (self.addr_offset + PHASER_SERVO_PROFILES * 6 - 1).bit_length()
+        )
+
+    @staticmethod
+    def get_rtio_channels(channel_base, **kwargs):
+        return [(channel_base, "channel")]
+
+    @kernel
+    def write(self, address, data):
+        rtio_output(self.target_write | address, data)
+
+    @kernel
+    def read(self, address):
+        rtio_output(self.target_read | address, 0)
+        return rtio_input_data(self.channel)
+
+    @portable(flags={"fast-math"})
+    def setpoint_to_offset(self, setpoint) -> TInt32:
+        """Return the 16-bit IIR offset corresponding to the given fractional setpoint."""
+        return int32(round(setpoint * ((1 << 15) - 1)))
+
+    @portable(flags={"fast-math"})
+    def full_scale_to_y_mu(self, y) -> TInt32:
+        """Return the 16-bit IIR y filter output corresponding to the given fractional filter output."""
+        return int32(round(y * ((1 << 15) - 1)))
+
+    @portable(flags={"fast-math"})
+    def y_mu_to_full_scale(self, y_mu) -> TFloat:
+        """Return the fractional filter output to the given 16-bit IIR y filter output."""
+        return y_mu / ((1 << 15) - 1)
+
+    @portable(flags={"fast-math"})
+    def pi_to_iir_mu(self, kp, ki=0.0, g=0.0):
+        """Return the IIR coefficients to the given Proportional–Integral (PI) controller.
+
+        The PI controller transfer function is:
+
+        .. math::
+            H(s) = k_p + \\frac{k_i}{s + \\frac{k_i}{g}}
+
+        Where:
+            * :math:`s = \\sigma + i\\omega` is the complex frequency
+            * :math:`k_p` is the proportional gain
+            * :math:`k_i` is the integrator gain
+            * :math:`g` is the integrator gain limit
+
+
+        The IIR recurrence relation is:
+
+        .. math::
+            a_0 \\times y[n] = b_0 (x[n] + o) + b_1 (x[n-1] + o) + a_1 \\times y[n-1]
+
+        Where:
+            * :math:`y`: 16-bit output signal
+            * :math:`x`: 16-bit input signal
+            * :math:`o`: 16-bit offset
+            * :math:`b_0`, :math:`a_1`, :math:`b_1`: 18-bit filter coefficients
+            * :math:`a_0`: a constant filter coefficient, :math:`a_0 = 1 << 11`
+
+        :param kp: Proportional gain.
+        :param ki: Integrator gain (rad/s). When 0 (the default)
+            this implements a pure P controller. Same sign as ``kp``.
+        :param g: Integrator gain limit. When 0 (the default) the
+            integrator gain limit is infinite. Same sign as ``ki``.
+        :return: A tuple (b0, a1, b1)
+        """
+        NORM = 1 << 11
+        COEFF_LIMIT = 1 << 17  # 18-bit filter coefficients
+        T_CYCLE = 208 * ns  # 4.8 MSPS ADC sample rate
+
+        # Bilinear transform is used to convert the transfer function to a first order IIR.
+        if ki == 0.0:
+            # pure P
+            a1 = 0
+            b1 = 0
+            b0 = int(round(kp * NORM))
+        else:
+            # I or PI
+            ki = ki * (T_CYCLE / 2.0)
+            if g == 0.0:
+                c = 1.0
+                a1 = NORM
+            else:
+                c = 1.0 / (1.0 + ki / g)
+                a1 = int(round((2.0 * c - 1.0) * NORM))
+            b0 = int(round((kp + ki * c) * NORM))
+            b1 = int(round((kp + (ki - 2.0 * kp) * c) * NORM))
+            if b1 == -b0:
+                raise ValueError("integrator gain and/or gain limit too low")
+
+        if (
+            b0 >= COEFF_LIMIT
+            or b0 < -COEFF_LIMIT
+            or b1 >= COEFF_LIMIT
+            or b1 < -COEFF_LIMIT
+        ):
+            raise ValueError("gains too high")
+
+        return b0, a1, b1
+
+    @kernel
+    def set_iir(self, profile, setpoint, kp, ki=0.0, g=0.0):
+        """Set a profile's IIR coefficients.
+
+        .. warning:: The coefficients update are applied sequentially. To apply a synchronous change, use a different profile as buffer or disable the IIR before writing to the active profile.
+
+        See also :meth:`PhaserServo.pi_to_iir_mu`
+
+        :param profile: Profile number (0 to 3)
+        :param setpoint: fractional setpoint (0.0 to 1.0)
+        :param kp: Proportional gain.
+        :param ki: Integrator gain (rad/s). When 0 (the default)
+            this implements a pure P controller. Same sign as ``kp``.
+        :param g: Integrator gain limit. When 0 (the default) the
+            integrator gain limit is infinite. Same sign as ``ki``.
+        """
+        b0, a1, b1 = self.pi_to_iir_mu(kp, ki, g)
+        self.set_iir_mu(profile, self.setpoint_to_offset(setpoint), b0, a1, b1)
+
+    @kernel
+    def set_iir_mu(self, profile, offset, b0, a1, b1):
+        """Set a profile's IIR coefficients in machine unit.
+
+        This method advances the timeline by four coarse RTIO clock cycles.
+
+        .. warning:: The coefficients update are applied sequentially. To apply a synchronous change, use a different profile as buffer or disable the IIR before writing to the active profile.
+
+        See also :meth:`PhaserServo.pi_to_iir_mu` for the IIR recurrence relation.
+
+        :param profile: Profile number (0 to 3)
+        :param offset: 16-bit signed offset
+        :param b0: 18-bit signed coefficient
+        :param a1: 18-bit signed coefficient
+        :param b1: 18-bit signed coefficient
+        """
+        profile_addr = self.addr_offset + profile * 6
+        self.write(profile_addr + 0, b0)
+        delay_mu(int64(self.core.ref_multiplier))
+        self.write(profile_addr + 1, a1)
+        delay_mu(int64(self.core.ref_multiplier))
+        self.write(profile_addr + 2, b1)
+        delay_mu(int64(self.core.ref_multiplier))
+        self.write(profile_addr + 3, offset)
+        delay_mu(int64(self.core.ref_multiplier))
+
+    @kernel
+    def iir_output_clipped(self) -> TBool:
+        """Returns whether the IIR output is clipped
+
+        This method consumes all slack.
+        """
+        return self.read(SERVO_CLIPPED) != 0
+
+    @kernel
+    def set_y1_mu(self, profile, y1):
+        """Set a profile's IIR y[n-1] in machine unit.
+
+        :param profile: Profile number (0 to 3)
+        :param y1: 16-bit signed y[n-1] filter output
+        """
+        profile_addr = self.addr_offset + profile * 6
+        self.write(profile_addr + 5, y1)
+        delay_mu(int64(self.core.ref_multiplier))
+
+    @kernel
+    def get_y1_mu(self, profile) -> TInt32:
+        """Return a profile's IIR y[n-1] in machine unit.
+
+        This method consumes all slack.
+
+        :param profile: Profile number (0 to 3)
+        :return: 16-bit signed y[n-1] filter output
+        """
+        profile_addr = self.addr_offset + profile * 6
+        return self.read(profile_addr + 5)
+
+    @kernel
+    def set_y1(self, profile, y1):
+        """Set a profile's IIR y[n-1].
+
+        :param profile: Profile number (0 to 3)
+        :param y1: fractional y[n-1] filter output (-1.0 to 1.0)
+        """
+        self.set_y1_mu(profile, self.full_scale_to_y_mu(y1))
+
+    @kernel
+    def get_y1(self, profile) -> TFloat:
+        """Return a profile's IIR y[n-1].
+
+        This method consumes all slack.
+
+        :param profile: Profile number (0 to 3)
+        :return: fractional y[n-1] filter output
+        """
+        return self.y_mu_to_full_scale(self.get_y1_mu(profile))
+
+    @kernel
+    def enable_iir(self, enable):
+        """Enable/disable the IIR.
+
+        :param enable: Enable the IIR if True
+        """
+        self.write(SERVO_ENABLE, 1 if enable else 0)
+        delay_mu(int64(self.core.ref_multiplier))
+
+    @kernel
+    def set_active_profile(self, profile):
+        """Set the active profile used by the IIR.
+
+        :param profile: Profile number (0 to 3)
+        """
+        self.write(SERVO_PROFILE_SEL, profile)
+        delay_mu(int64(self.core.ref_multiplier))
+
+    @kernel
+    def select_iir_source(self, adc_channel):
+        """Select the ADC channel to be the input source of the IIR.
+
+        :param adc_channel: Phaser ADC channel number (0 or 1)
+        """
+        self.write(SERVO_ADC_SOURCE_SEL, adc_channel)
+        delay_mu(int64(self.core.ref_multiplier))
