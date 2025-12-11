@@ -168,7 +168,7 @@ class CXPGrabber:
 
         """
         extra_linktrigger_mask = 1 if extra_linktrigger else 0
-        rtio_output(self.trigger_ch << 8, linktrigger << 1 | extra_linktrigger_mask)
+        rtio_output(self.trigger_ch << 8, linktrigger << 2 | extra_linktrigger_mask)
 
     @kernel
     def setup_roi(self, n, x0, y0, x1, y1):
