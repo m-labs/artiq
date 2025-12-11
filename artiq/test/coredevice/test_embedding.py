@@ -630,7 +630,7 @@ class _NumpyQuoting(EnvExperiment):
 
     @kernel
     def run(self):
-        a = np_array([10, 20])
+        a = numpy.array([10, 20])
         b = np_sqrt(4.0)
 
 
