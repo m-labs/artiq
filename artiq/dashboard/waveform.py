@@ -806,7 +806,7 @@ class WaveformDock(QtWidgets.QDockWidget):
         self._waveform_data.update(waveform_data)
         self._channel_model.update(self._waveform_data['logs'])
         self._waveform_model.update_all(self._waveform_data['data'])
-        self._waveform_view.setStoppedX(self._waveform_data['stopped_x'])
+        self._waveform_view.setStoppedX(self._waveform_data['stopped_x'] * 1.1) # add 10% margin after last message
         self._waveform_view.setTimescale(self._waveform_data['timescale'])
         self._cursor_control.setTimescale(self._waveform_data['timescale'])
 
