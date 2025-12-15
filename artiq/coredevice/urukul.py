@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Generic, TypeVar
 
 from numpy import int32, int64
 
@@ -159,6 +160,7 @@ class CPLDVersion:
 
     Defines abstract interface methods that must be customized for different CPLD versions.
     """
+
     def __init__(self, cpld):
         self.cpld = cpld
 
@@ -675,8 +677,11 @@ class ProtoRev9(CPLDVersion):
         self.cpld._configure_all_bits(ProtoRev9.CFG_IO_UPDATE, state)
 
 
+ProtoRevT = TypeVar("ProtoRevT", ProtoRev8, ProtoRev9)
+
+
 @compile
-class CPLD:
+class CPLD(Generic[ProtoRevT]):
     """Urukul CPLD SPI router and configuration interface.
 
     :param spi_device: SPI bus device name
@@ -741,7 +746,7 @@ class CPLD:
     #                   pass
     #
     # TODO: Add other proto_revs once supported.
-    version: KernelInvariant[ProtoRev9]
+    version: KernelInvariant[ProtoRevT]
 
     def __init__(
         self,
@@ -784,9 +789,12 @@ class CPLD:
             sync_div = 0
 
         self.proto_rev = proto_rev
-        if proto_rev == STA_PROTO_REV_8 or proto_rev != STA_PROTO_REV_9:
+        if proto_rev == STA_PROTO_REV_8:
+            self.version = ProtoRev8(self)
+        elif proto_rev == STA_PROTO_REV_9:
+            self.version = ProtoRev9(self)
+        else:
             raise ValueError(f"NAC3: Urukul unsupported proto_rev: {proto_rev}")
-        self.version = ProtoRev9(self)
 
         if self.proto_rev == STA_PROTO_REV_8:
             self.cfg_reg = int64(
@@ -893,7 +901,7 @@ class CPLD:
     @kernel
     def cfg_drhold_all(self, state: int32):
         self.version.cfg_drhold_all(state)
-    
+
     @kernel
     def cfg_io_update(self, channel: int32, on: bool):
         self.version.cfg_io_update(channel, on)
