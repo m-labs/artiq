@@ -228,11 +228,11 @@ class CoreException:
                          format(file=filename, line=line, function=function,
                                 address=formatted_address))
         else:
-            lines.append("    {}^".format(" " * (column - indentation)))
+            lines.append("    {}^".format(" " * (column - indentation - 1)))
             lines.append("    {}".format(source_line.strip() if source_line else "<unknown>"))
             lines.append("  File \"{file}\", line {line}, column {column},"
                          " in {function}{address}".
-                         format(file=filename, line=line, column=column + 1,
+                         format(file=filename, line=line, column=column,
                                 function=function, address=formatted_address))
         return lines
 
