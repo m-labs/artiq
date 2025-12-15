@@ -32,6 +32,8 @@ def get_argparser():
 
     parser.add_argument("-o", "--output", default=None,
                         help="output file")
+    parser.add_argument("-d", "--debug", default=None,
+                        help="debug file")
     parser.add_argument("file", metavar="FILE",
                         help="file containing the experiment to compile")
     parser.add_argument("arguments", metavar="ARGUMENTS",
@@ -65,7 +67,7 @@ def main():
 
             if not getattr(exp.run, "__artiq_kernel__", False):
                 raise ValueError("Experiment entry point must be a kernel")
-            exp_inst.core.compile(exp_inst.run, [], {}, embedding_map, file_output=output)
+            exp_inst.core.compile(exp_inst.run, [], {}, embedding_map, file_output=output, debug_output=args.debug)
         finally:
             dataset_db.close_db()
     finally:
