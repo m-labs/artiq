@@ -427,7 +427,10 @@ class _WaveformView(QtWidgets.QWidget):
         self._ref_axis.setMenuEnabled(False)
         self._top = pg.AxisItem("top")
         self._top.setScale(1e-12)
-        self._top.setLabel(units="s")
+        if parent._uniform_interval:
+            self._top.setLabel(text= "action index", units="actions")
+        else:
+            self._top.setLabel(units="s")
         self._ref_axis.setAxisItems({"top": self._top})
         layout.addWidget(self._ref_axis)
 
@@ -802,13 +805,30 @@ class WaveformDock(QtWidgets.QDockWidget):
     def on_dump_receive(self, dump):
         self._dump = dump
         decoded_dump = comm_analyzer.decode_dump(dump)
-        waveform_data = comm_analyzer.decoded_dump_to_waveform_data(self._ddb, decoded_dump)
-        self._waveform_data.update(waveform_data)
+        # store uniform interval and non uniform interval waveforms separately to avoid repeated conversion
+        waveform_data_non_uniform = comm_analyzer.decoded_dump_to_waveform_data(self._ddb, decoded_dump, False)
+        self._waveform_data_non_uniform_interval.update(waveform_data_non_uniform)
+        waveform_data_uniform = comm_analyzer.decoded_dump_to_waveform_data(self._ddb, decoded_dump, True)
+        self._waveform_data_uniform_interval.update(waveform_data_uniform)
+        self.reload_waveform()
+
+    def reload_waveform(self, uniform_interval=None):
+        if uniform_interval is None:
+            uniform_interval = self._uniform_interval
+        if uniform_interval:
+            self._waveform_data = self._waveform_data_uniform_interval
+            self._waveform_data['stopped_x'] = len(self._waveform_data['data'].get("timestamp", []))
+        else:
+            self._waveform_data = self._waveform_data_non_uniform_interval
         self._channel_model.update(self._waveform_data['logs'])
         self._waveform_model.update_all(self._waveform_data['data'])
         self._waveform_view.setStoppedX(self._waveform_data['stopped_x'] * 1.1) # add 10% margin after last message
         self._waveform_view.setTimescale(self._waveform_data['timescale'])
         self._cursor_control.setTimescale(self._waveform_data['timescale'])
+        # Force xlink resync, otherwise toggle uniform_interval breaks xlink.
+        for i in range(self._waveform_view._model.rowCount()):
+            w = self._waveform_view._splitter.widget(i)
+            w.setXLink(self._waveform_view._ref_vb)
 
     async def load_trace(self):
         try:
@@ -925,3 +945,24 @@ class WaveformDock(QtWidgets.QDockWidget):
     async def stop(self):
         if self.proxy_client is not None:
             await self.proxy_client.close()
+
+    def _update_uniform_interval(self):
+        self._uniform_interval = self._uniform_interval_checkbox.isChecked()
+
+        # update channel model
+        channel_list = comm_analyzer.get_channel_list(self._ddb)
+        if not self._uniform_interval:
+            # remove timestamp and time interval channels
+            channel_list = {k: v for k, v in channel_list.items()
+                            if k != "interval" and k != "timestamp"}
+        self._channel_model.clear()
+        self._channel_model.update(channel_list)
+
+        # reload waveform data
+        self.reload_waveform()
+        # change us to num_of_actions label
+        if self._uniform_interval:
+            self._waveform_view._top.setLabel(text= "action index", units="actions")
+        else:
+            self._waveform_view._top.setLabel(units="s")
+        
