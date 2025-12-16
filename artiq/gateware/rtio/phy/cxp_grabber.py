@@ -24,9 +24,7 @@ class CXPGrabber(Module, AutoCSR):
         assert count_width <= 31
 
         # Trigger rtio
-        nbit_extra_linktrig = 1
-        nbit_linktrig = 2
-        self.trigger = rtlink.Interface(rtlink.OInterface(nbit_extra_linktrig + nbit_linktrig))
+        self.trigger = rtlink.Interface(rtlink.OInterface(3))
 
         
         # ROI rtio
@@ -53,8 +51,7 @@ class CXPGrabber(Module, AutoCSR):
 
         self.sync.rio += [
             If(self.trigger.o.stb,
-                core.tx.trig_extra_linktrig.eq(self.trigger.o.data[:nbit_extra_linktrig]),
-                core.tx.trig_linktrig_mode.eq(self.trigger.o.data[nbit_extra_linktrig:]),
+                Cat(core.tx.trig_extra_linktrig, core.tx.trig_linktrig_mode).eq(self.trigger.o.data),
             ),
             core.tx.trig_stb.eq(self.trigger.o.stb),
         ]
