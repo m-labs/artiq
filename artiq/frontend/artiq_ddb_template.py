@@ -25,6 +25,21 @@ def get_cpu_target(description):
     else:
         raise NotImplementedError
 
+def get_acpki_batcher(description):
+    if description["enable_acpki"]:
+        if description["target"] == "kasli_soc":
+            return """\
+"core_batch" = {
+        "type": "local",
+        "module": "artiq.coredevice.rtio",
+        "class": "RTIOBatch",
+    }
+            """
+        else:
+            raise ValueError("ACPKI is supported only on Zynq devices")
+    else:
+        return ""
+
 
 def get_num_leds(description):
     drtio_role = description["drtio_role"]
@@ -95,6 +110,7 @@ def process_header(output, description):
                 "module": "artiq.coredevice.dma",
                 "class": "CoreDMA"
             }},
+            {acpki_batcher}
 
             "i2c_switch0": {{
                 "type": "local",
@@ -113,7 +129,8 @@ def process_header(output, description):
             variant=description["variant"],
             core_addr=description["core_addr"],
             ref_period=1/(8*description["rtio_frequency"]),
-            cpu_target=get_cpu_target(description)),
+            cpu_target=get_cpu_target(description),
+            acpki_batcher=get_acpki_batcher(description)),
         file=output)
 
 
