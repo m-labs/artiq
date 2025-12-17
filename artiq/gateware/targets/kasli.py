@@ -88,7 +88,7 @@ class StandaloneBase(MiniSoC, AMPSoC):
             cdr_clk_out = self.platform.request("cdr_clk_clean")
         else:
             cdr_clk_out = self.platform.request("si5324_clkout")
-        
+
         cdr_clk = Signal()
         cdr_clk_buf = Signal()
         self.platform.add_period_constraint(cdr_clk_out, 8.)
@@ -99,8 +99,8 @@ class StandaloneBase(MiniSoC, AMPSoC):
                 i_I=cdr_clk_out.p, i_IB=cdr_clk_out.n,
                 o_O=cdr_clk,
                 p_CLKCM_CFG="TRUE",
-                p_CLKRCV_TRST="TRUE", 
-                p_CLKSWING_CFG=3), 
+                p_CLKRCV_TRST="TRUE",
+                p_CLKSWING_CFG=3),
             Instance("BUFG", i_I=cdr_clk, o_O=cdr_clk_buf)
         ]
 
@@ -378,7 +378,7 @@ class MasterBase(MiniSoC, AMPSoC):
             cdr_clk_out = self.platform.request("cdr_clk_clean")
         else:
             cdr_clk_out = self.platform.request("si5324_clkout")
-        
+
         cdr_clk = Signal()
         self.platform.add_period_constraint(cdr_clk_out, 8.)
 
@@ -387,7 +387,7 @@ class MasterBase(MiniSoC, AMPSoC):
             i_I=cdr_clk_out.p, i_IB=cdr_clk_out.n,
             o_O=cdr_clk,
             p_CLKCM_CFG="TRUE",
-            p_CLKRCV_TRST="TRUE", 
+            p_CLKRCV_TRST="TRUE",
             p_CLKSWING_CFG=3)
         # Note precisely the rules Xilinx made up:
         # refclksel=0b001 GTREFCLK0 selected
@@ -457,7 +457,7 @@ class SatelliteBase(BaseSoC, AMPSoC):
             i_I=cdr_clk_out.p, i_IB=cdr_clk_out.n,
             o_O=cdr_clk,
             p_CLKCM_CFG="TRUE",
-            p_CLKRCV_TRST="TRUE", 
+            p_CLKRCV_TRST="TRUE",
             p_CLKSWING_CFG=3)
         qpll_drtio_settings = QPLLSettings(
             refclksel=0b001,
@@ -601,7 +601,7 @@ class SatelliteBase(BaseSoC, AMPSoC):
 
         # satellite (master-controlled) RTIO
         self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels, lane_count=sed_lanes)
-        self.comb += [ 
+        self.comb += [
             self.drtiosat.async_errors.eq(self.local_io.async_errors),
             self.local_io.sed_spread_enable.eq(self.drtiosat.sed_spread_enable.storage)
         ]
@@ -619,7 +619,7 @@ class SatelliteBase(BaseSoC, AMPSoC):
         self.csr_devices.append("cri_con")
         self.submodules.routing_table = rtio.RoutingTableAccess(self.cri_con)
         self.csr_devices.append("routing_table")
-        
+
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.local_io.cri,
                                                 self.get_native_sdram_if(), cpu_dw=self.cpu_dw)
         self.csr_devices.append("rtio_analyzer")
@@ -860,7 +860,9 @@ def main():
             raise ValueError("{} requires DRTIO, please switch role to master or satellite".format(peripheral["type"]))
 
     if description["enable_wrpll"] and description["hw_rev"] in ["v1.0", "v1.1"]:
-        raise ValueError("Kasli {} does not support WRPLL".format(description["hw_rev"])) 
+        raise ValueError("Kasli {} does not support WRPLL".format(description["hw_rev"]))
+    if description["enable_acpki"]:
+        raise ValueError("Kasli does not support ACPKI")
 
     soc = cls(description, gateware_identifier_str=args.gateware_identifier_str, **soc_kasli_argdict(args))
     args.variant = description["variant"]
