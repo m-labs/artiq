@@ -57,6 +57,11 @@
             "type": "boolean",
             "default": false
         },
+        "acpki_buffer_size": {
+            "type": "number",
+            "minimum": 1,
+            "default": 10000
+        },
         "core_addr": {
             "type": "string",
             "format": "ipv4",
