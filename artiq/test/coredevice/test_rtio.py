@@ -450,6 +450,22 @@ class HandoverException(EnvExperiment):
             pass
 
 
+class RTIOBatching(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.setattr_device("core_batch")
+        self.setattr_device("ttl_out")
+
+    @kernel
+    def run(self):
+        self.core.reset()
+        delay(10*ms)
+        with self.core_batch:
+            for i in range(500):
+                self.ttl_out.pulse(250*ns)
+                delay(50*ns)
+
+
 class CoredeviceTest(ExperimentCase):
     def test_rtio_counter(self):
         self.execute(RTIOCounter)
@@ -562,6 +578,9 @@ class CoredeviceTest(ExperimentCase):
         self.execute(Rounding)
         dt = self.dataset_mgr.get("delta")
         self.assertEqual(dt, 8000)
+
+    def test_acpki_batching(self):
+        self.execute(RTIOBatching)
 
 
 class RPCTiming(EnvExperiment):
