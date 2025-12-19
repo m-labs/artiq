@@ -178,16 +178,23 @@ class MultiToneDDS(_SatelliteBase):
         dds_bandwidth = 500e6 if dds_bw_500mhz else 250e6
         dds_sample_per_cycle = int(dds_bandwidth / rtio_clk_freq)
 
+        adc_pins = platform.request("adc")
         self.submodules.phaser = phaser = PhaserMTDDS(
             platform.request("hw_variant"),
             [platform.request("att_rstn", i) for i in range(2)],
             [platform.request("trf_ctrl", i) for i in range(2)],
             platform.request("dac_data"),
             platform.request("dac_ctrl"),
+            adc_pins,
+            platform.request("adc_ctrl"),
             dds_tones=dds_tones,
             dds_sample_per_cycle=dds_sample_per_cycle,
             use_pipeline_adder=not no_pipelined_dds_adder,
+            sys_clk_freq=rtio_clk_freq
         )
+        platform.add_period_constraint(adc_pins.clkout_p, phaser.adc_phy.sck_period)
+        platform.add_false_path_constraints(adc_pins.clkout_p, self.crg.cd_sys.clk)
+
         print("PHASER PHYS at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
         self.rtio_channels.extend(rtio.Channel.from_phy(phy) for phy in phaser.phys)
 
