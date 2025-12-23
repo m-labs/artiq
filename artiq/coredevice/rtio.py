@@ -1,3 +1,4 @@
+from artiq.experiment import *
 from artiq.language.core import syscall
 from artiq.language.types import TInt32, TInt64, TList, TNone, TTuple
 
@@ -29,3 +30,36 @@ def rtio_input_timestamped_data(timeout_mu: TInt64,
     return a tuple of timestamp and attached data, or (-1, 0) if the timeout is
     reached."""
     raise NotImplementedError("syscall not simulated")
+
+
+@syscall
+def rtio_batch_start() -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+
+@syscall
+def rtio_batch_end() -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+
+class RTIOBatch:
+    """Context manager for batching RTIO events.
+
+    All output RTIO events within the context will be buffered
+    on the core device and executed immediately after leaving the context.
+
+    This feature is available only on Zynq devices such as Kasli-SoC,
+    ZC706 and EBAZ4205 with ACP Kernel Initiator enabled.
+    """
+    def __init__(self, dmgr, core_device="core"):
+        # since this is just a syscall wrapper for semantics,
+        # nothing has to be done in init
+        pass
+
+    @kernel
+    def __enter__(self):
+        rtio_batch_start()
+
+    @kernel
+    def __exit__(self, type, value, traceback):
+        rtio_batch_end()

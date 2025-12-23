@@ -450,6 +450,52 @@ class HandoverException(EnvExperiment):
             pass
 
 
+class RTIOBatching(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.setattr_device("core_batch")
+        self.setattr_device("ttl_out")
+
+    @kernel
+    def run(self):
+        self.core.reset()
+        delay(10*ms)
+        with self.core_batch:
+            for i in range(500):
+                self.ttl_out.pulse(250*ns)
+                delay(50*ns)
+
+
+class RTIOBatchFull(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.setattr_device("core_batch")
+        self.setattr_device("ttl_out")
+
+    @kernel
+    def run(self):
+        self.core.reset()
+        with self.core_batch:
+            while True:
+                self.ttl_out.pulse(8*ns)
+                delay(8*ns)
+
+
+class RTIOBatchUnderflow(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.setattr_device("core_batch")
+        self.setattr_device("ttl_out")
+
+    @kernel
+    def run(self):
+        self.core.reset()
+        delay(1*ms)
+        with self.core_batch:
+            for i in range(1000):
+                self.ttl_out.pulse(8*ns)
+
+
 class CoredeviceTest(ExperimentCase):
     def test_rtio_counter(self):
         self.execute(RTIOCounter)
@@ -562,6 +608,17 @@ class CoredeviceTest(ExperimentCase):
         self.execute(Rounding)
         dt = self.dataset_mgr.get("delta")
         self.assertEqual(dt, 8000)
+
+    def test_acpki_batching(self):
+        self.execute(RTIOBatching)
+
+    def test_acpki_batch_full(self):
+        with self.assertRaises(RuntimeError):
+            self.execute(RTIOBatchFull)
+
+    def test_acpki_batch_underflow(self):
+        with self.assertRaises(RTIOUnderflow):
+            self.execute(RTIOBatchUnderflow)
 
 
 class RPCTiming(EnvExperiment):

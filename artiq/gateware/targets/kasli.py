@@ -860,7 +860,9 @@ def main():
             raise ValueError("{} requires DRTIO, please switch role to master or satellite".format(peripheral["type"]))
 
     if description["enable_wrpll"] and description["hw_rev"] in ["v1.0", "v1.1"]:
-        raise ValueError("Kasli {} does not support WRPLL".format(description["hw_rev"])) 
+        raise ValueError("Kasli {} does not support WRPLL".format(description["hw_rev"]))
+    if description["enable_acpki"]:
+        raise ValueError("Kasli does not support ACPKI")
 
     soc = cls(description, gateware_identifier_str=args.gateware_identifier_str, **soc_kasli_argdict(args))
     args.variant = description["variant"]
