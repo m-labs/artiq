@@ -8,7 +8,7 @@ import sys
 
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import AD9910, SyncDataEeprom
-from artiq.coredevice.phaser import PHASER_GW_BASE, PHASER_GW_MIQRO
+from artiq.coredevice.phaser import PHASER_GW_BASE, PHASER_GW_MIQRO, PHASER_ADDR_ADC_CFG
 from artiq.coredevice.shuttler import shuttler_volt_to_mu
 from artiq.coredevice.suservo import SyncDataEeprom as SUServoEeprom
 from artiq.master.databases import DeviceDB
@@ -709,6 +709,17 @@ class SinaraTester(EnvExperiment):
                     delay(100*ms)
                 phaser.set_leds(0)
                 delay(100*ms)
+    
+    @kernel
+    def get_phaser_adc(self, phaser, ch, cb):
+        self.core.break_realtime()
+        phaser.init()
+        phaser.write8(PHASER_ADDR_ADC_CFG, 0b0000) # set both channel G = 1
+        delay(1*ms)
+        adc_data = phaser.read_adc_raw(ch)
+        delay(1*ms)
+        voltage = phaser.convert_adc_voltage(adc_data)
+        cb(voltage)
 
     def test_phasers(self):
         print("*** Testing Phaser DACs and 6 USER LEDs.")
@@ -725,6 +736,32 @@ class SinaraTester(EnvExperiment):
         self.phaser_led_wave(
             [card_dev for _, (__, card_dev) in enumerate(self.phasers)]
         )
+
+        print("*** Testing Phaser ADCs ***.")
+        for card_n, (card_name, card_dev) in enumerate(self.phasers):
+            if card_dev.gw_rev == PHASER_GW_BASE:
+                target_voltage = 1.5  # volts
+                for ch in [0, 1]:
+                    print(f"CH{ch}: Please apply {target_voltage}V to ADC IN{ch} of {card_name} and press ENTER to continue.")
+                    input()
+                    voltage = 0.0
+                    def setv(x):
+                        nonlocal voltage
+                        voltage = x
+                    self.get_phaser_adc(card_dev, ch, setv)
+                    if abs(abs(voltage) - target_voltage) < 0.2:
+                        print(f"PASSED: Read voltage = {voltage:.5f} V")
+                    else:
+                        print(f"FAILED: Read voltage = {voltage:.5f} V")
+                print("Done. Press ENTER to continue.")
+                input()
+            elif card_dev.gw_rev == PHASER_GW_MIQRO:
+                print("MIQRO does not support servo or ADC")
+                print("Press ENTER to continue.")
+                input()
+            else:
+                raise ValueError("Unknown phaser gateway revision")
+        
 
 
    
@@ -1208,6 +1245,7 @@ class SinaraTester(EnvExperiment):
         for name in tests:
             if getattr(self, name):
                 getattr(self, f"test_{name}")()
+                print(f"test_{name}")
 
     @classmethod
     def available_tests(cls):
