@@ -520,11 +520,15 @@
           export QT_PLUGIN_PATH=${qtPaths.QT_PLUGIN_PATH}
           export QML2_IMPORT_PATH=${qtPaths.QML2_IMPORT_PATH}
           artiq_root=$(git rev-parse --show-toplevel 2>/dev/null)
-          if [[ -z "$artiq_root" ]] || ! artiq_run --version > /dev/null 2>&1; then
+          if [[ -z "$artiq_root" ]]; then
             echo "WARNING: Local ARTIQ repository not found, could not be added to PYTHONPATH."
             echo "This development shell must be run from within the ARTIQ repository."
           else
             export PYTHONPATH="$artiq_root:$PYTHONPATH"
+            if ! artiq_run --version > /dev/null 2>&1; then
+              echo "WARNING: Local repository does not contain ARTIQ source modules."
+              echo "This development shell must be run from within the ARTIQ repository."
+            fi
           fi
         '';
       };
