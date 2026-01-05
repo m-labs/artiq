@@ -174,14 +174,14 @@ class PhaserMTDDS:
     def select_dac_source(self, channel, source):
         """Select the input source of the DAC34H84
 
-        * When source = 0, :math:`\\text{DAC[channel]} = \\text{TEST_WORD_I} + j (\\text{TEST_WORD_J})`
-        * When source = 1, :math:`\\text{DAC[channel]} = A_1 (\\cos{θ_1} + j \\sin{θ_1}) + A_2 (\\cos{θ_2} + j \\sin{θ_2}) + ...`
-        * When source = 2, :math:`\\text{DAC[channel]} = y[n] (A_1 (\\cos{θ_1} + j \\sin{θ_1}) + A_2 (\\cos{θ_2} + j \\sin{θ_2}) + ... )`
+        * When source = 0, :math:`\\text{DAC[channel]} = \\text{TEST WORD I} + j (\\text{TEST WORD J})`
+        * When source = 1, :math:`\\text{DAC[channel]} = A_1 (\\cos{\\theta_1} + j \\sin{\\theta_1}) + A_2 (\\cos{\\theta_2} + j \\sin{\\theta_2}) + ...`
+        * When source = 2, :math:`\\text{DAC[channel]} = y\\text{[channel]} (A_1 (\\cos{\\theta_1} + j \\sin{\\theta_1}) + A_2 (\\cos{\\theta_2} + j \\sin{\\theta_2}) + ... )`
 
         Where:
             * :math:`y`: Servo IIR output
             * :math:`A`: DDS amplitude
-            * :math:`θ`: DDS phase
+            * :math:`\\theta`: DDS phase
 
         :param channel: Phaser channel number (0 or 1)
         :param source: 2-bit source select register (set to 0 for test word, 1 for DDSs, 2 for Servo)
