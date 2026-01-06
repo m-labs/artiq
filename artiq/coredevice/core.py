@@ -9,6 +9,7 @@ from types import GenericAlias, ModuleType, SimpleNamespace
 from typing import _GenericAlias, Generic, Literal, TypeVar
 
 import nac3artiq
+import nac3tools
 
 from artiq.language.core import *
 from artiq.language.core import _ConstGenericMarker
@@ -469,7 +470,7 @@ def symbolize(library, addresses):
     # the backtrace entry should point at.
     last_inlined = None
     offset_addresses = [addr - 1 for addr in addresses]
-    call_records = nac3artiq.symbolize(library, offset_addresses)
+    call_records = nac3tools.symbolize(library, offset_addresses)
     backtrace = []
     for record in call_records:
         address = record.address
