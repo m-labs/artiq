@@ -240,10 +240,13 @@ class Core:
         """
         self.comm.close()
 
-    def compile(self, method, args, kwargs, embedding_map, file_output=None, target=None):
+    def compile(self, method, args, kwargs, embedding_map, output_filename=None, debug_filename=None, target=None):
         if target is not None:
             # NAC3TODO: subkernels
             raise NotImplementedError
+        
+        if (output_filename is None) != (debug_filename is None):
+            raise ValueError("both output and debug filenames should be specified or unspecified")
 
         if not self.analyzed:
             self.compiler.analyze(
@@ -261,27 +264,27 @@ class Core:
             name = ""
 
         # NAC3TODO: handle self.report_invariants
-        if file_output is None:
+        if output_filename is None and debug_filename is None:
             return self.compiler.compile_method_to_mem(obj, name, args, embedding_map)
         else:
-            self.compiler.compile_method_to_file(obj, name, args, file_output, embedding_map)
+            self.compiler.compile_method_to_file(obj, name, args, output_filename, debug_filename, embedding_map)
 
     def run(self, function, args, kwargs):
         embedding_map = EmbeddingMap()
-        kernel_library = self.compile(function, args, kwargs, embedding_map)
+        kernel_library, debug_object = self.compile(function, args, kwargs, embedding_map)
 
-        self._run_compiled(kernel_library, embedding_map)
+        self._run_compiled(kernel_library, debug_object, embedding_map)
 
         # set by NAC3
         if embedding_map.expects_return:
             return embedding_map.return_value
 
-    def _run_compiled(self, kernel_library, embedding_map):
+    def _run_compiled(self, kernel_library, debug_object, embedding_map):
         if self.first_run:
             self.comm.check_system_info()
             self.first_run = False
 
-        symbolizer = lambda addresses: symbolize(kernel_library, addresses)
+        symbolizer = lambda addresses: symbolize(debug_object, addresses)
 
         self.comm.load(kernel_library)
         self.comm.run()
@@ -459,7 +462,7 @@ class RunTool:
             os.unlink(filename)
 
 
-def symbolize(library, addresses):
+def symbolize(debug_library, addresses):
     if addresses == []:
         return []
 
@@ -470,8 +473,8 @@ def symbolize(library, addresses):
     last_inlined = None
     offset_addresses = [hex(addr - 1) for addr in addresses]
     with RunTool(["llvm-addr2line", "--addresses",  "--functions", "--inlines",
-                  "--demangle", "--exe={library}"] + offset_addresses,
-                 library=library) \
+                  "--demangle", "--exe={debug_library}"] + offset_addresses,
+                 debug_library=debug_library) \
             as results:
         lines = iter(results["__stdout__"].read().rstrip().split("\n"))
         backtrace = []
