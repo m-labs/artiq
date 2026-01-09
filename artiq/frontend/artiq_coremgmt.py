@@ -72,7 +72,7 @@ def get_argparser():
 
     p_remove = subparsers.add_parser("remove",
                                      help="remove key from core device config")
-    p_remove.add_argument("key", metavar="KEY", nargs=argparse.REMAINDER,
+    p_remove.add_argument("key", metavar="KEY", nargs="+",
                           default=[], type=str,
                           help="key to be removed from core device config")
 
@@ -112,11 +112,12 @@ def get_argparser():
                                        help="specify DRTIO destination that "
                                             "receives this command")
 
-    return parser
+    return parser, p_read, p_write
 
 
 def main():
-    args = get_argparser().parse_args()
+    parser, p_read, p_write = get_argparser()
+    args = parser.parse_args()
     common_args.init_logger_from_args(args)
 
     if args.device is None:
@@ -134,6 +135,8 @@ def main():
 
     if args.tool == "config":
         if args.action == "read":
+            if not args.string and not args.file:
+                p_read.error("at least one -s or -f option is required")
             for key in args.string:
                 value = mgmt.config_read(key)
                 print(value.decode("utf-8"))
@@ -142,6 +145,8 @@ def main():
                 with open(filename, "wb") as fi:
                     fi.write(value)
         if args.action == "write":
+            if not args.string and not args.file:
+                p_write.error("at least one -s or -f option is required")
             for key, value in args.string:
                 mgmt.config_write(key, value.encode("utf-8"))
             for key, filename in args.file:
