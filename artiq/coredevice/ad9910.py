@@ -1,3 +1,4 @@
+from typing import Generic, TypeVar
 from numpy import int32, int64
 
 from artiq.language.core import *
@@ -108,9 +109,10 @@ class SyncDataEeprom:
         self.sync_delay_seed = int32(sync_delay_seed)
         self.io_update_delay = int32(io_update_delay)
 
+SyncDataT = TypeVar("SyncDataT", SyncDataEeprom, SyncDataUser)
 
 @compile
-class AD9910:
+class AD9910(Generic[SyncDataT]):
     """
     AD9910 DDS channel on Urukul.
 
@@ -158,7 +160,7 @@ class AD9910:
     sysclk_per_mu: KernelInvariant[int32]
     sysclk: KernelInvariant[float]
     sw: KernelInvariant[Option[TTLOut]]
-    sync_data: KernelInvariant[SyncDataUser]
+    sync_data: KernelInvariant[SyncDataT]
     io_update: KernelInvariant[TTLOut]
     phase_mode: Kernel[int32]
 
@@ -345,7 +347,7 @@ class AD9910:
         """Write to 64-bit register.
 
         :param addr: Register address
-        :param data_high: High (MSB) 32 data bits 
+        :param data_high: High (MSB) 32 data bits
         :param data_low: Low (LSB) 32 data bits
         """
         self.bus.set_config_mu(SPI_CONFIG, 8,
@@ -386,7 +388,7 @@ class AD9910:
 
         The profile to read from and the step, start, and end address
         need to be configured before and separately using
-        :meth:`set_profile_ram` and the parent CPLD 
+        :meth:`set_profile_ram` and the parent CPLD
         :meth:`~artiq.coredevice.urukul.ProtoRev9.set_profile`.
 
         :param data: List to be filled with data read from RAM.
@@ -456,7 +458,7 @@ class AD9910:
                      2)  # SDIO input only, MSB first
 
     @kernel
-    def set_cfr2(self, 
+    def set_cfr2(self,
                  asf_profile_enable: int32 = 1,
                  drg_destination: int32 = 0,
                  drg_enable: int32 = 0,
@@ -500,7 +502,7 @@ class AD9910:
         """Initialize and configure the DDS.
 
         Sets up SPI mode, confirms chip presence, powers down unused blocks,
-        configures the PLL, waits for PLL lock. Uses the ``IO_UPDATE`` 
+        configures the PLL, waits for PLL lock. Uses the ``IO_UPDATE``
         signal multiple times.
 
         :param blind: Do not read back DDS identity and do not wait for lock.
@@ -976,7 +978,7 @@ class AD9910:
 
     @kernel
     def get_att(self) -> float:
-        """Get digital step attenuator value in SI units. See also 
+        """Get digital step attenuator value in SI units. See also
         :meth:`CPLD.get_channel_att <artiq.coredevice.urukul.CPLD.get_channel_att>`.
 
         :return: Attenuation in dB.
@@ -1043,7 +1045,7 @@ class AD9910:
         self.cpld.set_profile(self.chip_select - 4, profile)
 
     @kernel
-    def set_sync(self, 
+    def set_sync(self,
                  in_delay: int32,
                  window: int32,
                  en_sync_gen: int32 = 0):
