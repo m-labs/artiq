@@ -43,7 +43,17 @@ def get_argparser():
 
     # configuration
     t_config = tools.add_parser("config",
-                                help="read and change core device configuration")
+                                help="read and change core device configuration",
+                                formatter_class=argparse.RawDescriptionHelpFormatter,
+                                epilog="""
+examples:
+    Read RTIO clock setting
+        artiq_coremgmt config read -s rtio_clock
+    Write IP address and idle kernel
+        artiq_coremgmt config write -s ip 192.168.1.70 -f idle_kernel idle_kernel.bin
+    Remove SED spreading setting
+        artiq_coremgmt config remove sed_spread_enable
+                                """)
 
     subparsers = t_config.add_subparsers(dest="action")
     subparsers.required = True
