@@ -1,80 +1,62 @@
 #!/usr/bin/env python3
 
-from setuptools import setup, find_namespace_packages
-import sys
-
-import versioneer
-
-
-if sys.version_info[:2] < (3, 11):
-    raise Exception("You need Python 3.11+")
+import os
+from setuptools import setup
+from setuptools.command.build_py import build_py as _build_py
+from setuptools.command.sdist import sdist as _sdist
 
 
-# Depends on PyQt6, but setuptools cannot check for it.
-requirements = [
-    "numpy", "scipy",
-    "python-dateutil", "prettytable", "h5py", "lmdb",
-    "qasync", "pyqtgraph", "pygit2",
-    "llvmlite", "pythonparser", "levenshtein",
-    "platformdirs",
-]
+VERSION_FILE = """
+def get_version():
+    return "{version}"
 
-console_scripts = [
-    "artiq_client = artiq.frontend.artiq_client:main",
-    "artiq_compile = artiq.frontend.artiq_compile:main",
-    "artiq_coreanalyzer = artiq.frontend.artiq_coreanalyzer:main",
-    "artiq_coremgmt = artiq.frontend.artiq_coremgmt:main",
-    "artiq_rtiomap = artiq.frontend.artiq_rtiomap:main",
-    "artiq_ddb_template = artiq.frontend.artiq_ddb_template:main",
-    "artiq_master = artiq.frontend.artiq_master:main",
-    "artiq_mkfs = artiq.frontend.artiq_mkfs:main",
-    "artiq_rtiomon = artiq.frontend.artiq_rtiomon:main",
-    "artiq_sinara_tester = artiq.frontend.artiq_sinara_tester:main",
-    "artiq_session = artiq.frontend.artiq_session:main",
-    "artiq_route = artiq.frontend.artiq_route:main",
-    "artiq_run = artiq.frontend.artiq_run:main",
-    "artiq_flash = artiq.frontend.artiq_flash:main",
-    "aqctl_coreanalyzer_proxy = artiq.frontend.aqctl_coreanalyzer_proxy:main",
-    "aqctl_corelog = artiq.frontend.aqctl_corelog:main",
-    "aqctl_moninj_proxy = artiq.frontend.aqctl_moninj_proxy:main",
-    "afws_client = artiq.frontend.afws_client:main",
-]
+def get_rev():
+    return "{rev}"
+"""
 
-gui_scripts = [
-    "artiq_browser = artiq.frontend.artiq_browser:main",
-    "artiq_dashboard = artiq.frontend.artiq_dashboard:main",
-]
+
+def get_version():
+    return os.getenv("VERSIONEER_OVERRIDE", default="9.0+unknown.beta")
+
+def get_rev():
+    return os.getenv("VERSIONEER_REV", default="unknown")
+
+def write_to_version_file(filename, version, rev):
+    os.unlink(filename)
+    with open(filename, "w") as f:
+        f.write(VERSION_FILE.format(version=version, rev=rev))
+
+
+class cmd_build_py(_build_py):
+    def run(self):
+        _build_py.run(self)
+        target = os.path.join(self.build_lib, "artiq", "_version.py")
+        print("UPDATING %s" % target)
+        write_to_version_file(target, get_version(), get_rev())
+
+
+class cmd_sdist(_sdist):
+    def run(self):
+        version = get_version()
+        self._generated_version = version
+        self._rev = get_rev()
+        # unless we update this, the command will keep using the old
+        # version
+        self.distribution.metadata.version = version
+        return _sdist.run(self)
+
+    def make_release_tree(self, base_dir, files):
+        _sdist.make_release_tree(self, base_dir, files)
+        target_versionfile = os.path.join(base_dir, "artiq", "_version.py")
+        print("UPDATING %s" % target_versionfile)
+        write_to_version_file(target_versionfile,
+                              self._generated_version,
+                              self._rev)
 
 setup(
-    name="artiq",
-    version=versioneer.get_version(),
-    cmdclass=versioneer.get_cmdclass(),
-    author="M-Labs",
-    author_email="artiq@lists.m-labs.hk",
-    url="https://m-labs.hk/artiq",
-    description="Advanced Real-Time Infrastructure for Quantum physics",
-    long_description=open("README.rst", encoding="utf-8").read(),
-    license="LGPLv3+",
-    classifiers="""\
-Development Status :: 5 - Production/Stable
-Environment :: Console
-Environment :: X11 Applications :: Qt
-Intended Audience :: Science/Research
-License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)
-Operating System :: Microsoft :: Windows
-Operating System :: POSIX :: Linux
-Programming Language :: Python :: 3.7
-Topic :: Scientific/Engineering :: Physics
-Topic :: System :: Hardware
-""".splitlines(),
-    install_requires=requirements,
-    extras_require={},
-    packages=find_namespace_packages(exclude=["artiq.test.lit", "artiq.test.lit.*", "doc.manual"], ),
-    namespace_packages=[],
-    include_package_data=True,
-    ext_modules=[],
-    entry_points={
-        "console_scripts": console_scripts,
-        "gui_scripts": gui_scripts,
-    }
+    version=get_version(),
+    cmdclass={
+        "build_py": cmd_build_py,
+        "sdist": cmd_sdist,
+    },
 )

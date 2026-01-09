@@ -1,0 +1,72 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools>=61"]
+
+[project]
+name = "artiq"
+description = "Advanced Real-Time Infrastructure for Quantum physics"
+readme = "README.rst"
+license = "LGPL-3.0-or-later"
+license-files = ["LICENSE", "LICENSE.GPL-3"]
+authors = [{ name = "M-Labs", email = "artiq@lists.m-labs.hk" }]
+requires-python = ">=3.11"
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Console",
+  "Environment :: X11 Applications :: Qt",
+  "Intended Audience :: Science/Research",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Scientific/Engineering :: Physics",
+  "Topic :: System :: Hardware",
+]
+dependencies = [
+  "h5py",
+  "levenshtein",
+  "llvmlite",
+  "lmdb",
+  "numpy",
+  "platformdirs",
+  "prettytable",
+  "pygit2",
+  "pyqtgraph",
+  "python-dateutil",
+  "pythonparser",
+  "qasync",
+  "scipy",
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://m-labs.hk/artiq"
+
+[project.scripts]
+artiq_client = "artiq.frontend.artiq_client:main"
+artiq_compile = "artiq.frontend.artiq_compile:main"
+artiq_coreanalyzer = "artiq.frontend.artiq_coreanalyzer:main"
+artiq_coremgmt = "artiq.frontend.artiq_coremgmt:main"
+artiq_rtiomap = "artiq.frontend.artiq_rtiomap:main"
+artiq_ddb_template = "artiq.frontend.artiq_ddb_template:main"
+artiq_master = "artiq.frontend.artiq_master:main"
+artiq_mkfs = "artiq.frontend.artiq_mkfs:main"
+artiq_rtiomon = "artiq.frontend.artiq_rtiomon:main"
+artiq_sinara_tester = "artiq.frontend.artiq_sinara_tester:main"
+artiq_session = "artiq.frontend.artiq_session:main"
+artiq_route = "artiq.frontend.artiq_route:main"
+artiq_run = "artiq.frontend.artiq_run:main"
+artiq_flash = "artiq.frontend.artiq_flash:main"
+aqctl_coreanalyzer_proxy = "artiq.frontend.aqctl_coreanalyzer_proxy:main"
+aqctl_corelog = "artiq.frontend.aqctl_corelog:main"
+aqctl_moninj_proxy = "artiq.frontend.aqctl_moninj_proxy:main"
+afws_client = "artiq.frontend.afws_client:main"
+
+[project.gui-scripts]
+artiq_browser = "artiq.frontend.artiq_browser:main"
+artiq_dashboard = "artiq.frontend.artiq_dashboard:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+exclude = ["artiq.test.lit", "artiq.test.lit.*", "doc.manual"]
