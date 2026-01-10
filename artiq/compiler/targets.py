@@ -1,6 +1,6 @@
 import os, sys, tempfile, subprocess, io
 from artiq.compiler import types, ir
-from llvmlite import ir as ll, binding as llvm
+from llvmlite import ir as ll, binding as llvm, __version__ as llvmlite_version
 
 llvm.initialize_all_targets()
 llvm.initialize_all_asmprinters()
@@ -108,13 +108,18 @@ class Target:
 
     def optimize(self, llmodule):
         llmachine = self.target_machine()
-        pto = llvm.create_pipeline_tuning_options(size_level=1)
+        if tuple(int(s) for s in llvmlite_version.split(".")) > (0, 45, 0):
+            pto = llvm.create_pipeline_tuning_options(speed_level = 2, size_level=1)
+        else:
+            pto = llvm.create_pipeline_tuning_options(size_level=1)
 
-        # This combination of levels gets mapped to the -Os PassManagerBuilder default in
-        # llvmlite 0.45. The mapping is slightly nonsensical in that -Oz (which is more
-        # aggressively optimizing for size at the expense of runtime) is accessed via
-        # speed_level=size_level=2.
-        pto.speed_level = 1
+            # This combination of levels gets mapped to the -Os PassManagerBuilder default in
+            # llvmlite 0.45. The mapping is slightly nonsensical in that -Oz (which is more
+            # aggressively optimizing for size at the expense of runtime) is accessed via
+            # speed_level=size_level=2.
+            # This was fixed in an incompatible way in llvmlite 0.46 breaking this workaround
+            # here, requiring a second workaround to check the llvmlite version...
+            pto.speed_level = 1
 
         pb = llvm.create_pass_builder(llmachine, pto)
         llpassmgr = pb.getModulePassManager()
