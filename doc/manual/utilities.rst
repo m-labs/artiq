@@ -78,7 +78,7 @@ The core management utility gives remote access to the core device logs, the :re
 To use this tool, it is necessary to specify the IP address your core device can be contacted at. If no option is used, the utility will assume there is a file named ``device_db.py`` in the current directory containing the :ref:`device database <device-db>`; otherwise, a device database file can be provided with ``--device-db`` or an address directly with ``--device`` (see also below).
 
 .. argparse::
-   :ref: artiq.frontend.artiq_coremgmt.get_argparser
+   :ref: artiq.frontend.artiq_coremgmt.get_argparser_doc
    :prog: artiq_coremgmt
    :nodescription:
    :nodefault:

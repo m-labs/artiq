@@ -125,6 +125,11 @@ examples:
     return parser, p_read, p_write
 
 
+# sphinx-argparse expects a func that returns a ArgumentParser object
+def get_argparser_doc():
+    return get_argparser()[0]
+
+
 def main():
     parser, p_read, p_write = get_argparser()
     args = parser.parse_args()
