@@ -704,13 +704,11 @@ class _DMA(EnvExperiment):
         self.delta = now_mu() - start
 
     @kernel
-    def playback_many(self, n, add_delay=False):
+    def playback_many(self, n):
         handle = self.core_dma.get_handle(self.trace_name)
         self.core.break_realtime()
         t1 = self.core.get_rtio_counter_mu()
         for i in range(n):
-            if add_delay:
-                delay(2*us)
             self.core_dma.playback_handle(handle)
         t2 = self.core.get_rtio_counter_mu()
         self.set_dataset("dma_playback_time", self.core.mu_to_seconds(t2 - t1))
@@ -796,18 +794,27 @@ class DMATest(ExperimentCase):
         print("dt={}, dt/count={}".format(dt, dt/count))
         self.assertLess(dt/count, 11*us)
 
-    def test_dma_playback_time(self):
+    def test_dma_playback_overhead(self):
         exp = self.create(_DMA)
         is_zynq = exp.core.target_cls == CortexA9Target
         count = 20000
-        exp.record_many(40)
-        exp.playback_many(count, is_zynq)
+        exp.record_many(0)  # Overhead only
+        exp.playback_many(count)
         dt = self.dataset_mgr.get("dma_playback_time")
         print("dt={}, dt/count={}".format(dt, dt/count))
         if is_zynq:
-            self.assertLess(dt/count, 6.2*us)
-        else:
             self.assertLess(dt/count, 4.5*us)
+        else:
+            self.assertLess(dt/count, 3*us)
+
+    def test_dma_playback_rate(self):
+        exp = self.create(_DMA)
+        sequence_len = 128    # SED lane depth
+        exp.record_many(sequence_len)
+        exp.playback_many(1)
+        dt = self.dataset_mgr.get("dma_playback_time")
+        print("dt={}, dt/event={}".format(dt, dt/sequence_len))
+        self.assertLess(dt/sequence_len, 100*ns)
 
     def test_dma_underflow(self):
         exp = self.create(_DMA)
