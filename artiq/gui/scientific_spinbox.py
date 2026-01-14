@@ -77,7 +77,10 @@ class ScientificSpinBox(QtWidgets.QDoubleSpinBox):
 
     def stepBy(self, s):
         if abs(s) < 10:  # unaccelerated buttons, keys, wheel/trackpad
-            super().stepBy(s)
+            v = self.value()
+            v += s * self.singleStep()
+            v = round(v, self.decimals())
+            self.setValue(v)
         else:  # accelerated PageUp/Down or CTRL-wheel
             v = self.value()
             v *= self._relative_step**(s/copysign(10., v))
