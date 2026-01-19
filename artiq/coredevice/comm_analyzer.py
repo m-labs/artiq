@@ -697,6 +697,8 @@ def get_channel_list(devices):
         ref_period = DEFAULT_REF_PERIOD
     precision = max(0, math.ceil(math.log10(1 / ref_period) - 6))
     manager.get_channel("rtio_slack", 64, ty=WaveformType.ANALOG, precision=precision, unit="us")
+    manager.get_channel("timestamp", 64, ty=WaveformType.VECTOR)
+    manager.get_channel("interval", 64, ty=WaveformType.ANALOG, precision=precision, unit="us")
     return manager.channels
 
 
@@ -721,7 +723,9 @@ def decoded_dump_to_target(manager, devices, dump, uniform_interval):
     if ref_period is None:
         logger.warning("unable to determine core device ref_period")
         ref_period = DEFAULT_REF_PERIOD
-    if not uniform_interval:
+    if uniform_interval:
+        manager.set_timescale_ps(1e12)
+    else:
         manager.set_timescale_ps(ref_period*1e12)
     dds_sysclk = get_dds_sysclk(devices)
     if dds_sysclk is None:

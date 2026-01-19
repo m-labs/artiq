@@ -41,6 +41,9 @@ ARTIQ-9 (Unreleased)
    - State files are now automatically backed up upon successful loading.
    - Experiments can now use ``restart_applet`` CCB command to restart applets.
    - Interactive argument widgets now remember their layout between runs.
+   - Waveform Viewer now has a ``uniform_interval`` checkbox, equivalent to the ``-u`` option
+     in ``artiq_coreanalyzer``. In this mode, each event advances the RTIO waveform trace by one step, 
+     with additional ``interval`` and ``timestamp`` traces indicating the actual time. 
 * ``artiq_session`` has been revamped. Output now indicates the originating process. Dashboard
   is started after the controller manager. All processes are cleanly terminated after dashboard
   is closed.
