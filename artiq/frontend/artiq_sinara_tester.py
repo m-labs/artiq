@@ -485,7 +485,7 @@ class SinaraTester(EnvExperiment):
             setting = led << 7 | rf_en << 6 | (att_mu & 0x3F)
             for ch in almaznys:
                 ch.set_mu(setting)
-            delay(250*ms)
+            delay(1000*ms)
             if att_mu == 0:
                 att_mu = 1
             else:
@@ -501,7 +501,7 @@ class SinaraTester(EnvExperiment):
         print("Frequencies:")
         for card_n, channels in enumerate(chunker(self.mirnies, 4)):
             for channel_n, (channel_name, channel_dev) in enumerate(channels):
-                frequency = 2000 + card_n * 250 + channel_n * 50
+                frequency = 3500 + card_n * 250 + channel_n * 50
                 print("{}\t{}MHz".format(channel_name, frequency*2))
                 self.setup_mirny(channel_dev, frequency)
         print("RF ON, attenuators are tested. Press ENTER when done.")
