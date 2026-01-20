@@ -9,9 +9,10 @@ ENTRY(_reset_handler)
  * First 384K of kernel memory are for support code.
  * Support code is loaded at ORIGIN-0x80 so that ELF headers
  * are also loaded.
+ * The next 128M of kernel memory is the kernel heap.
  */
 MEMORY {
-    ksupport (RWX) : ORIGIN = 0x45000000, LENGTH = 0x60000
+    ksupport (RWX) : ORIGIN = 0x45000000, LENGTH = 0x8060000
 }
 
 /* Kernel stack is at the end of main RAM. */
@@ -66,6 +67,13 @@ SECTIONS
         *(.sbss .sbss.* .bss .bss.*);
         . = ALIGN(4);
         _ebss = .;
+    }
+
+    .heap (NOLOAD) : ALIGN(8)
+    {
+        _fheap_1 = .;
+        . += 0x8000000;
+        _eheap_1 = .;
     }
 
     /DISCARD/ :
