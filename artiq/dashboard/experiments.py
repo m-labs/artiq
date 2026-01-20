@@ -62,22 +62,40 @@ class _ArgumentEditor(EntryTreeWidget):
         self.setItemWidget(self.bottom_item, 1, buttons)
 
     def reset_entry(self, key):
-        asyncio.ensure_future(self._recompute_argument(key))
+        asyncio.ensure_future(self._recompute_arguments([key]))
 
-    async def _recompute_argument(self, name):
+    async def _update_defaults(self):
+        keys = self._arguments.keys()
+        await self._recompute_arguments(keys, False)
+        for key in keys:
+            widgets = self._arg_to_widgets.get(key, {})
+            entry = widgets.get("entry")
+            modified_value_icon = widgets.get("modified_value_icon")
+            if entry is not None and modified_value_icon is not None:
+                if entry.is_default():
+                    modified_value_icon.setVisible_(False)
+                else:
+                    modified_value_icon.setVisible_(True)
+
+    async def _recompute_arguments(self, keys, update=True):
         try:
             expdesc, _ = await self.manager.compute_expdesc(self.expurl)
-        except:
-            logger.error("Could not recompute argument '%s' of '%s'",
-                         name, self.expurl, exc_info=True)
+        except Exception:
+            logger.error("Could not recompute arguments for keys of '%s'",
+                         self.expurl, exc_info=True)
             return
-        argument = self.manager.get_submission_arguments(self.expurl)[name]
-
-        procdesc = expdesc["arginfo"][name][0]
-        state = procdesc_to_entry(procdesc).default_state(procdesc)
-        argument["desc"] = procdesc
-        argument["state"] = state
-        self.update_argument(name, argument)
+        for name in keys:
+            argument = self.manager.get_submission_arguments(self.expurl)[name]
+            try:
+                procdesc = expdesc["arginfo"][name][0]
+            except KeyError:
+                logging.warning(f"Default value for {name} is missing")
+                continue
+            state = procdesc_to_entry(procdesc).default_state(procdesc)
+            argument["desc"] = procdesc
+            if update:
+                argument["state"] = state
+            self.update_argument(name, argument)
         self.dock.apply_window_color()
 
     def apply_color(self, color):
@@ -565,6 +583,10 @@ class ExperimentManager:
             main_window)
         quick_open_shortcut.setContext(QtCore.Qt.ShortcutContext.ApplicationShortcut)
         quick_open_shortcut.activated.connect(self.show_quick_open)
+
+    def update_open_experiments_defaults(self):
+        for experiment in self.open_experiments.values():
+            experiment.argeditor.update_defaults()
 
     def set_dataset_model(self, model):
         self.datasets = model
