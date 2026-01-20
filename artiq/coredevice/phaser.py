@@ -55,6 +55,13 @@ PHASER_ADDR_SERVO_DATA_BASE = 0x32
 PHASER_ADDR_MIQRO_MEM_ADDR = 0x72
 PHASER_ADDR_MIQRO_MEM_DATA = 0x74
 
+# ADC0 readout 0x79-0x7a
+# ADC1 readout 0x7b-0x7c
+PHASER_ADDR_ADC0_lo = 0x79
+PHASER_ADDR_ADC0_hi = 0x7a
+PHASER_ADDR_ADC1_lo = 0x7b
+PHASER_ADDR_ADC1_hi = 0x7c
+
 # Miqro profile memory select
 PHASER_MIQRO_SEL_PROFILE = 1 << 14
 
@@ -844,6 +851,38 @@ class Phaser:
         self.dac_write(0x09, (config9 & 0x1fff) | (best << 13))
         return best
 
+    @kernel
+    def read_adc_raw(self, channel) -> TInt32:
+        """Read a sample from the specified ADC channel.
+        Use with convert_adc_voltage(self, raw, v_ref) to get voltage in Volts.
+        :param channel: ADC channel (0 or 1)
+        :return: ADC sample (16-bit raw two's complement integer)
+        """
+        if channel == 0:
+            lo = self.read8(PHASER_ADDR_ADC0_lo)
+            delay(20*us)  # slack
+            hi = self.read8(PHASER_ADDR_ADC0_hi)
+        elif channel == 1:
+            lo = self.read8(PHASER_ADDR_ADC1_lo)
+            delay(20*us)  # slack
+            hi = self.read8(PHASER_ADDR_ADC1_hi)
+        else:
+            raise ValueError("invalid ADC channel")
+        
+        raw = (hi << 8) | lo
+        return raw
+
+    def convert_adc_voltage(self, raw, gain=0, v_ref=4.096) -> float:
+        """Convert ADC sample to voltage.
+        16-bit ADC with full scale range of +-1 V.
+        :param raw: Raw ADC sample (16-bit twos complement integer)
+        :param v_ref: reference voltage in Volts (default 4.096 V), full range is +-v_ref
+        :return: Voltage in Volts
+        """
+        assert v_ref > 0, "v_ref must be positive"
+        if raw & (1 << 15) != 0:
+            raw = raw - (1 << 16)
+        return (4.096 * raw / 0x7FFF) * (5 / 2) * (10 ** (gain))
 
 class PhaserChannel:
     """Phaser channel IQ pair.
