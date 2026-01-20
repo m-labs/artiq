@@ -131,30 +131,43 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
         self.manager = manager
         self.expurl = expurl
+        self.scheduling = manager.get_submission_scheduling(expurl)
+        self.options = manager.get_submission_options(expurl)
+        self.hdf5_load_directory = os.path.expanduser("~")
 
-        editor_class = self.manager.get_argument_editor_class(expurl)
+        self._create_argument_editor()
+        self._create_due_date_widgets()
+        self._create_pipeline_widgets()
+        self._create_priority_widgets()
+        self._create_flush_widgets()
+        self._create_devarg_override_widgets()
+        self._create_log_level_widgets()
+        self._create_repo_rev_widgets()
+        self._create_submit_widgets()
+        self._create_reqterm_widgets()
+
+    def _create_argument_editor(self):
+        editor_class = self.manager.get_argument_editor_class(self.expurl)
         self.argeditor = editor_class(self.manager, self, self.expurl)
         self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
         self.layout.setRowStretch(0, 1)
 
-        scheduling = manager.get_submission_scheduling(expurl)
-        options = manager.get_submission_options(expurl)
-
+    def _create_due_date_widgets(self):
         datetime = QtWidgets.QDateTimeEdit()
         datetime.setDisplayFormat("MMM d yyyy hh:mm:ss")
         datetime_en = QtWidgets.QCheckBox("Due date:")
         self.layout.addWidget(datetime_en, 1, 0)
         self.layout.addWidget(datetime, 1, 1)
 
-        if scheduling["due_date"] is None:
+        if self.scheduling["due_date"] is None:
             datetime.setDate(QtCore.QDate.currentDate())
         else:
             datetime.setDateTime(QtCore.QDateTime.fromMSecsSinceEpoch(
-                int(scheduling["due_date"] * 1000)))
-        datetime_en.setChecked(scheduling["due_date"] is not None)
+                int(self.scheduling["due_date"] * 1000)))
+        datetime_en.setChecked(self.scheduling["due_date"] is not None)
 
         def update_datetime(dt):
-            scheduling["due_date"] = dt.toMSecsSinceEpoch() / 1000
+            self.scheduling["due_date"] = dt.toMSecsSinceEpoch() / 1000
             datetime_en.setChecked(True)
         datetime.dateTimeChanged.connect(update_datetime)
 
@@ -163,44 +176,47 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
                 due_date = datetime.dateTime().toMSecsSinceEpoch() / 1000
             else:
                 due_date = None
-            scheduling["due_date"] = due_date
+            self.scheduling["due_date"] = due_date
         datetime_en.stateChanged.connect(update_datetime_en)
 
+    def _create_pipeline_widgets(self):
         self.pipeline_name = QtWidgets.QLineEdit()
         pipeline_name = self.pipeline_name
         self.layout.addWidget(QtWidgets.QLabel("Pipeline:"), 1, 2)
         self.layout.addWidget(pipeline_name, 1, 3)
 
-        pipeline_name.setText(scheduling["pipeline_name"])
+        pipeline_name.setText(self.scheduling["pipeline_name"])
 
         def update_pipeline_name(text):
-            scheduling["pipeline_name"] = text
+            self.scheduling["pipeline_name"] = text
         pipeline_name.textChanged.connect(update_pipeline_name)
 
+    def _create_priority_widgets(self):
         self.priority = QtWidgets.QSpinBox()
         priority = self.priority
         priority.setRange(-99, 99)
         self.layout.addWidget(QtWidgets.QLabel("Priority:"), 2, 0)
         self.layout.addWidget(priority, 2, 1)
-
-        priority.setValue(scheduling["priority"])
+        priority.setValue(self.scheduling["priority"])
 
         def update_priority(value):
-            scheduling["priority"] = value
+            self.scheduling["priority"] = value
         priority.valueChanged.connect(update_priority)
 
+    def _create_flush_widgets(self):
         self.flush = QtWidgets.QCheckBox("Flush")
         flush = self.flush
         flush.setToolTip("Flush the pipeline (of current- and higher-priority "
                          "experiments) before starting the experiment")
         self.layout.addWidget(flush, 2, 2)
 
-        flush.setChecked(scheduling["flush"])
+        flush.setChecked(self.scheduling["flush"])
 
         def update_flush(checked):
-            scheduling["flush"] = bool(checked)
+            self.scheduling["flush"] = bool(checked)
         flush.stateChanged.connect(update_flush)
 
+    def _create_devarg_override_widgets(self):
         devarg_override = QtWidgets.QComboBox()
         devarg_override.setEditable(True)
         devarg_override.lineEdit().setPlaceholderText("Override device arguments")
@@ -208,13 +224,14 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         devarg_override.insertItem(1, "core:report_invariants=true")
         self.layout.addWidget(devarg_override, 2, 3)
 
-        devarg_override.setCurrentText(options["devarg_override"])
+        devarg_override.setCurrentText(self.options["devarg_override"])
 
         def update_devarg_override(text):
-            options["devarg_override"] = text
+            self.options["devarg_override"] = text
         devarg_override.editTextChanged.connect(update_devarg_override)
         self.devarg_override = devarg_override
 
+    def _create_log_level_widgets(self):
         log_level = QtWidgets.QComboBox()
         log_level.addItems(log_levels)
         log_level.setCurrentIndex(1)
@@ -225,14 +242,15 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.layout.addWidget(log_level, 3, 1)
 
         log_level.setCurrentIndex(log_levels.index(
-            log_level_to_name(options["log_level"])))
+            log_level_to_name(self.options["log_level"])))
 
         def update_log_level(index):
-            options["log_level"] = getattr(logging, log_level.currentText())
+            self.options["log_level"] = getattr(logging, log_level.currentText())
         log_level.currentIndexChanged.connect(update_log_level)
         self.log_level = log_level
 
-        if "repo_rev" in options:
+    def _create_repo_rev_widgets(self):
+        if "repo_rev" in self.options:
             repo_rev = QtWidgets.QLineEdit()
             repo_rev.setPlaceholderText("current")
             repo_rev.setClearButtonEnabled(True)
@@ -243,17 +261,18 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
             self.layout.addWidget(repo_rev_label, 3, 2)
             self.layout.addWidget(repo_rev, 3, 3)
 
-            if options["repo_rev"] is not None:
-                repo_rev.setText(options["repo_rev"])
+            if self.options["repo_rev"] is not None:
+                repo_rev.setText(self.options["repo_rev"])
 
             def update_repo_rev(text):
                 if text:
-                    options["repo_rev"] = text
+                    self.options["repo_rev"] = text
                 else:
-                    options["repo_rev"] = None
+                    self.options["repo_rev"] = None
             repo_rev.textChanged.connect(update_repo_rev)
             self.repo_rev = repo_rev
 
+    def _create_submit_widgets(self):
         submit = QtWidgets.QPushButton("Submit")
         submit.setIcon(QtWidgets.QApplication.style().standardIcon(
                 QtWidgets.QStyle.StandardPixmap.SP_DialogOkButton))
@@ -264,6 +283,17 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.layout.addWidget(submit, 1, 4, 2, 1)
         submit.clicked.connect(self.submit_clicked)
 
+    def submit_clicked(self):
+        self.argeditor.about_to_submit()
+        try:
+            self.manager.submit(self.expurl)
+        except Exception:
+            # May happen when experiment has been removed
+            # from repository/explist
+            logger.error("Failed to submit '%s'",
+                         self.expurl, exc_info=True)
+
+    def _create_reqterm_widgets(self):
         reqterm = QtWidgets.QPushButton("Terminate instances")
         reqterm.setIcon(QtWidgets.QApplication.style().standardIcon(
                 QtWidgets.QStyle.StandardPixmap.SP_DialogCancelButton))
@@ -274,22 +304,10 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.layout.addWidget(reqterm, 3, 4)
         reqterm.clicked.connect(self.reqterm_clicked)
 
-        self.hdf5_load_directory = os.path.expanduser("~")
-
-    def submit_clicked(self):
-        self.argeditor.about_to_submit()
-        try:
-            self.manager.submit(self.expurl)
-        except:
-            # May happen when experiment has been removed
-            # from repository/explist
-            logger.error("Failed to submit '%s'",
-                         self.expurl, exc_info=True)
-
     def reqterm_clicked(self):
         try:
             self.manager.request_inst_term(self.expurl)
-        except:
+        except Exception:
             # May happen when experiment has been removed
             # from repository/explist
             logger.error("Failed to request termination of instances of '%s'",
@@ -393,11 +411,11 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
             return
         sched_defaults = expdesc["scheduler_defaults"]
 
-        scheduling = self.manager.get_submission_scheduling(self.expurl)
-        scheduling.update(sched_defaults)
-        self.priority.setValue(scheduling["priority"])
-        self.pipeline_name.setText(scheduling["pipeline_name"])
-        self.flush.setChecked(scheduling["flush"])
+        self.scheduling = self.manager.get_submission_scheduling(self.expurl)
+        self.scheduling.update(sched_defaults)
+        self.priority.setValue(self.scheduling["priority"])
+        self.pipeline_name.setText(self.scheduling["pipeline_name"])
+        self.flush.setChecked(self.scheduling["flush"])
 
     def _load_hdf5_clicked(self):
         asyncio.ensure_future(self._load_hdf5_task())
