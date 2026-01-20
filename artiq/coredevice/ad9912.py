@@ -24,9 +24,13 @@ class AD9912:
     :param pll_n: DDS PLL multiplier. The DDS sample clock is
         ``f_ref / clk_div * pll_n`` where ``f_ref`` is the reference frequency and 
         ``clk_div`` is the reference clock divider (both set in the parent 
-        Urukul CPLD instance).
+        Urukul CPLD instance). For ``f_ref`` below 11MHz, 
+        internal SYSCLK PLL doubler is used, and ``pll_n`` must be halved.
     :param pll_en: PLL enable bit, set to 0 to bypass PLL (default: 1).
         Note that when bypassing the PLL the red front panel LED may remain on.
+
+    .. note:: For other than default ``f_ref``, onboard loop filter may be not optimal
+        and requires hardware changes, according to the AD9912 datasheet.
     """
 
     def __init__(self, dmgr, chip_select, cpld_device, sw_device=None,
