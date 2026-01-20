@@ -744,8 +744,6 @@ def decoded_dump_to_target(manager, devices, dump, uniform_interval):
         interval = manager.get_channel("interval", 64, ty=WaveformType.ANALOG)
     slack = manager.get_channel("rtio_slack", 64, ty=WaveformType.ANALOG)
 
-    stopped_messages = []
-
     manager.set_time(0)
     start_time = 0
     for m in messages:
@@ -755,27 +753,22 @@ def decoded_dump_to_target(manager, devices, dump, uniform_interval):
     if not uniform_interval:
         manager.set_start_time(start_time)
     t0 = start_time
+    end_time = start_time
     for i, message in enumerate(messages):
-        if isinstance(message, StoppedMessage):
-            stopped_messages.append(message)
-            logger.debug(f"StoppedMessage at {get_message_time(message)}")
-        elif message.channel in channel_handlers:
-            t = get_message_time(message)
-            if t >= 0:
-                if uniform_interval:
-                    interval.set_value_double((t - t0)*ref_period)
-                    manager.set_time(i)
-                    timestamp.set_value("{:064b}".format(t))
-                    t0 = t
-                else:
-                    manager.set_time(t)
-            channel_handlers[message.channel].process_message(message)
-            if isinstance(message, OutputMessage):
-                slack.set_value_double(
-                    (message.timestamp - message.rtio_counter)*ref_period)
-
-    if not stopped_messages:
-        logger.warning("StoppedMessage missing")
-    else:
-        end_time = get_message_time(stopped_messages[-1])
-        manager.set_end_time(end_time)
+        if not isinstance(message, StoppedMessage):
+            end_time = max(end_time, get_message_time(message))
+            if message.channel in channel_handlers:
+                t = get_message_time(message)
+                if t >= 0:
+                    if uniform_interval:
+                        interval.set_value_double((t - t0)*ref_period)
+                        manager.set_time(i)
+                        timestamp.set_value("{:064b}".format(t))
+                        t0 = t
+                    else:
+                        manager.set_time(t)
+                channel_handlers[message.channel].process_message(message)
+                if isinstance(message, OutputMessage):
+                    slack.set_value_double(
+                        (message.timestamp - message.rtio_counter)*ref_period)
+    manager.set_end_time(end_time)
